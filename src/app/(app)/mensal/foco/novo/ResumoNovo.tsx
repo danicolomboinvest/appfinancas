@@ -26,7 +26,7 @@ const nome = (m: Mes) => MESES[m.mes - 1];
 const BOTAO = "inline-flex min-h-11 items-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent";
 
 /**
- * O Resumo novo (proposta de 14/10/2026), só com ?resumo=novo: um número grande e até 3 blocos.
+ * O Resumo novo (proposta de 14/10/2026, para todos desde 15/10): um número grande e até 3 blocos.
  * O número é o que o dado dela diz com certeza (ver regras.ts); os blocos são UMA sugestão, as 4
  * categorias que mais mudaram e a linha da semana. Os próximos meses ficam abaixo da dobra.
  * Saem daqui o "Faltou", o gráfico de 6 meses e o Money Reset (continuam nos lugares deles); as
@@ -98,7 +98,7 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
         {/* Bloco 3: a semana numa linha. */}
         {(r.caso === "dia-a-dia" || r.caso === "mes-fechado") && <LinhaDaSemana r={r} money={m} />}
         {/* Abaixo da dobra: os próximos meses (parcelas, contas e assinaturas contra a renda média). */}
-        {proximos.length > 0 && <ProximosMeses meses={proximos} money={m} href={(p) => `/mensal/foco?mes=${paraParametro(p)}&resumo=novo&cor=${cor}`} />}
+        {proximos.length > 0 && <ProximosMeses meses={proximos} money={m} href={(p) => `/mensal/foco?mes=${paraParametro(p)}${cor !== "a" ? `&cor=${cor}` : ""}`} />}
       </div>
     </div>
   );
@@ -171,8 +171,9 @@ function LinhaDaSemana({ r, money }: { r: Dados; money: (v: number) => string })
       </ContaDoLivre>
       <span className="px-2.5 pb-2 text-[12.5px] text-ink-muted">
         {r.dataDoDado} ·{" "}
+        {/* "atualizar" sozinho não dizia o quê (15/10/2026): o número só fica certo com o extrato novo. */}
         <Link href={ENVIAR} className="font-semibold text-ink underline underline-offset-2">
-          atualizar
+          mandar extrato novo
         </Link>
       </span>
     </Card>

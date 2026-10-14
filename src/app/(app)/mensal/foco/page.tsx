@@ -66,9 +66,10 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
     const [[previsto], moneyP] = await Promise.all([carregarMesesPrevistos(ctx, mesDeAgora(agora), escolhido, 1), serverMoney()]);
     return <MesPrevistoNaTela m={previsto} money={(v) => moneyP(v, { round: true })} />;
   }
-  // O Resumo novo (proposta de 14/10/2026) fica atrás da chave ?resumo=novo, desligado para todos.
-  // ?cor=a|b|c troca só a cor do bloco principal, para a comparação.
-  if (um(busca.resumo) === "novo" && !outroMes) {
+  // O Resumo novo (proposta de 14/10/2026) vale para todos desde 15/10 (a Dani escolheu a cor A,
+  // a de hoje). ?resumo=antigo ainda abre o de antes, por um tempo, para comparar.
+  // ?cor=a|b|c troca só a cor do bloco principal.
+  if (um(busca.resumo) !== "antigo" && !outroMes) {
     const cor: CorDoHeroi = um(busca.cor) === "b" ? "b" : um(busca.cor) === "c" ? "c" : "a";
     // Para a foto dos dias 1 a 7 no banco local: ?hoje=AAAA-MM-DD só vale com a variável ligada.
     const hojeTexto = um(busca.hoje);
