@@ -131,13 +131,13 @@ function LinhaDaParcela({ p, hoje, onEditar }: { p: ParcelaDoMes; hoje: Mes; onE
 }
 
 function Contador({ rotulo, valor, min, max, onChange }: { rotulo: string; valor: number; min: number; max: number; onChange: (v: number) => void }) {
-  const botao = "flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink disabled:opacity-40";
+  const botao = "flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink disabled:opacity-40";
   return (
-    <div className="flex items-center gap-1.5" role="group" aria-label={rotulo}>
+    <div className="flex items-center gap-1" role="group" aria-label={rotulo}>
       <button type="button" className={botao} disabled={valor <= min} onClick={() => onChange(valor - 1)} aria-label={`Menos ${rotulo}`}>
         <Minus size={16} strokeWidth={2} aria-hidden />
       </button>
-      <span className="w-7 text-center text-[20px] font-semibold tabular-nums text-ink" aria-live="polite">
+      <span className="w-7 text-center text-[19px] font-semibold tabular-nums text-ink" aria-live="polite">
         {valor}
       </span>
       <button type="button" className={botao} disabled={valor >= max} onClick={() => onChange(valor + 1)} aria-label={`Mais ${rotulo}`}>
@@ -201,7 +201,7 @@ function EditarParcela({ p, hoje, rotulos, onFeito }: { p: ParcelaDoMes; hoje: M
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <span className="text-[15px] text-ink">Parcela</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Contador
               rotulo="parcela deste mês"
               valor={atual}
