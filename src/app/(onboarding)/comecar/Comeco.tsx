@@ -2,7 +2,6 @@
 
 import { ACEITA_ARQUIVO_DE_EXTRATO } from "@/lib/import/limites";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Building2, Check, ChevronDown, ChevronLeft, Delete, FileText, Globe, Keyboard, Mail, Mic, Search, ShieldCheck, Wallet, X } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { BrandMark } from "@/components/brand/BrandMark";
@@ -48,6 +47,15 @@ import { BotaoPrincipal, LinkDiscreto, Nota, Pe, Pilula, Recado, Selo, Titulo } 
 /** E-mail do "Fale com a gente" (pendência 5.1.13: a recomendação é o e-mail do app). */
 export const EMAIL_FALE_COM_A_GENTE = "app@danicolombo.com.br";
 
+/**
+ * A saída do começo para a Visão geral, com a página carregada de novo: o roteador do cliente
+ * guardava o "manda para o /comecar" de quando a conta ainda não tinha terminado o começo, e quem
+ * digitava o primeiro gasto em menos de 30 segundos voltava para as boas-vindas.
+ */
+function irParaAVisaoGeral() {
+  window.location.replace("/mensal/foco");
+}
+
 function registrar(evento: EventoDoComeco, detalhe?: string | null) {
   trackEvent(evento, caminhoDoEvento(evento, detalhe));
 }
@@ -74,7 +82,6 @@ export function Comeco({
   nomeDaConta: string | null;
   moedaAtual: CurrencyCode;
 }) {
-  const router = useRouter();
   const money = useMoney();
   const [passo, setPasso] = useState<PassoDoComeco>(passoInicial);
   const [direcao, setDirecao] = useState<1 | -1 | 0>(0);
@@ -104,9 +111,9 @@ export function Comeco({
     registrar(EVENTOS_DO_COMECO.pulou, passo);
     startSaida(async () => {
       await pularComecoAction(passo).catch(() => {});
-      router.replace("/mensal/foco");
+      irParaAVisaoGeral();
     });
-  }, [passo, router]);
+  }, [passo]);
 
   const anterior = passoAnterior(passo);
   const barra = barraDoPasso(passo);
@@ -139,7 +146,7 @@ export function Comeco({
       <main key={passo} className={`mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-[calc(var(--safe-bottom,0px)+20px)] pt-2 ${direcao !== 0 ? "passo-entra" : ""}`}>
         {passo === "b1" && <BoasVindas1 onSeguir={() => ir("porta")} money={money} />}
 
-        {pronto && <Confirmacao {...pronto} onSeguir={() => router.replace("/mensal/foco")} />}
+        {pronto && <Confirmacao {...pronto} onSeguir={() => irParaAVisaoGeral()} />}
         {!pronto && passo === "porta" && (
           <Porta
             moedaAtual={moedaAtual}
@@ -186,7 +193,7 @@ export function Comeco({
               startSaida(async () => {
                 await terminarComExtratoAction({ mes, revisou, banco }).catch(() => {});
                 // Direto para o mês dela: a Visão geral abre com "Esse é o seu setembro".
-                router.replace("/mensal/foco");
+                irParaAVisaoGeral();
               });
             }}
             onOutroArquivo={() => ir("tutorial", -1)}
