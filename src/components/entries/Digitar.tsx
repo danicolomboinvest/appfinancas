@@ -14,7 +14,7 @@ import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/me
 import { NovaCategoria } from "./NovaCategoria";
 import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclar } from "@/lib/entries/digitar";
+import { chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclar, textoDoRepetir } from "@/lib/entries/digitar";
 import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
 import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
@@ -341,7 +341,7 @@ export function Digitar({
         {cartaoComLimite && ehGasto && linhaSw("No cartão de crédito", noCartao, () => setNoCartao((v) => !v))}
         {linhaSw("Repetir todo mês", repetir, () => setRepetir((v) => !v))}
       </div>
-      {repetir && <p className="-mt-1 text-sm text-ink-muted">Vai aparecer em Recorrentes</p>}
+      {repetir && <p className="-mt-1 text-sm text-ink-muted">{textoDoRepetir(dataDoChip(chip, hoje))}</p>}
 
       <details open={mais} onToggle={(e) => setMais((e.target as HTMLDetailsElement).open)} className="group rounded-2xl border border-border bg-surface">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-[15px] text-ink [&::-webkit-details-marker]:hidden">

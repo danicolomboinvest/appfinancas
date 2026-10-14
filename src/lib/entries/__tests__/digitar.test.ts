@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chipDaFala, dataDoChip, faltaParaSalvar, MAX_CENTAVOS, paraDecimal, teclar } from "../digitar";
+import { chipDaFala, dataDoChip, faltaParaSalvar, MAX_CENTAVOS, textoDoRepetir, paraDecimal, teclar } from "../digitar";
 
 describe("Digitar: o teclado da folha", () => {
   it("monta o valor em centavos, como numa maquininha", () => {
@@ -41,4 +41,10 @@ describe("o dia dito na fala", () => {
   it("ontem é o chip Ontem", () => expect(chipDaFala("ontem", hoje)).toBe("ontem"));
   it("anteontem vira a data", () => expect(chipDaFala("anteontem", hoje)).toBe("2026-10-12"));
   it("anteontem no dia 1 volta para o mês anterior", () => expect(chipDaFala("anteontem", new Date(2026, 10, 1, 10))).toBe("2026-10-30"));
+});
+
+describe("o que o Repetir todo mês faz, dito na tela", () => {
+  it("outubro: novembro a dezembro", () => expect(textoDoRepetir("2026-10-14")).toBe("Lança também de novembro a dezembro."));
+  it("novembro: só dezembro também", () => expect(textoDoRepetir("2026-11-02")).toBe("Lança também em dezembro."));
+  it("dezembro: só este mês", () => expect(textoDoRepetir("2026-12-05")).toBe("Em dezembro, fica só este mês."));
 });

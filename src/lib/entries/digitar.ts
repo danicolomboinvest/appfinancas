@@ -44,3 +44,18 @@ export function chipDaFala(quando: "ontem" | "anteontem" | undefined, hoje: Date
   }
   return "hoje";
 }
+
+const MESES_POR_EXTENSO = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+/**
+ * A linha embaixo de "Repetir todo mês" (14/10/2026). Dizia "Vai aparecer em Recorrentes", mas o
+ * app lança o mesmo valor em cada mês até dezembro, e nada aparece em Recorrentes. Agora diz o
+ * que acontece. `data` = "AAAA-MM-DD" do lançamento.
+ */
+export function textoDoRepetir(data: string): string {
+  const mes = Number(data.slice(5, 7));
+  if (!(mes >= 1 && mes <= 12)) return "Lança também nos próximos meses, até dezembro.";
+  if (mes === 12) return "Em dezembro, fica só este mês.";
+  if (mes === 11) return "Lança também em dezembro.";
+  return `Lança também de ${MESES_POR_EXTENSO[mes]} a dezembro.`;
+}
