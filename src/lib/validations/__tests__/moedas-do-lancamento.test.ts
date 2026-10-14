@@ -6,7 +6,7 @@ import { CURRENCY_CODES } from "@/lib/money";
 const base = { year: "2026", month: "10", amount: "15000.00", description: "", subcategory: "Salário", entryDate: "2026-10-12" };
 
 describe("lançamento em qualquer moeda do app (cliente em Israel, 12/10/2026)", () => {
-  for (const moeda of ["ILS", "USD", "EUR", "BRL", "GBP"]) {
+  for (const moeda of ["ILS", "USD", "EUR", "BRL", "GBP", "ARS"]) {
     it(`entrada e gasto em ${moeda} passam na validação`, () => {
       expect(monthlyEntrySchema.safeParse({ ...base, category: "INCOME", currency: moeda }).success).toBe(true);
       expect(monthlyEntrySchema.safeParse({ ...base, category: "EXPENSE", parentCategory: "LAZER", currency: moeda }).success).toBe(true);

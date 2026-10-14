@@ -25,11 +25,13 @@ const SPOKEN_CURRENCY: { code: CurrencyCode; pattern: RegExp }[] = [
   { code: "GBP", pattern: /£|\blibras?\b/ },
   // Quem mora em Israel (12/10/2026): "50 shekels", "₪ 50", "50 sheqel", "50 nis".
   { code: "ILS", pattern: /₪|\b(?:shekels?|sheqels?|shequels?|chekels?|siclos?|nis|ils)\b/ },
+  // Argentina (14/10/2026): "500 pesos", "AR$ 500", "500 pesos argentinos".
+  { code: "ARS", pattern: /ar\$|\bpesos?(?: argentinos?)?\b|\bars\b/ },
   { code: "BRL", pattern: /\breais?\b|r\$/ },
 ];
 
 /** Palavras de dinheiro que ancoram um número ("45 reais", "2 mil euros"). */
-const MONEY_WORDS = "reais?|contos?|euros?|dolar(?:es)?|libras?|shekels?|sheqels?|shequels?|chekels?|siclos?|nis";
+const MONEY_WORDS = "reais?|contos?|euros?|dolar(?:es)?|libras?|shekels?|sheqels?|shequels?|chekels?|siclos?|nis|pesos?";
 
 function extractCurrency(normalized: string): CurrencyCode | null {
   return SPOKEN_CURRENCY.find((c) => c.pattern.test(normalized))?.code ?? null;

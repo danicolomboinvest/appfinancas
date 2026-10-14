@@ -159,6 +159,8 @@ describe("voz com shekel (cliente em Israel, 12/10/2026)", () => {
     expect(a.category).toBe("INCOME");
     expect(parseVoiceEntry("₪ 50 no mercado")).toMatchObject({ amount: 50, currency: "ILS" });
     expect(parseVoiceEntry("gastei 80 sheqel no uber")).toMatchObject({ amount: 80, currency: "ILS" });
+    expect(parseVoiceEntry("gastei 500 pesos no mercado")).toMatchObject({ amount: 500, currency: "ARS" });
+    expect(parseVoiceEntry("AR$ 1200 de taxi")).toMatchObject({ amount: 1200, currency: "ARS" });
     expect(parseVoiceEntry("mercado 120")).toMatchObject({ amount: 120, currency: null });
   });
   it("continua entendendo dólar e euro", () => {

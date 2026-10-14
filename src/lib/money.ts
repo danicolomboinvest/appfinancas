@@ -18,6 +18,9 @@ export const CURRENCIES = {
   EUR: { label: "Euro", symbol: "€" },
   GBP: { label: "Libra", symbol: "£" },
   ILS: { label: "Shekel", symbol: "₪" },
+  // Quem mora na Argentina (14/10/2026, pedido da Dani). "AR$" e não "$": o "$" solto confunde
+  // com o dólar e com o real.
+  ARS: { label: "Peso argentino", symbol: "AR$" },
 } as const;
 
 /** Ordem dos seletores de moeda: a do Brasil primeiro, depois as mais comuns de quem mora fora. */
