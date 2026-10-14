@@ -33,6 +33,19 @@ describe("conferirLeitura: fatura", () => {
     expect(conferirLeitura("Total da fatura R$ 7.590,00", "fatura", [t(5000)])).toEqual({ status: "nao-fechou", lido: 5000, esperado: 7590 });
   });
 
+  it("fatura já paga ('Total a pagar R$ 0,00'): o mês é anterior − pagamento, e fecha (Nubank)", () => {
+    const texto = [
+      "Fatura anterior R$ 1.000,00",
+      "Pagamento recebido −R$ 1.950,00",
+      "Total de compras de todos os cartões, 04 SET a 04 OUT R$ 1.000,00",
+      "Outros lançamentos −R$ 50,00",
+      "Total a pagar R$ 0,00",
+    ].join("\n");
+    // 1.000 de compras, 80 de estorno: 30 dentro do "Total de compras", 50 em "Outros lançamentos".
+    const r = conferirLeitura(texto, "fatura", [t(600), t(430), t(-80, "Estorno de LOJA")]);
+    expect(r).toMatchObject({ status: "fechou", esperado: 950 });
+  });
+
   it("fatura sem total impresso: não dá pra conferir", () => {
     expect(conferirLeitura("sem total nenhum", "fatura", [t(10)]).status).toBe("sem-referencia");
   });

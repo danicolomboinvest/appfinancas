@@ -29,6 +29,11 @@ const QUADRO_LIMITE_RE = /^(compras|saques?|saque\s+parcelado|compras\s+parcelad
 /** Testa a linha inteira (descrição E data) contra o padrão de resumo: faturas com várias
  * seções (pagamentos/créditos/compras) repetem o cabeçalho de coluna, e o subtotal entre
  * seções acaba caindo na coluna de data (ex.: BTG), não na de descrição. */
+/** "4606724814 02/02": código do lojista (sem barra nem traço) e, no fim, a parcela. */
+function pareceCompraSoComCodigo(descricao: string): boolean {
+  return /^\d{4,14}(?:\s+\d{2}\/\d{2})?$/.test(descricao.trim());
+}
+
 export function isFaturaSummaryLine(txn: ParsedTransaction): boolean {
   if (FATURA_SUMMARY_RE.test(txn.description) || FATURA_SUMMARY_RE.test(txn.date)) return true;
   if (FATURA_PAGAMENTO_RE.test(txn.description)) return true;
@@ -37,7 +42,9 @@ export function isFaturaSummaryLine(txn: ParsedTransaction): boolean {
   if (/^(\d{1,4}\s+)?pagamentos?$/i.test(txn.description.trim())) return true;
   // "2525/0004841-5 175/04314114-1": a linha digitável do boleto de pagamento da fatura, sem
   // nenhuma letra — nunca é o nome de um estabelecimento, então nunca é uma compra de verdade.
-  if (/^[\d\s./-]+$/.test(txn.description)) return true;
+  // Mas compra online sem nome, só com o código do lojista e a parcela ("4606724814 02/02", Sicredi
+  // 13/10/2026), também é só dígito: ela é curta e termina na parcela, e ficava de fora da fatura.
+  if (/^[\d\s./-]+$/.test(txn.description) && !pareceCompraSoComCodigo(txn.description)) return true;
   return false;
 }
 

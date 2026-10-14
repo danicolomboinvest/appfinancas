@@ -107,3 +107,34 @@ describe("fatura do cartão do Banco Inter (PDF)", () => {
     expect(detectInvoiceTotal(INTER_FATURA)).toBe(250);
   });
 });
+
+describe("fatura do Inter: compra no exterior (dados inventados, layout de 13/10/2026)", () => {
+  it("o valor em reais vem sozinho depois da moeda e da cotação, e entra", () => {
+    const texto = [
+      "Despesas da fatura",
+      "CARTÃO 0000****1111",
+      "Data \tMovimentação \tBeneficiário \tValor",
+      "29 de ago. 2026 LOJA EXEMPLO \t- \tR$ 32,00",
+      "01 de set. 2026 LOJA DE BRINQUEDOS",
+      "Valor e símbolo da moeda de origem: 100,00 USD",
+      "Valor em dólar americano: $ 100,00",
+      "Cotação do dólar americano: R$ 5,4100",
+      "- \tR$ 541,00",
+      "02 de set. 2026 PADARIA EXEMPLO \t- \tR$ 12,50",
+      "11 de set. 2026 ESTORNO EXEMPLO \t- \t+ R$ 10,00",
+      "Total CARTÃO 0000****1111 \tR$ 575,50",
+    ].join("\n");
+    expect(isInterInvoice(texto)).toBe(true);
+    expect(parseInterInvoice(texto).map((t) => [t.date, t.description, t.amount])).toEqual([
+      ["2026-08-29", "LOJA EXEMPLO", 32],
+      ["2026-09-01", "LOJA DE BRINQUEDOS", 541],
+      ["2026-09-02", "PADARIA EXEMPLO", 12.5],
+      ["2026-09-11", "ESTORNO EXEMPLO", -10],
+    ]);
+  });
+
+  it("linha de data sem valor seguida de outra coisa não pega valor de longe", () => {
+    const texto = ["Despesas da fatura", "CARTÃO 0000****1111", "01 de set. 2026 LOJA", "Total CARTÃO 0000****1111", "- \tR$ 541,00"].join("\n");
+    expect(parseInterInvoice(texto)).toEqual([]);
+  });
+});

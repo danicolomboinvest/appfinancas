@@ -27,8 +27,25 @@ const LINHA_RE = new RegExp(
 );
 const SALDO_ANTERIOR_RE = new RegExp(String.raw`SALDO\s+ANTERIOR\s+R?\$?\s*(${MONEY})\s*([CD])`, "i");
 
+/** "Extrato por período" e também o "Extrato da conta" (o do dia, com "Lançamentos do dia" em
+ * cima e os anteriores embaixo): mesma linha, mesmo saldo depois de cada lançamento. */
 export function isCaixaOcrStatement(texto: string): boolean {
-  return veioDeImagem(texto) && /Extrato\s+por\s+per[ií]odo/i.test(texto) && SALDO_ANTERIOR_RE.test(texto);
+  return veioDeImagem(texto) && /Extrato\s+(?:por\s+per[ií]odo|da\s+conta)/i.test(texto) && SALDO_ANTERIOR_RE.test(texto);
+}
+
+/**
+ * Ruído que o OCR põe entre o valor e o saldo, visto nos extratos reais de 13/10/2026: um traço
+ * solto ("375,45 D — 1.900,00 C", "1.215,68 D —/0,00C"), o "€" grudado no C ("2.717,15C€C") e a
+ * vírgula do saldo lida como espaço ("2.717 15C"). Cada um fazia a linha não casar, e a linha
+ * perdida derrubava a conferência do extrato inteiro.
+ */
+function semRuidoDoOcr(linha: string): string {
+  return linha
+    .replace(/€\s*$/, "C")
+    .replace(/€(?=\s+\d)/g, "C")
+    .replace(/([CD])€[CD]?\s*$/, "$1")
+    .replace(/(\s)[—–][\s/]*(?=\d)/g, "$1")
+    .replace(/(\d{1,3}(?:\.\d{3})*) (\d{2})\s*([CD])\s*$/, "$1,$2 $3");
 }
 
 const num = (s: string): number => {
@@ -73,7 +90,7 @@ export function parseCaixaOcrStatement(texto: string): ParsedTransaction[] {
   for (const bruta of texto.split(/\r?\n/)) {
     // O OCR às vezes lê o "C" do fim da linha como "€" ("47.511,92€"): a linha sumia e a
     // conferência pelo saldo derrubava o extrato inteiro.
-    const limpa = bruta.replace(/€\s*$/, "C").replace(/€(?=\s+\d)/g, "C");
+    const limpa = semRuidoDoOcr(bruta);
     const m = limpa.replace(/[\t ]+/g, (s) => (s.length > 1 || s === "\t" ? "  " : " ")).trim().match(LINHA_RE);
     if (!m) continue;
     const [, dd, mm, aaaa, hora, meio, valorTxt, letraValor, saldoTxt, letraSaldo] = m;
@@ -95,8 +112,12 @@ export function parseCaixaOcrStatement(texto: string): ParsedTransaction[] {
   // O extrato vem do mais novo pro mais antigo; a ordem de conferência é a do tempo. Extrato de um
   // dia só (todas as datas iguais) se ordena pela hora: sem ela a ordem ficava ao contrário e a
   // conferência pelo saldo recusava o arquivo inteiro.
+  // Depois, ordena pela data e hora: o "Extrato da conta" traz os lançamentos do dia ANTES dos
+  // anteriores, e há impressão com os dias em ordem crescente e as horas de cada dia ao contrário.
+  // Fora da ordem do tempo a variação do saldo não fecha e o extrato inteiro era recusado.
   const quando = (l: Linha) => `${l.date} ${l.hora}`;
-  const cronologico = quando(linhas[0]) > quando(linhas[linhas.length - 1]) ? [...linhas].reverse() : linhas;
+  const invertido = quando(linhas[0]) > quando(linhas[linhas.length - 1]) ? [...linhas].reverse() : linhas;
+  const cronologico = [...invertido].sort((a, b) => (quando(a) < quando(b) ? -1 : quando(a) > quando(b) ? 1 : 0));
 
   // 1. Variação do saldo de cada linha, em ordem do tempo.
   let anterior = saldoInicial;

@@ -43,6 +43,9 @@ describe("isFaturaSummaryLine: linhas que não são uma compra de verdade", () =
 
   it("linha digitável de boleto (só dígitos, barras e traços) não é compra", () => {
     expect(isFaturaSummaryLine(txn({ description: "2525/0004841-5 175/04314114-1" }))).toBe(true);
+    // Compra online sem nome, só com o código do lojista e a parcela (Sicredi): é compra.
+    expect(isFaturaSummaryLine(txn({ description: "1234567890 02/02" }))).toBe(false);
+    expect(isFaturaSummaryLine(txn({ description: "1234567890" }))).toBe(false);
   });
 
   it("pagamento da fatura anterior no meio das compras (Nubank e Bradesco em PDF) não é compra", () => {

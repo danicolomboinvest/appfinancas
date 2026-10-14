@@ -185,6 +185,13 @@ export function countMoneyLines(text: string): number {
  */
 export function periodoSemMovimento(text: string): boolean {
   if (/nenhuma movimenta[çc][ãa]o/i.test(text)) return true;
+  // XP/Rico: "Não há lançamentos para o período" (13/10/2026).
+  if (/n[ãa]o h[áa] lan[çc]amentos (?:para|no) (?:o |este )?per[íi]odo/i.test(text)) return true;
+  // Itaú: a lista só tem as linhas de saldo ("12/09/2026 SALDO DO DIA 0,00").
+  if (/^data\s+lan[çc]amentos\s+valor\s*\(R\$\)\s+saldo\s*\(R\$\)/im.test(text)) {
+    const datadas = text.split(/\r?\n/).filter((l) => /^\s*\d{2}\/\d{2}\/\d{4}\s/.test(l));
+    if (datadas.length > 0 && datadas.every((l) => /\bSALDO\b/i.test(l))) return true;
+  }
   if (/<OFX>/i.test(text)) return !/<STMTTRN>/i.test(text);
   const linhas = text.split(/\r?\n/).filter((l) => l.trim());
   return linhas.length === 1 && /[;,\t]/.test(linhas[0]) && !/\d{1,3},\d{2}/.test(linhas[0]);
