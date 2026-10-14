@@ -44,6 +44,7 @@ import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceRes
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
 import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
 import { lidasEmDobro } from "@/lib/import/repetidos";
+import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
 import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
 import { casarComFaturaAberta } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
@@ -166,8 +167,8 @@ export type ParseStats = {
   compras: number;
   /** Veio de prints da fatura ABERTA: parcial, "N compras até hoje" (ver lib/import/print-fatura). */
   faturaAberta?: boolean;
-  /** Prints: compra em moeda estrangeira (US$ 19,00) que a tela não mostra em real. Não foi gravada. */
-  semValorEmReal?: CompraSemValorEmReal[];
+  /** Prints: compra em moeda estrangeira (US$ 19,00) que a tela não mostra em real. Só entra quando ela digita o valor em real na revisão. */
+  semValorEmReal?: CompraParaPreencher[];
 };
 
 export type ParseStatementResult =
@@ -567,7 +568,15 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     mesesDasCompras: [],
     compras: 0,
     faturaAberta: doPrint,
-    ...(dosPrints && dosPrints.semReal.length > 0 ? { semValorEmReal: dosPrints.semReal } : {}),
+    // A categoria sugerida pela mesma regra das outras linhas (a regra dela, a base, o dicionário).
+    ...(dosPrints && dosPrints.semReal.length > 0
+      ? {
+          semValorEmReal: dosPrints.semReal.map((c): CompraParaPreencher => {
+            const sugerida = categoriaDaLinha({ descricao: c.nome, regras: learned, profileKind: ctx.profileKind, gasto: true, estorno: false, personalizadas }).categoria;
+            return { ...c, parentCategory: sugerida?.customCategoryId ? null : (sugerida?.parentCategory ?? null), customCategoryId: sugerida?.customCategoryId ?? null, subcategory: sugerida?.subcategory ?? null };
+          }),
+        }
+      : {}),
   };
   if (docType === "fatura" || detectedKind === "fatura") {
     // A fatura só traz dia/mês: a compra de dezembro na fatura que vence em janeiro volta um ano.
@@ -649,6 +658,9 @@ export type ConfirmedItem = {
   /** A compra que já entrou pelo print da fatura aberta (jaNoApp.faturaAberta): em vez de criar,
    * ela passa para este lote com o valor, o dia e o nome desta linha. Conferido de novo aqui. */
   adotar?: string | null;
+  /** Compra em dólar/euro/libra do print da fatura: o valor de fora, guardado nos campos de outra
+   * moeda do lançamento. `amount` é o valor em real que ela digitou. */
+  moedaDeFora?: { moeda: MoedaDeFora; valor: number } | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -1500,6 +1512,7 @@ export async function importTransactionsAction(
       subcategory: item.subcategory ?? undefined,
       description: item.description,
       amount: valorGravado(item),
+      ...(item.moedaDeFora && moedaDeForaValida(item.moedaDeFora.moeda) ? conversaoDaCompra(item.moedaDeFora, valorGravado(item)) : {}),
       // Extrato e compra à vista da fatura: o dia da transação. Parcela e fatura pelo mês
       // escolhido: sem dia.
       entryDate: dia ? new Date(`${dia}T12:00:00`) : undefined,

@@ -44,6 +44,8 @@ import { FitText } from "@/components/ui/FitText";
 import { Modal } from "@/components/ui/Modal";
 import { MonthPicker } from "@/components/ui/MonthPicker";
 import { Explica } from "@/components/ui/Explica";
+import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
+import { confirmadasDaMoedaDeFora, somaDigitada } from "@/lib/import/moeda-de-fora";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 
 type Phase = "upload" | "password" | "arquivos" | "review" | "confirm" | "done";
@@ -212,6 +214,8 @@ export function StatementImport({
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("upload");
   const [items, setItems] = useState<ReviewItem[]>([]);
+  // Compra em dólar do print: o valor em real que ela digitou, pelo índice em stats.semValorEmReal.
+  const [reaisDoDolar, setReaisDoDolar] = useState<Record<number, number | undefined>>({});
   const [reviewIdx, setReviewIdx] = useState(0);
   const [createdCount, setCreatedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
@@ -480,6 +484,7 @@ export function StatementImport({
   function carregarLeitura(novos: ParseStats, linhas: ReviewItem[], categorias: { id: string; name: string; icon?: string }[]) {
     setStats(novos);
     setItems(linhas);
+    setReaisDoDolar({});
     setCustomCategories(categorias);
     setReviewIdx(0);
     setNaoSei(new Set());
@@ -793,6 +798,8 @@ export function StatementImport({
       if (it.ignorar || !it.jaNoApp?.faturaAberta) continue;
       confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: it.estorno ?? false, resgate: false, adotar: it.jaNoApp.id });
     }
+    // Compra em dólar do print: só entra a que ela preencheu com o valor em real.
+    confirmed.push(...confirmadasDaMoedaDeFora(stats?.semValorEmReal ?? [], reaisDoDolar));
     // Sem mês escolhido, o servidor põe cada compra no mês dela (com o vencimento e o fechamento lidos).
     const [targetYear, targetMonth] = docType === "fatura" && contarNoMes ? faturaMonth.split("-").map(Number) : [undefined, undefined];
     const datasDaFatura = docType === "fatura" ? { vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null } : null;
@@ -1539,7 +1546,8 @@ export function StatementImport({
     // e oferece escolher a categoria já.
     // O que ainda é dúvida (dinheiro dela mesma) ou fica de fora não é "gasto sem categoria".
     const customName = (id: string) => customCategories.find((c) => c.id === id)?.name ?? "Personalizada";
-    const expenseSum = importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0);
+    const doDolar = somaDigitada(reaisDoDolar, stats?.semValorEmReal?.length ?? 0);
+    const expenseSum = Math.round((importable.filter((it) => it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0) + doDolar) * 100) / 100;
     // As perguntas que sobraram ("é o mesmo?", "é dinheiro seu?", as categorias): uma fila só.
     // No começo, depois da rodada das 3, as que sobraram não voltam como pergunta: entram "A conferir".
     const perguntas = comeco?.maxPerguntas && rodadaDoComeco ? [] : filaLimitada(filaDePerguntas(items, naoSei), items, comeco?.maxPerguntas);
@@ -1717,11 +1725,29 @@ export function StatementImport({
                   <span className="mt-1 text-sm text-ink-muted" data-bateu-total>Bateu com o total da fatura</span>
                 )
               ) : null}
-              {aberta && (stats?.semValorEmReal ?? []).map((c, i) => (
-                <span key={`${c.nome}-${i}`} className="mt-1 break-words text-sm text-accent-strong" data-sem-valor-em-real>
-                  {c.nome}, {c.texto}: não entrou, o print não mostra o valor em real.
-                </span>
-              ))}
+              {aberta && (stats?.semValorEmReal ?? []).length > 0 && (
+                <div className="mt-3 flex w-full flex-col gap-3 text-left" data-compras-em-dolar>
+                  {(stats?.semValorEmReal ?? []).map((c, i) => (
+                    <div key={`${c.nome}-${i}`} className="flex flex-col gap-2 rounded-2xl bg-surface p-3" data-sem-valor-em-real>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="min-w-0 break-words text-sm font-medium text-ink">{c.nome}</span>
+                        <span className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-ink">{c.texto}</span>
+                      </div>
+                      <CurrencyInputControlled
+                        id={`dolar-em-real-${i}`}
+                        label="Quanto deu em reais?"
+                        labelExtra={
+                          <Explica rotulo="Como saber o valor em reais">
+                            A cotação do dia aparece no app do banco quando a fatura fecha. Sem o valor, essa compra fica de fora.
+                          </Explica>
+                        }
+                        value={reaisDoDolar[i]}
+                        onChange={(v) => setReaisDoDolar((atual) => ({ ...atual, [i]: v }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
               {docType === "fatura" && contarNoMes && (
                 <div className="mt-3 w-full text-left">
                   <MonthPicker label={t.impFaturaTudoNoMes} id="fatura-month-confirmar-mes" value={faturaMonth} onChange={escolherMesFatura} />

@@ -674,8 +674,8 @@ export function comprasDosPrints(linhas: LinhaDoPrint[], envio: string): CompraD
   });
 }
 
-/** Compra em moeda estrangeira que o print não mostra em real: avisada, não gravada. */
-export type CompraSemValorEmReal = { nome: string; data: string; texto: string };
+/** Compra em moeda estrangeira que o print não mostra em real: só entra quando ela digita o valor em real na revisão. */
+export type CompraSemValorEmReal = { nome: string; data: string; texto: string; moeda: "USD" | "EUR" | "GBP" | null; valorDeFora: number };
 
 export function semValorEmReal(linhas: LinhaDoPrint[], envio: string): CompraSemValorEmReal[] {
   return linhas.flatMap((l) => {
@@ -683,7 +683,7 @@ export function semValorEmReal(linhas: LinhaDoPrint[], envio: string): CompraSem
     const { moeda, valor } = l.estrangeira;
     const numero = valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const simbolo = moeda === "USD" ? "US$" : moeda === "EUR" ? "€" : moeda === "GBP" ? "£" : "";
-    return [{ nome: l.parcela ? `${l.nome} - Parcela ${l.parcela.atual}/${l.parcela.total}` : l.nome, data: l.data ?? envio, texto: `${simbolo} ${numero}`.trim() }];
+    return [{ nome: l.parcela ? `${l.nome} - Parcela ${l.parcela.atual}/${l.parcela.total}` : l.nome, data: l.data ?? envio, texto: `${simbolo} ${numero}`.trim(), moeda, valorDeFora: valor }];
   });
 }
 

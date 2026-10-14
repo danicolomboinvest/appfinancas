@@ -127,7 +127,7 @@ describe("compra em dólar", () => {
   });
   it("a tela recebe o aviso com o valor em dólar", () => {
     const { linhas } = lerPrint(print, ENVIO);
-    expect(semValorEmReal(linhas, ENVIO)).toEqual([{ nome: "Servico Online", data: "2026-10-10", texto: "US$ 19,00" }]);
+    expect(semValorEmReal(linhas, ENVIO)).toEqual([{ nome: "Servico Online", data: "2026-10-10", texto: "US$ 19,00", moeda: "USD", valorDeFora: 19 }]);
   });
   it("sem o símbolo, o rótulo 'internacional' também segura o valor", () => {
     const sem = tela(compra(800, { rotulo: "Compra no crédito internacional", nome: "Servico Online", categoria: "Compras", valor: "- 19,00" }));
