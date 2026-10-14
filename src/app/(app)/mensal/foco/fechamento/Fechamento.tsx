@@ -220,7 +220,7 @@ export function Fechamento({ d, detalheReaberto }: { d: DadosFechamento; detalhe
               titulo={`Sobrou ${money(lerSobrou(d.sobrou).valor, { round: true })} em ${d.mes}`}
               texto="Quer guardar na reserva de emergência?"
               botao={`Mandar ${money(d.praReserva, { round: true })} para a reserva`}
-              feito={mandou !== null ? `${money(mandou, { round: true })} anotados na reserva. Quando aplicar, marque o investimento como reserva na Carteira.` : null}
+              feito={mandou !== null ? `${money(mandou, { round: true })} na reserva. Na Carteira, marque o investimento como reserva.` : null}
               salvando={salvando}
               aoFazer={() => gravar(async () => { const ok = await mandarSobraPraReservaAction(d.ano, d.mesNumero); if (ok) setMandou(d.praReserva); else showError(t.acaoFalhou); })}
             />
@@ -233,7 +233,7 @@ export function Fechamento({ d, detalheReaberto }: { d: DadosFechamento; detalhe
 
       {passo === 3 && (
         <>
-          <Titulo>Pronto para fechar {d.mes}?</Titulo>
+          <Titulo>Fechar {d.mes} agora?</Titulo>
           <p className="flex gap-2.5 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-ink">
             <CalendarDays size={16} className="mt-0.5 shrink-0" aria-hidden />
             <span>Os números de {d.mes} ficam guardados como estão. Se precisar mudar, dá para reabrir depois.</span>

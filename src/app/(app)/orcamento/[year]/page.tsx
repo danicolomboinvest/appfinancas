@@ -289,7 +289,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-[17px] font-medium text-ink">Categorias</h2>
-            <Explica>A barra vai do verde ao vermelho conforme a categoria se aproxima do plano. Toque numa categoria para ver o histórico; na que passou, para ver o que fazer.</Explica>
+            <Explica>A barra fica vermelha perto do plano. Toque numa categoria para ver mais.</Explica>
           </div>
           <CategoriasDoMes hrefTransacoes={`/mensal/${year}/${currentMonthData?.month ?? 1}`} mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} abrirResolvendo={resolver} />
         </section>
