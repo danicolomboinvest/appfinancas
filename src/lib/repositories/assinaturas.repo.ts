@@ -146,6 +146,11 @@ export async function recusarAssinatura(ctx: AuthContext, nome: string): Promise
   await prisma.contaRecusada.createMany({ data: [{ ...doDono(ctx), chave: chaveDaRecusa(nome) }], skipDuplicates: true });
 }
 
+/** O "Desfazer" do "Não é assinatura" (14/10/2026): um toque errado sumia com ela para sempre. */
+export async function desfazerRecusaDeAssinatura(ctx: AuthContext, nome: string): Promise<void> {
+  await prisma.contaRecusada.deleteMany({ where: { ...doDono(ctx), chave: chaveDaRecusa(nome) } });
+}
+
 /** A categoria que o motor da importação daria para o nome (a regra dela primeiro). */
 export async function sugerirCategoria(ctx: AuthContext, nome: string): Promise<ParentCategory> {
   const regras = await prisma.transactionCategoryRule.findMany({ where: { ...doDono(ctx) }, orderBy: { updatedAt: "desc" }, take: 2000 });

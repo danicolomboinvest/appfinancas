@@ -10,7 +10,7 @@ import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import type { AssinaturaDaTela, ComercianteParaEscolher } from "@/lib/contas/assinaturas";
-import { adicionarDosLancamentosAction, escreverAssinaturaAction, listarParaEscolherAction, naoEAssinaturaAction, removerAssinaturaAction, sugerirCategoriaAction } from "./assinaturas-actions";
+import { adicionarDosLancamentosAction, escreverAssinaturaAction, listarParaEscolherAction, desfazerNaoEAssinaturaAction, naoEAssinaturaAction, removerAssinaturaAction, sugerirCategoriaAction } from "./assinaturas-actions";
 
 /**
  * Assinaturas (13/10/2026, pedido da Dani: "um botãozinho ali, mais, e ela selecionar alguma
@@ -301,7 +301,10 @@ function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoE
     iniciar(async () => {
       try {
         await naoEAssinaturaAction(item.nome);
-        showToast(`${item.nome} saiu de Assinaturas`);
+        showToast(`${item.nome} saiu de Assinaturas`, {
+          label: "Desfazer",
+          onClick: () => void desfazerNaoEAssinaturaAction(item.nome).then(() => router.refresh(), () => showError("Não deu para desfazer. Tente de novo.")),
+        });
         router.refresh();
         onFeito();
       } catch {

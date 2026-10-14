@@ -45,7 +45,7 @@ export function AvisoDasContas({ contas }: { contas: ContaNovaDoHistorico[] }) {
           <h2 className="text-[16px] font-medium leading-snug text-ink">
             Achei {lista.length} {lista.length === 1 ? "conta" : "contas"} no seu histórico
           </h2>
-          <p className="text-[13px] text-ink-muted">Já estão em Contas.</p>
+          <p className="text-[13px] text-ink-muted">{lista.length === 1 ? "Já está em Contas." : "Já estão em Contas."}</p>
         </div>
         <button type="button" onClick={fechar} aria-label="Fechar aviso" className="-mr-1 -mt-1 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted active:scale-95">
           <X size={18} strokeWidth={1.8} aria-hidden />
