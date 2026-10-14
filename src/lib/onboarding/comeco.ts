@@ -15,62 +15,65 @@
 // Os passos
 // ---------------------------------------------------------------------------------------------
 
-export const PASSOS_BOAS_VINDAS = ["b1", "b2", "b3"] as const;
-export const PASSOS_PERGUNTAS = ["nome", "renda", "quer", "tema"] as const;
-/** O primeiro lançamento: a porta e os três caminhos. `lendo` é o extrato chegando e a revisão. */
+/**
+ * O começo enxuto (leva 1 do "Primeiro uso mais leve", aprovada em 14/10/2026): uma tela de
+ * boas-vindas, a porta (extrato, digitar ou falar), o banco com um toque, como baixar e o envio.
+ * As outras boas-vindas, as perguntas (nome, renda, o que quer, tema) saíram do primeiro dia: o
+ * nome vem da compra, a renda e o tema ficam em Configurações, e "o que você quer agora" vira o
+ * próximo passo do segundo dia (ver `mostrarPerguntaDoSegundoDia`).
+ */
+export const PASSOS_BOAS_VINDAS = ["b1"] as const;
+/** As telas que saíram em 14/10/2026. Quem parou numa delas volta na porta (ver `passoDeVolta`). */
+export const PASSOS_ANTIGOS = ["b2", "b3", "nome", "renda", "quer", "tema"] as const;
+/** O primeiro lançamento: a porta e os três caminhos. `lendo` é o extrato chegando e a conferência. */
 export const PASSOS_LANCAMENTO = ["porta", "banco", "tutorial", "lendo", "digitar", "falar", "volta"] as const;
 
-export type PassoDoComeco = (typeof PASSOS_BOAS_VINDAS)[number] | (typeof PASSOS_PERGUNTAS)[number] | (typeof PASSOS_LANCAMENTO)[number];
+export type PassoDoComeco = (typeof PASSOS_BOAS_VINDAS)[number] | (typeof PASSOS_ANTIGOS)[number] | (typeof PASSOS_LANCAMENTO)[number];
 
-const TODOS: readonly string[] = [...PASSOS_BOAS_VINDAS, ...PASSOS_PERGUNTAS, ...PASSOS_LANCAMENTO];
+const TODOS: readonly string[] = [...PASSOS_BOAS_VINDAS, ...PASSOS_ANTIGOS, ...PASSOS_LANCAMENTO];
 
 export function ehPasso(valor: unknown): valor is PassoDoComeco {
   return typeof valor === "string" && TODOS.includes(valor);
 }
 
-/** A fase que aparece no topo (como no Titânio): Boas-vindas, Sobre você, Seu primeiro lançamento. */
-export function faseDoPasso(p: PassoDoComeco): "Boas-vindas" | "Sobre você" | "Seu primeiro lançamento" {
-  if ((PASSOS_BOAS_VINDAS as readonly string[]).includes(p)) return "Boas-vindas";
-  if ((PASSOS_PERGUNTAS as readonly string[]).includes(p)) return "Sobre você";
-  return "Seu primeiro lançamento";
+function ehAntigo(p: string): boolean {
+  return (PASSOS_ANTIGOS as readonly string[]).includes(p);
+}
+
+/** A fase que aparece no topo: Boas-vindas, depois Seu primeiro mês. */
+export function faseDoPasso(p: PassoDoComeco): "Boas-vindas" | "Seu primeiro mês" {
+  return p === "b1" ? "Boas-vindas" : "Seu primeiro mês";
 }
 
 /**
- * A barra de cima: 3 pontos nas boas-vindas, 4 traços nas perguntas, 4 no primeiro lançamento
- * (porta, banco, tutorial, lendo). Digitar e falar contam como o segundo traço.
+ * A barra de cima: nada nas boas-vindas; 4 traços no primeiro mês (porta, banco, como baixar,
+ * lendo). Digitar e falar contam como o segundo traço.
  */
-export function barraDoPasso(p: PassoDoComeco): { tipo: "pontos" | "tracos"; total: number; atual: number } {
-  const iB = (PASSOS_BOAS_VINDAS as readonly string[]).indexOf(p);
-  if (iB >= 0) return { tipo: "pontos", total: 3, atual: iB };
-  const iP = (PASSOS_PERGUNTAS as readonly string[]).indexOf(p);
-  if (iP >= 0) return { tipo: "tracos", total: 4, atual: iP };
+export function barraDoPasso(p: PassoDoComeco): { total: number; atual: number } {
+  if (p === "b1" || ehAntigo(p)) return { total: 0, atual: 0 };
   const ordem: Record<string, number> = { porta: 0, banco: 1, digitar: 1, falar: 1, tutorial: 2, volta: 2, lendo: 3 };
-  return { tipo: "tracos", total: 4, atual: ordem[p] ?? 0 };
+  return { total: 4, atual: ordem[p] ?? 0 };
 }
 
 /** Para onde o "Voltar" leva, de cada passo. Nulo = sem voltar (primeira tela e a volta do resgate). */
 export function passoAnterior(p: PassoDoComeco): PassoDoComeco | null {
   const mapa: Partial<Record<PassoDoComeco, PassoDoComeco>> = {
-    b2: "b1",
-    b3: "b2",
-    nome: "b3",
-    renda: "nome",
-    quer: "renda",
-    tema: "quer",
-    porta: "tema",
+    porta: "b1",
     banco: "porta",
     tutorial: "banco",
     lendo: "tutorial",
     digitar: "porta",
-    falar: "digitar",
+    falar: "porta",
   };
   return mapa[p] ?? null;
 }
 
+/** O caminho de quem traz o extrato, tela por tela (Boas-vindas, Porta, Banco, Como baixar). */
+export const CAMINHO_DO_EXTRATO: PassoDoComeco[] = ["b1", "porta", "banco", "tutorial"];
+
 export function proximoPasso(p: PassoDoComeco): PassoDoComeco | null {
-  const ordem: PassoDoComeco[] = ["b1", "b2", "b3", "nome", "renda", "quer", "tema", "porta"];
-  const i = ordem.indexOf(p);
-  return i >= 0 && i < ordem.length - 1 ? ordem[i + 1] : null;
+  const i = CAMINHO_DO_EXTRATO.indexOf(p);
+  return i >= 0 && i < CAMINHO_DO_EXTRATO.length - 1 ? CAMINHO_DO_EXTRATO[i + 1] : null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -256,7 +259,7 @@ export function pularComeco(atual: Comeco | null, ondeParou: PassoDoComeco, agor
  * com um lançamento e volta pelo convite do extrato cai direto na escolha do banco.
  */
 export function passoDeVolta(c: Comeco | null, pedido: string | null | undefined): PassoDoComeco {
-  if (ehPasso(pedido)) {
+  if (ehPasso(pedido) && !ehAntigo(pedido)) {
     // A volta do resgate só faz sentido com banco escolhido; sem ele, a escolha do banco.
     if (pedido === "volta" && !c?.banco) return "banco";
     return pedido;
@@ -264,6 +267,8 @@ export function passoDeVolta(c: Comeco | null, pedido: string | null | undefined
   if (!c) return "b1";
   // Os passos do extrato não reabrem no meio da leitura: o arquivo não fica guardado.
   if (c.passo === "lendo") return "tutorial";
+  // Parou numa das telas que saíram (14/10/2026): segue da porta.
+  if (ehAntigo(c.passo)) return "porta";
   return c.passo;
 }
 
@@ -284,6 +289,19 @@ export function atalhoDoQuer(quer: Quer | null, empresaOuCasal = false): { rotul
   if (quer === "sonho") return { rotulo: "Criar o meu sonho", href: "/planejamento/metas" };
   if (!empresaOuCasal && quer === "investir") return { rotulo: "Montar minha estratégia", href: "/carteira/estrategia" };
   return { rotulo: "Montar o meu plano", href: "/orcamento" };
+}
+
+/**
+ * "O que você quer agora?" saiu do começo (14/10/2026) e volta como o próximo passo do SEGUNDO dia
+ * na Visão geral: aparece a partir do dia seguinte ao fim do começo, até ela responder.
+ * `hoje` é a data de Brasília ("2026-10-15").
+ */
+export function mostrarPerguntaDoSegundoDia(c: Comeco | null, hoje: string): boolean {
+  if (!c || c.quer !== null || !c.terminouEm) return false;
+  const fim = Date.parse(c.terminouEm);
+  if (!Number.isFinite(fim)) return false;
+  const diaDoFim = new Date(fim - 3 * 3600_000).toISOString().slice(0, 10);
+  return diaDoFim < hoje;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -380,39 +398,62 @@ export type BancoDoComeco = {
   nome: string;
   /** "do" ou "da" ("No app do Nubank", "No app da Caixa"). */
   artigo: "do" | "da";
-  /** O nome que o catálogo de marcas reconhece (logo real). */
+  /** O nome que o catálogo de marcas reconhece (logo real). Vazio = sem logo: a tela mostra a sigla. */
   marca: string;
+  /** A sigla do quadradinho quando não há logo ("BRB", "BV"). */
+  sigla?: string;
+  /** Outros jeitos de escrever o nome, para a busca ("cef", "bb", "votorantim"). */
+  apelidos?: string[];
 };
 
 /**
- * Os bancos de "Qual é o seu banco?", na ordem da tela. O passo a passo de cada um (extrato,
- * fatura, formato e a fonte oficial) mora em lib/onboarding/bancos.ts. Sem selo "a conferir"
- * em nenhum (decisão da dona, 11/10/2026).
+ * Os bancos de "Qual é o seu banco?", na ordem da tela (14/10/2026: a dona pediu mais bancos e um
+ * caminho claro para quem não acha o dela). Os `PRINCIPAIS_DO_COMECO` primeiros aparecem na grade;
+ * os outros, em "Ver mais bancos" e na busca. O passo a passo de cada um (extrato, fatura, formato
+ * e a fonte oficial) mora em lib/onboarding/bancos.ts; sem fonte oficial, o caminho genérico.
+ * Sem selo "a conferir" em nenhum (decisão da dona, 11/10/2026).
  */
 export const BANCOS_DO_COMECO: BancoDoComeco[] = [
-  { chave: "nubank", nome: "Nubank", artigo: "do", marca: "Nubank" },
-  { chave: "itau", nome: "Itaú", artigo: "do", marca: "Itau" },
-  { chave: "inter", nome: "Inter", artigo: "do", marca: "Banco Inter" },
-  { chave: "bb", nome: "Banco do Brasil", artigo: "do", marca: "Banco do Brasil" },
-  { chave: "caixa", nome: "Caixa", artigo: "da", marca: "Caixa Economica" },
+  { chave: "nubank", nome: "Nubank", artigo: "do", marca: "Nubank", apelidos: ["nu", "nu pagamentos"] },
+  { chave: "itau", nome: "Itaú", artigo: "do", marca: "Itau", apelidos: ["itau unibanco"] },
   { chave: "bradesco", nome: "Bradesco", artigo: "do", marca: "Bradesco" },
+  { chave: "bb", nome: "Banco do Brasil", artigo: "do", marca: "Banco do Brasil", apelidos: ["bb", "brasil"] },
+  { chave: "caixa", nome: "Caixa", artigo: "da", marca: "Caixa Economica", apelidos: ["cef", "caixa economica", "caixa tem"] },
   { chave: "santander", nome: "Santander", artigo: "do", marca: "Santander" },
-  { chave: "mp", nome: "Mercado Pago", artigo: "do", marca: "Mercado Pago" },
-  { chave: "c6", nome: "C6 Bank", artigo: "do", marca: "C6 Bank" },
-  { chave: "picpay", nome: "PicPay", artigo: "do", marca: "PicPay" },
-  { chave: "pagbank", nome: "PagBank", artigo: "do", marca: "PagBank" },
-  { chave: "sicredi", nome: "Sicredi", artigo: "do", marca: "Sicredi" },
+  { chave: "inter", nome: "Inter", artigo: "do", marca: "Banco Inter", apelidos: ["banco inter"] },
+  { chave: "c6", nome: "C6 Bank", artigo: "do", marca: "C6 Bank", apelidos: ["c6"] },
+  { chave: "mp", nome: "Mercado Pago", artigo: "do", marca: "Mercado Pago", apelidos: ["mercado livre"] },
+  { chave: "picpay", nome: "PicPay", artigo: "do", marca: "PicPay", apelidos: ["pic pay"] },
+  { chave: "btg", nome: "BTG Pactual", artigo: "do", marca: "BTG Pactual", apelidos: ["btg"] },
+  { chave: "xp", nome: "XP", artigo: "da", marca: "XP Investimentos", apelidos: ["xp investimentos"] },
+  { chave: "rico", nome: "Rico", artigo: "da", marca: "Rico Investimentos" },
   { chave: "sicoob", nome: "Sicoob", artigo: "do", marca: "Sicoob" },
-  { chave: "original", nome: "Banco Original", artigo: "do", marca: "Banco Original" },
-  { chave: "xp", nome: "XP", artigo: "da", marca: "XP Investimentos" },
-  { chave: "btg", nome: "BTG Pactual", artigo: "do", marca: "BTG Pactual" },
-  { chave: "eqi", nome: "EQI Investimentos", artigo: "da", marca: "EQI Investimentos" },
+  { chave: "sicredi", nome: "Sicredi", artigo: "do", marca: "Sicredi" },
+  { chave: "neon", nome: "Neon", artigo: "do", marca: "Banco Neon" },
+  { chave: "pagbank", nome: "PagBank", artigo: "do", marca: "PagBank", apelidos: ["pagseguro", "pag seguro"] },
+  { chave: "original", nome: "Banco Original", artigo: "do", marca: "Banco Original", apelidos: ["original"] },
+  { chave: "banrisul", nome: "Banrisul", artigo: "do", marca: "", sigla: "BRS" },
+  { chave: "brb", nome: "BRB", artigo: "do", marca: "", sigla: "BRB", apelidos: ["banco de brasilia"] },
+  { chave: "safra", nome: "Safra", artigo: "do", marca: "Banco Safra", apelidos: ["banco safra"] },
+  { chave: "willbank", nome: "Will Bank", artigo: "do", marca: "Will Bank", apelidos: ["will"] },
+  { chave: "next", nome: "Next", artigo: "do", marca: "", sigla: "NX" },
+  { chave: "ame", nome: "Ame", artigo: "da", marca: "", sigla: "AME", apelidos: ["ame digital"] },
+  { chave: "pan", nome: "Banco Pan", artigo: "do", marca: "Banco Pan", apelidos: ["pan"] },
+  { chave: "bv", nome: "BV", artigo: "do", marca: "", sigla: "BV", apelidos: ["banco bv", "votorantim"] },
+  { chave: "agibank", nome: "Agibank", artigo: "do", marca: "Agibank", apelidos: ["agi"] },
+  { chave: "personnalite", nome: "Itaú Personnalité", artigo: "do", marca: "Itau", apelidos: ["personnalite", "itau personnalite"] },
+  { chave: "nomad", nome: "Nomad", artigo: "da", marca: "Nomad" },
+  { chave: "eqi", nome: "EQI Investimentos", artigo: "da", marca: "EQI Investimentos", apelidos: ["eqi"] },
   { chave: "agora", nome: "Ágora", artigo: "da", marca: "Agora Investimentos" },
   { chave: "wise", nome: "Wise", artigo: "do", marca: "Wise" },
   { chave: "binance", nome: "Binance", artigo: "da", marca: "Binance" },
   { chave: "mercadobitcoin", nome: "Mercado Bitcoin", artigo: "do", marca: "Mercado Bitcoin" },
 ];
 
+/** Quantos bancos a grade mostra antes do "Ver mais bancos" (4 linhas de 3). */
+export const PRINCIPAIS_DO_COMECO = 12;
+
+/** "Meu banco não está aqui": o passo a passo genérico, com o nome que ela escrever (se escrever). */
 export const BANCO_OUTRO: BancoDoComeco = { chave: "outro", nome: "seu banco", artigo: "do", marca: "" };
 
 export function bancoDoComeco(chave: string | null | undefined): BancoDoComeco | null {
@@ -421,6 +462,39 @@ export function bancoDoComeco(chave: string | null | undefined): BancoDoComeco |
   return BANCOS_DO_COMECO.find((b) => b.chave === chave) ?? null;
 }
 
+/** Sem acento, sem maiúscula, só letras e números separados por espaço. */
+export function textoDeBusca(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * A busca da tela do banco: casa pelo começo de qualquer palavra do nome ou de um apelido
+ * ("ita" acha Itaú e Itaú Personnalité, "cef" acha a Caixa). Busca vazia devolve todos.
+ */
+export function buscarBancos(texto: string, bancos: BancoDoComeco[] = BANCOS_DO_COMECO): BancoDoComeco[] {
+  const q = textoDeBusca(texto);
+  if (!q) return bancos;
+  return bancos.filter((b) => {
+    const nomes = [b.nome, b.marca, ...(b.apelidos ?? [])].map(textoDeBusca).filter(Boolean);
+    return nomes.some((n) => n.startsWith(q) || n.split(" ").some((palavra) => palavra.startsWith(q)));
+  });
+}
+
+/**
+ * O banco que ela escreveu em "Meu banco não está aqui", pronto para virar evento de uso: só
+ * letras, sem número (nada de conta, agência ou CPF), até 24 caracteres. Vazio ou parecido com um
+ * banco que já está na lista, nulo.
+ */
+export function bancoQueFalta(texto: unknown): string | null {
+  if (typeof texto !== "string") return null;
+  const limpo = textoDeBusca(texto).replace(/[0-9]/g, " ").replace(/\s+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24).replace(/-+$/, "");
+  return limpo.length >= 2 ? limpo : null;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Primeiros passos
@@ -562,12 +636,11 @@ export function ahaDoMes(r: { saiu: number; maiores: { rotulo: string; valor: nu
 // O primeiro gasto digitado
 // ---------------------------------------------------------------------------------------------
 
-/** Os três atalhos do "Um gasto de hoje": nome, categoria-mãe e subcategoria do app. */
-export const ATALHOS_DO_GASTO: { nome: string; categoria: "ALIMENTACAO" | "TRANSPORTE"; sub: string }[] = [
-  { nome: "Café", categoria: "ALIMENTACAO", sub: "Lanche/Café" },
-  { nome: "Mercado", categoria: "ALIMENTACAO", sub: "Supermercado" },
-  { nome: "Uber", categoria: "TRANSPORTE", sub: "Aplicativo" },
-];
+/**
+ * Os três atalhos do "Um gasto de hoje": as categorias mais comuns do primeiro gasto (proposta do
+ * primeiro uso, 14/10/2026). O nome na tela é o da categoria no tema dela.
+ */
+export const ATALHOS_DO_GASTO: { categoria: "ALIMENTACAO" | "TRANSPORTE" | "LAZER" }[] = [{ categoria: "ALIMENTACAO" }, { categoria: "TRANSPORTE" }, { categoria: "LAZER" }];
 
 /** O teclado do valor: dígitos em centavos ("1250" = R$ 12,50), no máximo 7 dígitos. */
 export function teclarValor(atual: string, tecla: string): string {
@@ -599,6 +672,10 @@ export const EVENTOS_DO_COMECO = {
   revisou: "comeco_revisou",
   viuMes: "comeco_viu_mes",
   pulou: "comeco_pulou",
+  /** "Meu banco não está aqui" (14/10/2026): o path leva o nome que ela escreveu, limpo (ver `bancoQueFalta`). */
+  faltaBanco: "comeco_falta_banco",
+  /** O link "Moro fora do Brasil" da porta: a moeda escolhida. */
+  moeda: "comeco_moeda",
 } as const;
 
 export type EventoDoComeco = (typeof EVENTOS_DO_COMECO)[keyof typeof EVENTOS_DO_COMECO];
@@ -612,14 +689,13 @@ export function caminhoDoEvento(evento: EventoDoComeco, detalhe?: string | null)
 }
 
 /**
- * O funil, na ordem do começo: quantas PESSOAS passaram por cada marca. "Respondeu as perguntas"
- * conta quem marcou a última pergunta (o tema).
+ * O funil, na ordem do começo: quantas PESSOAS passaram por cada marca. As perguntas saíram do
+ * começo em 14/10/2026, e com elas a linha "Respondeu as perguntas".
  */
 export function montarFunilDoComeco(contagem: Partial<Record<string, number>>): { rotulo: string; pessoas: number }[] {
   const n = (k: string) => contagem[k] ?? 0;
   return [
     { rotulo: "Começou", pessoas: n("comeco_comecou") },
-    { rotulo: "Respondeu as perguntas", pessoas: n("comeco_pergunta:/comecar/pergunta/tema") },
     { rotulo: "Escolheu a porta", pessoas: n("comeco_porta") },
     { rotulo: "Escolheu o banco", pessoas: n("comeco_banco") },
     { rotulo: "Enviou o extrato", pessoas: n("comeco_enviou") },

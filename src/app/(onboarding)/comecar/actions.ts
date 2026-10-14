@@ -7,6 +7,7 @@ import { mesesQueOSalvarGrava } from "@/lib/planning/plano-anual";
 
 import type { EntryCategory, ParentCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { updateProfile } from "@/lib/repositories/profile.repo";
 import { updateOwnCurrency } from "@/lib/repositories/user.repo";
@@ -16,7 +17,14 @@ import { isCurrencyCode } from "@/lib/money";
 import { isProfileThemeKey } from "@/lib/profiles/themes";
 import { PARENT_CATEGORIES } from "@/lib/categories";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
+import { ehCasal } from "@/lib/profiles/casal";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { prisma } from "@/lib/db/prisma";
 import {
+  EVENTOS_DO_COMECO,
+  caminhoDoEvento,
+  QUERES,
+  atalhoDoQuer,
   ehPasso,
   juntarComeco,
   pularComeco,
@@ -113,4 +121,19 @@ export async function primeiroGastoAction(input: {
   // Sem revalidar: a confirmação "Lançado." aparece antes de ir para a Visão geral (ver acima).
   await marcarRecebidaSeAinda(ctx.userId);
   return { ok: true };
+}
+
+/**
+ * "O que você quer agora?" do segundo dia (14/10/2026): grava e leva para o lugar certo. Antes era
+ * uma pergunta do começo; saiu do primeiro dia para ela chegar mais rápido ao mês dela.
+ */
+export async function escolherQuerAction(quer: string): Promise<void> {
+  const ctx = await getRequiredSession();
+  if (!(QUERES as readonly string[]).includes(quer)) return;
+  const atual = await lerComecoDaConta(ctx.userId);
+  const novo = juntarComeco(atual, { quer: quer as (typeof QUERES)[number] });
+  await gravarComeco(ctx.userId, novo);
+  // A mesma marca do funil de antes (a pergunta, com o que ela escolheu), sem nada dela.
+  await prisma.usageEvent.create({ data: { userId: ctx.userId, name: EVENTOS_DO_COMECO.pergunta, path: caminhoDoEvento(EVENTOS_DO_COMECO.pergunta, `quer-${quer}`) } }).catch(() => {});
+  redirect(atalhoDoQuer(novo.quer, ehEmpresa(ctx.profileKind) || ehCasal(ctx.profileKind)).href);
 }

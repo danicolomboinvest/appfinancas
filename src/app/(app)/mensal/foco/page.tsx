@@ -28,8 +28,8 @@ import { vozDoTema } from "@/lib/profiles/voice";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
 import { getOwnUser } from "@/lib/repositories/user.repo";
-import { mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
-import { ComecoDoMes, PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
+import { mostrarPerguntaDoSegundoDia, mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
+import { ComecoDoMes, PerguntaDoSegundoDia, PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
 import { acertoDaCasa } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
 import { DuasBolinhas } from "@/components/casa/Pessoas";
@@ -90,6 +90,9 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   const passosDoComeco = comecoNovo && mostrarPrimeirosPassos(comecoNovo);
   // Com o "aha" ou o convite, os passos vêm depois do livre; sem eles, no topo.
   const passosNoTopo = passosDoComeco && topoDoComeco === "nada" && !contaNova;
+  // "O que você quer agora?" saiu do começo e volta no segundo dia (14/10/2026).
+  const hojeEmBrasilia = `${d.now.getFullYear()}-${String(d.now.getMonth() + 1).padStart(2, "0")}-${String(d.now.getDate()).padStart(2, "0")}`;
+  const perguntaDoSegundoDia = !contaNova && mostrarPerguntaDoSegundoDia(comecoNovo, hojeEmBrasilia);
   const cartaoAcao = "flex w-full items-center justify-between gap-4 text-left";
 
   // O Foco em níveis (07/10/2026). A análise que a Dani trouxe: "tudo quer a atenção ao mesmo tempo;
@@ -149,7 +152,9 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   // A revisão aparece enquanto houver o que revisar; o ritual, na segunda e na terça, até ser
   // feito, para quem não escolheu acompanhar por mês.
   const n = d.lancamentosParaRevisar;
-  const revisar = n > 0 ? cartaoParaHoje("revisar", "/mensal/foco/revisar", ListChecks, n === 1 ? "Revisar 1 lançamento" : `Revisar ${n} lançamentos`, n === 1 ? "Parece aplicação, fatura ou estorno" : "Parecem aplicação, fatura ou estorno", "Revisar") : null;
+  // Os "A conferir" (o que ficou sem resposta no extrato) entram na mesma conta (14/10/2026).
+  const subDoRevisar = d.lancamentosAConferir > 0 ? (n === 1 ? "Ficou para conferir depois" : "Ficaram para conferir depois") : n === 1 ? "Parece aplicação, fatura ou estorno" : "Parecem aplicação, fatura ou estorno";
+  const revisar = n > 0 ? cartaoParaHoje("revisar", "/mensal/foco/revisar", ListChecks, n === 1 ? "Revisar 1 lançamento" : `Revisar ${n} lançamentos`, subDoRevisar, "Revisar") : null;
   const diaDaSemanaHoje = d.now.getDay();
   const ritual =
     ritmo !== "mensal" && !d.ritualFeito && (diaDaSemanaHoje === 1 || diaDaSemanaHoje === 2)
@@ -190,6 +195,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
         {/* Sem nenhum lançamento: os dois cartões do começo, os Primeiros passos e o Como funciona. */}
         {contaNova && <ComecoDoMes ctx={ctx} comeco={comecoNovo} mes={MESES[d.month - 1]} hrefMes={d.hrefMes} />}
         {comecoNovo && !contaNova && topoDoComeco !== "nada" && <TopoDoComeco ctx={ctx} comeco={comecoNovo} nome={nomeDoComeco} temLancamento={comece.temLancamento} />}
+        {perguntaDoSegundoDia && <PerguntaDoSegundoDia />}
         {comecoNovo && passosNoTopo && <PrimeirosPassos ctx={ctx} comeco={comecoNovo} hrefMes={d.hrefMes} />}
         {!contaNova && (
           <>
