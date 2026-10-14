@@ -170,7 +170,8 @@ export function MeusAtivos({
     startAtualizar(async () => {
       const r = await updatePortfolioQuotesAction();
       if (!r.ok) return showError(r.error);
-      showToast(r.failed.length > 0 ? `${r.updated} atualizadas. Não achei: ${r.failed.join(", ")}` : `${r.updated} cotações atualizadas`);
+      // Os valores mudam na tela, e isso basta (14/10/2026). Só o que não achou ganha a pílula.
+      if (r.failed.length > 0) showToast(`Não achei: ${r.failed.join(", ")}`);
     });
   }
 

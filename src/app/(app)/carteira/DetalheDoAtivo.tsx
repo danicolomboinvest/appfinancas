@@ -249,12 +249,12 @@ export function TrocarClassificacao({ ativo, onPronto }: { ativo: AtivoDaTela; o
   const [tipo, setTipo] = useState<Tipo>(ativo.tipo);
   const [onde, setOnde] = useState<Onde>(ativo.onde);
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const salvar = (t: Tipo | null, o: Onde | null) =>
     start(async () => {
       const r = await trocarClassificacaoAction(ativo.id, t, o);
-      if (!r.ok) return showError("Não consegui trocar agora. Tente de novo.");
-      showToast(t === null ? "Voltou ao automático" : "Classificação trocada");
+      if (!r.ok) return showError("Não trocou. Tente de novo.");
+      // Sem aviso (14/10/2026): a folha fecha e o ativo mostra a classificação nova.
       onPronto();
     });
   return (
@@ -288,7 +288,7 @@ function TrocarObjetivo({ ativo, metas, onPronto }: { ativo: AtivoDaTela; metas:
   const atual = ativo.objective === "META" && ativo.goalId ? `meta:${ativo.goalId}` : ativo.objective;
   const [escolha, setEscolha] = useState<string>(atual);
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const opcoes: [string, string][] = [
     ...metas.map((m) => [`meta:${m.id}`, m.nome] as [string, string]),
     ["RESERVA_EMERGENCIA", "Reserva de emergência"],
@@ -306,8 +306,8 @@ function TrocarObjetivo({ ativo, metas, onPronto }: { ativo: AtivoDaTela; metas:
           start(async () => {
             const meta = escolha.startsWith("meta:") ? escolha.slice(5) : null;
             const r = await trocarObjetivoAction(ativo.id, meta ? "META" : escolha, meta);
-            if (!r.ok) return showError("Não consegui trocar agora. Tente de novo.");
-            showToast("Objetivo trocado");
+            if (!r.ok) return showError("Não trocou. Tente de novo.");
+            // Sem aviso: a folha fecha e o ativo mostra o objetivo novo.
             onPronto();
           })
         }

@@ -32,7 +32,8 @@ export function ResgatarDoAtivo({ assetId, nome, valorAtual, investido, onPronto
     iniciar(async () => {
       const r = await resgatarDoAtivoAction({ assetId, amount: valor, date: data });
       if (!r.ok) return showError(r.error);
-      showToast(r.meta ? `Resgate registrado. ${nome} e a meta ${r.meta} já foram atualizados.` : `Resgate registrado. ${nome} já foi atualizado.`);
+      // Pílula (14/10/2026): a meta também muda, e ela não está nesta tela.
+      showToast("Resgate anotado");
       onPronto();
     });
   }

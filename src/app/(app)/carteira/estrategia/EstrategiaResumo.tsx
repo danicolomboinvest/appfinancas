@@ -7,7 +7,7 @@ import { Check, Minus, Plus, RefreshCcw, SlidersHorizontal } from "lucide-react"
 import type { StrategyAssetClass } from "@prisma/client";
 import { Explica } from "@/components/ui/Explica";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
-import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { STRATEGY_ASSET_CLASS_COLOR } from "@/lib/portfolio/strategy";
 import { salvarEstrategiaAction } from "./actions";
 import { NOME_DA_LINHA, NOME_DO_PERFIL, ORDEM_DAS_LINHAS } from "./nomes";
@@ -99,7 +99,7 @@ export function EstrategiaResumo({ perfil, linhas, proximos }: { perfil: string 
 export function Personalizar({ inicial, onFechar, perfil = "personalizado" }: { inicial: Record<StrategyAssetClass, number>; onFechar: () => void; perfil?: string }) {
   const [alvo, setAlvo] = useState(inicial);
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const router = useRouter();
   const soma = ORDEM_DAS_LINHAS.reduce((s, c) => s + (alvo[c] ?? 0), 0);
   const muda = (c: StrategyAssetClass, d: number) => setAlvo({ ...alvo, [c]: Math.max(0, Math.min(100, (alvo[c] ?? 0) + d)) });
@@ -127,20 +127,22 @@ export function Personalizar({ inicial, onFechar, perfil = "personalizado" }: { 
         <button
           type="button"
           disabled={soma !== 100 || pendente}
-          onClick={() =>
+          onClick={() => {
+            erro.limpar();
             start(async () => {
               const r = await salvarEstrategiaAction(alvo, perfil);
-              if (!r.ok) return showError(r.erro ?? "Não consegui salvar.");
-              showToast("Estratégia salva");
+              if (!r.ok) return erro.falhou(r.erro ?? "Não salvou");
+              // Sem aviso (14/10/2026): a estratégia salva é a tela que abre.
               onFechar();
               router.push("/carteira/estrategia");
               router.refresh();
-            })
-          }
-          className="min-h-12 rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent disabled:opacity-40"
+            });
+          }}
+          className={`min-h-12 rounded-full bg-accent-gradient text-[15px] font-medium text-on-accent disabled:opacity-40 ${erro.classe}`}
         >
-          Salvar estratégia
+          {erro.erro ? TENTAR_DE_NOVO : "Salvar estratégia"}
         </button>
+        <ErroNoBotao erro={erro.erro} />
         <button type="button" onClick={onFechar} className="min-h-12 rounded-full bg-surface-2 text-[15px] font-medium text-ink">
           Cancelar
         </button>

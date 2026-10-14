@@ -43,7 +43,7 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const [, startTransition] = useTransition();
 
   const [vista, setVista] = useState<"lista" | "plano">(abrirPlano ? "plano" : "lista");
@@ -107,11 +107,11 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
           setCadastro(null);
           if (abrirNova) router.replace("/dividas");
         }}
-        onSalvo={(editou) => {
+        onSalvo={() => {
           setCadastro(null);
           setSemDividas(false);
           setVista("lista");
-          showToast(editou ? "Dívida atualizada" : "Dívida adicionada");
+          // Sem aviso (14/10/2026): a folha fecha e a dívida aparece na lista.
           router.replace("/dividas");
           router.refresh();
         }}
@@ -197,7 +197,7 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
                   startTransition(async () => {
                     const fim = mesAdiante(hoje, plano.meses);
                     const r = await virarMetaAction({ total: Math.round(retratoDe(res).total), meses: plano.meses, ano: fim.ano, mes: fim.mes });
-                    if (!r.ok) return showToast(r.erro);
+                    if (!r.ok) return showError(r.erro);
                     showToast(r.jaExistia ? "Você já tem essa meta" : "Meta criada", { label: "Ver", onClick: () => router.push("/planejamento/metas") });
                   })
                 }

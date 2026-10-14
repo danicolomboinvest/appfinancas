@@ -53,7 +53,7 @@ export function MontarEstrategia({
   const money = useMoney();
   const moedaDoApp = useCurrency();
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [p, setP] = useState(1);
   const [queda, setQueda] = useState<0 | 1 | 2 | null>(null);
   const [onde, setOnde] = useState<string[]>([]);
@@ -87,8 +87,8 @@ export function MontarEstrategia({
   const salvar = (valores: Record<StrategyAssetClass, number>, nomePerfil: string) =>
     start(async () => {
       const r = await salvarEstrategiaAction(valores, nomePerfil);
-      if (!r.ok) return showError(r.erro ?? "Não consegui salvar.");
-      showToast("Estratégia salva");
+      if (!r.ok) return showError(r.erro ?? "Não salvou. Tente de novo.");
+      // Sem aviso (14/10/2026): a estratégia salva é a tela que abre.
       router.push("/carteira/estrategia");
       router.refresh();
     });

@@ -56,7 +56,7 @@ export function AllocateContributionCard({
   const { key: tema, voz } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [valores, setValores] = useState<Record<string, number>>({});
   const [isPending, startTransition] = useTransition();
   const [pronto, setPronto] = useState<{ assets: number; goals: { name: string; amount: number }[]; quantityEstimated: string[] } | null>(null);
@@ -200,8 +200,8 @@ export function AllocateContributionCard({
                 showError(res.error);
                 return;
               }
+              // Sem aviso (14/10/2026): o cartão já mostra o resultado no lugar.
               setPronto({ assets: res.assets, goals: res.goals, quantityEstimated: res.quantityEstimated });
-              showToast(txt.aplicado);
             })
           }
         >

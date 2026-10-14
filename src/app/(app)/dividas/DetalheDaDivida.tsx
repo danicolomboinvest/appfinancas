@@ -59,9 +59,10 @@ export function DetalheDaDivida({
   const paguei = () =>
     startTransition(async () => {
       const r = await pagarParcelaAction(d.id);
-      if (!r) return showError("Não deu para registrar. Tente de novo.");
+      if (!r) return showError("Não registrou. Tente de novo.");
       if (r.quitada) onFechar();
-      showToast(r.quitada ? `${d.nome} quitada` : "Parcela registrada", { label: "Desfazer", onClick: desfazer(r.antes) });
+      // Fica a pílula porque tem Desfazer (e a quitada sai da lista, que só mostra as abertas).
+      showToast(r.quitada ? `${d.nome} quitada` : "Parcela paga", { label: "Desfazer", onClick: desfazer(r.antes) });
       router.refresh();
     });
 
