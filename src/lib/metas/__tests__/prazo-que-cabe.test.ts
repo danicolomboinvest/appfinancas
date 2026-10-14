@@ -5,8 +5,19 @@ import { limiteDasMetas, motivoDoAperto, prazoApertado, prazoQueCabe } from "../
 const hoje = new Date(2026, 9, 14, 12); // 14/out/2026
 
 describe("limiteDasMetas: quanto cabe guardar por mês nas metas", () => {
-  it("o quanto guardar do plano do mês vence", () => {
-    expect(limiteDasMetas({ planoGuardar: 800, planoRenda: 6000, rendaMedia: 5970 })).toEqual({ porMes: 800, renda: 6000, fonte: "plano" });
+  it("o quanto guardar do plano do mês vale quando passa de 20% da renda", () => {
+    expect(limiteDasMetas({ planoGuardar: 1500, planoRenda: 6000, rendaMedia: 5970 })).toEqual({ porMes: 1500, renda: 6000, fonte: "plano" });
+  });
+
+  it("um quanto guardar baixo no plano não aperta: vale 20% da renda", () => {
+    // A Ana local: plano guarda R$ 400 com renda de R$ 7.700. A Europa de R$ 1.340 por mês cabe.
+    const l = limiteDasMetas({ planoGuardar: 400, planoRenda: 7700 })!;
+    expect(l).toEqual({ porMes: 1500, renda: 7700, fonte: "renda" });
+    expect(prazoApertado(1340, l)).toBe(false);
+  });
+
+  it("sem renda, o quanto guardar do plano", () => {
+    expect(limiteDasMetas({ planoGuardar: 800, aporteMedio: 300 })).toEqual({ porMes: 800, renda: null, fonte: "plano" });
   });
 
   it("sem plano, 20% da renda média de 12 meses, para baixo de 50 em 50", () => {

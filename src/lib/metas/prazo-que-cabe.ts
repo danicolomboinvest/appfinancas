@@ -5,10 +5,12 @@ import { MESES_CURTOS, mesesAteChegar, porMesDaNovaMeta } from "@/lib/metas/proj
  * R$ 47.810 por mês com renda de uns R$ 5.970. A Dani: "uma casa é normal ser dois milhões; a
  * pessoa precisa colocar um prazo [que caiba]". O valor fica; o app sugere o prazo.
  *
- * A regra do limite (quanto cabe guardar por mês para as metas), na ordem:
- * 1. o "quanto guardar" do plano do mês (aporte pretendido), quando ela preencheu;
- * 2. sem ele, 20% da renda: a renda do plano do mês ou, sem ela, a média dos 12 meses fechados;
- * 3. sem renda conhecida, o que ela guarda de verdade (média dos aportes dos 12 meses fechados);
+ * A regra do limite (quanto cabe guardar por mês para as metas):
+ * 1. com renda conhecida (a do plano do mês ou, sem ela, a média dos 12 meses fechados): o MAIOR
+ *    entre o "quanto guardar" do plano do mês e 20% da renda. Um "quanto guardar" baixo ou
+ *    esquecido no plano não acende o aviso numa meta que pede 15% da renda;
+ * 2. sem renda, o "quanto guardar" do plano, se houver;
+ * 3. sem os dois, o que ela guarda de verdade (média dos aportes dos 12 meses fechados);
  * 4. sem nada disso, não há limite e nada aparece.
  *
  * O prazo fica apertado quando o "por mês" da meta passa desse limite. A sugestão é o primeiro
@@ -46,8 +48,9 @@ export function limiteDasMetas(e: {
   aporteMedio?: number | null;
 }): LimiteDasMetas | null {
   const renda = positivo(e.planoRenda) ? e.planoRenda : positivo(e.rendaMedia) ? e.rendaMedia : null;
-  if (positivo(e.planoGuardar)) return { porMes: redondo(e.planoGuardar), renda, fonte: "plano" };
-  if (renda !== null) return { porMes: redondo(renda * PARTE_DA_RENDA_PARA_METAS), renda, fonte: "renda" };
+  const daRenda = renda !== null ? renda * PARTE_DA_RENDA_PARA_METAS : 0;
+  if (positivo(e.planoGuardar) && e.planoGuardar >= daRenda) return { porMes: redondo(e.planoGuardar), renda, fonte: "plano" };
+  if (renda !== null) return { porMes: redondo(daRenda), renda, fonte: "renda" };
   if (positivo(e.aporteMedio)) return { porMes: redondo(e.aporteMedio), renda: null, fonte: "aportes" };
   return null;
 }
