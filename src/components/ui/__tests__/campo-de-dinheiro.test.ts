@@ -1,26 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ReactElement } from "react";
 
 vi.mock("@/components/money/MoneyProvider", () => ({ useCurrency: () => "BRL" }));
 
-import { CampoDeDinheiro } from "../CampoDeDinheiro";
-
-type PropsDoInput = { value: string; inputMode: string; type: string; onChange: (e: { target: { value: string } }) => void };
-
-/** Renderiza o campo (sem DOM: é uma função) e devolve as props do <input>. */
-function campo(valor: number | null, onValor: (v: number | null) => void, extra: Record<string, unknown> = {}) {
-  return (CampoDeDinheiro({ valor, onValor, ...extra }) as ReactElement<PropsDoInput>).props;
-}
-
-/** Digita tecla por tecla como no celular: o texto novo é o que o campo mostra + a tecla. */
-function digitar(teclas: string, inicial: number | null = null, extra: Record<string, unknown> = {}) {
-  let valor = inicial;
-  for (const tecla of teclas) {
-    const p = campo(valor, (v) => (valor = v), extra);
-    p.onChange({ target: { value: tecla === "⌫" ? p.value.slice(0, -1) : p.value + tecla } });
-  }
-  return valor;
-}
+import { campo, digitar } from "./digitar-no-campo";
 
 describe("CampoDeDinheiro", () => {
   it("abre o teclado com vírgula (decimal) e é texto, não number", () => {
