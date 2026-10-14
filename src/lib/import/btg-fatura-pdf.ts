@@ -79,25 +79,58 @@ export function parseBtgInvoice(texto: string, refYear: number = new Date().getF
   }
 
   const usados = new Set<number>();
-  for (const e of estrangeiras) {
-    // Procura primeiro a partir de onde a compra apareceu, depois no resto do texto.
-    const ordem = [...soltos.keys()].sort((x, y) => (x >= e.posicao ? x - e.posicao : soltos.length + e.posicao - x) - (y >= e.posicao ? y - e.posicao : soltos.length + e.posicao - y));
-    const i = ordem.find((k) => {
-      if (usados.has(k) || usados.has(k + 1) || k + 1 >= soltos.length) return false;
-      const esperado = e.estrangeiro * soltos[k];
-      return Math.abs(esperado - soltos[k + 1]) <= Math.max(0.05, esperado * 0.01);
-    });
-    // Sem par que feche a conta, a compra fica de fora: melhor faltar (a conferência com o total
-    // da fatura avisa) do que entrar com um valor de outra compra.
-    if (i === undefined) {
-      out.splice(out.indexOf(e.txn), 1);
-      continue;
-    }
+  const casa = (e: { estrangeiro: number }, k: number) => {
+    if (usados.has(k) || usados.has(k + 1) || k + 1 >= soltos.length) return false;
+    const esperado = e.estrangeiro * soltos[k];
+    return Math.abs(esperado - soltos[k + 1]) <= Math.max(0.05, esperado * 0.01);
+  };
+  const aplicar = (e: (typeof estrangeiras)[number], i: number) => {
     usados.add(i);
     usados.add(i + 1);
     // Crédito em moeda estrangeira (estorno de aluguel de carro em euro): a linha da compra vem sem
     // sinal e quem traz o "-" é o valor em real.
     e.txn.amount = e.txn.amount < 0 || negativos[i + 1] ? -soltos[i + 1] : soltos[i + 1];
+  };
+  // 1ª rodada: compra cujo par está logo abaixo dela (o normal). Essas ficam resolvidas e dão a
+  // cotação de referência de cada dia para desempatar as outras.
+  const resolvidas: { e: (typeof estrangeiras)[number]; cotacao: number }[] = [];
+  const pendentes: (typeof estrangeiras) = [];
+  // Quando várias compras em moeda estrangeira aparecem seguidas, só a ÚLTIMA delas tem o par logo
+  // abaixo; as de cima ficaram sem o seu (desceu na quebra de página).
+  const ultimaDaPosicao = new Map<number, (typeof estrangeiras)[number]>();
+  for (const e of estrangeiras) ultimaDaPosicao.set(e.posicao, e);
+  for (const e of estrangeiras) {
+    if (ultimaDaPosicao.get(e.posicao) === e && e.posicao < soltos.length && casa(e, e.posicao)) {
+      resolvidas.push({ e, cotacao: soltos[e.posicao] });
+      aplicar(e, e.posicao);
+    } else pendentes.push(e);
+  }
+  // 2ª rodada: o par desceu na quebra de página. Várias compras iguais em dólar (4 Manychat de
+  // US$ 10,00) fecham a conta com qualquer par, e a ordem do texto trocava o valor em real entre
+  // elas. Aqui vale a cotação das compras resolvidas mais próximas na data (o dólar muda pouco
+  // de um dia para o outro); sem referência, a ordem do texto.
+  const dia = (iso: string) => new Date(`${iso}T12:00:00Z`).getTime() / 86_400_000;
+  for (const e of pendentes) {
+    const candidatos = [...soltos.keys()].filter((k) => casa(e, k));
+    if (candidatos.length === 0) {
+      // Sem par que feche a conta, a compra fica de fora: melhor faltar (a conferência com o total
+      // da fatura avisa) do que entrar com um valor de outra compra.
+      out.splice(out.indexOf(e.txn), 1);
+      continue;
+    }
+    const perto = resolvidas
+      .filter((r) => r.e.txn.date && r.e !== e)
+      .sort((x, y) => Math.abs(dia(x.e.txn.date) - dia(e.txn.date)) - Math.abs(dia(y.e.txn.date) - dia(e.txn.date)))[0];
+    const distanciaPosicao = (k: number) => (k >= e.posicao ? k - e.posicao : soltos.length + e.posicao - k);
+    candidatos.sort((x, y) => {
+      if (perto) {
+        const d = Math.abs(soltos[x] - perto.cotacao) - Math.abs(soltos[y] - perto.cotacao);
+        if (Math.abs(d) > 0.0001) return d;
+      }
+      return distanciaPosicao(x) - distanciaPosicao(y);
+    });
+    aplicar(e, candidatos[0]);
+    resolvidas.push({ e, cotacao: soltos[candidatos[0]] });
   }
   return out;
 }
