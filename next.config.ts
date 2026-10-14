@@ -39,7 +39,9 @@ const nextConfig: NextConfig = {
       // disco: nenhum deles aparece num import, então o rastreador não os copiaria. Só as
       // variantes "lstm" do motor (as únicas que o app usa) — o pacote inteiro tem 43 MB.
       "node_modules/tesseract.js/src/**",
-      "node_modules/tesseract.js-core/*lstm*",
+      // Todos os núcleos (13/10/2026): o print da fatura falhou 18 de 18 em produção porque o
+      // tesseract escolheu o "relaxedsimd" (sem lstm no nome), que ficava fora do pacote.
+      "node_modules/tesseract.js-core/*",
       "node_modules/@tesseract.js-data/por/4.0.0_best_int/*",
       // Dependências que o tesseract.js carrega por require em tempo de execução: como ele é
       // externo, o rastreador não as copiava e qualquer ação no mesmo pacote quebrava com
