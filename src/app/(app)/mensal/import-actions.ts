@@ -1047,7 +1047,7 @@ export async function importTransactionsAction(
   if (ehFatura) {
     try {
       const recusas = await prisma.contaRecusada.findMany({
-        where: { userId: ctx.userId, OR: [{ chave: { startsWith: PREFIXO_NAO_PARCELA } }, { chave: { startsWith: PREFIXO_COMPRA_APAGADA } }] },
+        where: { userId: ctx.userId, profileId: { in: [...ownProfileIds] }, OR: [{ chave: { startsWith: PREFIXO_NAO_PARCELA } }, { chave: { startsWith: PREFIXO_COMPRA_APAGADA } }] },
         select: { profileId: true, chave: true },
       });
       for (const r of recusas) recusasDeParcela.set(r.profileId ?? "", (recusasDeParcela.get(r.profileId ?? "") ?? new Set()).add(r.chave));
