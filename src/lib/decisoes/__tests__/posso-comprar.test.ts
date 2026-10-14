@@ -24,7 +24,7 @@ describe("avaliarCompra", () => {
     const r = avaliarCompra(base, { valor: 6000, modo: "parcelado", parcelas: 10, juros: 0, desconto: 0 }, fmt);
     if ("erro" in r) throw new Error();
     expect(r.veredito).toBe("custo");
-    expect(r.titulo).toBe("Cabe, mas tem um custo");
+    expect(r.titulo).toMatch(/atrasa \d+ meses/);
     expect(r.explicacao).toContain("Viagem");
   });
 

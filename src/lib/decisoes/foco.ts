@@ -1,5 +1,6 @@
 import { limiarCompraGrande } from "./foco-semana";
 import { CATEGORIAS_FIXAS, contasDoMes, semanaFixa, type ContaPendente, type ContasDoMes, type GastoDoDiaADia, type SemanaFixa } from "./semana-fixa";
+import { respostaSeguraOAviso, type AvisoDispensado } from "./resposta-ao-aviso";
 import type { Titulos } from "@/lib/profiles/voice";
 
 /**
@@ -96,8 +97,12 @@ export type FocoEntrada = {
   }[];
   /** Gastos recorrentes do Raio-X que ela ainda não decidiu. */
   raiox?: { n: number; anual: number } | null;
-  /** Avisos que ela já dispensou ("foi pontual", "entendi") neste mês ou nesta semana. */
-  dispensados?: string[];
+  /**
+   * Avisos que ela já dispensou ("foi pontual", "entendi") neste mês ou nesta semana. O de
+   * categoria que passou traz o quanto passava na hora: passar bem mais que isso traz o aviso de
+   * volta (ver resposta-ao-aviso.ts).
+   */
+  dispensados?: (string | AvisoDispensado)[];
   /**
    * O dia a dia do mês, gasto a gasto, e as contas (regra A, 13/10/2026). Omitido (testes antigos):
    * todo gasto fora das contas conta como de antes desta semana, e as contas são as categorias
@@ -500,8 +505,14 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
 
   // O que ela dispensou ("foi pontual", "entendi") some da lista até o mês (ou a semana) virar.
   if (e.dispensados && e.dispensados.length > 0) {
-    const fora = new Set(e.dispensados);
-    for (let i = itens.length - 1; i >= 0; i--) if (fora.has(itens[i].id)) itens.splice(i, 1);
+    const fora = new Map(e.dispensados.map((d) => (typeof d === "string" ? [d, null] : [d.id, d.passou])));
+    for (let i = itens.length - 1; i >= 0; i--) {
+      const item = itens[i];
+      if (!fora.has(item.id)) continue;
+      // Passou bem mais do que na hora da resposta: o aviso volta (é novidade).
+      const volta = item.detalhe?.tipo === "estouro" && !respostaSeguraOAviso(fora.get(item.id), item.detalhe.gasto - item.detalhe.planejado);
+      if (!volta) itens.splice(i, 1);
+    }
   }
 
   // Estável: dentro do mesmo nível, fica a ordem em que foram achados (estouro maior primeiro

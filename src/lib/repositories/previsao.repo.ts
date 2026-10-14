@@ -38,7 +38,7 @@ export async function carregarMesesPrevistos(ctx: AuthContext, hoje: Mes, de: Me
   }));
   const parceladas: ContaParcelada[] = contas
     .filter((c) => (c.parcelas ?? 0) > 1)
-    .map((c) => ({ id: c.id, nome: c.nome, valor: c.valor === null ? null : Number(c.valor), parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, categoria: (c.categoria as string | null) ?? null, diaDoMes: c.diaDoMes }));
+    .map((c) => ({ id: c.id, nome: c.nome, valor: c.valor === null ? null : Number(c.valor), parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, categoria: (c.categoria as string | null) ?? null, diaDoMes: c.diaDoMes, vencimento: c.vencimento.toISOString().slice(0, 10) }));
   const parcelasDe = (m: Mes) => parcelasDoMes(parcelaveis, { year: m.ano, month: m.mes }, parceladas, recusas).itens;
 
   return Array.from({ length: n }, (_, i) => {

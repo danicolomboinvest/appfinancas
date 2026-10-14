@@ -680,7 +680,7 @@ const GIRLY_UI: Partial<Titulos> = {
   uiErroTexto: "Foi erro meu, não seu, e seus dados estão seguros. Tenta recarregar; se continuar, sai e entra de novo.",
   uiErroTentarDeNovo: "Tentar de novo",
   uiNaoEncontradoTitulo: "Essa página não existe",
-  uiNaoEncontradoTexto: "Confere o endereço ou volta para o início, amiga. Seu dinheirinho está te esperando lá",
+  uiNaoEncontradoTexto: "Confere o endereço ou volta para o início, amiga. Seu dinheirinho está te esperando lá.",
   uiNaoEncontradoVoltar: "Voltar para o início",
 };
 
@@ -1321,7 +1321,7 @@ export const girly: Voz = {
     const estado = estadoParaFrase(estadoBruto, d.resultado);
     const v = inteiro(d.money, d.resultado);
     if (estado === "bom") return `Amiga, sobrou ${v}!! Está voando, hein.`;
-    if (estado === "normal") return `Sobrou ${v} Pouquinho, mas é seu. Boaaaa.`;
+    if (estado === "normal") return `Sobrou ${v}. Pouquinho, mas é seu. Boaaaa.`;
     if (estado === "ruim") return "Esse mês apertou, não foi? Relaxa, no próximo a gente ajusta juntas";
     return null;
   },
@@ -1334,7 +1334,7 @@ export const girly: Voz = {
     if (d.situacao === "estourou") return `Passou ${inteiro(d.money, d.restante)} do combinado. Bora ajustar juntas`;
     if (d.situacao === "adiantado") return `Calma no cartão, amiga. Dá ${dia}.`;
     if (d.situacao === "folgado") return `Está sobrando ${dia}. Arrasou`;
-    return `Sobram ${dia} Boaaaa.`;
+    return `Sobram ${dia}. Boaaaa.`;
   },
   mesVazio: "Nada anotado ainda. Me conta o primeiro gasto ou sobe o extrato, que eu te mostro para onde o dinheiro está indo",
   metaBatida: (nome) => `ARRASOU!! ${nome} concluída, amiga!`,
