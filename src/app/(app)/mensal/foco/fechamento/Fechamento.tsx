@@ -14,7 +14,8 @@ import { lerSobrou } from "@/lib/consolidation/sobrou";
 import { ajustarOrcamentoAction, concluirRitualAction, mandarSobraPraReservaAction, reabrirMesAction } from "../actions";
 import type { EstadoDoFechamento } from "./estado";
 
-export type MetaDoFechamento = { id: string; nome: string; guardado: number };
+/** `porMes`: quanto a meta pede por mês (0 = sem data, não há "em dia" a cobrar). */
+export type MetaDoFechamento = { id: string; nome: string; guardado: number; porMes: number };
 
 export type DadosFechamento = {
   /** "2026-09" */
@@ -196,10 +197,13 @@ export function Fechamento({ d, detalheReaberto }: { d: DadosFechamento; detalhe
                     <span className="block truncate text-[15px] font-medium text-ink">{m.nome}</span>
                     <span className="block text-[13px] text-ink-muted">{m.guardado > 0 ? `${money(m.guardado, { round: true })} guardados` : "nada registrado"}</span>
                   </span>
-                  {m.guardado > 0 ? (
+                  {/* "Em dia" só quando guardou o que a meta pede por mês (R$ 10 de R$ 500 não é em dia). */}
+                  {m.guardado > 0 && m.guardado + 0.5 >= m.porMes ? (
                     <span className="flex shrink-0 items-center gap-1 text-[13px] text-success">
                       <Check size={14} aria-hidden /> em dia
                     </span>
+                  ) : m.guardado > 0 ? (
+                    <span className="shrink-0 text-[13px] tabular-nums text-ink-muted">de {money(m.porMes, { round: true })}</span>
                   ) : (
                     <Link href={`/planejamento/metas/${m.id}`} className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">
                       Registrar
