@@ -8,6 +8,8 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
+import { desfazerDispensaAction } from "@/app/(app)/decidir/actions";
+import { idDoEstouro } from "@/lib/decisoes/resposta-ao-aviso";
 import { fontesParaCobrir, planoDeCobrir, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 
 /**
@@ -64,11 +66,14 @@ export function OQueFazer({
     router.refresh();
   }
 
+  // Toda resposta tira o aviso desta categoria no mês (pedido da Dani, 14/10/2026), guardando o
+  // quanto passava: ele só volta se passar bem mais (ver resposta-ao-aviso.ts).
+  const idDoAviso = idDoEstouro(categoria.key);
   function dispensar(mensagem: string) {
     iniciar(async () => {
       try {
-        await dispensarAvisoAction(`estouro-${categoria.key}`, "mes");
-        feito(mensagem);
+        await dispensarAvisoAction(idDoAviso, "mes", valor);
+        feito(mensagem, () => desfazerDispensaAction(idDoAviso, "mes"));
       } catch {
         showError("Não consegui salvar. Tente de novo.");
       }
@@ -86,8 +91,10 @@ export function OQueFazer({
         const r = await cobrirCategoriaAction({ de: o.key, para: categoria.key, valor: o.valor });
         if (r.error) return showError(r.error);
       }
+      await dispensarAvisoAction(idDoAviso, "mes", valor).catch(() => undefined);
       feito(`${m(valor)} de ${origens.map((o) => o.label).join(" e ")} cobriram ${categoria.label} neste mês`, async () => {
         for (const o of origens) await cobrirCategoriaAction({ de: categoria.key, para: o.key, valor: o.valor });
+        await desfazerDispensaAction(idDoAviso, "mes");
       });
     });
   }

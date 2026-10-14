@@ -288,8 +288,10 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     const achado = cacarDinheiroPerdido(paraCacar, { assinaturasDela }).achados.filter((a) => !decididos.has(a.chave)).sort((a, b) => b.anual - a.anual)[0];
     if (achado) fila.push({ tipo: "dinheiro", id: achado.chave, texto: fraseDoAchado(achado, m), botao: { rotulo: "Ver", href: "/orcamento/contas/perdido" } });
 
-    // 3. Categoria que subiu.
-    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram) : null;
+    // 3. Categoria que subiu. A que passou do plano e ela já respondeu no "O que fazer?" fica de
+    // fora: seria o mesmo aviso de volta.
+    const respondidas = new Set(foco.estourosRespondidos);
+    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram.filter((c) => !respondidas.has(c.categoria))) : null;
     if (subiu) {
       const nome = info(subiu.categoria).nome;
       const meses = mesesAte(passado.ano, passado.mes, 3).map((mm) =>

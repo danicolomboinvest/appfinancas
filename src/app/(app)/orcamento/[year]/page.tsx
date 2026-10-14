@@ -37,6 +37,8 @@ import { categoriasEssenciais } from "@/lib/categories";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { AlertaDoOrcamento } from "@/components/budget/AlertaDoOrcamento";
+import { listarAvisosDispensados, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
+import { avisoRespondido, respostasDeEstouro } from "@/lib/decisoes/resposta-ao-aviso";
 import { SeuPlano } from "@/components/budget/SeuPlano";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
@@ -147,7 +149,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       : null;
 
   // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
-  const detalhe = currentMonthData ? await carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now) : null;
+  // As respostas do "O que fazer?" neste mês: a categoria que ela já respondeu sai do aviso (e só
+  // volta se passar bem mais, ver resposta-ao-aviso.ts).
+  const anoMesEscolhido = `${year}-${String(mesEscolhido).padStart(2, "0")}`;
+  const [detalhe, dispensadosDoMes, tetosDoMes] = currentMonthData
+    ? await Promise.all([carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now), listarAvisosDispensados(ctx, anoMesEscolhido, anoMesEscolhido), listarTetosDoMes(ctx, anoMesEscolhido)])
+    : [null, [], []];
   const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month) : 0;
   const ROTULO_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   // Na ordem do plano, do maior para o menor (protótipo); a que passou é marcada, não sobe.
@@ -185,6 +192,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       })(),
     };
   });
+  const respostasDoMes = respostasDeEstouro(dispensadosDoMes, tetosDoMes);
+  const respondidas = linhasDoMes.filter((l) => l.estado === "passou" && avisoRespondido(respostasDoMes, l.key, Math.abs(l.sobra))).map((l) => l.key);
   const essenciais = [...categoriasEssenciais(ctx.categorias?.prefs)];
   const livreDoMes = resumoMes ? resumoMes.restante : null;
   const diasRestantes = resumoMes ? Math.max(1, resumoMes.diasRestantes) : 1;
@@ -261,7 +270,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           </HeroiDoTema>
         )}
         <div className="flex min-w-0 flex-col gap-6 lg:gap-4">
-          {linhasDoMes.length > 0 && <AlertaDoOrcamento mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} />}
+          {linhasDoMes.length > 0 && <AlertaDoOrcamento respondidas={respondidas} mes={MONTH_LABELS[(currentMonthData?.month ?? 1) - 1].toLowerCase()} linhas={linhasDoMes} essenciais={essenciais} livre={livreDoMes} diasRestantes={diasRestantes} />}
           {linhasDoMes.length > 0 && <SeuPlano itens={linhasDoMes.map((l) => ({ key: l.key, label: l.label, cor: l.cor, planejado: l.planejado, gasto: l.gasto + l.aVencer }))} />}
 
 

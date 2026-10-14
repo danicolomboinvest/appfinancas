@@ -31,6 +31,7 @@ import { ehDoCartao } from "@/lib/cartao/limite";
 import { doDono } from "@/lib/auth/session";
 import { acharRecorrentes } from "@/lib/decisoes/raio-x";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
+import { avisoRespondido, respostasDeEstouro } from "@/lib/decisoes/resposta-ao-aviso";
 
 export const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const DIA_MS = 86_400_000;
@@ -414,6 +415,12 @@ export async function carregarFoco(ctx: AuthContext) {
     hrefMes,
     categorias,
     tetos,
+    // As categorias que passaram e que ela já respondeu no "O que fazer?" (o aviso não aparece):
+    // o Resumo novo não sugere de novo "Saúde subiu" para a mesma categoria.
+    estourosRespondidos: (() => {
+      const respostas = respostasDeEstouro(dispensados, tetos);
+      return categorias.filter((c) => c.gasto - c.planejado >= 1 && avisoRespondido(respostas, c.key, c.gasto - c.planejado)).map((c) => c.key);
+    })(),
     summary,
     aportePlanejado,
     rendaSoOQueEntrou,

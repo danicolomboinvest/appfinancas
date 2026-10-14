@@ -237,11 +237,15 @@ export async function listarCancelamentosPraConfirmar(ctx: AuthContext, inicioDo
     .map((c) => ({ chave: c.chave as string, nome: c.descricao ?? c.chave ?? "", anual: Number(c.valor ?? 0) }));
 }
 
-/** Ids dos avisos do Foco dispensados neste mês ("2026-09|…") ou nesta semana ("2026-W40|…"). */
-export async function listarAvisosDispensados(ctx: AuthContext, anoMes: string, semana: string): Promise<string[]> {
+/**
+ * Os avisos do Foco dispensados neste mês ("2026-09|…") ou nesta semana ("2026-W40|…"), com o
+ * quanto a categoria passava na hora da resposta (só o aviso de categoria que passou guarda; ver
+ * resposta-ao-aviso.ts).
+ */
+export async function listarAvisosDispensados(ctx: AuthContext, anoMes: string, semana: string): Promise<{ id: string; passou: number | null }[]> {
   const rows = await prisma.decisao.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "aviso_dispensado", OR: [{ chave: { startsWith: `${anoMes}|` } }, { chave: { startsWith: `${semana}|` } }] },
-    select: { chave: true },
+    select: { chave: true, valor: true },
   });
-  return rows.map((r) => (r.chave ?? "").split("|").slice(1).join("|"));
+  return rows.map((r) => ({ id: (r.chave ?? "").split("|").slice(1).join("|"), passou: r.valor === null ? null : Number(r.valor) }));
 }

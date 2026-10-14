@@ -464,13 +464,21 @@ export async function resolverLancamentoAntigoAction(entryId: string, acao: "gua
  * "Foi pontual, sigo o plano" / "Entendi" num aviso do Foco: ele some até o mês virar. O aviso de
  * guardar ("vou transferir essa semana") some só até a semana virar.
  */
-export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "semana") {
+/**
+ * `passou`: no aviso de categoria que passou, quanto passava na hora da resposta. O aviso some no
+ * mês e só volta se passar bem mais que isso (ver resposta-ao-aviso.ts).
+ */
+export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "semana", passou?: number) {
   const id = z.string().regex(/^[a-z]+(-[A-Za-z0-9_]+)?$/).max(80).parse(itemId);
+  const valor = z.number().positive().max(100_000_000).optional().catch(undefined).parse(passou);
   const ctx = await getRequiredSession();
   const now = nowInBrazil();
   const periodo = escopo === "semana" ? chaveDaSemana(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}` });
+  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}`, valor });
   revalidatePath("/mensal/foco");
+  // O mesmo aviso mora no Orçamento e no Decidir: some de lá também.
+  revalidatePath("/orcamento", "layout");
+  revalidatePath("/decidir");
 }
 
 /**
