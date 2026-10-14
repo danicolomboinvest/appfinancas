@@ -1,5 +1,5 @@
 import type { ParentCategory, ProfileKind } from "@prisma/client";
-import { chaveCobre, chaveDoComerciante, chaveUtil } from "./comerciante";
+import { chaveCobre, chaveDoComerciante, chaveUtil, ehMovimentoEntrePessoas, separarHorarioECategoria } from "./comerciante";
 import { DICIONARIO_EMPRESA, DICIONARIO_PESSOAL, type RegraDoDicionario } from "./dicionario";
 import { completarPalavraCortada, descolarPalavraDeComida } from "./parece-comida";
 
@@ -54,7 +54,11 @@ function paraPalavras(texto: string): string {
  * Agência: 1 Conta: 2"), e "INTERNET" virava conta de casa, "MERCADO PAGO" virava supermercado.
  * Corta no CPF/CNPJ e no "Agência:", igual ao cleanDescription do PDF do Nubank.
  */
-function textoParaRegras(description: string): string {
+function textoParaRegras(descricaoBruta: string): string {
+  // "00h14 Seguro Pix enviado Fulano": no Pix e na transferência o rótulo de categoria do banco é
+  // chute (um Pix para uma pessoa virava "Tarifas bancárias" por causa do "Seguro"). Só o nome vale.
+  const semRotulo = separarHorarioECategoria(descricaoBruta);
+  const description = semRotulo.descricao !== descricaoBruta && ehMovimentoEntrePessoas(semRotulo.descricao) ? semRotulo.descricao : descricaoBruta;
   const cpf = description.search(/\s+-\s+([•*]{3}|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/);
   const base = (cpf > -1 ? description.slice(0, cpf) : description)
     .replace(/\s+-\s+[^-]*\(\d{3,4}\)\s*Ag[eê]ncia.*$/i, "")
