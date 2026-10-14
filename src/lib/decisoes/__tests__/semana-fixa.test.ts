@@ -65,6 +65,14 @@ describe("semana fixa: o exemplo do estudo", () => {
     expect(s.porDia).toBe(70);
     expect(s.acabaNoDomingo).toBe(true);
   });
+
+  it("show do dia 28 lançado na quarta: não é desta semana (nada de \"Passou\"), sai da sobra do mês", () => {
+    const s = semanaFixa({ ...base, dia: 13, diasAteDomingo: 5, gastos: [gasto(1110, 5, 5), gasto(80, 11), gasto(50, 13), gasto(600, 28, 13)] });
+    expect(s.valor).toBe(480);
+    expect(s.gasto).toBe(130);
+    expect(s.restante).toBe(350);
+    expect(s.sobraDoMes).toBe(1440 - 130 - 600);
+  });
 });
 
 describe("semana fixa: os casos que confundiam", () => {

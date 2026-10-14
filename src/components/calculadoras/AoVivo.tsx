@@ -9,7 +9,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { reaisDoTexto } from "@/lib/dinheiro/digitado";
 import type { TipoDeSimulacao, ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
 import type { Veredito } from "@/lib/calculadoras/vereditos";
-import { BotaoVirarMeta, CampoDoNome, comCentavos, IconeRedondo, milhar, pc, useSalvar, useSimbolo, VoltarParaCalculadoras, type MetaSugerida } from "./pecas";
+import { BotaoVirarMeta, CampoDoNome, comCentavos, IconeRedondo, milhar, pc, useDinheiroParaGuardar, useSalvar, useSimbolo, VoltarParaCalculadoras, type MetaSugerida } from "./pecas";
 
 /**
  * "Mexer nos números" (protótipo aprovado): uma tela só, o veredito em cima e cada número embaixo
@@ -77,7 +77,10 @@ export function AoVivo({
   const { veredito, sub } = calcular(v);
   const numero = money(veredito.numero, { round: true });
   const resumo = veredito.erro ? veredito.erro : `${veredito.frase} · ${numero}`;
-  const s = useSalvar(tipo, v, resumo, salvaInicial ? JSON.stringify(inicial) : null);
+  // O que vai para o banco sai sem o olho do topo: escondido, o resumo era gravado "R$ ••••".
+  const guardar = useDinheiroParaGuardar();
+  const resumoGuardado = veredito.erro ? veredito.erro : `${veredito.frase} · ${guardar(veredito.numero, { round: true })}`;
+  const s = useSalvar(tipo, v, resumoGuardado, salvaInicial ? JSON.stringify(inicial) : null);
   const ehExemplo = Object.keys(exemplo).every((k) => String(exemplo[k]) === String(v[k]));
 
   const muda = (k: string, x: number | string) =>

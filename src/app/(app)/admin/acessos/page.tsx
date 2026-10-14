@@ -29,13 +29,15 @@ export default async function AdminAcessosPage(props: { searchParams: Promise<{ 
   const [todosEmails, products, moneyReset] = await Promise.all([listAllowedEmails(), listAllowedProducts(), listarProdutosLiberados(MONEY_RESET)]);
   // Busca por nome: a lista é de e-mails; o nome e o celular vêm da conta, quando ela já existe.
   const contas = q
-    ? await prisma.user.findMany({ where: { email: { in: todosEmails.map((e) => e.email) } }, select: { email: true, name: true, phone: true } })
+    ? // Sem caixa: contas antigas guardaram o e-mail como foi digitado ("Maria@..."), a lista guarda minúsculo.
+      await prisma.user.findMany({ where: { email: { in: todosEmails.map((e) => e.email), mode: "insensitive" } }, select: { email: true, name: true, phone: true } })
     : [];
   const daConta = new Map(contas.map((c) => [c.email.toLowerCase(), c]));
   const emails = q
     ? todosEmails.filter((e) => {
         const c = daConta.get(e.email.toLowerCase());
-        return bateComBusca(q, e.email, e.note, c?.name, c?.phone);
+        // O celular da COMPRA também (e.phone): quem chama no WhatsApp quase sempre ainda não criou a conta.
+        return bateComBusca(q, e.email, e.note, e.phone, c?.name, c?.phone);
       })
     : todosEmails;
   const active = emails.filter((e) => e.active && !isExpired(e.expiresAt)).length;

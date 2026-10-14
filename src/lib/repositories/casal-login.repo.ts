@@ -11,6 +11,7 @@ import {
   decidirTela,
   estadoDoConvite,
   letraDoPar,
+  nomeDadoAoPar,
   outraLetra,
   primeiroNome,
   type CanalDoConvite,
@@ -23,6 +24,7 @@ import { lerConfigCasal, type ConfigCasal } from "@/lib/casal/acerto";
 import { normalizeEmail, situacaoDoAcesso } from "@/lib/repositories/allowedEmail.repo";
 import type { ProfileRow } from "@/lib/repositories/profile.repo";
 import { garantirPessoalDoPar } from "@/lib/repositories/casa.repo";
+import { MARCA_DO_TOUR_NA_CONTA_NOVA } from "@/lib/novidades/passos";
 
 /**
  * Login do par no Nós dois (aprovado pela dona em 11/10/2026, casal-login-proposta.html).
@@ -347,7 +349,10 @@ export async function aceitarConvite(
         const existe = await tx.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true } });
         if (existe) throw new ErroDeAceite("email-em-uso");
         // Sem perfil próprio: o par entra pelo vínculo. Sem /comecar: ele cai direto no Nós dois.
-        const u = await tx.user.create({ data: { email, name: entrada.novaConta.nome, passwordHash: senhaHash!, onboardedAt: agora, theme: "light" } });
+        // Conta nova da versão nova: o "Tivemos uma mudança" (que é para quem já usava) não abre.
+        const u = await tx.user.create({
+          data: { email, name: entrada.novaConta.nome, passwordHash: senhaHash!, onboardedAt: agora, theme: "light", novidadesVersaoNova: MARCA_DO_TOUR_NA_CONTA_NOVA, novidadesVistasEm: agora },
+        });
         id = u.id;
       }
       const virou = await tx.conviteCasal.updateMany({
@@ -374,6 +379,8 @@ export async function aceitarConvite(
         },
       });
       // Quem já tinha conta e nunca passou pelo começo não é mandado pra lá: cai no Nós dois.
+      // Quem nunca passou pelo começo também nunca usou a versão antiga: sem "Tivemos uma mudança".
+      await tx.user.updateMany({ where: { id: id!, onboardedAt: null, novidadesVersaoNova: null }, data: { novidadesVersaoNova: MARCA_DO_TOUR_NA_CONTA_NOVA, novidadesVistasEm: agora } });
       await tx.user.updateMany({ where: { id: id!, onboardedAt: null }, data: { onboardedAt: agora } });
       // Os nomes do casal ainda de fábrica ("Pessoa 1/2") ganham os nomes de verdade: o do
       // convite para o par e o da conta para a titular. Nome que ela já escreveu não muda.
@@ -384,8 +391,12 @@ export async function aceitarConvite(
         const chavePar = letraPar === "A" ? "nomeA" : "nomeB";
         const chaveTitular = letraPar === "A" ? "nomeB" : "nomeA";
         const novo = { ...config };
-        const nomeDoConvite = c.nomePar && c.nomePar !== "seu par" ? c.nomePar : primeiroNome("novaConta" in entrada ? entrada.novaConta.nome : null, "");
-        if (/^Pessoa [12]$/.test(config[chavePar]) && nomeDoConvite) novo[chavePar] = nomeDoConvite.slice(0, 30);
+        const nomeDoConvite = nomeDadoAoPar(c.nomePar) || primeiroNome("novaConta" in entrada ? entrada.novaConta.nome : null, "");
+        // Par novo depois de outro que saiu (ou foi tirado): o nome guardado é do par de antes. Sem
+        // isso a pessoa nova entrava e via o acerto entre "Lucas" e a titular, com a inicial dele.
+        const teveOutroPar = await tx.membroCasal.findFirst({ where: { profileId: c.profileId, saiuEm: { not: null }, NOT: { userId: id! } }, select: { id: true } });
+        if (teveOutroPar) novo[chavePar] = (nomeDoConvite || `Pessoa ${letraPar === "A" ? 1 : 2}`).slice(0, 30);
+        else if (/^Pessoa [12]$/.test(config[chavePar]) && nomeDoConvite) novo[chavePar] = nomeDoConvite.slice(0, 30);
         if (/^Pessoa [12]$/.test(config[chaveTitular]) && perfil.user.name) novo[chaveTitular] = primeiroNome(perfil.user.name).slice(0, 30);
         if (novo.nomeA !== config.nomeA || novo.nomeB !== config.nomeB) await tx.financialProfile.update({ where: { id: c.profileId }, data: { casal: novo } });
       }
@@ -435,7 +446,7 @@ export async function ultimoVinculoComoPar(userId: string) {
   return prisma.membroCasal.findFirst({
     where: { userId },
     orderBy: { entrouEm: "desc" },
-    select: { id: true, profileId: true, letra: true, saiuEm: true, bloqueadoEm: true, profile: { select: { userId: true, casal: true, user: { select: { name: true, email: true } } } } },
+    select: { id: true, profileId: true, letra: true, saiuEm: true, bloqueadoEm: true, modelo: true, perfilParId: true, profile: { select: { userId: true, casal: true, user: { select: { name: true, email: true } } } } },
   });
 }
 

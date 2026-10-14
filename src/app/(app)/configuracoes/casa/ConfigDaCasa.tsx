@@ -130,7 +130,7 @@ export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; o
         <div className="flex flex-col gap-4" data-confirmar-saida>
           <ul className="flex flex-col gap-2 text-[15px] text-ink">
             <li>Cada um fica com os próprios lançamentos, no próprio Pessoal.</li>
-            <li>O acerto e as metas a dois ficam com {titular}.</li>
+            <li>{souTitular ? "O acerto e as metas a dois ficam com você." : `O acerto e as metas a dois ficam com ${titular}.`}</li>
             <li>{souTitular ? `${par} não vê mais nada seu.` : `${titular} não vê mais nada seu.`}</li>
           </ul>
           <button

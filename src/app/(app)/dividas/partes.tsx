@@ -3,6 +3,7 @@ import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { perfilDoTipo, type IconeDoTipo, type TipoDeDivida } from "@/lib/dividas/tipos";
 import { descricaoDoCredor, FRASE_DA_SAUDE, type Saude } from "@/lib/dividas/saude";
+import type { MoneyFormatter } from "@/lib/money";
 
 /** Ícone de traço de cada tipo (o Rota usava emoji; o SPI não usa emoji na interface). */
 export const ICONE: Record<IconeDoTipo, LucideIcon> = {
@@ -69,3 +70,10 @@ export const plural = (n: number, um: string, varios: string) => `${n} ${n === 1
 
 /** "1,5" sem casas sobrando. */
 export const pct = (v: number, casas = 1) => v.toLocaleString("pt-BR", { maximumFractionDigits: casas });
+
+/**
+ * O valor que ela digitou no cadastro (a parcela): com os centavos quando tem. Os totais e o
+ * bilhete seguem redondos. 14/10/2026: digitou R$ 123,45 e o detalhe mostrava R$ 123, o mesmo
+ * "não dá para pôr centavos" que gerou reembolso.
+ */
+export const valorDigitado = (money: MoneyFormatter, v: number) => money(v, { round: Math.round(Math.abs(v) * 100) % 100 === 0 });

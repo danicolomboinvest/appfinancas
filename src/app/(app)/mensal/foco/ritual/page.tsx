@@ -7,6 +7,7 @@ import { sumExpensesBetweenDates } from "@/lib/repositories/monthly-entry.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { carregarFoco } from "../dados";
 import { Ritual, type DadosRitual } from "./Ritual";
+import { semanaPassadaDoDiaADia } from "./semana-passada";
 
 const DIA_MS = 86_400_000;
 
@@ -27,9 +28,8 @@ export default async function RitualPage() {
   const d = await carregarFoco(ctx);
   const semanas = semanasAnteriores(d.now);
   const somas = await Promise.all(semanas.map((s) => sumExpensesBetweenDates(ctx, s.de, s.ate)));
-  const total = (i: number) => somas[i].reduce((s, g) => s + g.spent, 0);
-  const anteriores = [1, 2, 3, 4].map(total).filter((v) => v > 0);
-  const maior = [...somas[0]].filter((g) => g.parentCategory).sort((a, b) => b.spent - a.spent)[0];
+  const passada = semanaPassadaDoDiaADia(somas);
+  const maior = passada.maior;
 
   const livre = d.foco.livre;
   const diasRestantes = livre.tipo === "semOrcamento" ? Math.max(1, d.diasNoMes - d.dia + 1) : livre.diasRestantes;
@@ -52,8 +52,8 @@ export default async function RitualPage() {
   const dados: DadosRitual = {
     semana: d.semana,
     semanaPassada: {
-      total: total(0),
-      media: anteriores.length > 0 ? anteriores.reduce((s, v) => s + v, 0) / anteriores.length : null,
+      total: passada.total,
+      media: passada.media,
       maior: maior ? { label: categoryLabel(ctx.categorias ?? ctx.profileKind, maior.parentCategory as ParentCategory), valor: maior.spent } : null,
     },
     alvo: alvo && itemAlvo ? { key: alvo.key, label: alvo.label, uso: alvo.uso, gasto: alvo.gasto, planejado: alvo.planejado, sobra: Math.max(0, alvo.planejado - alvo.gasto), diasRestantes, avisoId: itemAlvo.id } : null,

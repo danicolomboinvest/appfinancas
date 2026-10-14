@@ -14,10 +14,13 @@ import { listarLancamentosParcelaveis } from "@/lib/repositories/monthly-entry.r
 import { listarRecusasDeParcela } from "@/lib/repositories/parcelas.repo";
 import { cacarDinheiroPerdido, type Achado } from "@/lib/dinheiro-perdido/detectar";
 import { chavesDasAssinaturasDela, lancamentosParaCacar, listarAchadosGuardados } from "@/lib/repositories/dinheiro-perdido.repo";
+import { parecePagamentoDeFatura } from "@/lib/import/dinheiro-proprio";
 import { carregarFoco, MESES } from "../dados";
 import { chaveDaSemana } from "../ritmo";
 import { ondeMostrarFechamento } from "../fechamento/quando-mostrar";
 import { listarDispensasDeSugestao } from "./dispensas";
+import { parcelasProjetadas } from "@/lib/import/total-do-lote";
+import { detalharONumero, type DetalheDoNumero, type LancamentoDoNumero } from "./detalhe-do-numero";
 import {
   categoriaQueCaiu,
   categoriaQueSubiu,
@@ -31,9 +34,10 @@ import {
   limiteProposto,
   mesAnterior,
   porcentagemQueFicou,
+  semAsProjetadas,
+  type ParcelaProjetada,
   type CasoDoTopo,
   type Comparacao,
-  type GastoDoDia,
   type Mes,
   type SinalDoMes,
   type Sugestao,
@@ -43,8 +47,9 @@ const ENVIAR = "/comecar?passo=volta";
 const chaveMes = (m: Mes) => `${m.ano}-${m.mes}`;
 const nomeDoMes = (m: Mes) => MESES[m.mes - 1];
 const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-/** Pagamento da fatura lançado no extrato da conta: entra como um gasto só. */
-const PAGAMENTO_DE_FATURA = /fatura|pgto\.? ?cart|pagamento (de )?cart|pag fat/i;
+/** Pagamento da fatura lançado no extrato da conta: entra como um gasto só. A mesma regra do
+ * import (antes era /fatura/, que pegava "CLARO FATURA" e não pegava "BOLETO NU PAGAMENTOS"). */
+const ehPagamentoDeFatura = (descricao: string | null) => parecePagamentoDeFatura(descricao);
 
 export type InfoDaCategoria = { chave: string; nome: string; icone: LucideIcon; cor: string };
 export type LinhaDeCategoria = InfoDaCategoria & { atual: number; passado: number; diferenca: number; compras: number };
@@ -58,8 +63,12 @@ export type HeroiDiaADia = {
   diasDoMes: number;
   /** "Ficou com você em setembro", com a diferença contra agosto. Só com 2 meses ou mais. */
   ficouPassado: { valor: number; contraRetrasado: number | null } | null;
+  /** O mês passado não tem nada: não há com o que comparar (nunca "R$ 3.140 a mais" contra zero). */
+  passadoVazio: boolean;
   /** "Guardado em 2026", e a % do que entrou no ano. */
   guardadoNoAno: { valor: number; pct: number | null } | null;
+  /** Tocar no número: os lançamentos que somam ele, e os do mês passado até o mesmo dia. */
+  detalhe: { atual: DetalheDoNumero; passado: DetalheDoNumero; info: Record<string, InfoDaCategoria> };
 };
 
 export type HeroiMesFechado = {
@@ -123,13 +132,13 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
   const base = lancamentosDosTotais(ctx);
   const dono = { userId: ctx.userId, profileId: ctx.profileId };
 
-  const [foco, valores, gastos, porLote, digitadosPorMes, ultimoLote, personalizadas, dispensas, parcelaveis, recusas, paraCacar, assinaturasDela, guardados, mesesPorCategoria] = await Promise.all([
-    carregarFoco(ctx),
+  const [foco, valores, gastos, porLote, digitadosPorMes, ultimoLote, personalizadas, dispensas, parcelaveis, recusas, paraCacar, assinaturasDela, guardados, mesesPorCategoria, aplicacoes] = await Promise.all([
+    carregarFoco(ctx, hojeDeTeste ? hoje : null),
     valoresDosMeses(ctx, doze),
     // Os gastos dos dois meses da comparação.
     prisma.monthlyEntry.findMany({
       where: comFiltro(base, { category: "EXPENSE", OR: [{ year: mes.ano, month: mes.mes }, { year: passado.ano, month: passado.mes }] }),
-      select: { year: true, month: true, amount: true, entryDate: true, createdAt: true, parentCategory: true, customCategoryId: true, description: true, importBatchId: true, externalId: true },
+      select: { id: true, year: true, month: true, amount: true, entryDate: true, createdAt: true, parentCategory: true, customCategoryId: true, description: true, subcategory: true, importBatchId: true, externalId: true },
       take: 8000,
     }),
     // De onde veio o dado de cada mês: que lotes (extrato ou fatura) têm lançamento nele.
@@ -157,6 +166,13 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       where: comFiltro(base, { category: "EXPENSE", OR: mesesAte(passado.ano, passado.mes, 3).map((m) => ({ year: m.ano, month: m.mes })) }),
       _sum: { amount: true },
     }),
+    // As aplicações dos dois meses: saem da conta, mas são guardar, não gasto. Só para o "Fora da
+    // conta" do detalhe do número.
+    prisma.monthlyEntry.findMany({
+      where: comFiltro(base, { category: "INVESTMENT_CONTRIBUTION", OR: [{ year: mes.ano, month: mes.mes }, { year: passado.ano, month: passado.mes }] }),
+      select: { id: true, year: true, month: true, amount: true, entryDate: true, createdAt: true, description: true, subcategory: true, parentCategory: true, customCategoryId: true },
+      take: 2000,
+    }),
   ]);
 
   // ---------------------------------------------------------------- categorias
@@ -173,23 +189,34 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
 
   // O dia de cada gasto dentro do mês dele. Sem data: o dia em que entrou no app, se foi naquele
   // mês (a fatura sem dia por compra vale pelo dia da importação); senão, desde o dia 1.
-  const diaNoMes = (g: (typeof gastos)[number]): number | null => {
+  const diaNoMes = (g: Pick<(typeof gastos)[number], "entryDate" | "year" | "month" | "createdAt">): number | null => {
     if (g.entryDate) {
       const y = g.entryDate.getUTCFullYear();
       const m = g.entryDate.getUTCMonth() + 1;
       if (y === g.year && m === g.month) return g.entryDate.getUTCDate();
-      return y * 12 + m < g.year * 12 + g.month ? null : 99;
+      // Data de um mês depois (a conta de 02/10 lançada em setembro): conta no fim do mês, para a
+      // curva de setembro inteiro fechar com o "gastou" dele, e fica fora do "até o mesmo dia".
+      return y * 12 + m < g.year * 12 + g.month ? null : diasNoMes({ ano: g.year, mes: g.month });
     }
     const criado = nowInBrazil(g.createdAt);
     return criado.getFullYear() === g.year && criado.getMonth() + 1 === g.month ? criado.getDate() : null;
   };
-  const doMes = (m: Mes): GastoDoDia[] => gastos.filter((g) => g.year === m.ano && g.month === m.mes).map((g) => ({ valor: Number(g.amount), dia: diaNoMes(g), categoria: chaveDe(g) }));
+  // Com o id e o nome: o detalhe do número usa exatamente estes, para a soma bater.
+  const lancamento = (g: (typeof gastos)[number] | (typeof aplicacoes)[number]): LancamentoDoNumero => ({
+    id: g.id,
+    descricao: g.description?.trim() || g.subcategory?.trim() || "Sem descrição",
+    valor: Number(g.amount),
+    dia: diaNoMes(g),
+    categoria: chaveDe(g),
+  });
+  const doMes = (m: Mes): LancamentoDoNumero[] => gastos.filter((g) => g.year === m.ano && g.month === m.mes).map(lancamento);
+  const aplicacoesDe = (m: Mes) => aplicacoes.filter((g) => g.year === m.ano && g.month === m.mes).map(lancamento);
   const gastosAtual = doMes(mes);
   const gastosPassado = doMes(passado);
 
   // ---------------------------------------------------------------- de onde veio o dado
   const idsDosLotes = [...new Set(porLote.map((l) => l.importBatchId).filter((x): x is string => x !== null))];
-  const lotes = idsDosLotes.length > 0 ? await prisma.importBatch.findMany({ where: { id: { in: idsDosLotes } }, select: { id: true, docType: true } }) : [];
+  const lotes = idsDosLotes.length > 0 ? await prisma.importBatch.findMany({ where: { id: { in: idsDosLotes } }, select: { id: true, docType: true, createdAt: true } }) : [];
   const tipoDoLote = new Map(lotes.map((l) => [l.id, l.docType]));
   const arquivosPorMes = new Map<string, { extrato: boolean; fatura: boolean }>();
   for (const l of porLote) {
@@ -201,21 +228,43 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     arquivosPorMes.set(k, a);
   }
   const valorDe = (m: Mes) => valores.find((v) => v.ano === m.ano && v.mes === m.mes) ?? { entrou: 0, gastou: 0, guardou: 0 };
+  // Para escolher o caso do topo, as parcelas que a fatura projetou nos meses seguintes não contam
+  // como dado daquele mês (ver semAsProjetadas): a fatura de setembro não vira "dia a dia de outubro".
+  const idsDasFaturas = lotes.filter((l) => l.docType === "fatura").map((l) => l.id);
+  const dasFaturas = idsDasFaturas.length > 0
+    ? await prisma.monthlyEntry.findMany({ where: comFiltro(base, { importBatchId: { in: idsDasFaturas } }), select: { importBatchId: true, year: true, month: true, amount: true, category: true, description: true } })
+    : [];
+  const projetadas: ParcelaProjetada[] = idsDasFaturas.flatMap((id) => {
+    const doLote = dasFaturas.filter((e) => e.importBatchId === id).map((e) => ({ amount: Number(e.amount), category: e.category, year: e.year, month: e.month, description: e.description ?? "" }));
+    const fora = parcelasProjetadas(doLote);
+    return doLote.flatMap((e, i) => (fora.has(i) && e.category === "EXPENSE" ? [{ ano: e.year, mes: e.month, valor: e.amount, loteId: id }] : []));
+  });
+  const paraOCaso = semAsProjetadas(valores, porLote, projetadas);
+  const arquivosParaOCaso = new Map<string, { extrato: boolean; fatura: boolean }>();
+  for (const l of paraOCaso.porLote) {
+    const k = `${l.year}-${l.month}`;
+    const a = arquivosParaOCaso.get(k) ?? { extrato: false, fatura: false };
+    const tipo = tipoDoLote.get(l.importBatchId ?? "");
+    if (tipo === "fatura") a.fatura = true;
+    else if (tipo) a.extrato = true;
+    arquivosParaOCaso.set(k, a);
+  }
+  const valorParaOCaso = (m: Mes) => paraOCaso.valores.find((v) => v.ano === m.ano && v.mes === m.mes) ?? { entrou: 0, gastou: 0, guardou: 0 };
   const digitadosDe = (m: Mes) => digitadosPorMes.find((d) => d.year === m.ano && d.month === m.mes)?._count._all ?? 0;
   const sinal = (m: Mes): SinalDoMes => {
-    const v = valorDe(m);
-    const a = arquivosPorMes.get(chaveMes(m)) ?? { extrato: false, fatura: false };
+    const v = valorParaOCaso(m);
+    const a = arquivosParaOCaso.get(chaveMes(m)) ?? { extrato: false, fatura: false };
     return { gastos: v.gastou, entradas: v.entrou, extrato: a.extrato, fatura: a.fatura, digitados: digitadosDe(m) };
   };
   const comDado = (v: { entrou: number; gastou: number; guardou: number }) => v.entrou !== 0 || v.gastou !== 0 || v.guardou !== 0;
-  const mesesComDado = doze.filter((m) => comDado(valorDe(m))).length;
-  const comArquivo = [...doze].reverse().find((m) => arquivosPorMes.has(chaveMes(m)));
+  const mesesComDado = doze.filter((m) => comDado(valorParaOCaso(m))).length;
+  const comArquivo = [...doze].reverse().find((m) => arquivosParaOCaso.has(chaveMes(m)));
   const caso = escolherCaso({
     dia,
     atual: sinal(mes),
     passado: sinal(passado),
     mesesComDado,
-    ultimoArquivo: comArquivo ? { mes: comArquivo, ...arquivosPorMes.get(chaveMes(comArquivo))! } : null,
+    ultimoArquivo: comArquivo ? { mes: comArquivo, ...arquivosParaOCaso.get(chaveMes(comArquivo))! } : null,
   });
 
   // ---------------------------------------------------------------- comparação até o mesmo dia
@@ -240,8 +289,15 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       curvaAtual: curvaAcumulada(gastosAtual, comparacao.corte),
       curvaPassado: curvaAcumulada(gastosPassado, diasNoMes(passado)),
       diasDoMes: diasNoMes(mes),
-      ficouPassado: mesesComDado >= 2 && comDado(valorDe(passado)) ? { valor: ficouDe(passado), contraRetrasado: comDado(valorDe(retrasado)) ? ficouDe(passado) - ficouDe(retrasado) : null } : null,
+      // "Ficou com você" só de mês com entrada (mês só com a fatura não tem o que ficou).
+      ficouPassado: mesesComDado >= 2 && valorDe(passado).entrou > 0 ? { valor: ficouDe(passado), contraRetrasado: valorDe(retrasado).entrou > 0 ? ficouDe(passado) - ficouDe(retrasado) : null } : null,
+      passadoVazio: !comDado(valorDe(passado)),
       guardadoNoAno: mesesComDado >= 2 && guardado > 0 ? { valor: guardado, pct: porcentagemQueFicou(entrouNoAno, guardado) } : null,
+      detalhe: {
+        atual: detalharONumero(gastosAtual, comparacao.corte, aplicacoesDe(mes)),
+        passado: detalharONumero(gastosPassado, comparacao.cortePassado, aplicacoesDe(passado)),
+        info: Object.fromEntries([...new Set([...gastosAtual, ...gastosPassado, ...aplicacoesDe(mes), ...aplicacoesDe(passado)].map((g) => g.categoria))].map((k) => [k, info(k)])),
+      },
     };
   } else if (caso === "mes-fechado") {
     const v = valorDe(passado);
@@ -251,13 +307,14 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       entrou: v.entrou,
       ficou: ficouDe(passado),
       pct: porcentagemQueFicou(v.entrou, ficouDe(passado)),
-      pctAnterior: comDado(valorDe(retrasado)) ? porcentagemQueFicou(valorDe(retrasado).entrou, ficouDe(retrasado)) : null,
-      barras: seis.map((m) => ({ rotulo: nomeDoMes(m).slice(0, 3), pct: comDado(valorDe(m)) ? porcentagemQueFicou(valorDe(m).entrou, ficouDe(m)) : null })),
+      pctAnterior: valorDe(retrasado).entrou > 0 ? porcentagemQueFicou(valorDe(retrasado).entrou, ficouDe(retrasado)) : null,
+      barras: seis.map((m) => ({ rotulo: nomeDoMes(m).slice(0, 3), pct: valorDe(m).entrou > 0 ? porcentagemQueFicou(valorDe(m).entrou, ficouDe(m)) : null })),
     };
   } else if ((caso === "extrato" || caso === "extrato-fatura" || caso === "fatura") && comArquivo) {
     primeiraVez = await carregarPrimeiraVez(ctx, comArquivo, caso, info, chaveDe, valorDe(comArquivo), paraCacar, assinaturasDela, recusas);
   } else if (caso === "digitou") {
-    const doMesAgora = gastos.filter((g) => g.year === mes.ano && g.month === mes.mes).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    // Só o que já aconteceu: o aluguel "repetir" do dia 20 não é "Outubro até agora".
+    const doMesAgora = gastos.filter((g) => g.year === mes.ano && g.month === mes.mes && (diaNoMes(g) ?? 1) <= dia).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     const ultimo = doMesAgora[0];
     digitou = {
       total: doMesAgora.reduce((s, g) => s + Number(g.amount), 0),
@@ -277,7 +334,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       fila.push({ tipo: "falta-dado", id: "cartao", texto: `Faltam os gastos do cartão desde ${desde}.`, botao: { rotulo: "Mandar a fatura", href: ENVIAR } });
     }
     const pagamentoDeFatura = !(arquivosPorMes.get(chaveMes(mes))?.fatura ?? false)
-      ? gastos.filter((g) => g.year === mes.ano && g.month === mes.mes && g.importBatchId && PAGAMENTO_DE_FATURA.test(g.description ?? "")).reduce((s, g) => s + Number(g.amount), 0)
+      ? gastos.filter((g) => g.year === mes.ano && g.month === mes.mes && g.importBatchId && ehPagamentoDeFatura(g.description)).reduce((s, g) => s + Number(g.amount), 0)
       : 0;
     if (pagamentoDeFatura >= 1) fila.push({ tipo: "falta-dado", id: "fatura-um-gasto", texto: `A fatura de ${m(pagamentoDeFatura)} entrou como um gasto só. Mande a fatura e eu abro por categoria.`, botao: { rotulo: "Mandar a fatura", href: ENVIAR } });
     const n = foco.lancamentosParaRevisar;
@@ -288,8 +345,10 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     const achado = cacarDinheiroPerdido(paraCacar, { assinaturasDela }).achados.filter((a) => !decididos.has(a.chave)).sort((a, b) => b.anual - a.anual)[0];
     if (achado) fila.push({ tipo: "dinheiro", id: achado.chave, texto: fraseDoAchado(achado, m), botao: { rotulo: "Ver", href: "/orcamento/contas/perdido" } });
 
-    // 3. Categoria que subiu.
-    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram) : null;
+    // 3. Categoria que subiu. A que passou do plano e ela já respondeu no "O que fazer?" fica de
+    // fora: seria o mesmo aviso de volta.
+    const respondidas = new Set(foco.estourosRespondidos);
+    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram.filter((c) => !respondidas.has(c.categoria))) : null;
     if (subiu) {
       const nome = info(subiu.categoria).nome;
       const meses = mesesAte(passado.ano, passado.mes, 3).map((mm) =>
@@ -325,7 +384,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       fila.push({
         tipo: "hora-do-mes",
         id: `fechar-${passado.ano}-${passado.mes}`,
-        texto: `Fechar ${nomePassado} leva 3 minutos e monta o plano de ${nomeDoMes(mes)}.`,
+        texto: `Fechar ${nomePassado} leva 3 minutos.`,
         botao: { rotulo: `Fechar ${nomePassado}`, href: "/mensal/foco/fechamento" },
         prioridade: dia <= 7 ? 0.5 : undefined,
       });
@@ -342,7 +401,11 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
 
   const marca = (ultimoLote?.createdAt ?? null)?.toISOString() ?? "sem-extrato";
   const sugestao = escolherSugestao(fila, dispensas, { marca, agora: new Date(), semana: chaveDaSemana(hoje) });
-  const dataDoDado = ultimoLote && nowInBrazil(ultimoLote.createdAt).getMonth() + 1 === mes.mes ? `pelo extrato de ${ddmm(nowInBrazil(ultimoLote.createdAt))}` : `até ${String(comparacao.corte).padStart(2, "0")}/${String(mes.mes).padStart(2, "0")}`;
+  // O arquivo mais recente COM lançamento neste mês (a fatura de setembro mandada no dia 12 não
+  // é "pelo extrato de 12/10"), e do mesmo ano.
+  const lotesDoMes = new Set(porLote.filter((l) => l.year === mes.ano && l.month === mes.mes && l.importBatchId).map((l) => l.importBatchId as string));
+  const ultimoDoMes = lotes.filter((l) => lotesDoMes.has(l.id)).reduce<Date | null>((d, l) => (!d || l.createdAt > d ? l.createdAt : d), null);
+  const dataDoDado = ultimoDoMes ? `pelo extrato de ${ddmm(nowInBrazil(ultimoDoMes))}` : `até ${String(comparacao.corte).padStart(2, "0")}/${String(mes.mes).padStart(2, "0")}`;
 
   return {
     caso,
@@ -353,7 +416,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     mesFechado,
     primeiraVez,
     digitou,
-    categorias: caso === "dia-a-dia" ? categorias : [],
+    categorias: caso === "dia-a-dia" && comDado(valorDe(passado)) ? categorias : [],
     sugestao,
     marca,
     maisNoDecidir: foco.empresa ? 0 : foco.foco.atencao.length,
@@ -393,14 +456,14 @@ async function carregarPrimeiraVez(
   const doCartao = linhas.filter((l) => l.importBatch?.docType === "fatura");
   const consideradas = soFatura ? doCartao : linhas;
   const temFatura = doCartao.length > 0;
-  const faturaUmGasto = temFatura ? 0 : linhas.filter((l) => l.importBatch && PAGAMENTO_DE_FATURA.test(l.description ?? "")).reduce((s, l) => s + Number(l.amount), 0);
+  const faturaUmGasto = temFatura ? 0 : linhas.filter((l) => l.importBatch && ehPagamentoDeFatura(l.description)).reduce((s, l) => s + Number(l.amount), 0);
 
   const porCategoria = new Map<string, { valor: number; compras: number }>();
   for (const l of consideradas) {
-    const k = !temFatura && l.importBatch && PAGAMENTO_DE_FATURA.test(l.description ?? "") ? "__fatura" : chaveDe(l);
+    const k = !temFatura && l.importBatch && ehPagamentoDeFatura(l.description) ? "__fatura" : chaveDe(l);
     const c = porCategoria.get(k) ?? { valor: 0, compras: 0 };
     c.valor += Number(l.amount);
-    c.compras += 1;
+    if (Number(l.amount) > 0) c.compras += 1;
     porCategoria.set(k, c);
   }
   const total = consideradas.reduce((s, l) => s + Number(l.amount), 0);
@@ -424,7 +487,7 @@ async function carregarPrimeiraVez(
     saiu: valor.gastou,
     ficou,
     pct: porcentagemQueFicou(valor.entrou, ficou),
-    cartao: soFatura ? { total, compras: consideradas.length } : null,
+    cartao: soFatura ? { total, compras: consideradas.filter((l) => Number(l.amount) > 0).length } : null,
     paraOndeFoi,
     faturaUmGasto: faturaUmGasto >= 1 ? faturaUmGasto : null,
     parcelas: parcelas.length > 0 && ultimaParcela ? { n: parcelas.length, valor: parcelas.reduce((s, p) => s + p.valor, 0), acabaEm: ultimaParcela } : null,

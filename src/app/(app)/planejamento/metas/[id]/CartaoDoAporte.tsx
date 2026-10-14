@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { adiarAporteAction, marcarAporteAction, responderAporteAction } from "../acoes";
+import { valorDoLancamento } from "../visual";
 
 export type EstadoDoAporte =
   | { tipo: "feito"; mes: string; valor: number; origem: string; data: string | null; proximo: { mes: string; valor: number } | null }
@@ -61,7 +62,7 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
             <small className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-success">
               {Maiuscula(estado.mes)} <Check size={14} aria-hidden />
             </small>
-            <ValorDestaque texto={m(estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
+            <ValorDestaque texto={valorDoLancamento(money, estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
             <small className="text-[12.5px] font-medium text-ink-muted">
               {estado.origem}
               {estado.data ? ` · ${estado.data}` : ""}
@@ -94,7 +95,7 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
           )}
           <div className="flex min-w-0 flex-col gap-px">
             <small className="text-[12.5px] font-medium text-ink-muted">Aporte{estado.mes ? ` de ${estado.mes}` : ""}</small>
-            <ValorDestaque texto={m(estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
+            <ValorDestaque texto={valorDoLancamento(money, estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
             <small className="text-[12.5px] font-medium text-ink-muted">
               {estado.origem === "pix" ? "Pix para você" : "Aplicação"}
               {estado.quando ? ` · ${estado.quando}` : ""}
@@ -166,6 +167,10 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
           className="min-h-12 rounded-full bg-ink text-[15px] font-semibold text-canvas disabled:opacity-50"
         >
           {pendente ? "Salvando…" : "Salvar aporte"}
+        </button>
+        {/* Abriu o "Já fiz" sem querer: volta para a pergunta, sem salvar nada. */}
+        <button type="button" disabled={pendente} onClick={() => setForm(null)} className="-mt-1 min-h-11 text-sm font-medium text-ink-muted">
+          Cancelar
         </button>
       </section>
     );

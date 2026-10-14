@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getRequiredSession } from "@/lib/auth/session";
+import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { apagarTetoDoMes, existeDecisao, guardarDescricaoOriginal, lerDecisao, registrarDecisao, registrarDecisaoUnica, resolverCompraAmanha, travarNaTransacao } from "@/lib/repositories/decisao.repo";
+import { apagarTetoDoMes, guardarDescricaoOriginal, lerDecisao, registrarDecisao, registrarDecisaoUnica, resolverCompraAmanha, travarNaTransacao } from "@/lib/repositories/decisao.repo";
 import { applyBudgetToWholeYear, applyBudgetToWholeYearForCustomCategory } from "@/lib/repositories/budget.repo";
 import { applyMonthlyPlanToWholeYear } from "@/lib/repositories/monthly-plan.repo";
 import { createRecurringMonthlyEntries, updateOwnMonthlyEntriesCategory } from "@/lib/repositories/monthly-entry.repo";
@@ -336,7 +336,33 @@ export async function comecarAnoAction(modo: "sugestao" | "zerado", contasEscolh
   const money = await serverMoney();
   const v = await carregarViradaDoAno(ctx, (x) => money(x, { round: true }));
   const chave = String(v.ano);
-  if (await existeDecisao(ctx, "virada_ano", chave)) return false;
+  // Marca a virada ANTES de gravar, dentro da trava: dois toques (ou duas abas) passavam pelo
+  // existeDecisao juntos e cada conta fixa saía duplicada até dezembro.
+  const minha = await prisma.$transaction(async (tx) => {
+    await travarNaTransacao(tx, `${ctx.userId}|${ctx.profileId ?? ""}|virada|${chave}`);
+    const ja = await tx.decisao.count({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "virada_ano", chave } });
+    if (ja > 0) return null;
+    return tx.decisao.create({ data: { userId: ctx.userId, profileId: ctx.profileId, tipo: "virada_ano", chave, descricao: modo } });
+  });
+  if (!minha) return false;
+  try {
+    await gravarViradaDoAno(ctx, v, modo, escolhidas);
+  } catch (erro) {
+    // Deu errado no meio: a virada volta a ficar aberta, para ela tentar de novo.
+    await prisma.decisao.deleteMany({ where: { id: minha.id } });
+    throw erro;
+  }
+  revalidatePath("/mensal", "layout");
+  revalidatePath("/orcamento", "layout");
+  return true;
+}
+
+async function gravarViradaDoAno(
+  ctx: AuthContext,
+  v: Awaited<ReturnType<typeof carregarViradaDoAno>>,
+  modo: "sugestao" | "zerado",
+  escolhidas: Set<string> | null,
+) {
   if (modo === "sugestao") {
     for (const c of v.sugestao.categorias) {
       if (!(c.sugerido > 0)) continue;
@@ -375,10 +401,6 @@ export async function comecarAnoAction(modo: "sugestao" | "zerado", contasEscolh
       });
     }
   }
-  await registrarDecisaoUnica(ctx, { tipo: "virada_ano", chave, descricao: modo });
-  revalidatePath("/mensal", "layout");
-  revalidatePath("/orcamento", "layout");
-  return true;
 }
 
 /**
@@ -464,13 +486,21 @@ export async function resolverLancamentoAntigoAction(entryId: string, acao: "gua
  * "Foi pontual, sigo o plano" / "Entendi" num aviso do Foco: ele some até o mês virar. O aviso de
  * guardar ("vou transferir essa semana") some só até a semana virar.
  */
-export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "semana") {
+/**
+ * `passou`: no aviso de categoria que passou, quanto passava na hora da resposta. O aviso some no
+ * mês e só volta se passar bem mais que isso (ver resposta-ao-aviso.ts).
+ */
+export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "semana", passou?: number) {
   const id = z.string().regex(/^[a-z]+(-[A-Za-z0-9_]+)?$/).max(80).parse(itemId);
+  const valor = z.number().positive().max(100_000_000).optional().catch(undefined).parse(passou);
   const ctx = await getRequiredSession();
   const now = nowInBrazil();
   const periodo = escopo === "semana" ? chaveDaSemana(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}` });
+  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}`, valor });
   revalidatePath("/mensal/foco");
+  // O mesmo aviso mora no Orçamento e no Decidir: some de lá também.
+  revalidatePath("/orcamento", "layout");
+  revalidatePath("/decidir");
 }
 
 /**
@@ -532,5 +562,7 @@ export async function conferirLancamentoAction(entryId: string, resposta: string
     if (ok === false) return;
     await prisma.monthlyEntry.updateMany({ where: onde, data: { subcategory: null } });
   } else return;
+  // Respondido aqui, não volta na lista dos antigos ("Parece dinheiro vindo de uma conta sua").
+  if (alvo !== "tirar") await registrarDecisaoUnica(ctx, { tipo: "revisao_lancamento", chave: id, descricao: `conferir:${alvo}` });
   revalidatePath("/mensal", "layout");
 }

@@ -23,6 +23,7 @@ import {
   Recolhivel,
   SegmentoFino,
   pc,
+  useDinheiroParaGuardar,
   useRotuloDeAtalho,
   useSalvar,
 } from "../pecas";
@@ -82,7 +83,8 @@ export function FinanciarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
   const imovel = Number(v.propertyValue);
   const entrada = Number(v.downPayment);
   const res = vereditoFinanciar(v);
-  const s = useSalvar("FINANCIAR_VS_ALUGAR", v, res.veredito.erro ?? `${res.veredito.frase} · ${r0(res.veredito.numero)}`);
+  const guardar = useDinheiroParaGuardar();
+  const s = useSalvar("FINANCIAR_VS_ALUGAR", v, res.veredito.erro ?? `${res.veredito.frase} · ${guardar(res.veredito.numero, { round: true })}`);
   const metaDaEntrada = { nome: "Entrada do imóvel", alvo: entrada, foto: "casa", icone: "CASA" as const };
 
   if (modo === "vivo") {
@@ -94,7 +96,7 @@ export function FinanciarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
         exemplo={EXEMPLO_FINANCIAR}
         inicial={v}
         tipo="FINANCIAR_VS_ALUGAR"
-        salvaInicial={!!salva}
+        salvaInicial={!!salva || s.salva}
         onValores={setV}
         calcular={(x) => {
           const r = vereditoFinanciar(x);

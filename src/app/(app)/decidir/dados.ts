@@ -79,7 +79,9 @@ export async function carregarDecidir(ctx: AuthContext) {
     .sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado))[0];
   const pilulas: Omit<DadosDasPilulas, "money" | "tema"> = {
     livreMes: temLivre ? livre.restante : null,
-    porDia: temLivre ? livre.restante / Math.max(1, livre.diasRestantes) : null,
+    // O mesmo "por dia" da resposta "Quanto posso gastar na semana?" (a da semana até domingo).
+    // Antes era o livre do MÊS por dia: a esfera dizia R$ 170 e a resposta, R$ 214 (14/10/2026).
+    porDia: temLivre ? livre.semana.porDia : null,
     // O mesmo número do Resumo: o que ainda cabe na semana fixa (regra A).
     ateDomingo: temLivre ? Math.max(0, livre.semana.restante) : null,
     // "Como guardar mais?" (protótipo): quanto dá para guardar a mais apertando pela regra de

@@ -11,14 +11,37 @@ import type { LinhaDaCategoria } from "./CategoriasDoMes";
 /**
  * O aviso do Orçamento quando uma categoria passou (protótipo aprovado): "Saúde passou R$ 67" e
  * um botão "O que fazer?" que abre a folha com os caminhos. A que mais passou vem primeiro.
+ *
+ * Respondeu na folha, o aviso daquela categoria sai na hora e passa para a próxima que passou
+ * (pedido da Dani, 14/10/2026). `respondidas` vem do servidor (as respostas guardadas do mês, ver
+ * resposta-ao-aviso.ts); a lista local cobre o tempo até a página recarregar.
  */
-export function AlertaDoOrcamento({ linhas, essenciais, livre, diasRestantes, mes }: { linhas: LinhaDaCategoria[]; essenciais: string[]; livre: number | null; diasRestantes: number; mes?: string }) {
+export function AlertaDoOrcamento({
+  linhas,
+  essenciais,
+  livre,
+  diasRestantes,
+  mes,
+  respondidas = [],
+}: {
+  linhas: LinhaDaCategoria[];
+  essenciais: string[];
+  livre: number | null;
+  diasRestantes: number;
+  mes?: string;
+  respondidas?: string[];
+}) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const [aberto, setAberto] = useState(false);
-  const passou = linhas.filter((l) => l.estado === "passou").sort((a, b) => a.sobra - b.sobra)[0];
+  // Presa às linhas de agora: quando o servidor manda linhas novas (a resposta já salva, ou um
+  // Desfazer), vale de novo só o que ele diz.
+  const [local, setLocal] = useState<{ de: LinhaDaCategoria[]; keys: string[] }>({ de: linhas, keys: [] });
+  const fora = new Set([...respondidas, ...(local.de === linhas ? local.keys : [])]);
+  const passaram = linhas.filter((l) => l.estado === "passou" && !fora.has(l.key)).sort((a, b) => a.sobra - b.sobra);
+  const passou = passaram[0];
   if (!passou) return null;
-  const outras = linhas.filter((l) => l.estado === "passou").length - 1;
+  const outras = passaram.length - 1;
   return (
     <section className="flex items-center gap-3 rounded-3xl py-3 pl-3 pr-3" style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-surface))" }} data-alerta-orcamento>
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface text-danger" aria-hidden>
@@ -41,7 +64,10 @@ export function AlertaDoOrcamento({ linhas, essenciais, livre, diasRestantes, me
           livre={livre}
           diasRestantes={diasRestantes}
           revisao={passou.sugestao ? { mediana: passou.sugestao.sugerido } : null}
-          onFeito={() => setAberto(false)}
+          onFeito={() => {
+            setAberto(false);
+            setLocal((l) => ({ de: linhas, keys: [...(l.de === linhas ? l.keys : []), passou.key] }));
+          }}
           oQuePesou={
             passou.maiores.length > 0 ? (
               <ul className="flex flex-col divide-y divide-border">

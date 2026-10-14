@@ -1,5 +1,6 @@
 "use client";
 
+import { lerSobrou } from "@/lib/consolidation/sobrou";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useMoney } from "@/components/money/MoneyProvider";
@@ -54,8 +55,9 @@ export function ViradaDoAno({ v }: { v: DadosVirada }) {
             <dd className="text-right tabular-nums text-ink">{m(v.resumo.gastos)}</dd>
             <dt className="text-ink-muted">Guardou</dt>
             <dd className="text-right tabular-nums text-ink">{m(v.resumo.guardado)}</dd>
-            <dt className="font-semibold text-ink">Sobrou</dt>
-            <dd className={`text-right font-semibold tabular-nums ${v.resumo.sobrou < 0 ? "text-danger" : "text-ink"}`}>{m(v.resumo.sobrou)}</dd>
+            {/* Ano no vermelho: "Faltou R$ 1.200", como no resto do app (era "Sobrou -R$ 1.200"). */}
+            <dt className="font-semibold text-ink">{lerSobrou(v.resumo.sobrou).rotulo}</dt>
+            <dd className={`text-right font-semibold tabular-nums ${v.resumo.sobrou < 0 ? "text-danger" : "text-ink"}`}>{m(lerSobrou(v.resumo.sobrou).valor)}</dd>
           </dl>
           {v.resumo.pctGuardado !== null && (
             <p className="text-sm text-ink">

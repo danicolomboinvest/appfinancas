@@ -24,6 +24,7 @@ import { COR_DO_GRUPO } from "./cores-dos-grupos";
 import { ConviteDaAssessoria } from "./ConviteDaAssessoria";
 import { DetalheDoAtivo } from "./DetalheDoAtivo";
 import { NovoAtivo, type TituloParaBusca } from "./NovoAtivo";
+import { classeDoValor, dolaresDoCartao } from "./tamanho-do-valor";
 import type { NumeroDeFora, PrecoDoTitulo } from "./dados";
 
 export type AtivoDaTela = {
@@ -163,8 +164,8 @@ export function MeusAtivos({
   }, []);
 
   const ganho = resumo.ganho;
+  const valorDoExterior = resumo.exteriorEmDolar !== null ? dolaresDoCartao(resumo.exteriorEmDolar) : money(resumo.exterior, { round: true });
   const perdeu = ganho !== null && ganho < 0;
-  const dolar = (v: number) => `US$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   function atualizarCotacoes() {
     startAtualizar(async () => {
@@ -252,7 +253,7 @@ export function MeusAtivos({
             <div className="grid grid-cols-2 gap-2.5 pt-1">
               <div className="vidro-heroi flex min-w-0 flex-col gap-1.5 rounded-2xl p-3.5">
                 <span className="text-[13px] text-heroi-suave">Brasil</span>
-                <span className="text-[19px] font-medium tabular-nums leading-tight">{money(resumo.brasil, { round: true })}</span>
+                <span className={`whitespace-nowrap font-medium tabular-nums leading-tight ${classeDoValor(money(resumo.brasil, { round: true }))}`}>{money(resumo.brasil, { round: true })}</span>
               </div>
               <div className="vidro-heroi flex min-w-0 flex-col gap-1 rounded-2xl p-3.5">
                 <span className="flex items-center justify-between gap-2 text-[13px] text-heroi-suave">
@@ -263,7 +264,7 @@ export function MeusAtivos({
                       : "Seus investimentos fora do Brasil, já somados no total em reais."}
                   </Explica>
                 </span>
-                <span className="whitespace-nowrap text-[19px] font-medium tabular-nums leading-tight max-[359px]:text-[17px]">{resumo.exteriorEmDolar !== null ? dolar(resumo.exteriorEmDolar) : money(resumo.exterior, { round: true })}</span>
+                <span className={`whitespace-nowrap font-medium tabular-nums leading-tight ${classeDoValor(valorDoExterior)}`}>{valorDoExterior}</span>
                 {resumo.exteriorEmDolar !== null && <span className="text-[12.5px] tabular-nums text-heroi-suave">≈ {money(resumo.exterior, { round: true })}</span>}
               </div>
             </div>

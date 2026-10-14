@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { temAdicional } from "@/lib/adicionais/acesso";
 import type { Adicional } from "@/lib/adicionais/config";
 import {
-  createProfile, updateProfile, switchProfile, deleteProfile, listProfiles, type NovoPerfil,
+  createProfile, updateProfile, switchProfile, deleteProfile, perfisDosLugares, type NovoPerfil,
 } from "@/lib/repositories/profile.repo";
 import { podeCriar } from "@/lib/perfis/lugares";
 import { extrasLiberados } from "@/lib/perfis/extras-liberados";
@@ -56,7 +56,7 @@ export async function criarPerfilAction(input: NovoPerfil): Promise<ResultadoPer
   await exigirAdicional(ctx.userId, input.kind);
   // No máximo 3 perfis, um de cada (decisão da dona, 11/10, rodada 74): Pessoal, Nós dois e
   // Empresa. Quem já tem mais mantém; só não cria outro além do lugar vazio e liberado.
-  const [perfis, liberados] = await Promise.all([listProfiles(ctx.userId), extrasLiberados(ctx.userId)]);
+  const [perfis, liberados] = await Promise.all([perfisDosLugares(ctx.userId), extrasLiberados(ctx.userId)]);
   if (!podeCriar(input.kind ?? "PESSOAL", perfis, liberados)) {
     return { ok: false, error: "Cada conta tem até 3 perfis: Pessoal, Nós dois e Empresa. Veja em Configurações › Perfis." };
   }

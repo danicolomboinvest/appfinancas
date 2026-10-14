@@ -28,6 +28,7 @@ import { STRATEGY_ASSET_CLASS_COLOR } from "@/lib/portfolio/strategy";
 import { confirmarReservaAction, salvarEstrategiaAction } from "./actions";
 import { redistribuir } from "@/lib/portfolio/ajuste-da-estrategia";
 import { NOME_DA_LINHA, NOME_DO_PERFIL, ORDEM_DAS_LINHAS } from "./nomes";
+import { quedaDe15 } from "./queda";
 
 /**
  * "Montar minha estratégia" (rodada 22, estrategia-proposta.html), uma pergunta por tela:
@@ -102,7 +103,7 @@ export function MontarEstrategia({
       <>
         <HeroiDoTema>
           <p className="text-[14px] text-heroi-suave">Sua estratégia começa aqui</p>
-          <p className="titulo-tema text-[24px] font-light leading-tight">Seus prazos já estão nas suas metas</p>
+          <p className="titulo-tema text-[24px] font-light leading-tight">{sonhosAgora.length > 0 ? "Seus prazos já estão nas suas metas" : "Você ainda não tem metas"}</p>
           <div className="grid grid-cols-3 gap-2 pt-1">
             {(["curto", "medio", "longo"] as Faixa[]).map((f) => (
               <div key={f} className="vidro-heroi flex min-w-0 flex-col gap-1.5 rounded-2xl p-2.5">
@@ -116,17 +117,18 @@ export function MontarEstrategia({
             ))}
           </div>
         </HeroiDoTema>
-        <p className="px-1 text-[13px] text-ink-muted">Meta sem data fica em 2 a 5 anos. Para mudar uma data, ajuste a meta em Metas.</p>
+        <p className="px-1 text-[13px] text-ink-muted">{sonhosAgora.length > 0 ? "Meta sem data fica em 2 a 5 anos. Para mudar uma data, ajuste a meta em Metas." : "Sem metas, a estratégia segue o seu perfil. Quando criar uma meta em Metas, refaça aqui."}</p>
       </>
     );
   } else if (p === 2) {
     ok = queda !== null;
+    const queda15 = quedaDe15(totalDaCarteira);
     corpo = (
       <>
         <HeroiDoTema>
-          <p className="text-[14px] text-heroi-suave">Se a sua carteira caísse 15% num mês</p>
-          <p className="text-[2.25rem] font-light leading-none tracking-[-0.03em] tabular-nums">{money(totalDaCarteira * 0.85, { round: true })}</p>
-          <p className="text-[14px] text-heroi-suave">era {money(totalDaCarteira, { round: true })}</p>
+          <p className="text-[14px] text-heroi-suave">{queda15.exemplo ? `Se você tivesse ${money(queda15.antes, { round: true })} e caísse 15% num mês` : "Se a sua carteira caísse 15% num mês"}</p>
+          <p className="text-[2.25rem] font-light leading-none tracking-[-0.03em] tabular-nums">{money(queda15.depois, { round: true })}</p>
+          <p className="text-[14px] text-heroi-suave">era {money(queda15.antes, { round: true })}</p>
         </HeroiDoTema>
         <p className="px-1 text-[18px] text-ink">O que você faria?</p>
         <div className="flex flex-col gap-2">

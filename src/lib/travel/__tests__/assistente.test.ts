@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   boardingMonth,
+  proximoDestinoDosDias,
   cheaperMonthTip,
   CHEAPER_MIN_AHEAD,
   goalNameFor,
@@ -214,5 +215,21 @@ describe("a viagem guardada na meta", () => {
     expect(goalNameFor(["Paris"])).toBe("Viagem: Paris");
     expect(goalNameFor(["Lisboa", "Paris"])).toBe("Viagem: Lisboa e Paris");
     expect(goalNameFor(["Lisboa", "Paris", "Roma"])).toBe("Viagem: Lisboa +2");
+  });
+});
+
+describe("passo dos dias (Padrão): o Continuar anda pelos destinos", () => {
+  it("do primeiro ao último destino, depois segue", () => {
+    expect(proximoDestinoDosDias(2, "padrao", 0, 3)).toBe(1);
+    expect(proximoDestinoDosDias(2, "padrao", 1, 3)).toBe(2);
+    expect(proximoDestinoDosDias(2, "padrao", 2, 3)).toBeNull();
+  });
+  it("um destino só, outro passo ou outro tema: segue direto", () => {
+    expect(proximoDestinoDosDias(2, "padrao", 0, 1)).toBeNull();
+    expect(proximoDestinoDosDias(3, "padrao", 0, 3)).toBeNull();
+    expect(proximoDestinoDosDias(2, "girly", 0, 3)).toBeNull();
+  });
+  it("índice fora (destino tirado) não trava", () => {
+    expect(proximoDestinoDosDias(2, "padrao", 5, 3)).toBeNull();
   });
 });

@@ -14,7 +14,7 @@ vi.mock("@/lib/db/prisma", () => ({
   prisma: { allowedEmail: { updateMany: (a: unknown) => updateMany(a), findMany: (a: unknown) => findMany(a) } },
 }));
 
-const { usoDoApp, FIM_DO_GRATIS, revokeFromHubla, contasQueUsamOApp, NOTA_DO_CONVITE_VIP } = await import("../allowedEmail.repo");
+const { usoDoApp, FIM_DO_GRATIS, revokeFromHubla, contasQueUsamOApp, NOTA_DO_CONVITE_VIP, notaDeCompraNaHubla } = await import("../allowedEmail.repo");
 
 const antes = new Date(FIM_DO_GRATIS.getTime() - 60_000);
 const depois = new Date(FIM_DO_GRATIS.getTime() + 60_000);
@@ -63,5 +63,32 @@ describe("revokeFromHubla", () => {
     const { where } = updateMany.mock.calls[0][0];
     expect(where.email).toBe("pessoa@x.com");
     expect(where.AND).toEqual([{ OR: [{ note: null }, { NOT: { note: { startsWith: NOTA_DO_CONVITE_VIP } } }] }]);
+  });
+  it("a liberação MANUAL colada por causa da compra na Hubla também cai no reembolso (06/10: banco fora, Dani colou na mão)", async () => {
+    await revokeFromHubla("pessoa@x.com");
+    const { where } = updateMany.mock.calls[0][0];
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { source: "HUBLA" },
+        { note: { startsWith: "Hubla", mode: "insensitive" } },
+        { note: { startsWith: "Compra Hubla", mode: "insensitive" } },
+      ]),
+    );
+  });
+});
+
+describe("notaDeCompraNaHubla", () => {
+  it("reconhece as notas que a Dani usa ao colar compradoras", () => {
+    expect(notaDeCompraNaHubla("Hubla 06/10")).toBe(true);
+    expect(notaDeCompraNaHubla("Hubla: SPI Finance")).toBe(true);
+    expect(notaDeCompraNaHubla("Compra Hubla 05/10")).toBe(true);
+    expect(notaDeCompraNaHubla("hubla")).toBe(true);
+  });
+  it("cortesia, VIP e nota vazia ficam de fora", () => {
+    expect(notaDeCompraNaHubla("Lote aula 04/09")).toBe(false);
+    expect(notaDeCompraNaHubla(NOTA_DO_CONVITE_VIP)).toBe(false);
+    expect(notaDeCompraNaHubla(null)).toBe(false);
+    expect(notaDeCompraNaHubla("Manual 10/10: pagou na Kirvano, não Hubla")).toBe(false);
+    expect(notaDeCompraNaHubla("Hublalalá")).toBe(false);
   });
 });

@@ -425,11 +425,29 @@ export async function getAllowedPhone(email: string): Promise<string | null> {
  *
  * Liberação MANUAL não cai: é a Dani quem decidiu (VIP, cortesia, compra fora do Hubla), e o
  * reembolso de um item no Hubla não pode levar junto um acesso que não veio dele. Ela corta na
- * mão pelo painel se quiser.
+ * mão pelo painel se quiser. A exceção é a MANUAL que ela colou por causa da própria compra na
+ * Hubla (nota "Hubla ..."): essa cai junto (ver notaDeCompraNaHubla).
  */
 /** A nota que o convite VIP do painel grava (ver inviteUserAction). É por ela que o webhook sabe
  * que não pode desligar essa liberação. */
 export const NOTA_DO_CONVITE_VIP = "Convite VIP (criado pelo admin)";
+
+/**
+ * Liberação MANUAL que a Dani colou no painel POR CAUSA de uma compra na Hubla ("Hubla 06/10",
+ * "Hubla: SPI Finance", "Compra Hubla ..."). Em 06/10/2026 o banco caiu pela cota, os webhooks se
+ * perderam e ela colou 18 compradoras na mão; o reembolso de uma delas (14/10) não desligou nada,
+ * porque a liberação era MANUAL. A nota é o que separa essa compra de uma cortesia ("Lote aula",
+ * VIP), que continua não caindo.
+ */
+export function notaDeCompraNaHubla(note: string | null | undefined): boolean {
+  return /^\s*(compra\s+)?hubla\b/i.test(note ?? "");
+}
+
+/** O filtro do Prisma equivalente a notaDeCompraNaHubla (começa com "Hubla" ou "Compra Hubla"). */
+const NOTA_DE_COMPRA_NA_HUBLA = [
+  { note: { startsWith: "Hubla", mode: "insensitive" as const } },
+  { note: { startsWith: "Compra Hubla", mode: "insensitive" as const } },
+];
 
 export async function revokeFromHubla(email: string) {
   const normalized = normalizeEmail(email);
@@ -440,7 +458,8 @@ export async function revokeFromHubla(email: string) {
     // obrigatório: em SQL, NOT (nota LIKE ...) com a nota NULA dá NULL e a linha escaparia.
     where: {
       email: normalized,
-      OR: [{ source: "HUBLA" }, { lastHublaInvoiceId: { not: null } }],
+      // Também a MANUAL colada por causa de uma compra na Hubla (ver notaDeCompraNaHubla).
+      OR: [{ source: "HUBLA" }, { lastHublaInvoiceId: { not: null } }, ...NOTA_DE_COMPRA_NA_HUBLA],
       AND: [{ OR: [{ note: null }, { NOT: { note: { startsWith: NOTA_DO_CONVITE_VIP } } }] }],
     },
     data: { active: false },

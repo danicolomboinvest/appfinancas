@@ -28,6 +28,8 @@ const PODEM_LER_A_CASA = [
   "app/(app)/mensal/foco/blocos.ts",
   // O Resumo novo (14/10/2026): os mesmos totais do Resumo de hoje, dos dois que eu enxergo.
   "app/(app)/mensal/foco/novo/dados.ts",
+  // O Resumo de um mês passado (14/10/2026): os mesmos totais, de outro mês.
+  "app/(app)/mensal/foco/novo/dados-mes-passado.ts",
   "lib/auth/session.ts",
 ];
 

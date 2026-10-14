@@ -140,10 +140,14 @@ export async function marcarAvisoDoPerfilCompradoVisto(userId: string, tipo: Avi
 export async function casalParaOConvite(userId: string): Promise<string | null> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`perfil-comprado-casal|${userId}`}))`;
-    const perfis = await tx.financialProfile.findMany({ where: { userId, ...SEM_CASAL_MIGRADO }, select: { id: true, name: true, kind: true, isDefault: true } });
+    const [perfis, todos] = await Promise.all([
+      tx.financialProfile.findMany({ where: { userId, ...SEM_CASAL_MIGRADO }, select: { id: true, name: true, kind: true, isDefault: true } }),
+      // O Casal que virou casa simples segura o lugar: nada de um segundo Nós dois por aqui.
+      tx.financialProfile.findMany({ where: { userId }, select: { id: true, name: true, kind: true, isDefault: true } }),
+    ]);
     const casal = perfis.find((p) => p.kind === "CASAL");
     if (casal) return casal.id;
-    if (perfis.length === 0 || !podeCriar("CASAL", perfis, { casal: true, empresa: false })) return null;
+    if (perfis.length === 0 || !podeCriar("CASAL", todos, { casal: true, empresa: false })) return null;
     return (await createProfile(userId, { name: "Nós dois", kind: "CASAL" }, tx)).id;
   });
 }

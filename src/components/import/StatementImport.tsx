@@ -29,11 +29,12 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } from "@/lib/import/limites";
 import type { PrintLido } from "@/lib/import/print-fatura";
+import { prometeParcelasSeguintes } from "@/lib/import/fatura-aberta";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
 import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { perguntasDeMaiorValor } from "@/lib/onboarding/conferencia-inicial";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
-import { faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
+import { comprasDaFatura, faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
 import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
@@ -65,6 +66,10 @@ type ArquivoNaFila = {
   customCategories?: { id: string; name: string; icon?: string }[];
   erro?: string;
   criados?: number;
+  /** Depois de anotado: as parcelas dos próximos meses, as repetidas e os pagamentos da fatura achados no extrato. */
+  futuras?: number;
+  pulados?: number;
+  candidatos?: CardPaymentCandidate[];
   /** "Extrato Itaú · agosto": o nome da aba na revisão. */
   rotulo?: string;
 };
@@ -81,6 +86,8 @@ export type EstadoParaOComeco = {
   /** Todas as perguntas do arquivo: as que passam do limite ficam "A conferir". */
   pendentesTotal: number;
   erro: boolean;
+  /** O que o app descobriu que o arquivo é (antes de ler, "extrato"). */
+  tipo: "extrato" | "fatura";
   /** Até 4 gastos que o app já separou sozinho, do arquivo dela. */
   amostra: { descricao: string; original: string; categoria: ParentCategory | null; valor: number }[];
   /** A primeira linha que vai precisar dela. */
@@ -215,6 +222,8 @@ export function StatementImport({
   const [reviewIdx, setReviewIdx] = useState(0);
   const [createdCount, setCreatedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
+  // Parcelas dos próximos meses que a fatura lançou: ficam fora do "N lançamentos importados".
+  const [futurasCount, setFuturasCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
   // Vários arquivos de uma vez (caminho B): a fila, qual está aberto na revisão e os meses já no app (C).
   const [fila, setFila] = useState<ArquivoNaFila[] | null>(null);
@@ -325,10 +334,11 @@ export function StatementImport({
       pendentes: reviewKeys.length,
       pendentesTotal: filaDePerguntas(items).length,
       erro: error !== null || kindMismatch !== null,
+      tipo: docType,
       amostra: separadas.slice(0, 4).map((it) => ({ descricao: nomeNaTela(it.description).nome, original: it.description, categoria: it.parentCategory, valor: it.amount })),
       primeiraPendente: pendente ? { descricao: nomeNaTela(pendente.description).nome, original: pendente.description, data: pendente.date, valor: pendente.amount } : null,
     });
-  }, [aoMudarDoComeco, phase, isPending, items, reviewKeys, error, kindMismatch]);
+  }, [aoMudarDoComeco, phase, isPending, items, reviewKeys, error, kindMismatch, docType]);
 
   // Veio da Carteira com um extrato subido lá por engano: começa a ler esse arquivo na hora.
   const handleFileRef = useRef<(file: File) => void>(() => {});
@@ -818,8 +828,12 @@ export function StatementImport({
       }
       // Vários arquivos: este fica anotado, as respostas dadas nele valem nos próximos, e a revisão
       // segue para o próximo arquivo. As repetidas entre eles o servidor já pula ao gravar.
+      const futuras = result.parcelasFuturas ?? 0;
+      const novos = result.created - futuras;
       if (fila && filaAtual !== null) {
-        let lista = fila.map((a) => (a.id === filaAtual ? { ...a, status: "anotado" as const, criados: result.created, items: undefined } : a));
+        let lista = fila.map((a) =>
+          a.id === filaAtual ? { ...a, status: "anotado" as const, criados: novos, futuras, pulados: result.skipped, candidatos: result.cardPaymentCandidates, items: undefined } : a,
+        );
         let levadas = 0;
         lista = lista.map((a) => {
           if (a.status !== "ok" || !a.items) return a;
@@ -830,21 +844,26 @@ export function StatementImport({
         const proximo = lista.find((a) => a.status === "ok");
         const total = lista.reduce((soma, a) => soma + (a.criados ?? 0), 0);
         if (proximo) {
-          showToast(levadas > 0 ? `${t.impToastImportados(result.created)}. Levei ${levadas} ${levadas === 1 ? "resposta" : "respostas"} para o próximo arquivo.` : `${t.impToastImportados(result.created)}.`);
+          showToast(levadas > 0 ? `${t.impToastImportados(novos)}. Levei ${levadas} ${levadas === 1 ? "resposta" : "respostas"} para o próximo arquivo.` : `${t.impToastImportados(novos)}.`);
           setFilaAtual(null);
           abrirDaFila(proximo.id, lista);
           return;
         }
         setFila(lista);
+        // A soma de TODOS os arquivos anotados: antes as repetidas e os pagamentos da fatura
+        // achados vinham só do último arquivo.
         setCreatedCount(total);
-        setSkippedCount(result.skipped);
-        setCardPaymentCandidates(result.cardPaymentCandidates);
+        setFuturasCount(lista.reduce((soma, a) => soma + (a.futuras ?? 0), 0));
+        setSkippedCount(lista.reduce((soma, a) => soma + (a.pulados ?? 0), 0));
+        const candidatos = new Map(lista.flatMap((a) => a.candidatos ?? []).map((c) => [c.id, c]));
+        setCardPaymentCandidates([...candidatos.values()]);
         setRevelacao({ mes: null, dados: null, carregando: false });
         setPhase("done");
         showToast(`${t.impToastImportados(total)}.`);
         return;
       }
-      setCreatedCount(result.created);
+      setCreatedCount(novos);
+      setFuturasCount(futuras);
       setSkippedCount(result.skipped);
       setCardPaymentCandidates(result.cardPaymentCandidates);
       // O mês montado: busca DEPOIS de gravar, fora da transição (o "pronto" aparece já, e os
@@ -856,7 +875,7 @@ export function StatementImport({
       setRevelacao({ mes, dados: null, carregando: mes !== null });
       if (comeco?.aoImportar) {
         // No começo, o mês montado aparece na Visão geral (o "aha"), não aqui.
-        comeco.aoImportar({ mes, revisou: reviewKeys.length > 0, criados: result.created });
+        comeco.aoImportar({ mes, revisou: reviewKeys.length > 0, criados: novos });
         setPhase("done");
         return;
       }
@@ -870,7 +889,7 @@ export function StatementImport({
           });
       }
       setPhase("done");
-      const parts = [t.impToastImportados(result.created)];
+      const parts = [t.impToastImportados(novos)];
       if (result.skipped > 0) parts.push(t.impToastJaExistiam(result.skipped));
       showToast(parts.join(", ") + ".");
     });
@@ -929,7 +948,8 @@ export function StatementImport({
         {/* Perfil Casal: uma pergunta por arquivo, e cada linha já entra com "quem pagou". */}
         {nomesDoCasal && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-caption text-ink-muted">{docType === "fatura" ? "De quem é essa fatura?" : "De quem é esse extrato?"}</span>
+            <span className="text-caption text-ink-muted">{/* O tipo só se sabe depois de ler: antes dizia sempre "extrato", até para quem ia mandar a fatura. */}
+              De quem é o extrato ou a fatura?</span>
             <div className="inline-flex rounded-full border border-border bg-surface-2 p-1">
               {(["A", "B"] as const).map((p) => (
                 <button
@@ -1448,7 +1468,8 @@ export function StatementImport({
           {/* Só a parcela com certeza: é a única que o servidor lança nos meses seguintes. "03/10"
               sem "parc" pode ser data ("POSTO SHELL 03/09"), e prometer que "as 7 seguintes
               entram sozinhas" fazia ela planejar os próximos meses com gasto que não existe. */}
-          {it.installment?.confident && it.installment.current < it.installment.total && (
+          {/* Print da fatura aberta não lança as seguintes (quem lança é a fatura fechada): ali a frase prometia o que não acontece. */}
+          {it.installment && prometeParcelasSeguintes(it.installment, stats?.faturaAberta === true) && (
             <p className="mt-1.5 text-caption text-accent-strong">
               {t.impParcela(it.installment.current, it.installment.total, it.installment.total - it.installment.current)}
             </p>
@@ -1634,7 +1655,7 @@ export function StatementImport({
           const textoMeses = meses.length === 0 ? "" : meses.length === 1 ? new Date(Number(meses[0].slice(0, 4)), Number(meses[0].slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "long" }) : `${mesCurto(meses[0])} a ${mesCurto(meses[meses.length - 1])}`;
           const aberta = stats?.faturaAberta === true;
           const deOnde = aberta ? `Fatura aberta${stats?.banco ? ` ${stats.banco}` : ""}` : stats?.banco ? `${docType === "fatura" ? "Fatura" : "Extrato"} ${stats.banco}` : docType === "fatura" ? "Fatura do cartão" : "Extrato da conta";
-          const compras = docType === "fatura" ? importable.filter((it) => it.category === "EXPENSE").length : importable.length;
+          const compras = docType === "fatura" ? comprasDaFatura(importable) : importable.length;
           const separadas = importable.filter((it) => foiSeparada(it)).length;
           return (
             <section className="relative flex flex-col items-center gap-1 rounded-3xl bg-surface-2 px-4 py-6 text-center" data-confirmacao-do-arquivo>
@@ -1694,6 +1715,7 @@ export function StatementImport({
               <span className="text-[15px] tabular-nums text-ink-muted">
                 {docType === "fatura" ? money(expenseSum) : `Entrou ${money(entrou, { round: true })} · Saiu ${money(expenseSum, { round: true })}`}
               </span>
+              {importable.length > 0 && (
               <span className="mt-2 inline-flex items-center gap-1.5 text-sm text-ink" data-separei>
                 <span className="flex size-5 items-center justify-center rounded-full bg-success-soft text-success" aria-hidden>
                   <Check size={13} strokeWidth={2.6} />
@@ -1701,6 +1723,7 @@ export function StatementImport({
                 {separadas === 1 ? "1 já separada" : `${separadas} já separadas`}
                 {stats?.conferencia.status === "fechou" && <span className="text-ink-muted" title={t.impBateuComTotal(money(stats.conferencia.esperado))}> · bateu com o total</span>}
               </span>
+              )}
               {docType === "fatura" && contarNoMes && (
                 <div className="mt-3 w-full text-left">
                   <MonthPicker label={t.impFaturaTudoNoMes} id="fatura-month-confirmar-mes" value={faturaMonth} onChange={escolherMesFatura} />
@@ -1712,6 +1735,7 @@ export function StatementImport({
 
         {/* Links discretos: ver as separadas, as que já estavam no app (com desfazer), as que ficam de fora. */}
         <div className="flex flex-wrap items-center justify-center gap-x-4 text-sm text-ink-muted" data-links-da-conferencia>
+          {importable.length > 0 && (
           <button
             type="button"
             onClick={() => {
@@ -1723,6 +1747,7 @@ export function StatementImport({
           >
             {separadosEmRevisao ? "Fechar as separadas" : "Ver as separadas"}
           </button>
+          )}
           {jaNoApp.length > 0 && (
             <button type="button" onClick={() => { setSeparadosEmRevisao(null); setAberto((v) => (v === "jaNoApp" ? null : "jaNoApp")); }} aria-expanded={aberto === "jaNoApp"} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink" data-ja-no-app>
               {jaNoApp.length === 1 ? "1 já estava no app" : `${jaNoApp.length} já estavam no app`}
@@ -1743,9 +1768,11 @@ export function StatementImport({
                   <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
                   <span className="block text-caption text-ink-muted">
                     {formatDate(it.date)} · {money(it.amount)}
-                    {it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
+                    {it.jaNoApp?.importado ? " · veio de outro arquivo" : it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
                   </span>
                 </span>
+                {/* A que veio de outro arquivo igualzinha não entra de novo nem com o toque: a gravação pula. */}
+                {!it.jaNoApp?.importado && (
                 <button
                   type="button"
                   onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, jaNoApp: null } : x)))}
@@ -1753,6 +1780,7 @@ export function StatementImport({
                 >
                   Anotar também
                 </button>
+                )}
               </li>
             ))}
           </ul>
@@ -1972,7 +2000,8 @@ export function StatementImport({
               </button>
             </>
           ) : (
-            <Button type="button" className="min-h-12" onClick={handleImport} disabled={isPending || semNadaParaGravar}>
+            // Nada novo (o mesmo arquivo de novo): "Pronto" fecha, em vez de ficar apagado sem saída.
+            <Button type="button" className="min-h-12" onClick={semNadaParaGravar ? onDone : handleImport} disabled={isPending}>
               {isPending ? t.impImportando : importable.length === 0 ? "Pronto" : `Pronto, anotar ${importable.length}`}
               <ArrowRight size={16} className="ml-1.5" />
             </Button>
@@ -1995,9 +2024,10 @@ export function StatementImport({
       <p className="text-sm font-medium text-ink">
         {/* Extrato subido de novo: nada entrou porque tudo já estava lá. Dizer "0 importados com
             sucesso" parecia erro. */}
-        {createdCount === 0 && skippedCount > 0
+        {createdCount === 0 && futurasCount === 0 && skippedCount > 0
           ? `Nada novo: ${skippedCount === 1 ? "esse lançamento já estava" : `os ${skippedCount} lançamentos já estavam`} no app, então não dupliquei.`
           : t.impImportadosSucesso(createdCount)}
+        {futurasCount > 0 && <span className="block text-caption font-normal text-ink-muted">{t.impParcelasFuturas(futurasCount)}</span>}
       </p>
 
       {/* O mês montado: a promessa da página de venda ("o mês se monta sozinho") acontecendo na
@@ -2138,8 +2168,8 @@ export function StatementImport({
           {t.impConcluir}
         </Button>
       )}
-      {createdCount > 0 && <OfertaDeAvisos />}
-      {createdCount > 0 && <p className="text-caption text-ink-muted">{t.impRevelaDesfazer(t.impHistoricoTitulo)}</p>}
+      {createdCount + futurasCount > 0 && <OfertaDeAvisos />}
+      {createdCount + futurasCount > 0 && <p className="text-caption text-ink-muted">{t.impRevelaDesfazer(t.impHistoricoTitulo)}</p>}
     </div>
   );
 }

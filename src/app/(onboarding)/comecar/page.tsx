@@ -12,8 +12,17 @@ import { valoresOcultos } from "@/lib/money-server";
 import { toCurrencyCode } from "@/lib/money";
 import { chaveDoTema, preferenciaDeModo, profileThemeCss, profileTheme as temaDoPerfil } from "@/lib/profiles/themes";
 import { lerPreferenciasDeCategoria } from "@/lib/categories";
-import { bancoDoComeco, passoDeVolta, PASSOS_LANCAMENTO } from "@/lib/onboarding/comeco";
+import { bancoDoComeco, comecoBarrado, passoDeVolta, PASSOS_LANCAMENTO } from "@/lib/onboarding/comeco";
 import { Comeco } from "./Comeco";
+import { parDeCasaSimples } from "@/lib/repositories/casa.repo";
+import { situacaoDoParAgora } from "@/lib/repositories/casal-login.repo";
+
+/** Par de uma casa simples com o Casal da titular valendo (a régua do layout do app). */
+async function parDaCasaLiberado(userId: string): Promise<boolean> {
+  const par = await parDeCasaSimples(userId);
+  if (!par) return false;
+  return (await situacaoDoParAgora(par)).tipo === "liberado";
+}
 
 /**
  * O começo (onboarding) da versão nova. Fica fora do grupo (app) de propósito: o layout de lá
@@ -34,11 +43,20 @@ export default async function ComecarPage({ searchParams }: { searchParams: Prom
   // Visão geral ("Enviar o extrato", "Digitar um gasto"); o resto do começo continua fechado para ela.
   const pedidoDeLancamento = !!pedido && (PASSOS_LANCAMENTO as readonly string[]).includes(pedido);
   if (user.onboardedAt !== null && (!pedido || (!comeco && !pedidoDeLancamento))) redirect("/mensal/foco");
-  // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail": o começo antes
-  // disso seria abrir a porta por aqui. A MESMA regra do layout (quem assinou pela Apple passa).
-  if (session.user.role !== "ADMIN" && !(await contaConfirmada(user))) redirect("/mensal/foco");
-  // Sem compra valendo, idem: o layout mostra "Seu acesso não está ativo".
-  if (session.user.role !== "ADMIN" && usoDoApp(await situacaoDoAcesso(user.email), user.createdAt) === "bloqueado") redirect("/mensal/foco");
+  // O par do Casal simples usa o app inteiro no Pessoal dele, sem compra própria e sem confirmar
+  // e-mail (o convite já provou quem é): a MESMA exceção do layout. Sem ela, o "Enviar extrato" e
+  // o "Anotar um gasto" da Visão geral dele mandavam pra cá e voltavam na hora (botão morto).
+  // Sem e-mail confirmado, o layout do app mostra a tela "Confirme seu e-mail", e sem compra
+  // valendo, "Seu acesso não está ativo": o começo antes disso seria abrir a porta por aqui.
+  const admin = session.user.role === "ADMIN";
+  const parLiberado = !admin && (await parDaCasaLiberado(user.id));
+  const barrado = comecoBarrado({
+    admin,
+    parLiberado,
+    confirmada: admin || parLiberado || (await contaConfirmada(user)),
+    uso: admin || parLiberado ? "completo" : usoDoApp(await situacaoDoAcesso(user.email), user.createdAt),
+  });
+  if (barrado) redirect("/mensal/foco");
 
   const perfil = await getOrCreateActiveProfile(user.id);
   const tema = chaveDoTema(perfil.theme);

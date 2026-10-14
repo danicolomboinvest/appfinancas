@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { normalizeEmail, NOTA_DO_CONVITE_VIP } from "@/lib/repositories/allowedEmail.repo";
+import { normalizeEmail, notaDeCompraNaHubla, NOTA_DO_CONVITE_VIP } from "@/lib/repositories/allowedEmail.repo";
 
 /**
  * Saída sem reembolso (customer.member_removed), decisão da Dani em 11/10: o app NÃO tira o acesso
@@ -17,7 +17,7 @@ export function decidirSaida(entry: { active: boolean; expiresAt: Date | null },
 /** Quem a saída pode mexer: o mesmo filtro do revokeFromHubla (veio da Hubla e não é VIP). */
 function daHubla(e: { source: string; lastHublaInvoiceId: string | null; note: string | null }): boolean {
   if (e.note?.startsWith(NOTA_DO_CONVITE_VIP)) return false;
-  return e.source === "HUBLA" || e.lastHublaInvoiceId !== null;
+  return e.source === "HUBLA" || e.lastHublaInvoiceId !== null || notaDeCompraNaHubla(e.note);
 }
 
 export async function encerrarNoVencimento(email: string, agora: Date = new Date()): Promise<"manter" | "desligar" | "nada"> {

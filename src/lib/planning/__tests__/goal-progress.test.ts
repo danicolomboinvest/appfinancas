@@ -57,6 +57,26 @@ describe("Já guardado digitado + o que o app enxerga", () => {
   });
 });
 
+describe("retirar da meta (o − do detalhe)", () => {
+  it("guardei 1.234,56 e retirei 34,56: a meta fica com 1.200", () => {
+    expect(goalProgress("casa", 0, [aporte(1234.56, NOVO), aporte(-34.56, NOVO)])).toBe(1200);
+    expect(goalCurrentAmount("casa", 0, 0, [aporte(1234.56, NOVO), aporte(-34.56, NOVO)])).toBe(1200);
+  });
+
+  it("com Já guardado digitado, o resgate também desconta", () => {
+    expect(goalCurrentAmount("casa", 5000, 0, [aporte(-500, NOVO)])).toBe(4500);
+  });
+
+  it("resgate que saiu de um investimento da meta não desconta duas vezes", () => {
+    // O CDB da meta já caiu de 1.000 para 700 com a venda: o resgate ligado a ele não tira de novo.
+    expect(goalProgress("casa", 700, [aporte(-300, NOVO, [{ amount: -300, assetGoalId: "casa" }])])).toBe(700);
+  });
+
+  it("nunca fica negativa", () => {
+    expect(goalProgress("casa", 0, [aporte(100, NOVO), aporte(-250, NOVO)])).toBe(0);
+  });
+});
+
 describe("aporte só conta na meta quando o mês dele já começou", () => {
   // Filtro aplicado em memória, igual ao que o banco faria com o where.
   const passa = (where: ReturnType<typeof aportesJaOcorridosWhere>, e: { year: number; month: number }) =>

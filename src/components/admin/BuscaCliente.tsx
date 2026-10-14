@@ -34,9 +34,18 @@ export function bateComBusca(q: string, ...campos: (string | null | undefined)[]
   const termo = norm(q);
   if (!termo) return true;
   const digitos = termo.replace(/\D/g, "");
-  return campos.some((c) => {
-    if (!c) return false;
-    if (norm(c).includes(termo)) return true;
-    return digitos.length >= 4 && c.replace(/\D/g, "").includes(digitos);
-  });
+  if (
+    campos.some((c) => {
+      if (!c) return false;
+      if (norm(c).includes(termo)) return true;
+      return digitos.length >= 4 && c.replace(/\D/g, "").includes(digitos);
+    })
+  ) {
+    return true;
+  }
+  // Várias palavras ("souza ana", "ana  souza", "ana gmail"): cada uma em algum campo.
+  const palavras = termo.split(/\s+/).filter(Boolean);
+  if (palavras.length < 2) return false;
+  const tudo = campos.filter(Boolean).map((c) => norm(c as string)).join(" ");
+  return palavras.every((p) => tudo.includes(p));
 }
