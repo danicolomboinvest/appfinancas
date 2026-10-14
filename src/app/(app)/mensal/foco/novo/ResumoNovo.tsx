@@ -18,11 +18,14 @@ import { CartaoAcerto } from "../CartaoAcerto";
 import { PrimeirosPassos } from "../DepoisDoComeco";
 import { carregarResumoNovo, type InfoDaCategoria, type ResumoNovo as Dados } from "./dados";
 import { CartaoSugestao } from "./CartaoSugestao";
+import { AbrirDetalhe } from "./AbrirDetalhe";
+import { PainelDoNumero } from "./DetalheDoNumero";
 import { HeroiDaPrimeiraVez, HeroiDoDiaADia, HeroiDoDigitou, HeroiDoMesFechado, HeroiDoNada, type CorDoHeroi } from "./Heroi";
 import { direcao, type Mes } from "./regras";
 
 const ENVIAR = "/comecar?passo=volta";
 const nome = (m: Mes) => MESES[m.mes - 1];
+const Nome = (m: Mes) => nome(m).charAt(0).toUpperCase() + nome(m).slice(1);
 const BOTAO = "inline-flex min-h-11 items-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent";
 
 /**
@@ -49,7 +52,19 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
 
   const heroi =
     r.caso === "dia-a-dia" && r.diaADia ? (
-      <HeroiDoDiaADia h={r.diaADia} mes={r.mes} passado={r.passado} money={m} cor={cor} />
+      <AbrirDetalhe
+        rotulo={`Ver o que entrou nos ${m(r.diaADia.comparacao.atual)}`}
+        lados={[
+          { aba: Nome(r.mes), titulo: `O que entrou nos ${m(r.diaADia.detalhe.atual.total)}`, conteudo: <PainelDoNumero d={r.diaADia.detalhe.atual} mes={r.mes} info={r.diaADia.detalhe.info} money={m} /> },
+          {
+            aba: `${Nome(r.passado)} até ${r.diaADia.comparacao.cortePassado}`,
+            titulo: `O que entrou nos ${m(r.diaADia.detalhe.passado.total)}`,
+            conteudo: <PainelDoNumero d={r.diaADia.detalhe.passado} mes={r.passado} info={r.diaADia.detalhe.info} money={m} />,
+          },
+        ]}
+      >
+        <HeroiDoDiaADia h={r.diaADia} mes={r.mes} passado={r.passado} money={m} cor={cor} tocavel />
+      </AbrirDetalhe>
     ) : r.caso === "mes-fechado" && r.mesFechado ? (
       <HeroiDoMesFechado h={r.mesFechado} money={m} cor={cor} />
     ) : r.primeiraVez ? (

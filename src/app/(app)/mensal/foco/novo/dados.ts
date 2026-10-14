@@ -18,6 +18,7 @@ import { carregarFoco, MESES } from "../dados";
 import { chaveDaSemana } from "../ritmo";
 import { ondeMostrarFechamento } from "../fechamento/quando-mostrar";
 import { listarDispensasDeSugestao } from "./dispensas";
+import { detalharONumero, type DetalheDoNumero, type LancamentoDoNumero } from "./detalhe-do-numero";
 import {
   categoriaQueCaiu,
   categoriaQueSubiu,
@@ -33,7 +34,6 @@ import {
   porcentagemQueFicou,
   type CasoDoTopo,
   type Comparacao,
-  type GastoDoDia,
   type Mes,
   type SinalDoMes,
   type Sugestao,
@@ -60,6 +60,8 @@ export type HeroiDiaADia = {
   ficouPassado: { valor: number; contraRetrasado: number | null } | null;
   /** "Guardado em 2026", e a % do que entrou no ano. */
   guardadoNoAno: { valor: number; pct: number | null } | null;
+  /** Tocar no número: os lançamentos que somam ele, e os do mês passado até o mesmo dia. */
+  detalhe: { atual: DetalheDoNumero; passado: DetalheDoNumero; info: Record<string, InfoDaCategoria> };
 };
 
 export type HeroiMesFechado = {
@@ -123,13 +125,13 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
   const base = lancamentosDosTotais(ctx);
   const dono = { userId: ctx.userId, profileId: ctx.profileId };
 
-  const [foco, valores, gastos, porLote, digitadosPorMes, ultimoLote, personalizadas, dispensas, parcelaveis, recusas, paraCacar, assinaturasDela, guardados, mesesPorCategoria] = await Promise.all([
+  const [foco, valores, gastos, porLote, digitadosPorMes, ultimoLote, personalizadas, dispensas, parcelaveis, recusas, paraCacar, assinaturasDela, guardados, mesesPorCategoria, aplicacoes] = await Promise.all([
     carregarFoco(ctx),
     valoresDosMeses(ctx, doze),
     // Os gastos dos dois meses da comparação.
     prisma.monthlyEntry.findMany({
       where: comFiltro(base, { category: "EXPENSE", OR: [{ year: mes.ano, month: mes.mes }, { year: passado.ano, month: passado.mes }] }),
-      select: { year: true, month: true, amount: true, entryDate: true, createdAt: true, parentCategory: true, customCategoryId: true, description: true, importBatchId: true, externalId: true },
+      select: { id: true, year: true, month: true, amount: true, entryDate: true, createdAt: true, parentCategory: true, customCategoryId: true, description: true, subcategory: true, importBatchId: true, externalId: true },
       take: 8000,
     }),
     // De onde veio o dado de cada mês: que lotes (extrato ou fatura) têm lançamento nele.
@@ -157,6 +159,13 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       where: comFiltro(base, { category: "EXPENSE", OR: mesesAte(passado.ano, passado.mes, 3).map((m) => ({ year: m.ano, month: m.mes })) }),
       _sum: { amount: true },
     }),
+    // As aplicações dos dois meses: saem da conta, mas são guardar, não gasto. Só para o "Fora da
+    // conta" do detalhe do número.
+    prisma.monthlyEntry.findMany({
+      where: comFiltro(base, { category: "INVESTMENT_CONTRIBUTION", OR: [{ year: mes.ano, month: mes.mes }, { year: passado.ano, month: passado.mes }] }),
+      select: { id: true, year: true, month: true, amount: true, entryDate: true, createdAt: true, description: true, subcategory: true, parentCategory: true, customCategoryId: true },
+      take: 2000,
+    }),
   ]);
 
   // ---------------------------------------------------------------- categorias
@@ -173,7 +182,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
 
   // O dia de cada gasto dentro do mês dele. Sem data: o dia em que entrou no app, se foi naquele
   // mês (a fatura sem dia por compra vale pelo dia da importação); senão, desde o dia 1.
-  const diaNoMes = (g: (typeof gastos)[number]): number | null => {
+  const diaNoMes = (g: Pick<(typeof gastos)[number], "entryDate" | "year" | "month" | "createdAt">): number | null => {
     if (g.entryDate) {
       const y = g.entryDate.getUTCFullYear();
       const m = g.entryDate.getUTCMonth() + 1;
@@ -183,7 +192,16 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     const criado = nowInBrazil(g.createdAt);
     return criado.getFullYear() === g.year && criado.getMonth() + 1 === g.month ? criado.getDate() : null;
   };
-  const doMes = (m: Mes): GastoDoDia[] => gastos.filter((g) => g.year === m.ano && g.month === m.mes).map((g) => ({ valor: Number(g.amount), dia: diaNoMes(g), categoria: chaveDe(g) }));
+  // Com o id e o nome: o detalhe do número usa exatamente estes, para a soma bater.
+  const lancamento = (g: (typeof gastos)[number] | (typeof aplicacoes)[number]): LancamentoDoNumero => ({
+    id: g.id,
+    descricao: g.description?.trim() || g.subcategory?.trim() || "Sem descrição",
+    valor: Number(g.amount),
+    dia: diaNoMes(g),
+    categoria: chaveDe(g),
+  });
+  const doMes = (m: Mes): LancamentoDoNumero[] => gastos.filter((g) => g.year === m.ano && g.month === m.mes).map(lancamento);
+  const aplicacoesDe = (m: Mes) => aplicacoes.filter((g) => g.year === m.ano && g.month === m.mes).map(lancamento);
   const gastosAtual = doMes(mes);
   const gastosPassado = doMes(passado);
 
@@ -242,6 +260,11 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       diasDoMes: diasNoMes(mes),
       ficouPassado: mesesComDado >= 2 && comDado(valorDe(passado)) ? { valor: ficouDe(passado), contraRetrasado: comDado(valorDe(retrasado)) ? ficouDe(passado) - ficouDe(retrasado) : null } : null,
       guardadoNoAno: mesesComDado >= 2 && guardado > 0 ? { valor: guardado, pct: porcentagemQueFicou(entrouNoAno, guardado) } : null,
+      detalhe: {
+        atual: detalharONumero(gastosAtual, comparacao.corte, aplicacoesDe(mes)),
+        passado: detalharONumero(gastosPassado, comparacao.cortePassado, aplicacoesDe(passado)),
+        info: Object.fromEntries([...new Set([...gastosAtual, ...gastosPassado, ...aplicacoesDe(mes), ...aplicacoesDe(passado)].map((g) => g.categoria))].map((k) => [k, info(k)])),
+      },
     };
   } else if (caso === "mes-fechado") {
     const v = valorDe(passado);
