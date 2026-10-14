@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { tratarErroDeVersao } from "@/lib/erros/versao-nova";
 
 /**
  * Tela de erro amigável em pt-BR, sem ela, qualquer exceção de servidor (banco fora do ar,
@@ -13,8 +15,12 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
  * Provider — então, enquanto não existir um `error.tsx` dentro de `(app)`, ela fala como o
  * Padrão. Já lê do catálogo pra, no dia que existir, mudar de voz sem mexer aqui.
  */
-export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const { voz } = useProfileTheme();
+  // App atualizado com a tela aberta (13/10/2026): avisa e abre a versão nova sozinho.
+  useEffect(() => {
+    void tratarErroDeVersao(error);
+  }, [error]);
   return (
     <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 px-6 text-center">
       <span className="flex size-16 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>

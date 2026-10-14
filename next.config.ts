@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Versão deste build (13/10/2026). O aparelho guarda a dele e, quando uma ação falha sem dizer
+  // por quê, pergunta a do servidor (/api/versao): se mudou, o app foi atualizado com a tela aberta
+  // e recarrega sozinho (src/lib/erros/versao-nova.ts). Vazio fora da Vercel: aí nunca recarrega.
+  // O deploymentId NÃO é definido aqui: com o Skew Protection ligado, a Vercel preenche o
+  // NEXT_DEPLOYMENT_ID sozinha, e o Next usa esse para manter cada aparelho na versão dele.
+  env: {
+    NEXT_PUBLIC_VERSAO_DO_APP: process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || "",
+  },
+
   // pdf-parse/pdfjs carregam um worker por caminho relativo em runtime — se o Turbopack
   // empacota, o worker some ("Cannot find module pdf.worker.mjs"). Externalizar mantém o
   // require nativo do Node, onde o worker resolve normalmente.
@@ -39,7 +48,9 @@ const nextConfig: NextConfig = {
       // disco: nenhum deles aparece num import, então o rastreador não os copiaria. Só as
       // variantes "lstm" do motor (as únicas que o app usa) — o pacote inteiro tem 43 MB.
       "node_modules/tesseract.js/src/**",
-      "node_modules/tesseract.js-core/*lstm*",
+      // Todos os núcleos (13/10/2026): o print da fatura falhou 18 de 18 em produção porque o
+      // tesseract escolheu o "relaxedsimd" (sem lstm no nome), que ficava fora do pacote.
+      "node_modules/tesseract.js-core/*",
       "node_modules/@tesseract.js-data/por/4.0.0_best_int/*",
       // Dependências que o tesseract.js carrega por require em tempo de execução: como ele é
       // externo, o rastreador não as copiava e qualquer ação no mesmo pacote quebrava com

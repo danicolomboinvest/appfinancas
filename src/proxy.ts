@@ -55,7 +55,9 @@ export const config = {
   // sem sessão, no login e no link do convite; sem a exceção, ele vinha como o redirect pro login.
   // api/widget (11/10/2026): a extensão do widget do iPhone não tem sessão; entra com a chave
   // própria dela, e a rota confere (e a de gerar a chave confere a sessão sozinha).
+  // api/versao (13/10/2026): só diz qual versão está no ar; o aparelho pergunta quando uma ação
+  // falha, e com a sessão vencida o pedido voltaria como o redirect pro login.
   matcher: [
-    "/((?!api/auth|api/cron|api/webhooks|api/widget|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.png|icons|brand).*)",
+    "/((?!api/auth|api/cron|api/webhooks|api/widget|api/versao|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.png|icons|brand).*)",
   ],
 };

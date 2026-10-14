@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { tratarErroDeVersao } from "@/lib/erros/versao-nova";
 
 /**
  * Erro dentro das telas logadas. Sem este arquivo quem pegava era o `src/app/error.tsx` da raiz,
@@ -23,6 +24,8 @@ export default function AppErrorPage({
   const { voz } = useProfileTheme();
   useEffect(() => {
     console.error("Erro numa tela do app", error);
+    // App atualizado com a tela aberta (13/10/2026): avisa e abre a versão nova sozinho.
+    void tratarErroDeVersao(error);
   }, [error]);
   return (
     <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 px-4 text-center">

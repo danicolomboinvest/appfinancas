@@ -2,7 +2,7 @@
 
 import { ehFalhaDeRede, MSG_FALHA_NOSSA, registrarErroNoCliente } from "@/lib/erros/erro-do-cliente";
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ChevronDown, Delete, Plus, Shapes, Wallet } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -15,6 +15,8 @@ import { NovaCategoria } from "./NovaCategoria";
 import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { dataDoChip, paraDecimal, teclar } from "@/lib/entries/digitar";
+import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
+import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
 import type { CurrencyCode } from "@/lib/money";
 
 const ULTIMO_NO_CARTAO = "spi-ultimo-no-cartao";
@@ -59,11 +61,25 @@ export function Digitar({
   const { showToast, showError } = useToast();
 
   const [perfilDaTela] = useState(profileId);
-  const [tipo, setTipo] = useState<Tipo>(inicial?.tipo === "INCOME" ? "INCOME" : inicial?.tipo === "INVESTMENT_CONTRIBUTION" ? "INVESTMENT_CONTRIBUTION" : "EXPENSE");
-  const [centavos, setCentavos] = useState(Math.round((inicial?.valor ?? 0) * 100));
-  const [categoria, setCategoria] = useState<string | null>(inicial?.categoria ?? null);
-  const [tipoLivre, setTipoLivre] = useState<string>(inicial?.tipo === "INCOME" || inicial?.tipo === "INVESTMENT_CONTRIBUTION" ? (inicial?.subcategoria ?? "") : "");
-  const [chip, setChip] = useState<string>("hoje");
+  // O que estava digitado quando o app recarregou para a versão nova (13/10/2026). Só sem `inicial`
+  // (a voz já traz o que ela disse, e isso vale mais que um rascunho antigo).
+  const [rascunho] = useState<RascunhoLancar | null>(() => {
+    if (inicial) return null;
+    try {
+      return lerRascunho(window.sessionStorage.getItem(CHAVE_RASCUNHO_LANCAR), Date.now());
+    } catch {
+      return null;
+    }
+  });
+  const [tipo, setTipo] = useState<Tipo>(
+    rascunho?.tipo ?? (inicial?.tipo === "INCOME" ? "INCOME" : inicial?.tipo === "INVESTMENT_CONTRIBUTION" ? "INVESTMENT_CONTRIBUTION" : "EXPENSE"),
+  );
+  const [centavos, setCentavos] = useState(rascunho?.centavos ?? Math.round((inicial?.valor ?? 0) * 100));
+  const [categoria, setCategoria] = useState<string | null>(rascunho ? rascunho.categoria : (inicial?.categoria ?? null));
+  const [tipoLivre, setTipoLivre] = useState<string>(
+    rascunho?.tipoLivre ?? (inicial?.tipo === "INCOME" || inicial?.tipo === "INVESTMENT_CONTRIBUTION" ? (inicial?.subcategoria ?? "") : ""),
+  );
+  const [chip, setChip] = useState<string>(rascunho?.chip ?? "hoje");
   const [outraData, setOutraData] = useState(false);
   const [noCartao, setNoCartao] = useState(() => {
     try {
@@ -74,7 +90,7 @@ export function Digitar({
   });
   const [repetir, setRepetir] = useState(false);
   const [mais, setMais] = useState(false);
-  const [descricao, setDescricao] = useState(inicial?.descricao ?? "");
+  const [descricao, setDescricao] = useState(rascunho?.descricao ?? inicial?.descricao ?? "");
   const [moeda, setMoeda] = useState<CurrencyCode>(inicial?.moeda ?? moedaDoApp);
   const [meta, setMeta] = useState("");
   const [mesSeguinte, setMesSeguinte] = useState(false);
@@ -82,6 +98,28 @@ export function Digitar({
   const [criandoLocal, setCriandoLocal] = useState(false);
   const criando = criandoCategoria ?? criandoLocal;
   const setCriando = (v: boolean) => (onCriandoCategoria ? onCriandoCategoria(v) : setCriandoLocal(v));
+
+  // Se o app recarregar para a versão nova com esta folha aberta, guarda o que está digitado.
+  const atual = useRef<RascunhoLancar>({ tipo, centavos, categoria, tipoLivre, descricao, chip });
+  useEffect(() => {
+    atual.current = { tipo, centavos, categoria, tipoLivre, descricao, chip };
+  });
+  useEffect(
+    () =>
+      aoRecarregarParaVersaoNova(() => {
+        if (!atual.current.centavos) return;
+        window.sessionStorage.setItem(CHAVE_RASCUNHO_LANCAR, montarRascunho(atual.current, Date.now()));
+      }),
+    [],
+  );
+  // Rascunho usado uma vez: sai do aparelho e avisa que voltou.
+  useEffect(() => {
+    if (!rascunho) return;
+    try {
+      window.sessionStorage.removeItem(CHAVE_RASCUNHO_LANCAR);
+    } catch {}
+    showToast("Voltei com o que estava digitado antes da atualização.");
+  }, [rascunho, showToast]);
 
   const ehGasto = tipo === "EXPENSE";
   const hoje = nowInBrazil();
@@ -148,6 +186,8 @@ export function Digitar({
         res = await createMonthlyEntryAction({}, fd);
       } catch (err) {
         registrarErroNoCliente("lancar", err);
+        // App atualizado com a folha aberta: o aviso e a recarga já vêm, o rascunho fica guardado.
+        if (ehVersaoNovaERecarrega(err)) return;
         const msg = ehFalhaDeRede(err) ? "Não consegui salvar: parece que a internet caiu. Toque em Salvar de novo." : MSG_FALHA_NOSSA;
         setState({ error: msg });
         showError(msg);

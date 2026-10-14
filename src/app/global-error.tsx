@@ -1,11 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
+import { tratarErroDeVersao } from "@/lib/erros/versao-nova";
+
 /**
  * Última linha de defesa: erro no PRÓPRIO layout raiz (error.tsx não cobre esse caso).
  * Renderiza um documento completo, aqui não há tema nem fontes carregadas, então o estilo
  * é inline e mínimo, só pra nunca mostrar a tela técnica em inglês do Next.
  */
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // App atualizado com a tela aberta (13/10/2026): avisa e abre a versão nova sozinho.
+  useEffect(() => {
+    void tratarErroDeVersao(error);
+  }, [error]);
   return (
     <html lang="pt-BR">
       <body
