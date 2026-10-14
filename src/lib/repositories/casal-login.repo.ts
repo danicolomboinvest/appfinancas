@@ -446,7 +446,7 @@ export async function ultimoVinculoComoPar(userId: string) {
   return prisma.membroCasal.findFirst({
     where: { userId },
     orderBy: { entrouEm: "desc" },
-    select: { id: true, profileId: true, letra: true, saiuEm: true, bloqueadoEm: true, profile: { select: { userId: true, casal: true, user: { select: { name: true, email: true } } } } },
+    select: { id: true, profileId: true, letra: true, saiuEm: true, bloqueadoEm: true, modelo: true, perfilParId: true, profile: { select: { userId: true, casal: true, user: { select: { name: true, email: true } } } } },
   });
 }
 
