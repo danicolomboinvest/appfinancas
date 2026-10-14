@@ -11,16 +11,16 @@ export function BuscaCliente({ acao, q, extras = {}, placeholder = "Buscar por n
       {Object.entries(extras).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <label className="flex min-h-11 flex-1 items-center gap-2 rounded-full border border-border bg-surface px-4 focus-within:border-accent">
+      <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-surface px-4 focus-within:border-accent">
         <Search size={16} className="shrink-0 text-ink-muted" aria-hidden />
         <span className="sr-only">Buscar cliente</span>
         <input type="search" name="q" defaultValue={q} placeholder={placeholder} autoComplete="off" className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint" />
       </label>
-      <button type="submit" className="min-h-11 rounded-full bg-ink px-5 text-sm font-medium text-canvas">
+      <button type="submit" className="min-h-11 shrink-0 rounded-full bg-ink px-5 text-sm font-medium text-canvas">
         Buscar
       </button>
       {q && (
-        <Link href={acao + (Object.keys(extras).length ? `?${new URLSearchParams(extras)}` : "")} aria-label="Limpar busca" className="flex size-11 items-center justify-center rounded-full border border-border text-ink-muted">
+        <Link href={acao + (Object.keys(extras).length ? `?${new URLSearchParams(extras)}` : "")} aria-label="Limpar busca" className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-ink-muted">
           <X size={16} aria-hidden />
         </Link>
       )}
