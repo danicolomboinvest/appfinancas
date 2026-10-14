@@ -3,6 +3,7 @@ import type { Classification, LearnedRule } from "@/lib/import/classify";
 import { normalizeMerchant } from "@/lib/import/classify";
 import { categoriaParecida } from "@/lib/import/cuidado-pessoal";
 import { categorizarLinha } from "@/lib/import/motor";
+import { acharNoVocabulario, type GrupoFalado } from "./vocabulario-falado";
 
 /**
  * A categoria do que ela FALOU (14/10/2026). A Dani gravou "gastei 300 reais com posto" e a
@@ -12,11 +13,15 @@ import { categorizarLinha } from "@/lib/import/motor";
  * 1. A regra que ELA ensinou (inclusive para a categoria que ela criou).
  * 2. O nome de uma categoria que ela criou, dito na frase ("50 reais no pet" → "Pet").
  * 3. A base comunitária, o dicionário e o nome com cara de comida, como na importação.
- * 4. As palavras faladas que não aparecem em extrato ("remédio", "janta", "cabelo"), só como reforço.
+ * 4. O vocabulário falado (vocabulario-falado.ts, 14/10/2026): centenas de jeitos de dizer um
+ *    gasto que não aparecem em extrato ("quentinha", "abasteci", "ração", "ifude"). Afina a
+ *    subcategoria quando concorda com as camadas de cima, e a expressão inteira ("uber eats",
+ *    "seguro do carro") ganha da palavra solta que a comunidade ou o extrato reconheceram.
  *
  * Roupa e beleza (Zara, salão, "blusa") vão para a categoria dela desse assunto ("Cuidado
- * pessoal", "Beleza", "Roupas"), quando existe; sem ela, Outros › Cuidado pessoal. A voz nunca
- * cria categoria. Se nada reconhece, volta null e ela escolhe: não chuta.
+ * pessoal", "Beleza", "Roupas"), quando existe; sem ela, Outros › Cuidado pessoal. Pet ("ração",
+ * "veterinário") e filhos ("fralda", "babá") também: a dela ("Pets", "Filhos") ou Outros › Pet e
+ * Outros › Filhos. A voz nunca cria categoria. Se nada reconhece, volta null e ela escolhe: não chuta.
  */
 export type ContextoDaFala = {
   regras?: LearnedRule[];
@@ -25,54 +30,12 @@ export type ContextoDaFala = {
   personalizadas?: { id: string; name: string }[];
 };
 
-type Reforco = { palavras: string[]; parentCategory: ParentCategory; subcategory?: string; cuidadoPessoal?: true };
+/** A categoria dela para pet ("Pets", "Cachorro", "Animais") e para filhos ("Filhos", "Crianças", "Bebê"). */
+const PARECIDOS_PET = / (pets?|animais|animal|cachorros?|cachorras?|caes|gatos?|gatas?|bichos?|dogs?) /;
+const PARECIDOS_FILHOS = / (filhos?|filhas?|criancas?|bebes?|kids|infantil|familia) /;
 
-/** Comparado sem acento e por palavra inteira (aceita o plural). */
-const FALADAS: Reforco[] = [
-  { palavras: ["remedio", "remedios", "medicamento", "medicamentos", "vitamina", "vitaminas", "farmacia"], parentCategory: "SAUDE", subcategory: "Farmácia" },
-  { palavras: ["medico", "medica", "consulta", "dentista", "pediatra", "ginecologista", "dermatologista", "oftalmologista"], parentCategory: "SAUDE", subcategory: "Consultas" },
-  { palavras: ["exame", "exames", "laboratorio", "ultrassom"], parentCategory: "SAUDE", subcategory: "Exames" },
-  { palavras: ["terapia", "psicologo", "psicologa", "psicanalista", "fisioterapia"], parentCategory: "SAUDE", subcategory: "Terapia" },
-  { palavras: ["academia", "pilates", "personal", "crossfit", "musculacao"], parentCategory: "SAUDE", subcategory: "Academia" },
-  { palavras: ["plano de saude", "convenio"], parentCategory: "SAUDE", subcategory: "Plano de saúde" },
-  { palavras: ["mercado", "feira", "compras do mes", "compra do mes"], parentCategory: "ALIMENTACAO", subcategory: "Supermercado" },
-  { palavras: ["almoco", "janta", "jantar", "jantinha", "almocei", "jantei"], parentCategory: "ALIMENTACAO", subcategory: "Restaurante" },
-  { palavras: ["lanche", "lanchinho", "cafezinho", "cafe da manha", "salgado", "sorvete"], parentCategory: "ALIMENTACAO", subcategory: "Lanche/Café" },
-  { palavras: ["pao", "paes"], parentCategory: "ALIMENTACAO", subcategory: "Padaria" },
-  { palavras: ["cerveja", "cervejinha", "chopp", "drinks", "drink"], parentCategory: "ALIMENTACAO", subcategory: "Bar" },
-  { palavras: ["abasteci", "abastecer", "abastecimento", "gasolina", "alcool", "etanol", "diesel"], parentCategory: "TRANSPORTE", subcategory: "Combustível" },
-  { palavras: ["corrida", "corridas", "99"], parentCategory: "TRANSPORTE", subcategory: "Aplicativo" },
-  { palavras: ["passagem de onibus", "metro", "onibus", "trem"], parentCategory: "TRANSPORTE", subcategory: "Transporte público" },
-  { palavras: ["mecanico", "oficina", "pneu", "pneus", "revisao do carro", "conserto do carro", "lavagem do carro", "lava jato"], parentCategory: "TRANSPORTE", subcategory: "Manutenção do veículo" },
-  { palavras: ["aluguel"], parentCategory: "MORADIA", subcategory: "Aluguel" },
-  { palavras: ["condominio"], parentCategory: "MORADIA", subcategory: "Condomínio" },
-  { palavras: ["luz", "conta de luz", "energia"], parentCategory: "MORADIA", subcategory: "Luz" },
-  { palavras: ["agua", "conta de agua"], parentCategory: "MORADIA", subcategory: "Água" },
-  { palavras: ["gas", "botijao"], parentCategory: "MORADIA", subcategory: "Gás" },
-  { palavras: ["internet", "wifi"], parentCategory: "MORADIA", subcategory: "Internet" },
-  { palavras: ["faxina", "diarista", "faxineira"], parentCategory: "MORADIA", subcategory: "Faxina" },
-  { palavras: ["cinema", "show", "teatro", "ingresso", "ingressos"], parentCategory: "LAZER", subcategory: "Cinema/Shows" },
-  { palavras: ["viagem", "hotel", "pousada", "passagem aerea", "passagem de aviao"], parentCategory: "LAZER", subcategory: "Viagens" },
-  { palavras: ["balada", "festa"], parentCategory: "LAZER", subcategory: "Bar/Balada" },
-  { palavras: ["passeio", "parque"], parentCategory: "LAZER", subcategory: "Passeios" },
-  { palavras: ["presente", "presentes"], parentCategory: "LAZER", subcategory: "Presentes" },
-  { palavras: ["curso", "cursos", "aula", "aulas"], parentCategory: "EDUCACAO", subcategory: "Cursos" },
-  { palavras: ["livro", "livros", "material escolar", "apostila"], parentCategory: "EDUCACAO", subcategory: "Livros/Material" },
-  { palavras: ["escola", "faculdade", "mensalidade"], parentCategory: "EDUCACAO", subcategory: "Mensalidade" },
-  {
-    palavras: [
-      "cabelo", "cabeleireiro", "cabeleireira", "salao", "manicure", "unha", "unhas", "sobrancelha", "depilacao", "barbeiro",
-      "barba", "roupa", "roupas", "blusa", "camiseta", "calca", "saia", "vestido", "sapato", "sapatos", "tenis", "sandalia",
-      "maquiagem", "perfume", "creme", "hidratante", "skincare",
-    ],
-    parentCategory: "OUTROS",
-    subcategory: "Cuidado pessoal",
-    cuidadoPessoal: true,
-  },
-];
-
-function semAcento(t: string): string {
-  return ` ${t
+function palavrasDoNome(nome: string): string {
+  return ` ${nome
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -80,16 +43,10 @@ function semAcento(t: string): string {
     .trim()} `;
 }
 
-function pelasPalavrasFaladas(texto: string): Classification | null {
-  const t = semAcento(texto);
-  for (const r of FALADAS) {
-    if (r.palavras.some((p) => t.includes(` ${p} `))) {
-      const achada: Classification = { parentCategory: r.parentCategory, subcategory: r.subcategory };
-      if (r.cuidadoPessoal) achada.cuidadoPessoal = true;
-      return achada;
-    }
-  }
-  return null;
+function categoriaDela(grupo: GrupoFalado | undefined, personalizadas: { id: string; name: string }[]) {
+  if (grupo === "pet") return personalizadas.find((c) => PARECIDOS_PET.test(palavrasDoNome(c.name))) ?? null;
+  if (grupo === "filhos") return personalizadas.find((c) => PARECIDOS_FILHOS.test(palavrasDoNome(c.name))) ?? null;
+  return categoriaParecida(personalizadas);
 }
 
 /** O nome da categoria que ela criou vira uma regra dela: "Pet" pega "50 reais no pet". */
@@ -113,15 +70,33 @@ export function categoriaDaFala(descricao: string, contexto: ContextoDaFala = {}
     gasto: true,
     personalizadas: new Set(personalizadas.map((c) => c.id)),
   });
-  // O "parece comida" do motor é palpite de confiança média: a palavra falada, quando há, sabe mais.
-  const falada = pessoal ? pelasPalavrasFaladas(texto) : null;
-  let achada = doMotor && !(doMotor.origem === "parece_comida" && falada) ? doMotor.classificacao : falada;
-  // A base comunitária só sabe a categoria-mãe ("remédio" → Saúde): concordando, a palavra
-  // falada afina a subcategoria (Farmácia), como o dicionário faz na importação.
-  if (achada && !achada.subcategory && !achada.customCategoryId && falada?.parentCategory === achada.parentCategory) achada = { ...achada, subcategory: falada.subcategory };
+  // O vocabulário falado (vocabulario-falado.ts): "quentinha", "ração", "abasteci", "ifude".
+  const falada = pessoal ? acharNoVocabulario(texto) : null;
+  const daFala: Classification | null = falada ? { parentCategory: falada.parentCategory, subcategory: falada.subcategory } : null;
+  if (daFala && falada?.grupo === "cuidado") daFala.cuidadoPessoal = true;
+  let achada: Classification | null;
+  let grupo = falada?.grupo;
+  if (doMotor?.origem === "dela") {
+    // A regra dela e o nome da categoria dela mandam em tudo.
+    achada = doMotor.classificacao;
+    grupo = undefined;
+  } else if (doMotor && doMotor.origem !== "parece_comida" && !(falada && falada.palavras > 1 && falada.exato && falada.parentCategory !== doMotor.classificacao.parentCategory)) {
+    achada = doMotor.classificacao;
+    // Concordando na categoria-mãe, a palavra falada afina a subcategoria: a comunidade só sabe
+    // a mãe ("remédio" → Saúde) e o extrato pensa em loja ("comida" é restaurante; "pedi comida"
+    // é delivery).
+    if (daFala && !achada.customCategoryId && daFala.parentCategory === achada.parentCategory) achada = daFala;
+    else grupo = undefined;
+  } else {
+    // A expressão falada inteira ("uber eats", "seguro do carro", "passagem de trem") sabe mais
+    // que a palavra solta que a base comunitária e o extrato reconhecem ("uber", "seguro",
+    // "passagem"). E o "parece comida" do motor é palpite de confiança média: a palavra falada,
+    // quando há, sabe mais.
+    achada = daFala ?? doMotor?.classificacao ?? null;
+  }
   if (!achada) return null;
-  if (achada.cuidadoPessoal && !achada.customCategoryId && pessoal) {
-    const dela = categoriaParecida(personalizadas);
+  if ((achada.cuidadoPessoal || grupo) && !achada.customCategoryId && pessoal) {
+    const dela = categoriaDela(grupo ?? "cuidado", personalizadas);
     if (dela) return { parentCategory: "OUTROS", customCategoryId: dela.id };
   }
   return achada;

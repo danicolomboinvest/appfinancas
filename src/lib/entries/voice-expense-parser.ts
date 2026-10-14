@@ -1,6 +1,7 @@
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { categoriaDaFala, type ContextoDaFala } from "./categoria-da-fala";
+import { chaveParaAprender } from "./vocabulario-falado";
 
 export type VoiceEntryCategory = "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
 
@@ -15,6 +16,11 @@ export type ParsedVoiceEntry = {
   description: string;
   /** Moeda dita na frase ("2 mil euros"); null quando a pessoa não disse nenhuma. */
   currency: CurrencyCode | null;
+  /**
+   * No gasto: a palavra-chave da fala ("racao", "coco bambu") para guardar a correção dela, se ela
+   * trocar a categoria sugerida (ver aprender-da-voz.ts). null quando a fala não tem nada específico.
+   */
+  chaveDaFala?: string | null;
 };
 
 /**
@@ -165,7 +171,11 @@ function amountCandidates(normalized: string): { value: number; index: number; h
 }
 
 function extractAmount(normalized: string): number | null {
-  const candidatos = amountCandidates(normalized);
+  // O app 99 ("paguei no 99 15 reais", "no 99 15") não é o valor quando há outro número.
+  const todos = amountCandidates(normalized);
+  const ehOApp = (c: { value: number; index: number; hasCurrency: boolean }) =>
+    c.value === 99 && !c.hasCurrency && /\b(no|do|o|pelo)\s*$/.test(normalized.slice(0, c.index));
+  const candidatos = todos.length > 1 ? todos.filter((c) => !ehOApp(c)) : todos;
   // Quem está encostado no dinheiro ("R$ 45" / "45 reais") ganha de um número solto: em
   // "2 cafés de 15 reais" o valor é 15, não 2.
   const comMoeda = candidatos.find((c) => c.hasCurrency);
@@ -276,6 +286,8 @@ const INICIO_SEM_SENTIDO = new Set([
   "comprar", "torrei", "desembolsei", "assinei", "foi", "foram", "deu", "recebi", "recebemos", "recebeu", "receber", "ganhei",
   "ganhou", "caiu", "entrou", "vendi", "investi", "investir", "apliquei", "aportei", "guardei", "poupei", "me", "pagaram",
   "valor", "total", "reais", "real",
+  // "Fiz o rancho", "botei gás", "troquei o pneu": o que importa vem depois (14/10/2026).
+  "fiz", "fizemos", "dei", "demos", "botei", "coloquei", "troquei", "tive", "mandei", "transferi",
 ]);
 /** O que sobra no fim da frase sem sentido ("Posto de", "Uber hoje"). */
 const FIM_SEM_SENTIDO = new Set(["de", "do", "da", "no", "na", "com", "em", "e", "por", "pra", "para", "hoje", "ontem", "agora", "reais", "real"]);
@@ -323,10 +335,23 @@ export function descricaoDaFala(text: string): string {
 }
 
 /**
+ * "Paguei 18 reais no noventa e nove": o reconhecedor escreve o app 99 por extenso. Depois de
+ * "no/do/o/pelo" e sem moeda logo em seguida, é o app, não o valor ("paguei noventa e nove reais"
+ * continua sendo R$ 99).
+ */
+function noventaENoveEhOApp(text: string): string {
+  return text.replace(
+    new RegExp(`\\b(no|do|o|pelo)\\s+noventa\\s+e\\s+nove\\b(?!\\s*(${MONEY_WORDS}|mil)\\b)`, "gi"),
+    "$1 99",
+  );
+}
+
+/**
  * `contexto`: as regras que ELA ensinou e as categorias que ela criou (quem chama no servidor
  * passa; sem contexto, só o dicionário, a base comunitária e as palavras faladas).
  */
-export function parseVoiceEntry(text: string, contexto: ContextoDaFala = {}): ParsedVoiceEntry {
+export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}): ParsedVoiceEntry {
+  const text = noventaENoveEhOApp(falado);
   const normalized = normalize(text);
   const category = extractEntryCategory(normalized);
   const limpa = descricaoDaFala(text);
@@ -334,13 +359,15 @@ export function parseVoiceEntry(text: string, contexto: ContextoDaFala = {}): Pa
 
   if (category === "EXPENSE") {
     // O mesmo motor da importação (14/10/2026): "posto" é Combustível lá, e tem que ser aqui.
-    const achada = categoriaDaFala(limpa || text, contexto);
+    // Frase só com verbo e valor ("gastei 300 reais"): não há o que categorizar, e não chuta.
+    const achada = limpa ? categoriaDaFala(limpa, contexto) : null;
     return {
       ...base,
       parentCategory: achada?.customCategoryId ? null : (achada?.parentCategory ?? null),
       subcategory: achada?.customCategoryId ? null : (achada?.subcategory ?? null),
       customCategoryId: achada?.customCategoryId ?? null,
       description: limpa,
+      chaveDaFala: limpa ? chaveParaAprender(limpa) : null,
     };
   }
 
