@@ -21,6 +21,8 @@ export type ParsedVoiceEntry = {
    * trocar a categoria sugerida (ver aprender-da-voz.ts). null quando a fala não tem nada específico.
    */
   chaveDaFala?: string | null;
+  /** "ontem" ou "anteontem" dito na frase (14/10/2026); null = hoje. */
+  quando?: "ontem" | "anteontem" | null;
 };
 
 /**
@@ -311,7 +313,7 @@ function toLabel(word: string): string {
 /** Verbos e muletas do começo da frase falada, que não dizem O QUE foi. */
 const INICIO_SEM_SENTIDO = new Set([
   "eu", "a", "o", "as", "os", "um", "uma", "uns", "umas", "com", "no", "na", "nos", "nas", "num", "numa", "de", "do", "da",
-  "dos", "das", "em", "pra", "para", "pro", "por", "hoje", "ontem", "agora", "so", "mais", "acabei", "aqui", "tambem", "e",
+  "dos", "das", "em", "pra", "para", "pro", "por", "hoje", "ontem", "anteontem", "agora", "so", "mais", "acabei", "aqui", "tambem", "e",
   "gastei", "gastamos", "gastou", "gasto", "gastar", "paguei", "pagamos", "pagou", "pagar", "comprei", "compramos", "comprou",
   "comprar", "torrei", "desembolsei", "assinei", "foi", "foram", "deu", "recebi", "recebemos", "recebeu", "receber", "ganhei",
   "ganhou", "caiu", "entrou", "vendi", "investi", "investir", "apliquei", "aportei", "guardei", "poupei", "me", "pagaram",
@@ -320,7 +322,7 @@ const INICIO_SEM_SENTIDO = new Set([
   "fiz", "fizemos", "dei", "demos", "botei", "coloquei", "troquei", "tive", "mandei", "transferi",
 ]);
 /** O que sobra no fim da frase sem sentido ("Posto de", "Uber hoje"). */
-const FIM_SEM_SENTIDO = new Set(["de", "do", "da", "no", "na", "com", "em", "e", "por", "pra", "para", "hoje", "ontem", "agora", "reais", "real"]);
+const FIM_SEM_SENTIDO = new Set(["de", "do", "da", "no", "na", "com", "em", "e", "por", "pra", "para", "hoje", "ontem", "anteontem", "agora", "reais", "real"]);
 const PALAVRA_DE_DINHEIRO = new RegExp(`^(${MONEY_WORDS}|real|dolares|dolar|argentinos?)$`);
 const PALAVRA_DE_NUMERO = (t: string) => t in UNITS || t in TENS || t in HUNDREDS || t === "mil" || t === "milhao" || t === "milhoes" || t === "e";
 const EH_NUMERO = /^(r\$|us\$|ar\$|\$|€|£|₪)?\d[\d.,]*(k|mil)?$|^(r\$|us\$|ar\$|\$|€|£|₪)$/;
@@ -401,7 +403,9 @@ export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}): 
   const normalized = normalize(text);
   const category = extractEntryCategory(normalized);
   const limpa = descricaoDaFala(text);
-  const base = { category, amount: extractAmount(normalized), currency: extractCurrency(normalized) };
+  // "Gastei 45 no mercado ontem" era gravado com a data de hoje (14/10/2026).
+  const quando = /\banteontem\b/.test(normalized) ? ("anteontem" as const) : /\bontem\b/.test(normalized) ? ("ontem" as const) : null;
+  const base = { category, amount: extractAmount(normalized), currency: extractCurrency(normalized), quando };
 
   if (category === "EXPENSE") {
     // O mesmo motor da importação (14/10/2026): "posto" é Combustível lá, e tem que ser aqui.

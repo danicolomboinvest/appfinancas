@@ -14,10 +14,10 @@ import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/me
 import { NovaCategoria } from "./NovaCategoria";
 import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { dataDoChip, faltaParaSalvar, paraDecimal, teclar } from "@/lib/entries/digitar";
+import { chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclar } from "@/lib/entries/digitar";
 import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
 import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
-import type { CurrencyCode } from "@/lib/money";
+import { formatMoney, type CurrencyCode } from "@/lib/money";
 
 const ULTIMO_NO_CARTAO = "spi-ultimo-no-cartao";
 type Tipo = "EXPENSE" | "INCOME" | "INVESTMENT_CONTRIBUTION" | "RESGATE";
@@ -59,6 +59,8 @@ export function Digitar({
     moeda?: CurrencyCode;
     /** A palavra-chave da fala: se ela trocar a categoria sugerida, o app aprende (aprender-da-voz.ts). */
     chaveDaFala?: string;
+    /** "Ontem" ou "anteontem" dito na frase. */
+    quando?: "ontem" | "anteontem";
   };
 }) {
   const { voz, profileId, cartaoComLimite, kind, categorias } = useProfileTheme();
@@ -89,8 +91,8 @@ export function Digitar({
   const [tipoLivre, setTipoLivre] = useState<string>(
     rascunho?.tipoLivre ?? (inicial?.tipo === "INCOME" || inicial?.tipo === "INVESTMENT_CONTRIBUTION" ? (inicial?.subcategoria ?? "") : ""),
   );
-  const [chip, setChip] = useState<string>(rascunho?.chip ?? "hoje");
-  const [outraData, setOutraData] = useState(false);
+  const [chip, setChip] = useState<string>(rascunho?.chip ?? chipDaFala(inicial?.quando, nowInBrazil()));
+  const [outraData, setOutraData] = useState(() => !rascunho && inicial?.quando === "anteontem");
   const [noCartao, setNoCartao] = useState(() => {
     try {
       return window.localStorage.getItem(ULTIMO_NO_CARTAO) === "1";
@@ -99,7 +101,7 @@ export function Digitar({
     }
   });
   const [repetir, setRepetir] = useState(false);
-  const [mais, setMais] = useState(false);
+  const [mais, setMais] = useState(() => Boolean(inicial?.moeda && inicial.moeda !== moedaDoApp));
   const [descricao, setDescricao] = useState(rascunho?.descricao ?? inicial?.descricao ?? "");
   const [moeda, setMoeda] = useState<CurrencyCode>(inicial?.moeda ?? moedaDoApp);
   const [meta, setMeta] = useState("");
@@ -139,7 +141,9 @@ export function Digitar({
   const pais = PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc));
   const personalizadas = [...customCategories, ...extras];
   const estrangeira = moeda !== moedaDoApp;
-  const valorTexto = money(centavos / 100);
+  // Em outra moeda o valor grande mostra o símbolo dela: "50 dólares" falado aparecia "R$ 50,00" e
+  // parecia que ia gravar 50 reais (14/10/2026). A conversão fica em Mais opções, que já abre.
+  const valorTexto = estrangeira ? formatMoney(centavos / 100, moeda) : money(centavos / 100);
 
   const salvar = () => {
     // Sem valor, o toque não pode morrer calado (o botão some de cinza no sol e parece ativo).
@@ -330,7 +334,7 @@ export function Digitar({
         </button>
       </div>
       {outraData && (
-        <input type="date" aria-label="Outra data" max={dataDoChip("hoje", hoje)} defaultValue={dataDoChip("ontem", hoje)} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
+        <input type="date" aria-label="Outra data" max={dataDoChip("hoje", hoje)} defaultValue={chip === "hoje" || chip === "ontem" ? dataDoChip("ontem", hoje) : chip} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
       )}
 
       <div className="flex flex-col divide-y divide-border">

@@ -266,3 +266,13 @@ describe("valor falado: centavos e jeitos de escrever o número (14/10/2026)", (
     expect(parseVoiceEntry("paguei R$ 1.250,90 de aluguel").amount).toBe(1250.9);
   });
 });
+
+describe("o dia dito na fala", () => {
+  it("ontem não vira hoje nem entra na descrição", () => {
+    expect(parseVoiceEntry("gastei 45 reais no mercado ontem")).toMatchObject({ quando: "ontem", description: "Mercado" });
+  });
+  it("anteontem", () => {
+    expect(parseVoiceEntry("anteontem paguei 30 no uber")).toMatchObject({ quando: "anteontem", amount: 30 });
+  });
+  it("sem dia, null", () => expect(parseVoiceEntry("gastei 45 no mercado").quando).toBeNull());
+});

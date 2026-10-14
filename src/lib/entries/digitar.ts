@@ -34,3 +34,13 @@ export function faltaParaSalvar(centavos: number, ehGasto: boolean, categoria: s
   if (ehGasto && !categoria) return "Escolha uma categoria para o gasto.";
   return null;
 }
+
+/** O dia que ela disse na fala vira o chip do Digitar: "ontem" é o chip Ontem; "anteontem", a data. */
+export function chipDaFala(quando: "ontem" | "anteontem" | undefined, hoje: Date): string {
+  if (quando === "ontem") return "ontem";
+  if (quando === "anteontem") {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 2);
+    return dataDoChip(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, hoje);
+  }
+  return "hoje";
+}

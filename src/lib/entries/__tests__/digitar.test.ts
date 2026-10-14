@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dataDoChip, faltaParaSalvar, MAX_CENTAVOS, paraDecimal, teclar } from "../digitar";
+import { chipDaFala, dataDoChip, faltaParaSalvar, MAX_CENTAVOS, paraDecimal, teclar } from "../digitar";
 
 describe("Digitar: o teclado da folha", () => {
   it("monta o valor em centavos, como numa maquininha", () => {
@@ -33,4 +33,12 @@ describe("o que falta para salvar", () => {
   it("gasto com categoria pode salvar", () => {
     expect(faltaParaSalvar(1234, true, "ALIMENTACAO")).toBeNull();
   });
+});
+
+describe("o dia dito na fala", () => {
+  const hoje = new Date(2026, 9, 14, 10);
+  it("sem dia é hoje", () => expect(chipDaFala(undefined, hoje)).toBe("hoje"));
+  it("ontem é o chip Ontem", () => expect(chipDaFala("ontem", hoje)).toBe("ontem"));
+  it("anteontem vira a data", () => expect(chipDaFala("anteontem", hoje)).toBe("2026-10-12"));
+  it("anteontem no dia 1 volta para o mês anterior", () => expect(chipDaFala("anteontem", new Date(2026, 10, 1, 10))).toBe("2026-10-30"));
 });
