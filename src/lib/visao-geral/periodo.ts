@@ -135,6 +135,12 @@ export function intervaloDoTipo(tipo: Exclude<TipoDeIntervalo, "custom">, agora:
   return { tipo, de: diaDe(ini), ate: diaDe(fimMes) };
 }
 
+/** Último dia que o personalizado alcança: o fim do mês que fica MESES_A_FRENTE à frente. */
+export function diaDoLimite(agora: Date): Dia {
+  const m = doIndice(indice(mesDeAgora(agora)) + MESES_A_FRENTE);
+  return { ano: m.ano, mes: m.mes, dia: ultimoDia(m.ano, m.mes) };
+}
+
 /** Lê ?periodo= ou ?de=&ate= (o personalizado). Nada válido: null (vale o mês). */
 export function lerIntervalo(params: { periodo?: string | null; de?: string | null; ate?: string | null }, agora: Date): Intervalo | null {
   const p = params.periodo;
@@ -142,10 +148,10 @@ export function lerIntervalo(params: { periodo?: string | null; de?: string | nu
   let de = lerDia(params.de);
   let ate = lerDia(params.ate ?? params.de);
   if (!de || !ate) return null;
-  const hoje = diaDe(agora);
+  const limite = diaDoLimite(agora);
   if (ordemDoDia(ate) < ordemDoDia(de)) [de, ate] = [ate, de];
-  if (ordemDoDia(de) > ordemDoDia(hoje)) return null;
-  if (ordemDoDia(ate) > ordemDoDia(hoje)) ate = hoje;
+  if (ordemDoDia(de) > ordemDoDia(limite)) return null;
+  if (ordemDoDia(ate) > ordemDoDia(limite)) ate = limite;
   return { tipo: "custom", de, ate };
 }
 

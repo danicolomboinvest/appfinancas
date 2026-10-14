@@ -67,10 +67,12 @@ describe("Ver o período: além do mês", () => {
     expect(rotuloDoIntervalo(intervaloDoTipo("ano", agora))).toEqual({ nome: "Esse ano", sub: "jan a out" });
     expect(rotuloDoIntervalo({ tipo: "custom", de: { ano: 2026, mes: 10, dia: 3 }, ate: { ano: 2026, mes: 10, dia: 9 } })).toEqual({ nome: "3 a 9 out", sub: "7 dias" });
   });
-  it("personalizado: troca a ordem, para em hoje, recusa o futuro", () => {
+  it("personalizado: troca a ordem, vai até 6 meses à frente, recusa além disso", () => {
     expect(lerIntervalo({ de: "2026-10-09", ate: "2026-10-03" }, agora)).toEqual({ tipo: "custom", de: { ano: 2026, mes: 10, dia: 3 }, ate: { ano: 2026, mes: 10, dia: 9 } });
-    expect(lerIntervalo({ de: "2026-10-09", ate: "2026-12-01" }, agora)?.ate).toEqual({ ano: 2026, mes: 10, dia: 11 });
-    expect(lerIntervalo({ de: "2026-11-01", ate: "2026-11-05" }, agora)).toBeNull();
+    expect(lerIntervalo({ de: "2026-10-09", ate: "2026-12-01" }, agora)?.ate).toEqual({ ano: 2026, mes: 12, dia: 1 });
+    expect(lerIntervalo({ de: "2026-11-01", ate: "2026-11-05" }, agora)?.de).toEqual({ ano: 2026, mes: 11, dia: 1 });
+    expect(lerIntervalo({ de: "2027-03-01", ate: "2027-09-05" }, agora)?.ate).toEqual({ ano: 2027, mes: 4, dia: 30 });
+    expect(lerIntervalo({ de: "2027-05-01", ate: "2027-05-05" }, agora)).toBeNull();
     expect(lerIntervalo({ de: "lixo" }, agora)).toBeNull();
   });
   it("cada aba leva o período do seu jeito; o orçamento sabe se são meses inteiros", () => {

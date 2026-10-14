@@ -20,6 +20,7 @@ import {
   rotuloDoIntervalo,
   rotuloDoPeriodo,
   ultimoDia,
+  MESES_A_FRENTE,
 } from "@/lib/visao-geral/periodo";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -151,7 +152,7 @@ export function SeletorDeMes() {
   );
 }
 
-/** Calendário do Período personalizado: toca no primeiro e no último dia; o futuro fica apagado. */
+/** Calendário do Período personalizado: toca no primeiro e no último dia; vai até 6 meses à frente. */
 function Calendario({ agora, inicial, onVoltar, onVer }: { agora: Date; inicial: Intervalo | null; onVoltar: () => void; onVer: (de: Dia, ate: Dia) => void }) {
   const hoje: Dia = { ano: agora.getFullYear(), mes: agora.getMonth() + 1, dia: agora.getDate() };
   const [vendo, setVendo] = useState({ ano: (inicial?.ate ?? hoje).ano, mes: (inicial?.ate ?? hoje).mes });
@@ -159,7 +160,7 @@ function Calendario({ agora, inicial, onVoltar, onVer }: { agora: Date; inicial:
   const [ate, setAte] = useState<Dia | null>(inicial?.ate ?? null);
   const primeiroDaSemana = new Date(vendo.ano, vendo.mes - 1, 1).getDay();
   const dias = ultimoDia(vendo.ano, vendo.mes);
-  const podeAvancar = vendo.ano * 12 + vendo.mes < hoje.ano * 12 + hoje.mes;
+  const podeAvancar = vendo.ano * 12 + vendo.mes < hoje.ano * 12 + hoje.mes + MESES_A_FRENTE;
   const andar = (n: number) => {
     const d = new Date(vendo.ano, vendo.mes - 1 + n, 1);
     setVendo({ ano: d.getFullYear(), mes: d.getMonth() + 1 });
@@ -209,7 +210,6 @@ function Calendario({ agora, inicial, onVoltar, onVer }: { agora: Date; inicial:
         {Array.from({ length: dias }, (_, i) => {
           const d: Dia = { ano: vendo.ano, mes: vendo.mes, dia: i + 1 };
           const o = ordem(d);
-          const futuro = o > ordem(hoje);
           const ponta = (de && o === ordem(de)) || (fim && o === ordem(fim));
           const meio = de && ate && o > ordem(de) && o < ordem(ate);
           const ehHoje = o === ordem(hoje);
@@ -217,7 +217,6 @@ function Calendario({ agora, inicial, onVoltar, onVer }: { agora: Date; inicial:
             <button
               key={i}
               type="button"
-              disabled={futuro}
               onClick={() => tocar(d)}
               aria-pressed={!!ponta}
               aria-label={`${d.dia} de ${MESES[d.mes - 1].toLowerCase()}`}

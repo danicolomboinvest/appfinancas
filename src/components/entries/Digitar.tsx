@@ -340,7 +340,7 @@ export function Digitar({
         </button>
       </div>
       {outraData && (
-        <input type="date" aria-label="Outra data" max={dataDoChip("hoje", hoje)} defaultValue={chip === "hoje" || chip === "ontem" ? dataDoChip("ontem", hoje) : chip} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
+        <input type="date" aria-label="Outra data" defaultValue={chip === "hoje" || chip === "ontem" ? dataDoChip("ontem", hoje) : chip} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
       )}
 
       <div className="flex flex-col divide-y divide-border">
