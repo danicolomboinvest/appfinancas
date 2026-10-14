@@ -144,3 +144,14 @@ describe("gênero neutro: o app não sabe quem é cada pessoa do casal", () => {
     }
   });
 });
+
+describe("convite sem o nome do par", () => {
+  it("o nome genérico não vira o nome dele nem entra no termo", async () => {
+    const { nomeDadoAoPar, NOME_GENERICO_DO_PAR } = await import("../regras");
+    expect(nomeDadoAoPar(NOME_GENERICO_DO_PAR)).toBe("");
+    expect(nomeDadoAoPar(" Seu par ")).toBe("");
+    expect(nomeDadoAoPar("Lucas")).toBe("Lucas");
+    expect(frasesDosTermos("Ana", "você")[0]).toBe("Ana vê o que for nosso e o que for seu");
+    expect(frasesDosTermos("Ana", "Lucas")[0]).toBe("Ana vê o que for nosso e o que for de Lucas");
+  });
+});

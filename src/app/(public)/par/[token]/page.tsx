@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth/auth.config";
 import { profileThemeCss } from "@/lib/profiles/themes";
 import { coresDoCasalCss } from "@/lib/casal-login/cores";
 import { limparToken, tokenTemFormato } from "@/lib/casal-login/token";
+import { nomeDadoAoPar } from "@/lib/casal-login/regras";
 import { chaveDaOrigem } from "@/lib/casal-login/limite";
 import { lerConviteParaTela, tentativaNaPaginaDoConvite } from "@/lib/repositories/casal-login.repo";
 import { TelaDoConvite } from "@/components/casal-login/TelaDoConvite";
@@ -58,7 +59,7 @@ export default async function ConviteDoParPage({ params }: { params: Promise<{ t
         tela={tela}
         token={token}
         nomeTitular={dados.nomeTitular}
-        nomePar={dados.nomePar}
+        nomePar={nomeDadoAoPar(dados.nomePar)}
         valeAte={dados.expiraEm ? diaMes(new Date(dados.expiraEm.getTime() - 1)) : null}
         emailDoVisitante={dados.emailDoVisitante}
       />

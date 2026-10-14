@@ -198,8 +198,8 @@ export function ChamarOPar({
     return (
       <section className="flex flex-col items-center pt-4 text-center">
         <ParDeAvatares titular={nomeTitular} par={aberto.nomePar} esperando />
-        <TituloDoTema className="mt-6">{vencido ? "O convite venceu" : "Convite enviado"}</TituloDoTema>
-        <p className="mt-2 text-[17px] text-ink-muted">{vencido ? "Mande de novo, com um link novo." : `Quando ${aberto.nomePar} entrar, aparece aqui.`}</p>
+        <TituloDoTema className="mt-6">{vencido ? "O convite venceu" : aberto.canal ? "Convite enviado" : "Link pronto"}</TituloDoTema>
+        <p className="mt-2 text-[17px] text-ink-muted">{vencido ? "Mande de novo, com um link novo." : aberto.canal ? `Quando ${aberto.nomePar} entrar, aparece aqui.` : `Mande o link para ${aberto.nomePar}. Quando entrar, aparece aqui.`}</p>
         {verComoFunciona}
         <div className={`${CARTAO} mt-6 w-full p-5 text-left`}>
           <div className="flex items-center gap-3">

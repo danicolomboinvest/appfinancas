@@ -23,6 +23,7 @@ import { lerConfigCasal, type ConfigCasal } from "@/lib/casal/acerto";
 import { normalizeEmail, situacaoDoAcesso } from "@/lib/repositories/allowedEmail.repo";
 import type { ProfileRow } from "@/lib/repositories/profile.repo";
 import { garantirPessoalDoPar } from "@/lib/repositories/casa.repo";
+import { MARCA_DO_TOUR_NA_CONTA_NOVA } from "@/lib/novidades/passos";
 
 /**
  * Login do par no Nós dois (aprovado pela dona em 11/10/2026, casal-login-proposta.html).
@@ -347,7 +348,10 @@ export async function aceitarConvite(
         const existe = await tx.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true } });
         if (existe) throw new ErroDeAceite("email-em-uso");
         // Sem perfil próprio: o par entra pelo vínculo. Sem /comecar: ele cai direto no Nós dois.
-        const u = await tx.user.create({ data: { email, name: entrada.novaConta.nome, passwordHash: senhaHash!, onboardedAt: agora, theme: "light" } });
+        // Conta nova da versão nova: o "Tivemos uma mudança" (que é para quem já usava) não abre.
+        const u = await tx.user.create({
+          data: { email, name: entrada.novaConta.nome, passwordHash: senhaHash!, onboardedAt: agora, theme: "light", novidadesVersaoNova: MARCA_DO_TOUR_NA_CONTA_NOVA, novidadesVistasEm: agora },
+        });
         id = u.id;
       }
       const virou = await tx.conviteCasal.updateMany({
@@ -374,6 +378,8 @@ export async function aceitarConvite(
         },
       });
       // Quem já tinha conta e nunca passou pelo começo não é mandado pra lá: cai no Nós dois.
+      // Quem nunca passou pelo começo também nunca usou a versão antiga: sem "Tivemos uma mudança".
+      await tx.user.updateMany({ where: { id: id!, onboardedAt: null, novidadesVersaoNova: null }, data: { novidadesVersaoNova: MARCA_DO_TOUR_NA_CONTA_NOVA, novidadesVistasEm: agora } });
       await tx.user.updateMany({ where: { id: id!, onboardedAt: null }, data: { onboardedAt: agora } });
       // Os nomes do casal ainda de fábrica ("Pessoa 1/2") ganham os nomes de verdade: o do
       // convite para o par e o da conta para a titular. Nome que ela já escreveu não muda.

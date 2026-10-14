@@ -204,6 +204,8 @@ describe("aceitar: uso único, prazo e cada caso de borda", () => {
     expect(r.ok).toBe(true);
     const u = db.usuarios.find((x) => x.email === "lucas@exemplo.test")!;
     expect(u.onboardedAt).toEqual(AGORA);
+    // Conta nova: o "Tivemos uma mudança" (de quem já usava) não abre para ele.
+    expect((u as unknown as { novidadesVersaoNova?: string }).novidadesVersaoNova).toBe("novo-visto");
     expect(db.membros).toEqual([expect.objectContaining({ profileId: "casal", userId: u.id, letra: "B", termosVersao: expect.any(String) })]);
     expect(db.convites[0]).toMatchObject({ status: "aceito", aceitoPorId: u.id });
     // O nome de fábrica "Pessoa 2" vira o nome do convite.
