@@ -1094,3 +1094,48 @@ select,
   40% { transform: scale(1.05); }
   100% { transform: scale(1); }
 }
+
+/* Resumo novo (14/10/2026, atrás de ?resumo=novo): o bloco principal em 3 cores, só para a
+   comparação (?cor=a|b|c), sempre com as cores do tema. Os filhos usam --r-tinta, --r-suave,
+   --r-numero, --r-linha e --r-veu. O contraste AA de cada tema está no teste cores-do-resumo. */
+.resumo-a {
+  --r-tinta: var(--color-heroi-tinta);
+  --r-suave: var(--color-heroi-suave);
+  --r-numero: var(--color-heroi-tinta);
+  --r-linha: var(--color-accent-strong);
+  --r-veu: color-mix(in srgb, var(--color-surface) 55%, transparent);
+}
+html:not(.light) .resumo-a {
+  --r-linha: var(--color-accent);
+  --r-veu: color-mix(in srgb, var(--color-heroi-tinta) 7%, transparent);
+}
+.resumo-b {
+  background: var(--color-accent);
+  border-color: transparent;
+  color: var(--color-on-accent);
+  --r-tinta: var(--color-on-accent);
+  --r-suave: color-mix(in srgb, var(--color-on-accent) 86%, var(--color-accent));
+  --r-numero: var(--color-on-accent);
+  --r-linha: var(--color-on-accent);
+  --r-veu: color-mix(in srgb, var(--color-on-accent) 18%, transparent);
+}
+.resumo-c {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-ink);
+  --r-tinta: var(--color-ink);
+  --r-suave: var(--color-ink-muted);
+  --r-numero: var(--color-accent-strong);
+  --r-linha: var(--color-accent-strong);
+  --r-veu: var(--color-accent-soft);
+}
+html:not(.light) .resumo-c {
+  --r-numero: var(--color-accent);
+  --r-linha: var(--color-accent);
+}
+/* (b) O botão principal dentro do bloco cheio: invertido, senão some no fundo da mesma cor. */
+html .resumo-b a.bg-accent-gradient {
+  background: var(--color-on-accent);
+  color: var(--color-accent);
+  box-shadow: none;
+}

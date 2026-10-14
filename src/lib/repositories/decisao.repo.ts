@@ -53,7 +53,12 @@ export type TipoDecisao =
    * Gasto da semana (regra A, 13/10/2026): de onde vem a renda da conta (chave "renda"). "entrou" =
    * "minha renda varia, conto só o que já entrou"; "plano" (ou nada) = a renda planejada do mês.
    */
-  | "renda_da_semana";
+  | "renda_da_semana"
+  /**
+   * Resumo novo (14/10/2026): "Agora não" numa sugestão (chave "<tipo>|<id>"). `descricao` guarda a
+   * marca do extrato da hora (a sugestão volta com o próximo extrato) e `dados` o "Boa" do indo bem.
+   */
+  | "sugestao_dispensada";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;

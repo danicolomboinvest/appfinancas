@@ -34,6 +34,11 @@ import { acertoDaCasa } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
 import { DuasBolinhas } from "@/components/casa/Pessoas";
 import { CartaoAcerto } from "./CartaoAcerto";
+import { ResumoNovo } from "./novo/ResumoNovo";
+import type { CorDoHeroi } from "./novo/Heroi";
+import { ehFuturo } from "@/lib/visao-geral/periodo";
+import { carregarMesesPrevistos } from "@/lib/repositories/previsao.repo";
+import { MesPrevistoNaTela } from "@/components/previsao/MesesPrevistos";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -56,6 +61,20 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   // Outro mês (protótipo): o herói da semana e as Decisões importantes continuam em cima; muda o
   // quadro do mês e, no mês passado ainda aberto, aparece "Setembro ainda não foi fechado".
   const outroMes = mesmoMes(escolhido, mesDeAgora(agora)) ? null : escolhido;
+  // Mês que ainda não chegou (voltou em 14/10/2026): o que já está previsto, nunca gasto.
+  if (ehFuturo(escolhido, agora)) {
+    const [[previsto], moneyP] = await Promise.all([carregarMesesPrevistos(ctx, mesDeAgora(agora), escolhido, 1), serverMoney()]);
+    return <MesPrevistoNaTela m={previsto} money={(v) => moneyP(v, { round: true })} />;
+  }
+  // O Resumo novo (proposta de 14/10/2026) fica atrás da chave ?resumo=novo, desligado para todos.
+  // ?cor=a|b|c troca só a cor do bloco principal, para a comparação.
+  if (um(busca.resumo) === "novo" && !outroMes) {
+    const cor: CorDoHeroi = um(busca.cor) === "b" ? "b" : um(busca.cor) === "c" ? "c" : "a";
+    // Para a foto dos dias 1 a 7 no banco local: ?hoje=AAAA-MM-DD só vale com a variável ligada.
+    const hojeTexto = um(busca.hoje);
+    const hojeDeTeste = process.env.RESUMO_NOVO_HOJE_DE_TESTE === "1" && hojeTexto && /^\d{4}-\d{2}-\d{2}$/.test(hojeTexto) ? new Date(`${hojeTexto}T12:00:00`) : null;
+    return <ResumoNovo ctx={ctx} cor={cor} hojeDeTeste={hojeDeTeste} />;
+  }
   // Casal simples: o acerto do mês que está na tela (o de agora ou o escolhido no seletor).
   const mesDoAcerto = outroMes ?? mesDeAgora(agora);
   const casa = casaNaTela(ctx.casa);
