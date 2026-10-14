@@ -32,6 +32,7 @@ import {
   updateMonthlyEntriesCategoryAction,
   type DeletedEntrySnapshot,
 } from "./actions";
+import { rotuloDoDia } from "./rotulo-do-dia";
 
 export type ListEntry = {
   id: string;
@@ -90,20 +91,6 @@ function valorDaLinha(entry: Pick<ListEntry, "category" | "amount">, voz: Voz, m
   if (entry.amount < 0 && entry.category === "EXPENSE") return `Estorno +${money(Math.abs(entry.amount))}`;
   if (ehResgate(entry)) return `${voz.titulos.uiTipoResgate} +${money(Math.abs(entry.amount))}`;
   return money(entry.amount);
-}
-
-const DIAS_DA_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
-
-/** "Hoje, quarta 7", "Ontem, terça 6", "Segunda 5" (o dia em "YYYY-MM-DD", hoje idem). */
-export function rotuloDoDia(dia: string, hoje: string): string {
-  if (dia === "sem-data") return "Sem data";
-  const d = new Date(`${dia}T12:00:00Z`);
-  const semana = DIAS_DA_SEMANA[d.getUTCDay()];
-  const ontem = new Date(new Date(`${hoje}T12:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10);
-  if (dia === hoje) return `Hoje, ${semana} ${d.getUTCDate()}`;
-  if (dia === ontem) return `Ontem, ${semana} ${d.getUTCDate()}`;
-  if (dia > hoje) return `${semana.charAt(0).toUpperCase() + semana.slice(1)} ${d.getUTCDate()}, a vencer`;
-  return `${semana.charAt(0).toUpperCase() + semana.slice(1)} ${d.getUTCDate()}`;
 }
 
 /** O valor da linha como no protótipo: "− R$ 54,90" com os centavos pequenos. */
@@ -494,7 +481,8 @@ export function EntryList({
     if (filtro === "entradas" && e.category !== "INCOME") return false;
     if (filtro === "cartao" && !e.noCartao) return false;
     if (pessoa && e.dono !== pessoa) return false;
-    if (categoriasFiltro.length > 0 && !categoriasFiltro.includes((e.customCategoryId ?? e.parentCategory) as string)) return false;
+    // "SEM": o gasto sem categoria (o link da linha "Sem categoria" do Orçamento).
+    if (categoriasFiltro.length > 0 && !categoriasFiltro.includes((e.customCategoryId ?? e.parentCategory ?? (e.category === "EXPENSE" ? "SEM" : "")) as string)) return false;
     if (termo) {
       const texto = `${e.description ?? ""} ${e.subcategory ?? ""} ${categoryName(e, customCategories, voz, kind)}`.toLocaleLowerCase("pt-BR");
       if (!texto.includes(termo)) return false;
@@ -507,7 +495,7 @@ export function EntryList({
     const k = e.entryDate ?? "sem-data";
     grupos.set(k, [...(grupos.get(k) ?? []), e]);
   }
-  const nomeDaChave = (k: string) => (isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria"));
+  const nomeDaChave = (k: string) => (k === "SEM" ? "Sem categoria" : isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria"));
   // A folha "Categorias" lista TODAS as do perfil (12/10/2026): só as do mês deixava a folha vazia
   // num mês só com entradas. As que aparecem no mês vêm primeiro; depois as padrão e as criadas.
   const doMes = [...new Set(entries.filter((e) => e.category === "EXPENSE").map((e) => e.customCategoryId ?? e.parentCategory).filter((k): k is string => Boolean(k)))];
@@ -664,7 +652,7 @@ export function EntryList({
       )}
       {[...grupos.entries()].map(([dia, lista]) => (
         <section key={dia} className="flex flex-col gap-2">
-          <h3 className="px-1 pt-2 text-sm text-ink-muted">{rotuloDoDia(dia, hoje)}</h3>
+          <h3 className="px-1 pt-2 text-sm text-ink-muted">{rotuloDoDia(dia, hoje, `${lista[0]?.year ?? year}-${String(lista[0]?.month ?? month).padStart(2, "0")}`)}</h3>
           <div className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-surface">{lista.map(renderRow)}</div>
         </section>
       ))}

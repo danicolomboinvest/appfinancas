@@ -105,6 +105,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const customCategoryLabels = new Map(customCategories.map((c) => [c.id, c.name]));
   // O nome de cada categoria-mãe vem do tipo do perfil (Empresa fala "Estrutura", não "Moradia").
   function categoryLabel(categoryKey: string): string {
+    if (categoryKey === "SEM") return "Sem categoria";
     return isParentCategoryKey(categoryKey)
       ? parentCategoryLabel(ctx.categorias ?? ctx.profileKind, categoryKey)
       : (customCategoryLabels.get(categoryKey) ?? "Categoria personalizada");
@@ -134,11 +135,18 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     // A mesma "última data de gasto" do Foco: conta fixa pré-lançada (o aluguel do dia 25) não
     // conta como dado novo, senão uma tela dizia "atualizado" e a outra "dados velhos".
     currentMonthData && eMesDeAgora ? await getUltimoGastoAte(ctx, new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))) : null;
+  // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
+  const detalhe = currentMonthData ? await carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now) : null;
+  const aVencerNoMes = detalhe ? Object.values(detalhe.porCategoria).reduce((s, c) => s + c.aVencer, 0) : 0;
+  // Gasto sem categoria (importado e ainda sem resposta): entra no Resumo e na semana, então entra
+  // aqui também, numa linha própria. Antes o Orçamento dizia "Gastou R$ 4.432" e o Resumo R$ 8.000.
+  const semCategoria = detalhe?.porCategoria.SEM ?? null;
+  const gastoSemCategoria = semCategoria ? semCategoria.gasto + semCategoria.aVencer : 0;
   const resumoMes =
     currentMonthData
       ? resumoDoMes({
           planejado: currentMonthData.totalPlanned,
-          gasto: currentMonthData.totalSpent,
+          gasto: currentMonthData.totalSpent + gastoSemCategoria,
           hoje: now,
           ano: year,
           mes: currentMonthData.month,
@@ -146,8 +154,6 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
         })
       : null;
 
-  // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
-  const detalhe = currentMonthData ? await carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now) : null;
   const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month) : 0;
   const ROTULO_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   // Na ordem do plano, do maior para o menor (protótipo); a que passou é marcada, não sobe.
@@ -161,6 +167,10 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
               decorrido,
             ),
           ),
+      ).concat(
+        semCategoria && Math.abs(gastoSemCategoria) >= 1
+          ? [categoriaDoMes({ key: "SEM", label: "Sem categoria", planejado: 0, gasto: semCategoria.gasto, aVencer: semCategoria.aVencer }, decorrido)]
+          : [],
       )
     : [];
   const linhasDoMes: LinhaDaCategoria[] = categoriasDoMes.map((c) => {
@@ -194,7 +204,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const planoTodo: Record<string, number> = { ...plan, ...customPlan };
   const ignorarNoPadrao = new Set<string>(Object.keys(hints.padraoByCategory).filter((k) => !isParentCategoryKey(k) && !customCategoryLabels.has(k)));
   const resumoDoPlano = {
-    mes: MONTH_LABELS[agora.getMonth()].toLowerCase(),
+    // O mês do seletor, o mesmo dos valores (abrindo setembro, era "Seu plano de outubro").
+    mes: MONTH_LABELS[mesEscolhido - 1].toLowerCase(),
     itens: (currentMonthData ? currentMonthData.categories.map((c) => [c.categoryKey, c.planned] as const) : Object.entries(planoTodo))
       .filter(([, v]) => v > 0)
       .map(([key, planejado]) => ({ key, label: categoryLabel(key), cor: categoryColor(key), planejado, iconeProprio: customCategories.find((c) => c.id === key)?.icon })),
@@ -240,7 +251,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       {/* No computador o número fica à esquerda e o alerta, o plano e os dois quadrados à direita
           (07/10/2026): com a curva dentro do cartão, na largura toda ela ficava do tamanho da tela. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
-        {hasPlan && resumoMes && currentMonthData && (
+        {/* Mês sem plano (novembro antes de planejar): nada de "R$ 1.800 acima do plano" e "180000%". */}
+        {hasPlan && resumoMes && resumoMes.planejado > 0 && currentMonthData && (
           // O herói do Orçamento (protótipo aprovado): o plano do mês, o livre grande e uma barra.
           <HeroiDoTema>
             <div className="flex items-baseline justify-between gap-3">
@@ -255,7 +267,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
               <div className={`h-full rounded-full ${resumoMes.restante >= 0 ? "bg-[var(--color-heroi-tinta)]" : "bg-danger"}`} style={{ width: `${Math.min(100, (resumoMes.gasto / Math.max(1, resumoMes.planejado)) * 100)}%` }} />
             </div>
             <div className="flex items-baseline justify-between gap-3 text-sm text-heroi-suave">
-              <span className="tabular-nums">Gastou {money(resumoMes.gasto, { round: true })}</span>
+              {/* O que ainda vai vencer (o curso do dia 25) já pesa no plano, mas não saiu: o "Gastou"
+                  é só o que saiu, o mesmo número do Resumo (14/10/2026). */}
+              <span className="tabular-nums">
+                Gastou {money(resumoMes.gasto - aVencerNoMes, { round: true })}
+                {aVencerNoMes >= 1 && ` · ${money(aVencerNoMes, { round: true })} a vencer`}
+              </span>
               <span className="tabular-nums">{Math.round((resumoMes.gasto / Math.max(1, resumoMes.planejado)) * 100)}%</span>
             </div>
           </HeroiDoTema>
