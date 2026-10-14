@@ -15,9 +15,18 @@ const PASTA_IDIOMA = path.join(process.cwd(), "node_modules", "@tesseract.js-dat
 type Palavra = { text: string; confidence: number; bbox: { x0: number; y0: number; x1: number; y1: number } };
 type Bloco = { paragraphs: { lines: { words: Palavra[] }[] }[] };
 
+/**
+ * "R$" e "2.927,05" com confiança 0 (14/10/2026, print do BTG/EQI): o texto vinha certo, mas o
+ * tesseract dá nota baixa à linha inteira quando o "-" fica solto na frente do valor, e o corte
+ * por confiança jogava o valor fora (sobrava só o "-"). Pedaço com cara de valor fica sempre.
+ */
+function pareceValor(texto: string): boolean {
+  return /^[-+−–]?(r\$|rs)$|^[-+−–]?(r\$)?\d{1,3}(\.\d{3})*,\d{2}$/i.test(texto.trim());
+}
+
 /** Uma linha do OCR vira um pedaço por trecho contínuo: "Padaria Pão" e "R$ 23,50" lá na direita ficam separados. */
 export function segmentosDaLinha(palavras: Palavra[]): Segmento[] {
-  const ws = palavras.filter((w) => w.text.trim() && w.confidence >= 20).sort((a, b) => a.bbox.x0 - b.bbox.x0);
+  const ws = palavras.filter((w) => w.text.trim() && (w.confidence >= 20 || pareceValor(w.text))).sort((a, b) => a.bbox.x0 - b.bbox.x0);
   const segs: Segmento[] = [];
   for (const w of ws) {
     const h = w.bbox.y1 - w.bbox.y0;

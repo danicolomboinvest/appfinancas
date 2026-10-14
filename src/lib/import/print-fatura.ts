@@ -1,3 +1,4 @@
+import { categoriaDoBancoParaOApp } from "./categoria-do-banco";
 import { semAcentoNemPontuacao } from "./comerciante";
 import { nomeParecido } from "./parecido-manual";
 
@@ -29,10 +30,12 @@ export type LinhaDoPrint = {
   /** O nome diz que é devolução ("Estorno", "Reembolso"). */
   credito: boolean;
   parcela: { atual: number; total: number } | null;
+  /** O ramo que o app do banco escreve no cartão da compra ("Saúde"), só quando o app conhece. */
+  categoriaDoBanco?: string | null;
 };
 
 /** O que entra na leitura da fatura: igual a uma linha de PDF já lida (compra positiva). */
-export type CompraDoPrint = { date: string; description: string; amount: number };
+export type CompraDoPrint = { date: string; description: string; amount: number; categoriaDoBanco?: string };
 
 const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const MESES_LONGOS = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -99,6 +102,12 @@ export function lerData(texto: string, envio: string, inteira = true): { data: s
   const fim = inteira ? "[\\s.,;:]*$" : "(?=[\\s.,;:]|$)[.,;:]?";
   const resto = (n: number) => original.slice(n).replace(/^[\s.,;:—–-]+/, "").trim();
   const ini = t.match(/^\s*/)![0].length;
+  // "Hoje 13/Out" (BTG/EQI): o dia escrito ao lado manda; o "Hoje" é só enfeite.
+  const relativaComData = t.slice(ini).match(/^(?:hoje|ontem|anteontem)[\s,.-]+(?=\d)/);
+  if (relativaComData) {
+    const d = lerData(original.slice(ini + relativaComData[0].length), envio, inteira);
+    if (d) return d;
+  }
   const relativa = t.slice(ini).match(new RegExp(`^(hoje|ontem|anteontem)\\b${fim}`));
   if (relativa) {
     const atras = relativa[1] === "hoje" ? 0 : relativa[1] === "ontem" ? 1 : 2;
@@ -117,7 +126,8 @@ export function lerData(texto: string, envio: string, inteira = true): { data: s
     }
   }
   const corpo = t.slice(pos);
-  const porExtenso = corpo.match(new RegExp(`^(\\d{1,2})\\s*(?:de\\s+)?([a-z01]{3,9})\\.?(?:\\s*(?:de\\s+)?(\\d{4}))?${fim}`));
+  // "12 OUT", "12 de outubro" e "14/Set" (BTG/EQI: barra entre o dia e o mês escrito).
+  const porExtenso = corpo.match(new RegExp(`^(\\d{1,2})\\s*(?:de\\s+|/\\s*(?=[a-z]))?([a-z01]{3,9})\\.?(?:\\s*(?:de\\s+)?(\\d{4}))?${fim}`));
   if (porExtenso) {
     const mes = mesDoNome(porExtenso[2]);
     const data = mes ? dataDe(envio, Number(porExtenso[1]), mes, porExtenso[3] ? Number(porExtenso[3]) : undefined) : null;
@@ -174,15 +184,15 @@ function lerValor(texto: string): { valor: number; sinal: "-" | "+" | null; inic
   return { valor, sinal, inicio: m.index, fim: m.index + m[0].length };
 }
 
-/** "Parcela 2/3", "Parcela 2 de 3", "PARC 02/03", "2/3" sozinho, "02/03" no fim do nome. */
+/** "Parcela 2/3", "Parcela 2 de 3", "PARC 02/03", "2/3" sozinho, "02/03" ou "(2/8)" no fim do nome. */
 function lerParcela(texto: string, sozinho: boolean): { atual: number; total: number; inicio: number; fim: number } | null {
   const t = texto.trimEnd();
   const comPalavra = t.match(/\b(?:parcela|parc)\.?:?\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})\b/i);
-  const solto = sozinho ? t.match(/^\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})$/i) : t.match(/\s(\d{1,2})\/(\d{1,2})$/);
+  const solto = sozinho ? t.match(/^\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})$/i) : t.match(/\s(\d{1,2})\/(\d{1,2})$|\s\((\d{1,2})\/(\d{1,2})\)$/);
   const m = comPalavra ?? solto;
   if (!m || m.index === undefined) return null;
-  const atual = Number(m[1]);
-  const total = Number(m[2]);
+  const atual = Number(m[1] ?? m[3]);
+  const total = Number(m[2] ?? m[4]);
   if (!(atual >= 1 && total >= 2 && atual <= total && total <= 48)) return null;
   return { atual, total, inicio: m.index, fim: m.index + m[0].length };
 }
@@ -192,11 +202,18 @@ function lerParcela(texto: string, sozinho: boolean): { atual: number; total: nu
  * anterior. Basta UMA linha do bloco dizer isso.
  */
 const TOPO_RE =
-  /\b(fatura (atual|aberta|em aberto|fechada|anterior)|total|limite|disponivel|saldo|vencimento|vence em|vence|fecha em|fechamento|melhor dia|pagar fatura|parcelar fatura|antecipar|resumo|lancamentos futuros)\b/;
+  /\b(fatura (atual|aberta|em aberto|fechada|anterior)|total|limite|disponivel|saldo|vencimento|vence em|vence|fecha em|fechamento|melhor dia|pagar fatura|parcelar fatura|antecipar|resumo|lancamentos futuros|filtrar|compras e despesas)\b/;
 const PAGAMENTO_RE = /^(pagamento|pagto|pgto)\b|\bpagamento (recebido|efetuado|da fatura|de fatura)\b/;
 const CREDITO_RE = /\b(estorno|estornado|reembolso|devolucao|cancelamento|cancelada|credito de|ajuste a credito|cashback)\b/;
 /** Linhas de baixo que dizem o tipo, não o nome: "Compra", "Crédito", "Cartão final 4321", "14:32". */
 const SUBLINHA_RE = /^(compra|compras|credito|debito|estorno|cartao( virtual)?( final)?\s*\d*|final \d+|\d{1,2}:\d{2}|aprovada|pendente|processando|online|internacional|nacional|presencial|•|·)$/;
+
+/**
+ * A linha de cima do cartão da compra (BTG/EQI): o TIPO do lançamento, não o nome. "Compra no
+ * crédito", "Compra no crédito parcelada", "Compra internacional", "Estorno de compra".
+ */
+const TIPO_RE =
+  /^(compra|pagamento|estorno|saque|transferencia|tarifa|ajuste)( (no|na|de|a|em))?( (credito|debito|compra|cartao))?( (parcelada|parcelado|internacional|nacional|online|presencial|recorrente|a vista|virtual))*$/;
 
 type Linha = { segs: Segmento[]; y0: number; y1: number };
 
@@ -266,6 +283,40 @@ function limparNome(nome: string): string {
     .trim();
 }
 
+/** A altura típica de uma linha de texto do print (a mediana das caixas). */
+function alturaDoTexto(segmentos: Segmento[]): number {
+  const alturas = segmentos
+    .filter((s) => /[\p{L}\p{N}]/u.test(s.texto))
+    .map((s) => s.y1 - s.y0)
+    .sort((a, b) => a - b);
+  return alturas[Math.floor(alturas.length / 2)] ?? 0;
+}
+
+/**
+ * Os grupos sem valor que são do mesmo cartão do item com valor logo abaixo (BTG/EQI: "Compra no
+ * crédito" / "Facebook" / "Outra Categoria" e o valor embaixo à direita, cada linha um grupo).
+ * São do cartão os que vêm em escada, cada um a no máximo ~1,6 linha do de baixo, e começam na
+ * mesma coluna do texto do item. O título de seção ("Lançamentos") fica mais longe ou noutra coluna.
+ */
+function doMesmoCartao(pendentes: Segmento[][], item: Segmento[], altura: number): Segmento[][] {
+  if (pendentes.length === 0 || altura <= 0) return [];
+  const comLetras = (segs: Segmento[]) => segs.filter((s) => (s.texto.match(/\p{L}/gu) ?? []).length >= 2 && !lerValor(s.texto) && !pareceData(s.texto));
+  const colunaDoItem = Math.min(...comLetras(item).map((s) => s.x0));
+  const cartao: Segmento[][] = [];
+  let topo = Math.min(...item.map((s) => s.y0));
+  for (let i = pendentes.length - 1; i >= 0; i--) {
+    const p = pendentes[i];
+    const fundo = Math.max(...p.map((s) => s.y1));
+    if (topo - fundo > altura * 1.6) break;
+    const coluna = Math.min(...comLetras(p).map((s) => s.x0));
+    // O item sem texto próprio (só o valor) aceita qualquer coluna; senão, a mesma do item.
+    if (!Number.isFinite(coluna) || (Number.isFinite(colunaDoItem) && Math.abs(coluna - colunaDoItem) > altura)) break;
+    cartao.unshift(p);
+    topo = Math.min(...p.map((s) => s.y0));
+  }
+  return cartao;
+}
+
 /** Uma compra a partir de um grupo; null quando o grupo não é compra. `dataAtual`: o último cabeçalho (ou a data do item de cima). */
 function itemDoGrupo(segs: Segmento[], envio: string, dataAtual: string | null): LinhaDoPrint | "pular" | null {
   const linhas = linhasDoGrupo(segs);
@@ -299,6 +350,7 @@ function itemDoGrupo(segs: Segmento[], envio: string, dataAtual: string | null):
 
   let parcela: LinhaDoPrint["parcela"] = null;
   let nome = "";
+  let categoriaDoBanco: string | null = null;
   for (const l of linhas) {
     let texto = l.segs
       .filter((s) => !usados.has(s))
@@ -309,6 +361,8 @@ function itemDoGrupo(segs: Segmento[], envio: string, dataAtual: string | null):
     const v = lerValor(texto);
     if (v && v.valor === valor.valor) texto = `${texto.slice(0, v.inicio)} ${texto.slice(v.fim)}`.trim();
     if (!texto) continue;
+    // A linha do tipo ("Compra no crédito parcelada") fica acima do nome no cartão: não é o nome.
+    if (!nome && TIPO_RE.test(simples(limparNome(texto)))) continue;
     // Data no começo da linha ("12/10 PADARIA") quando a coluna não veio separada.
     if (!nome) {
       const d = lerData(texto, envio, false);
@@ -330,6 +384,10 @@ function itemDoGrupo(segs: Segmento[], envio: string, dataAtual: string | null):
       const n = limparNome(texto);
       // A linha de cima pode ser só uma data solta ou ruído: o nome é a primeira com letras.
       if ((n.match(/\p{L}/gu) ?? []).length >= 2 && !SUBLINHA_RE.test(simples(n))) nome = n;
+    } else if (!categoriaDoBanco) {
+      // Embaixo do nome, o ramo que o banco escreve ("Saúde"): só vira dica quando o app conhece.
+      const c = limparNome(texto);
+      if (c.length <= 40 && categoriaDoBancoParaOApp(c)) categoriaDoBanco = c;
     }
   }
   if (!nome) return null;
@@ -341,6 +399,7 @@ function itemDoGrupo(segs: Segmento[], envio: string, dataAtual: string | null):
     sinal: valor.sinal,
     credito: CREDITO_RE.test(textos.join(" ")),
     parcela,
+    ...(categoriaDoBanco ? { categoriaDoBanco } : {}),
   };
 }
 
@@ -355,7 +414,12 @@ export function lerPrint(segmentos: Segmento[], envio: string): PrintLido {
   const linhas: LinhaDoPrint[] = [];
   let cabecalho: string | null = null;
   let cabecalhoNoFim: string | null = null;
-  for (const grupo of agrupar(segmentos)) {
+  const altura = alturaDoTexto(segmentos);
+  // Os grupos sem valor logo acima do próximo item: no cartão do BTG/EQI o tipo, o nome e o ramo
+  // ficam em linhas próprias, bem separadas, e o valor sozinho embaixo à direita.
+  let pendentes: Segmento[][] = [];
+  for (const g of agrupar(segmentos)) {
+    let grupo = g;
     const texto = linhasDoGrupo(grupo)
       .map((l) => l.segs.map((s) => s.texto).join(" "))
       .join(" ");
@@ -363,8 +427,11 @@ export function lerPrint(segmentos: Segmento[], envio: string): PrintLido {
     if (!lerValor(texto)) {
       const d = lerData(texto, envio, true);
       if (d) cabecalho = cabecalhoNoFim = d.data;
+      pendentes = d || TOPO_RE.test(simples(texto)) ? [] : [...pendentes, grupo];
       continue;
     }
+    grupo = [...doMesmoCartao(pendentes, grupo, altura).flat(), ...grupo];
+    pendentes = [];
     // Sem cabeçalho, a data que falhou na leitura vem da compra de cima (a lista é por data).
     const deCima = cabecalho ?? linhas[linhas.length - 1]?.data ?? null;
     const item = itemDoGrupo(grupo, envio, deCima);
@@ -476,7 +543,9 @@ export function comprasDosPrints(linhas: LinhaDoPrint[], envio: string): CompraD
   return linhas.map((l) => {
     const credito = l.credito || l.sinal === "+" || (l.sinal === "-" && !menosEhCompra);
     const description = l.parcela ? `${l.nome} - Parcela ${l.parcela.atual}/${l.parcela.total}` : l.nome;
-    return { date: l.data ?? envio, description, amount: credito ? -l.valor : l.valor };
+    const compra: CompraDoPrint = { date: l.data ?? envio, description, amount: credito ? -l.valor : l.valor };
+    if (l.categoriaDoBanco) compra.categoriaDoBanco = l.categoriaDoBanco;
+    return compra;
   });
 }
 

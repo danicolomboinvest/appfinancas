@@ -1,8 +1,8 @@
 /**
  * Prints de TESTE da fatura aberta, para o leitor de prints (src/lib/import/print-fatura.ts).
  *
- * Desenha, com HTML e Playwright, a lista de compras da fatura aberta no jeito de oito apps de
- * banco (Nubank, Itaú, Inter, C6, BTG, Santander, Bradesco, XP) e tira 3 prints rolando a mesma
+ * Desenha, com HTML e Playwright, a lista de compras da fatura aberta no jeito de nove layouts de
+ * banco (Nubank, Itaú, Inter, C6, BTG, Santander, Bradesco, XP e o cartão do app BTG/EQI) e tira 3 prints rolando a mesma
  * lista, com sobreposição, como a pessoa faria no celular. Os layouts são aproximações (cores,
  * cabeçalho de data, onde fica o valor e a parcela), não cópias das telas. Nenhum dado é de
  * alguém: lojas genéricas e valores inventados.
@@ -48,6 +48,26 @@ const BASE = [
   { d: "2026-10-01", nome: "Restaurante Bom Garfo", valor: 98.6 },
 ];
 
+/**
+ * O cartão do app BTG/EQI (14/10/2026): cada compra num cartão de 4 linhas (tipo, nome, ramo do
+ * banco e o valor embaixo à direita), cabeçalho "Hoje 13/Out" / "14/Set", e a parcela no
+ * cabeçalho da compra ORIGINAL (por isso a lista própria, com datas de setembro e agosto).
+ */
+const BTG_CARTAO = [
+  { d: "2026-10-13", nome: "Papelaria Ponto Azul", valor: 1874.3, ramo: "Outra Categoria" },
+  { d: "2026-10-13", nome: "Mercado Bairro Feliz", valor: 312.47, ramo: "Supermercados" },
+  { d: "2026-10-12", nome: "Posto Via Norte", valor: 189.0, ramo: "Veículos" },
+  { d: "2026-10-12", nome: "Restaurante Sabor Caseiro", valor: 74.9, ramo: "Restaurantes" },
+  { d: "2026-10-10", nome: "Loja Esporte Max", valor: -89.9, credito: true, tipo: "Estorno de compra", ramo: "Outra Categoria" },
+  { d: "2026-10-09", nome: "Farmácia Bem Estar", valor: 58.35, ramo: "Saúde" },
+  { d: "2026-10-07", nome: "Shop.com* Casa Util", valor: 39.9, ramo: "Outra Categoria" },
+  { d: "2026-10-05", nome: "Cursos Saber Mais", valor: 2450.0, ramo: "Educação" },
+  { d: "2026-10-02", nome: "Pet Amigo Fiel", valor: 132.4, ramo: "Outra Categoria" },
+  { d: "2026-09-21", nome: "Eletro Ponto Com", valor: 1249.0, parcela: [2, 10], ramo: "Eletrônicos" },
+  { d: "2026-09-14", nome: "Clinica Sorriso Bom", valor: 845.6, parcela: [2, 8], ramo: "Saúde" },
+  { d: "2026-08-05", nome: "Móveis Casa Nova", valor: 1320.75, parcela: [3, 6], ramo: "Casa e decoração" },
+];
+
 const MES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 const mesLongo = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
@@ -64,6 +84,11 @@ const cabecalho = {
   inter: (iso) => (diasAtras(iso) === 0 ? "Hoje" : diasAtras(iso) === 1 ? "Ontem" : diasAtras(iso) < 6 ? SEMANA[dt(iso).getUTCDay()].replace(/^./, (c) => c.toUpperCase()) : `${dd(iso)} de ${mesLongo[Number(mm(iso)) - 1]}`),
   c6: (iso) => `${SEM3[dt(iso).getUTCDay()]}, ${dd(iso)} ${MES[Number(mm(iso)) - 1]}`,
   santander: (iso) => `${dd(iso)}/${mm(iso)}/${iso.slice(0, 4)}`,
+  btgCartao: (iso) => {
+    const m = MES[Number(mm(iso)) - 1];
+    const dm = `${dd(iso)}/${m[0]}${m.slice(1).toLowerCase()}`;
+    return diasAtras(iso) === 0 ? `Hoje ${dm}` : diasAtras(iso) === 1 ? `Ontem ${dm}` : dm;
+  },
   xp: (iso) => (diasAtras(iso) === 0 ? "Hoje" : diasAtras(iso) === 1 ? "Ontem" : `${Number(dd(iso))} de ${mesLongo[Number(mm(iso)) - 1]}`),
 };
 
@@ -103,6 +128,14 @@ const BANCOS = {
     topo: `<div style="background:#cc092f;color:#fff;padding:18px 20px"><div style="font-size:15px">Cartão final 1234</div><div style="font-size:14px;margin-top:8px">Fatura aberta</div><div style="font-size:28px;font-weight:700">R$ 4.338,49</div><div style="font-size:13px">Disponível R$ 2.661,51</div></div><div style="padding:10px 20px;font-size:14px;color:#707070">Lançamentos</div>`,
     linha: (c) => `<div class="l" style="border-bottom:1px solid #eee"><div style="width:52px;font-size:14px;color:#707070">${dd(c.d)}/${mm(c.d)}</div><div style="flex:1"><div class="n">${c.nome}</div>${c.parcela ? `<div class="s">${String(c.parcela[0]).padStart(2, "0")}/${String(c.parcela[1]).padStart(2, "0")}</div>` : ""}</div><div class="v" style="color:${c.valor < 0 ? "#1a7f37" : "#222"}">R$ ${c.valor < 0 ? "-" : ""}${brl(c.valor)}</div></div>`,
   },
+  "btg-cartao": {
+    lista: BTG_CARTAO,
+    fundo: "#ffffff", tinta: "#1d1d1d", suave: "#7a7a7a", destaque: "#0b3b2e",
+    cab: cabecalho.btgCartao,
+    estiloCab: "padding:40px 24px 10px;font-size:19px;font-weight:400;color:#0b3b2e",
+    topo: `<div style="background:#022a1f;color:#fff;margin-top:-44px;padding:44px 24px 40px"><div style="height:60px"></div><div style="font-size:26px">Fatura</div></div><div style="background:#dcdee0;padding:22px 24px;color:#1d1d1d"><div style="font-size:16px">Resumo da Fatura</div><div style="margin-top:22px;font-size:15px">Compras e despesas</div><div style="font-size:14px;color:#555">Total R$ 4.338,49</div><div style="border-top:1px solid #b8bbbe;margin:18px 0"></div><div style="font-size:15px">Fatura anterior e pagamentos</div><div style="font-size:14px;color:#555">Total R$ 5.120,00</div></div><div style="display:flex;justify-content:space-between;padding:30px 24px 0;color:#0b3b2e"><span style="font-size:17px">Atividades</span><span style="font-size:15px;text-decoration:underline">Filtrar</span></div>`,
+    linha: (c) => `<div style="display:flex;align-items:flex-start;padding:24px 24px 6px"><div style="width:40px;height:40px;border-radius:20px;background:#2f6f8f;margin-right:16px;flex:none"></div><div style="flex:1;min-width:0"><div style="font-size:12px;color:#3a3a3a">${c.tipo ?? (c.parcela ? "Compra no crédito parcelada" : "Compra no crédito")}</div><div style="font-size:15px;margin-top:9px">${c.nome}${c.parcela ? ` (${c.parcela[0]}/${c.parcela[1]})` : ""}</div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:9px"><span style="font-size:12px;color:#7a7a7a">${c.ramo}</span><span style="font-size:15px;white-space:nowrap">${c.valor < 0 ? "+ " : "- "}R$ ${brl(c.valor)}</span></div></div></div>`,
+  },
   xp: {
     fundo: "#000000", tinta: "#ffffff", suave: "#9b9b9b", destaque: "#fbc105", cab: cabecalho.xp,
     topo: `<div style="padding:18px 20px"><div style="font-size:14px;color:#9b9b9b">Fatura aberta</div><div style="font-size:28px;font-weight:700;color:#fbc105">R$ 4.338,49</div><div style="font-size:13px;color:#9b9b9b">Vencimento 20/11</div><div style="margin-top:12px;border:1px solid #fbc105;color:#fbc105;border-radius:8px;padding:10px;text-align:center;font-weight:600">Pagar fatura</div></div>`,
@@ -114,9 +147,9 @@ function pagina(banco) {
   const b = BANCOS[banco];
   let corpo = "";
   let ultimo = null;
-  for (const c of BASE) {
+  for (const c of b.lista ?? BASE) {
     if (b.cab && c.d !== ultimo) {
-      corpo += `<div class="h">${b.cab(c.d)}</div>`;
+      corpo += `<div class="h"${b.estiloCab ? ` style="${b.estiloCab}"` : ""}>${b.cab(c.d)}</div>`;
       ultimo = c.d;
     }
     corpo += b.linha(c);
@@ -134,7 +167,8 @@ function pagina(banco) {
 }
 
 const navegador = await chromium.launch();
-const gabarito = { envio: ENVIO, compras: BASE };
+// `bancos`: o layout com lista própria (o cartão do BTG/EQI); os outros usam `compras`.
+const gabarito = { envio: ENVIO, compras: BASE, bancos: { "btg-cartao": BTG_CARTAO } };
 for (const banco of Object.keys(BANCOS)) {
   const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: Number(process.env.ESCALA ?? 3) });
   const p = await ctx.newPage();

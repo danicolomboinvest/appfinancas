@@ -14,9 +14,10 @@ type Esperada = { d: string; nome: string; valor: number; parcela?: [number, num
 
 const pasta = process.argv[2];
 const fixtures = process.argv[3];
-const gabarito = JSON.parse(fs.readFileSync(path.join(pasta, "gabarito.json"), "utf8")) as { envio: string; compras: Esperada[] };
+const gabarito = JSON.parse(fs.readFileSync(path.join(pasta, "gabarito.json"), "utf8")) as { envio: string; compras: Esperada[]; bancos?: Record<string, Esperada[]> };
 const bancos = [...new Set(fs.readdirSync(pasta).filter((f) => /-\d\.(png|jpe?g|json)$/.test(f)).map((f) => f.replace(/-\d\.\w+$/, "")))].sort();
-const esperadas = gabarito.compras.filter((c) => !c.pagamento);
+/** A lista de cada layout: a comum, ou a própria (o cartão do BTG/EQI tem datas de parcela antigas). */
+const esperadasDe = (banco: string) => (gabarito.bancos?.[banco] ?? gabarito.compras).filter((c) => !c.pagamento);
 
 /** PREP=1: o mesmo preparo que a tela faz antes de mandar (cinza, contraste, claro no escuro). */
 async function preparar(buf: Buffer): Promise<Buffer> {
@@ -39,7 +40,7 @@ async function main() {
   let totalEsperadas = 0;
   for (const banco of bancos) {
     // Pasta das fixtures (.json com os pedaços já lidos): mede sem rodar o OCR de novo.
-    const arquivos = fs.readdirSync(pasta).filter((f) => f.startsWith(`${banco}-`) && /\.(png|jpe?g|json)$/.test(f)).sort();
+    const arquivos = fs.readdirSync(pasta).filter((f) => f.replace(/-\d\.\w+$/, "") === banco && /-\d\.(png|jpe?g|json)$/.test(f)).sort();
     const prints: Segmento[][] = [];
     let ms = 0;
     for (const a of arquivos) {
@@ -56,6 +57,7 @@ async function main() {
     }
     const lidas = comprasDosPrints(juntarPrints(prints.map((p) => lerPrint(p, gabarito.envio))), gabarito.envio);
     // Acerto: data, valor (com sinal), parcela e nome igual sem acento/caixa.
+    const esperadas = esperadasDe(banco);
     const sobra = [...lidas];
     let acertos = 0;
     const erros: string[] = [];

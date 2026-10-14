@@ -111,5 +111,95 @@
       "nome": "Restaurante Bom Garfo",
       "valor": 98.6
     }
-  ]
+  ],
+  "bancos": {
+    "btg-cartao": [
+      {
+        "d": "2026-10-13",
+        "nome": "Papelaria Ponto Azul",
+        "valor": 1874.3,
+        "ramo": "Outra Categoria"
+      },
+      {
+        "d": "2026-10-13",
+        "nome": "Mercado Bairro Feliz",
+        "valor": 312.47,
+        "ramo": "Supermercados"
+      },
+      {
+        "d": "2026-10-12",
+        "nome": "Posto Via Norte",
+        "valor": 189,
+        "ramo": "Veículos"
+      },
+      {
+        "d": "2026-10-12",
+        "nome": "Restaurante Sabor Caseiro",
+        "valor": 74.9,
+        "ramo": "Restaurantes"
+      },
+      {
+        "d": "2026-10-10",
+        "nome": "Loja Esporte Max",
+        "valor": -89.9,
+        "credito": true,
+        "tipo": "Estorno de compra",
+        "ramo": "Outra Categoria"
+      },
+      {
+        "d": "2026-10-09",
+        "nome": "Farmácia Bem Estar",
+        "valor": 58.35,
+        "ramo": "Saúde"
+      },
+      {
+        "d": "2026-10-07",
+        "nome": "Shop.com* Casa Util",
+        "valor": 39.9,
+        "ramo": "Outra Categoria"
+      },
+      {
+        "d": "2026-10-05",
+        "nome": "Cursos Saber Mais",
+        "valor": 2450,
+        "ramo": "Educação"
+      },
+      {
+        "d": "2026-10-02",
+        "nome": "Pet Amigo Fiel",
+        "valor": 132.4,
+        "ramo": "Outra Categoria"
+      },
+      {
+        "d": "2026-09-21",
+        "nome": "Eletro Ponto Com",
+        "valor": 1249,
+        "parcela": [
+          2,
+          10
+        ],
+        "ramo": "Eletrônicos"
+      },
+      {
+        "d": "2026-09-14",
+        "nome": "Clinica Sorriso Bom",
+        "valor": 845.6,
+        "parcela": [
+          2,
+          8
+        ],
+        "ramo": "Saúde"
+      },
+      {
+        "d": "2026-08-05",
+        "nome": "Móveis Casa Nova",
+        "valor": 1320.75,
+        "parcela": [
+          3,
+          6
+        ],
+        "ramo": "Casa e decoração"
+      }
+    ]
+  }
 }

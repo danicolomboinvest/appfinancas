@@ -244,6 +244,7 @@ function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; ban
             sinal: l?.sinal === "-" || l?.sinal === "+" ? l.sinal : null,
             credito: l?.credito === true,
             parcela: Number.isInteger(atual) && Number.isInteger(total) && atual >= 1 && atual <= total && total <= 48 ? { atual, total } : null,
+            categoriaDoBanco: typeof l?.categoriaDoBanco === "string" && l.categoriaDoBanco.length <= 40 ? l.categoriaDoBanco : null,
           }];
         }),
       };
@@ -403,7 +404,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) ||
     (datasDaFatura.vencimento ? Number(datasDaFatura.vencimento.slice(0, 4)) : undefined);
   const { txns: parsedRaw, leitor }: { txns: ParsedTransaction[]; leitor: string | null } = dosPrints
-    ? { txns: dosPrints.compras.map((c) => ({ date: c.date, description: c.description, amount: c.amount })), leitor: "print" }
+    ? { txns: dosPrints.compras.map((c) => ({ date: c.date, description: c.description, amount: c.amount, ...(c.categoriaDoBanco ? { categoriaDoBanco: c.categoriaDoBanco } : {}) })), leitor: "print" }
     : parseStatementComLeitor(text, source, faturaYear);
   // Fatura: linhas de RESUMO ("pagamento efetuado", "total de compras", "total de crédito
   // recebido") são agregados que a própria fatura já detalha em outras linhas — não são uma
