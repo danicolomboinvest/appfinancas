@@ -4,7 +4,6 @@ import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { mesDeReferenciaDasDicas, mesesQueFaltamNoAno } from "@/lib/planning/plano-anual";
-import { padraoPorCategoria } from "@/lib/planning/padrao-orcamento";
 
 export type BudgetHints = {
   /** "agosto" — o último mês fechado, que é a referência de "copiar". */
@@ -18,19 +17,20 @@ export type BudgetHints = {
   rendaMediaMeses: number;
   /** Gasto do último mês fechado por categoria (chave = ParentCategory ou id de personalizada). */
   lastMonthByCategory: Record<string, number>;
-  /** Média dos últimos 3 meses fechados por categoria: base do "Sugerir pra mim". */
+  /** Média por categoria dos últimos 12 meses fechados que ela preencheu: base do "Sugerir pra mim". */
   averageByCategory: Record<string, number>;
   /** Meses que ainda faltam no ano (contando o atual): pra "R$ X guardados até dezembro". */
   monthsLeftInYear: number;
   /**
-   * O padrão dela: o mês do meio dos últimos 3 fechados, por categoria (ver padrao-orcamento.ts).
-   * É a base do "Usar o meu padrão" e das sugestões de ajuste. Mediana, não média: um mês fora
-   * da curva não vira plano.
+   * O padrão dela (13/10/2026, pedido da Dani): a MÉDIA dos últimos 12 meses fechados, por
+   * categoria, contando só os meses que ela preencheu (mês sem nenhum lançamento não puxa para
+   * baixo). Antes era a mediana de 3 meses, e um gasto de vez em quando (o Pix para o pai em
+   * Moradia, em jan, mar e mai) nunca aparecia. É a base do "Usar o meu padrão".
    */
   padraoByCategory: Record<string, number>;
-  /** Quantos dos 3 meses tinham algum gasto. Abaixo de 2 não se fala em padrão. */
+  /** Quantos dos 12 meses ela preencheu. Abaixo de 2 não se fala em padrão. */
   mesesComDado: number;
-  /** Gasto por categoria de cada um dos 3 meses, do mais antigo ao mais recente. */
+  /** Gasto por categoria dos 3 últimos meses, do mais antigo ao mais recente (as sugestões de ajuste). */
   porMes: Record<string, number>[];
 };
 
@@ -51,7 +51,7 @@ export async function getBudgetHints(ctx: AuthContext, year: number, today: Date
   // do mês o "mês passado" virava o mês corrente, ainda aberto, e os "meses que faltam" ficavam
   // um a menos do que o Salvar grava.
   const ref = mesDeReferenciaDasDicas(year, today);
-  const windows = [0, 1, 2].map((back) => shift(ref.year, ref.month, back));
+  const windows = Array.from({ length: 12 }, (_, back) => shift(ref.year, ref.month, back));
 
   // A média termina no mês de referência: o "hoje" dela é o mês seguinte a ele.
   const [rendaMedia, ...spent] = await Promise.all([
@@ -76,8 +76,11 @@ export async function getBudgetHints(ctx: AuthContext, year: number, today: Date
     averageByCategory[k] = Math.round(total / monthsWithData);
   }
 
-  const porMes = [...perMonth].reverse();
-  const { padrao: padraoByCategory, mesesComDado } = padraoPorCategoria(porMes);
+  // As sugestões de ajuste continuam olhando os 3 últimos meses (mudança recente de hábito).
+  const porMes = perMonth.slice(0, 3).reverse();
+  const preenchidos = perMonth.filter((m) => Object.values(m).some((v) => v > 0)).length;
+  const padraoByCategory = averageByCategory;
+  const mesesComDado = preenchidos;
 
   return {
     padraoByCategory,
