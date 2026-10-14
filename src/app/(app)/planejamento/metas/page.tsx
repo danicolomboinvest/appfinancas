@@ -11,7 +11,8 @@ import { ResumoDasMetas } from "./ResumoDasMetas";
 import { DestacarMetaNova, FileiraDeFotos } from "./FileiraDeFotos";
 import { CartaoDaMeta } from "./CartaoDaMeta";
 import { AbrirFolhaDaMeta, ProvedorDaFolhaDaMeta } from "./FolhaDaMeta";
-import { jeitoDasMetas } from "./visual";
+import { editarEmDaMeta, jeitoDasMetas, metaParaEditar } from "./visual";
+import { CartaoComMenu } from "./MenuDaMeta";
 import "./metas.css";
 import { metasADois } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
@@ -87,7 +88,9 @@ export default async function MetasPage() {
             />
             <FileiraDeFotos metas={metas.map((x) => ({ id: x.id, curto: nomeCurto(x.nome), nome: x.nome, foto: x.foto, pct: x.plano.pct }))} novaEmDuasLinhas={!jeito.novaMetaMaisNaFrente} />
             {metas.map((x) => (
-              <CartaoDaMeta key={x.id} meta={x} jeito={jeito} hoje={hoje} money={m} />
+              <CartaoComMenu key={x.id} meta={metaParaEditar(x)} editarEm={editarEmDaMeta(x)}>
+                <CartaoDaMeta meta={x} jeito={jeito} hoje={hoje} money={m} />
+              </CartaoComMenu>
             ))}
           </>
         )}

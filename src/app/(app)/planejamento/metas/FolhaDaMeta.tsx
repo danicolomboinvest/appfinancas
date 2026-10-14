@@ -13,7 +13,7 @@ import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { MESES_CURTOS, MESES_LONGOS, duracao, mesesAteChegar, porMesDaNovaMeta, TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
 import { ESFERAS_DA_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
-import { apagarMetaAction, criarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
+import { apagarMetaAction, criarMetaAction, desfazerApagarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
 
 /**
  * A nova meta guiada (protótipo #nova-meta, rodadas 4, 12 e 32): uma pergunta por tela, em cinco
@@ -182,7 +182,21 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     iniciar(async () => {
       const r = await apagarMetaAction(meta.id);
       if (!r.ok) return showError(r.error);
-      showToast("Meta apagada");
+      const recibo = r.desfazer;
+      showToast(
+        "Meta apagada",
+        recibo
+          ? {
+              label: "Desfazer",
+              onClick: async () => {
+                const v = await desfazerApagarMetaAction(recibo);
+                if (!v.ok) return showError(v.error);
+                showToast("Desfeito");
+                router.refresh();
+              },
+            }
+          : undefined,
+      );
       onFechar();
       router.push("/planejamento/metas");
       router.refresh();

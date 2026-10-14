@@ -1,4 +1,6 @@
-import type { StatusDaMeta } from "@/lib/metas/projecao";
+import { chaveDoMes, type StatusDaMeta } from "@/lib/metas/projecao";
+import type { MetaDaTela } from "@/lib/repositories/metas.repo";
+import type { MetaParaEditar } from "./FolhaDaMeta";
 
 /**
  * O jeito de cada tema na área Metas (protótipos aprovados, rota #metas). A estrutura é a mesma
@@ -39,3 +41,21 @@ export const TEXTO_DO_STATUS: Record<StatusDaMeta, string> = {
 };
 
 export const textoDoSelo = (status: StatusDaMeta, nova: boolean) => (nova && status !== "ACHIEVED" ? "Nova" : TEXTO_DO_STATUS[status]);
+
+/** O que a folha de edição recebe de uma meta (lista e detalhe). */
+export function metaParaEditar(meta: MetaDaTela): MetaParaEditar {
+  return {
+    id: meta.id,
+    nome: meta.nome,
+    tipo: meta.icon,
+    alvo: meta.alvo,
+    guardado: meta.guardado,
+    prazo: meta.prazo ? chaveDoMes(meta.prazo.getFullYear(), meta.prazo.getMonth() + 1) : null,
+    foto: meta.foto,
+    combinado: meta.combinado,
+    taxaAnual: meta.taxaAnual,
+  };
+}
+
+/** A meta que nasceu no assistente de Viagem edita lá, com a viagem inteira. */
+export const editarEmDaMeta = (meta: MetaDaTela) => (meta.daViagem ? `/viagem?meta=${meta.id}` : undefined);
