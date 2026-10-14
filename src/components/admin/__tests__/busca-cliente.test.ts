@@ -14,4 +14,10 @@ describe("bateComBusca", () => {
     expect(bateComBusca("", "Ana")).toBe(true);
     expect(bateComBusca("lucas", "Ana", "ana@x.com")).toBe(false);
   });
+  it("várias palavras em qualquer ordem, com espaço a mais", () => {
+    expect(bateComBusca("souza ana", "Ana Souza", "a@x.com")).toBe(true);
+    expect(bateComBusca("ana  souza", "Ana Souza")).toBe(true);
+    expect(bateComBusca("ana gmail", "Ana Souza", "ana@gmail.com")).toBe(true);
+    expect(bateComBusca("ana lucas", "Ana Souza", "ana@gmail.com")).toBe(false);
+  });
 });
