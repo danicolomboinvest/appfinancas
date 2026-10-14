@@ -14,6 +14,8 @@ import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { MESES_CURTOS, MESES_LONGOS, duracao, mesesAteChegar, porMesDaNovaMeta, TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
 import { ESFERAS_DA_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
+import { prazoApertado, type LimiteDasMetas } from "@/lib/metas/prazo-que-cabe";
+import { PrazoQueCabe } from "./PrazoQueCabe";
 import { apagarMetaAction, criarMetaAction, desfazerApagarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
 
 /**
@@ -36,18 +38,23 @@ export type MetaParaEditar = {
   taxaAnual: number;
 };
 
-type Contexto = { abrir: (meta?: MetaParaEditar) => void };
+/** `passo` 3 abre direto no "Para quando?" (o selo "prazo apertado"). */
+type Contexto = { abrir: (meta?: MetaParaEditar, passo?: 1 | 3) => void };
 const FolhaContexto = createContext<Contexto>({ abrir: () => {} });
 export const useFolhaDaMeta = () => useContext(FolhaContexto);
 
-export function ProvedorDaFolhaDaMeta({ hoje, children }: { hoje: { ano: number; mes: number; dia: number }; children: ReactNode }) {
-  const [aberta, setAberta] = useState<{ meta?: MetaParaEditar; chave: number } | null>(null);
-  const abrir = useCallback((meta?: MetaParaEditar) => setAberta({ meta, chave: Date.now() }), []);
+/**
+ * `limite`: quanto cabe guardar por mês nas metas (lib/metas/prazo-que-cabe). Com ele, o passo
+ * "Para quando?" avisa quando o valor por mês passa disso e sugere um prazo. Sem ele, nada muda.
+ */
+export function ProvedorDaFolhaDaMeta({ hoje, limite = null, children }: { hoje: { ano: number; mes: number; dia: number }; limite?: LimiteDasMetas | null; children: ReactNode }) {
+  const [aberta, setAberta] = useState<{ meta?: MetaParaEditar; passo: 1 | 3; chave: number } | null>(null);
+  const abrir = useCallback((meta?: MetaParaEditar, passo: 1 | 3 = 1) => setAberta({ meta, passo: meta ? passo : 1, chave: Date.now() }), []);
   const valor = useMemo(() => ({ abrir }), [abrir]);
   return (
     <FolhaContexto.Provider value={valor}>
       {children}
-      {aberta && <FolhaDaMeta key={aberta.chave} hoje={hoje} meta={aberta.meta} onFechar={() => setAberta(null)} />}
+      {aberta && <FolhaDaMeta key={aberta.chave} hoje={hoje} meta={aberta.meta} passoInicial={aberta.passo} limite={limite} onFechar={() => setAberta(null)} />}
     </FolhaContexto.Provider>
   );
 }
@@ -96,7 +103,19 @@ async function reduzirFoto(arquivo: File): Promise<Blob> {
   return new Promise((ok, erro) => canvas.toBlob((b) => (b ? ok(b) : erro(new Error("foto"))), "image/jpeg", 0.82));
 }
 
-function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: number; dia: number }; meta?: MetaParaEditar; onFechar: () => void }) {
+function FolhaDaMeta({
+  hoje,
+  meta,
+  passoInicial = 1,
+  limite,
+  onFechar,
+}: {
+  hoje: { ano: number; mes: number; dia: number };
+  meta?: MetaParaEditar;
+  passoInicial?: 1 | 3;
+  limite: LimiteDasMetas | null;
+  onFechar: () => void;
+}) {
   const money = useMoney();
   const simbolo = currencySymbol(useCurrency());
   const m = (v: number) => money(v, { round: true });
@@ -110,7 +129,7 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
     if (meta) {
       const [a, mm] = meta.prazo ? meta.prazo.split("-").map(Number) : [hoje.ano + 1, hoje.mes];
       const doBanco = meta.foto.startsWith("/fotos/");
-      return { passo: 1, nome: meta.nome, tipo: meta.tipo, alvo: meta.alvo, prazo: { ano: a, mes: mm - 1 }, semPrazo: !meta.prazo, calendario: false, anos: false, foto: doBanco ? meta.foto : null, minha: doBanco ? null : meta.foto, porMes: Math.max(50, Math.round(meta.combinado / 50) * 50 || 500) };
+      return { passo: passoInicial, nome: meta.nome, tipo: meta.tipo, alvo: meta.alvo, prazo: { ano: a, mes: mm - 1 }, semPrazo: !meta.prazo, calendario: false, anos: false, foto: doBanco ? meta.foto : null, minha: doBanco ? null : meta.foto, porMes: Math.max(50, Math.round(meta.combinado / 50) * 50 || 500) };
     }
     return { passo: 1, nome: "", tipo: null, alvo: 0, prazo: { ano: hoje.ano + 1, mes: hoje.mes - 1 }, semPrazo: false, calendario: false, anos: false, foto: null, minha: null, porMes: 500 };
   });
@@ -129,6 +148,8 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
   const guardado = meta?.guardado ?? 0;
   const pmt = e.alvo > 0 ? porMesDaNovaMeta(e.alvo, prazoData, hojeData, taxa, guardado) : 0;
   const fotoFinal = e.minha ?? e.foto ?? fotoDoTipo(tipo);
+  // O valor por mês passou do que cabe: o passo "Para quando?" sugere um prazo (nunca muda sozinho).
+  const apertado = !e.semPrazo && e.alvo > 0 && prazoApertado(pmt, limite);
 
   useEffect(() => {
     const esc = (ev: KeyboardEvent) => ev.key === "Escape" && onFechar();
@@ -360,6 +381,17 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
         <p aria-live="polite" className="rounded-2xl bg-accent-soft px-3 py-2.5 text-[14.5px] font-medium text-ink">
           {falta}
         </p>
+        {apertado && limite && (
+          <PrazoQueCabe
+            porMes={pmt}
+            limite={limite}
+            alvo={e.alvo}
+            guardado={guardado}
+            taxaAnual={taxa}
+            hoje={hojeData}
+            onUsar={(ano, mes) => muda({ semPrazo: false, calendario: false, anos: false, prazo: { ano, mes: mes - 1 } })}
+          />
+        )}
       </>
     );
   } else if (e.passo === 4) {
@@ -457,6 +489,12 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
             <span>
               por mês até {MESES_CURTOS[e.prazo.mes]}/{e.prazo.ano}
             </span>
+            {apertado && (
+              <button type="button" onClick={() => muda({ passo: 3 })} className="mt-1 flex min-h-9 items-center gap-1 rounded-full bg-surface px-3 text-[13px] font-semibold text-ink shadow-premium-sm">
+                Prazo apertado
+                <ChevronRight size={14} aria-hidden />
+              </button>
+            )}
           </div>
         )}
         {meta && (

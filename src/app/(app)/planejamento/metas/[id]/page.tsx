@@ -4,6 +4,7 @@ import { ChevronRight, PiggyBank, X } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
+import { getLimiteDasMetas } from "@/lib/repositories/renda-media.repo";
 import { ativosDaMeta, aportesSemMeta, lerMetaDaTela, type MetaDaTela } from "@/lib/repositories/metas.repo";
 import { MESES_CURTOS, MESES_LONGOS, chaveDoMes, duracao, mesDaqui, mesDoAporte, mesesAteOMes, mesesDaMeta, situacaoDoMes } from "@/lib/metas/projecao";
 import { proximoAporte } from "@/lib/planning/goal-checkin";
@@ -67,7 +68,7 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
   const hoje = nowInBrazil();
   const meta = await lerMetaDaTela(ctx, id, hoje);
   if (!meta) notFound();
-  const [money, ativos, aporte] = await Promise.all([serverMoney(), ativosDaMeta(ctx, meta.id), estadoDoAporte(ctx, meta, hoje)]);
+  const [money, ativos, aporte, limite] = await Promise.all([serverMoney(), ativosDaMeta(ctx, meta.id), estadoDoAporte(ctx, meta, hoje), getLimiteDasMetas(ctx, hoje)]);
   const m = (v: number) => money(v, { round: true });
   const { plano } = meta;
   const ruim = plano.status === "BEHIND";
@@ -109,7 +110,7 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
   const novoPrazo = ruim && plano.chegaPeloRitmo && plano.chega !== null ? mesDaqui(hoje, plano.chega).texto : null;
 
   return (
-    <ProvedorDaFolhaDaMeta hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }}>
+    <ProvedorDaFolhaDaMeta hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }} limite={limite}>
       <div className="mx-auto flex min-h-[calc(100dvh-9rem)] w-full max-w-xl flex-col gap-3.5">
         <div className="md-foto -mx-5 -mt-2 md:mx-0 md:overflow-hidden md:rounded-[28px]">
           {/* eslint-disable-next-line @next/next/no-img-element -- foto da meta */}

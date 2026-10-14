@@ -17,6 +17,9 @@ import "./metas.css";
 import { metasADois } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
 import { MetasADois } from "./MetasADois";
+import { getLimiteDasMetas } from "@/lib/repositories/renda-media.repo";
+import { prazoApertado } from "@/lib/metas/prazo-que-cabe";
+import { AbrirPrazoPelaUrl, SeloPrazoApertado } from "./SeloPrazoApertado";
 
 /**
  * Metas da versão nova (protótipo aprovado, rota #metas): o resumo com o anel de todas juntas e a
@@ -27,7 +30,7 @@ export default async function MetasPage() {
   const ctx = await getRequiredSession();
   const hoje = nowInBrazil();
   const casa = casaNaTela(ctx.casa);
-  const [todas, money, aDois] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney(), casa ? metasADois(ctx, hoje) : Promise.resolve([])]);
+  const [todas, money, aDois, limite] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney(), casa ? metasADois(ctx, hoje) : Promise.resolve([]), getLimiteDasMetas(ctx, hoje)]);
   // A reserva primeiro (é a base de tudo), depois o prazo mais perto (protótipo: Reserva, Viagem, Carro).
   const metas = [...todas].sort((a, b) => Number(b.icon === "RESERVA") - Number(a.icon === "RESERVA"));
   const m = (v: number) => money(v, { round: true });
@@ -38,6 +41,9 @@ export default async function MetasPage() {
   const alvo = metas.reduce((t, x) => t + x.alvo, 0);
   const porMes = abertas.reduce((t, x) => t + x.combinado, 0);
   const prox = proximaAChegar(metas);
+  // Prazo apertado: com prazo, aberta, e pedindo por mês mais do que cabe. A da Viagem edita no
+  // assistente dela, então fica sem o selo.
+  const apertada = (x: (typeof metas)[number]) => Boolean(x.prazo) && !x.daViagem && x.plano.status !== "ACHIEVED" && prazoApertado(x.plano.porMesNecessario, limite);
 
   const novaMeta = (
     <AbrirFolhaDaMeta className="flex w-full items-center gap-3 rounded-[28px] border border-border bg-surface p-5 text-left shadow-premium-sm">
@@ -70,10 +76,11 @@ export default async function MetasPage() {
   );
 
   return (
-    <ProvedorDaFolhaDaMeta hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }}>
+    <ProvedorDaFolhaDaMeta hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }} limite={limite}>
       <ConquistasDeMetas ctx={ctx} />
       <Suspense fallback={null}>
         <DestacarMetaNova />
+        <AbrirPrazoPelaUrl metas={metas.filter((x) => !x.daViagem).map(metaParaEditar)} />
       </Suspense>
       <div className="mx-auto flex w-full max-w-xl flex-col gap-3.5">
         {metas.length > 0 && (
@@ -88,9 +95,12 @@ export default async function MetasPage() {
             />
             <FileiraDeFotos metas={metas.map((x) => ({ id: x.id, curto: nomeCurto(x.nome), nome: x.nome, foto: x.foto, pct: x.plano.pct }))} novaEmDuasLinhas={!jeito.novaMetaMaisNaFrente} />
             {metas.map((x) => (
-              <CartaoComMenu key={x.id} meta={metaParaEditar(x)} editarEm={editarEmDaMeta(x)}>
-                <CartaoDaMeta meta={x} jeito={jeito} hoje={hoje} money={m} />
-              </CartaoComMenu>
+              <div key={x.id} className="relative">
+                <CartaoComMenu meta={metaParaEditar(x)} editarEm={editarEmDaMeta(x)}>
+                  <CartaoDaMeta meta={x} jeito={jeito} hoje={hoje} money={m} />
+                </CartaoComMenu>
+                {apertada(x) && <SeloPrazoApertado meta={metaParaEditar(x)} className="absolute left-3 top-3 z-[2]" />}
+              </div>
             ))}
           </>
         )}
