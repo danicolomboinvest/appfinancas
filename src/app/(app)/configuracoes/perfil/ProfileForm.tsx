@@ -22,7 +22,8 @@ export function ProfileForm({
   semMoldura?: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(updateProfileAction, initialState);
-  useSuccessToast(isPending, state.error);
+  // Fica na tela depois de salvar: o próprio botão diz "Salvo" (14/10/2026).
+  const { salvou } = useSuccessToast(isPending, state.error);
   const { titulos: t } = useProfileTheme().voz;
 
   // Na janela do lápis, um <form> simples; na tela, o cartão de sempre.
@@ -59,7 +60,7 @@ export function ProfileForm({
         <CurrencyField label="Renda mensal" name="renda" defaultValue={defaults.renda ?? undefined} />
       </div>
       <Button type="submit" disabled={isPending} className="min-h-12 w-full">
-        {isPending ? t.cfgSalvando : t.cfgSalvar}
+        {isPending ? t.cfgSalvando : salvou ? "Salvo" : t.cfgSalvar}
       </Button>
     </Raiz>
   );

@@ -16,7 +16,7 @@ export function InviteUserForm() {
   // A assinatura é anual: o campo já nasce com um ano à frente. Continua editável — e
   // apagar a data libera sem prazo, pra casos de cortesia.
   const [expiresAt, setExpiresAt] = useState(() => toDateInputValue(plusOneYear(new Date())));
-  useSuccessToast(isPending, state.error, undefined);
+  useSuccessToast(isPending, state.error);
 
   const credentials = state.created ? `${state.created.email} / ${state.created.password}` : "";
 

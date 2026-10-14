@@ -15,21 +15,21 @@ export function AddEmailsForm() {
   // A assinatura é anual: o campo já nasce com um ano à frente. Continua editável — e
   // apagar a data libera sem prazo, pra casos de cortesia.
   const [expiresAt, setExpiresAt] = useState(() => toDateInputValue(plusOneYear(new Date())));
-  useSuccessToast(
-    isPending,
-    state.error,
-    state.added
-      ? `${state.added} e-mail${state.added === 1 ? "" : "s"} liberado${state.added === 1 ? "" : "s"}.` +
-          (state.emailed ? ` ${state.emailed} convite${state.emailed === 1 ? "" : "s"} enviado${state.emailed === 1 ? "" : "s"} por e-mail.` : "") +
-          (state.keptLonger
-            ? ` ${state.keptLonger} já tinha${state.keptLonger === 1 ? "" : "m"} acesso mais longo e ${state.keptLonger === 1 ? "ficou" : "ficaram"} com ele.`
-            : "")
-      : undefined,
-  );
+  // O resultado fica escrito no próprio formulário (14/10/2026): era um aviso de três frases
+  // que sumia em 3 s.
+  useSuccessToast(isPending, state.error);
+  const resumo = state.added
+    ? `${state.added} e-mail${state.added === 1 ? "" : "s"} liberado${state.added === 1 ? "" : "s"}.` +
+      (state.emailed ? ` ${state.emailed} convite${state.emailed === 1 ? "" : "s"} enviado${state.emailed === 1 ? "" : "s"} por e-mail.` : "") +
+      (state.keptLonger
+        ? ` ${state.keptLonger} já tinha${state.keptLonger === 1 ? "" : "m"} acesso mais longo e ${state.keptLonger === 1 ? "ficou" : "ficaram"} com ele.`
+        : "")
+    : null;
 
   return (
     <Card as="form" action={formAction} className="flex flex-col gap-3 p-4">
       {state.error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
+      {!state.error && resumo && !isPending && <p className="rounded-lg bg-success-soft px-3 py-2 text-sm text-success">{resumo}</p>}
       <TextareaField
         label="E-mails liberados (um por linha, ou separados por vírgula)"
         id="emails"

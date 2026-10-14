@@ -93,7 +93,7 @@ export function BudgetWizard({
       return { error: "Não deu para confirmar se salvou. Confira a internet e toque em Salvar de novo." };
     }
   }, initialState);
-  useSuccessToast(isPending, state.error, t.formOrcSalvo);
+  useSuccessToast(isPending, state.error);
   // Salvou sem erro: avisa a janela para fechar; o Orçamento já volta com o "Seu plano".
   const estavaSalvando = useRef(false);
   useEffect(() => {

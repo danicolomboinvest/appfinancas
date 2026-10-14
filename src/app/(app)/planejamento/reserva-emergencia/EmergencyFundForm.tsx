@@ -86,7 +86,8 @@ export function EmergencyFundForm({
 }) {
   const { voz } = useProfileTheme();
   const [state, formAction, isPending] = useActionState(saveEmergencyFundAction, initialState);
-  useSuccessToast(isPending, state.error);
+  // Na tela, o próprio botão diz "Salvo"; na janela do lápis, ela fecha (14/10/2026).
+  const { salvou } = useSuccessToast(isPending, state.error);
   // Na janela do lápis, um <form> simples; na tela, o cartão de sempre.
   const Raiz = (semMoldura ? "form" : Card) as ElementType;
 
@@ -145,7 +146,7 @@ export function EmergencyFundForm({
         />
       </div>
       <Button type="submit" disabled={isPending} className="w-fit" data-guia="reserva-salvar">
-        {isPending ? voz.titulos.formSalvando : voz.titulos.formSalvar}
+        {isPending ? voz.titulos.formSalvando : salvou ? "Salvo" : voz.titulos.formSalvar}
       </Button>
     </Raiz>
   );

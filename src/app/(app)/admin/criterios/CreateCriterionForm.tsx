@@ -11,7 +11,7 @@ const initialState: CriterionFormState = {};
 
 export function CreateCriterionForm() {
   const [state, formAction, isPending] = useActionState(createCriterionAction, initialState);
-  useSuccessToast(isPending, state.error, "Critério adicionado com sucesso.");
+  useSuccessToast(isPending, state.error);
 
   return (
     <Card as="form" action={formAction} className="flex flex-wrap items-end gap-3 p-4">

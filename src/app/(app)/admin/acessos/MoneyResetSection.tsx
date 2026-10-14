@@ -15,7 +15,7 @@ const initialState: ProductFormState = {};
 /** Quem tem o Money Reset: as compras da Hubla entram sozinhas; aqui dá pra liberar na mão. */
 export function MoneyResetSection({ liberacoes }: { liberacoes: Liberacao[] }) {
   const [state, formAction, isPending] = useActionState(addMoneyResetAction, initialState);
-  useSuccessToast(isPending, state.error, state.ok ? "Money Reset liberado." : undefined);
+  useSuccessToast(isPending, state.error);
   const ativos = liberacoes.filter((l) => l.ativo).length;
 
   return (

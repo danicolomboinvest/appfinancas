@@ -25,7 +25,7 @@ const initialState: ProductFormState = {};
 
 export function ProductsSection({ products }: { products: Product[] }) {
   const [state, formAction, isPending] = useActionState(addProductAction, initialState);
-  useSuccessToast(isPending, state.error, state.ok ? "Produto salvo." : undefined);
+  useSuccessToast(isPending, state.error);
 
   const noneActive = products.every((p) => !p.active || p.concede !== "app");
 

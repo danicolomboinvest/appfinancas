@@ -79,8 +79,8 @@ export const PADRAO_LIMITE_CARTAO: TextosLimiteCartao = {
   limAtalhoPassou: (valor) => `Passou ${valor} este mês`,
   limNoCartao: "No cartão de crédito",
   limNoCartaoNota: "Conta no limite do cartão.",
-  limToastFalta: (valor) => `Lançado. Faltam ${valor} no limite do cartão.`,
-  limToastPassou: (valor) => `Lançado. Você passou ${valor} do limite do cartão.`,
+  limToastFalta: (valor) => `Faltam ${valor} no cartão`,
+  limToastPassou: (valor) => `${valor} acima do limite`,
   limAvisoTitulo: (marco, falta) => (Number(marco) >= 100 ? "Você passou do limite do cartão" : `Faltam ${falta} no limite do cartão`),
   limAvisoCorpo: (marco, gasto, limite, mes) =>
     Number(marco) >= 100 ? `${gasto} no cartão em ${mes}, de ${limite} combinados.` : `Você já usou ${marco}% dos ${limite} combinados para ${mes}.`,
@@ -100,7 +100,7 @@ export const GIRLY_LIMITE_CARTAO: Partial<TextosLimiteCartao> = {
     passou: "Passou do limite deste mês",
   },
   limVazio: "Nenhum gasto no cartão neste mês ainda",
-  limToastFalta: (valor) => `Anotado! Faltam ${valor} no limite do cartão`,
-  limToastPassou: (valor) => `Anotado. Você passou ${valor} do limite do cartão`,
+  limToastFalta: (valor) => `Faltam ${valor} no cartão`,
+  limToastPassou: (valor) => `${valor} acima do limite`,
   limAvisoTitulo: (marco, falta) => (Number(marco) >= 100 ? "Você passou do limite do cartão" : `Faltam ${falta} no limite do cartão`),
 };

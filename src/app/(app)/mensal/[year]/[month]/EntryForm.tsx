@@ -109,8 +109,9 @@ export function EntryForm({
   // O perfil de quando o formulário abriu (não o de agora): se a tela se atualizar com outro
   // perfil enquanto ela preenche, o servidor recusa em vez de gravar no perfil novo.
   const [perfilDaTela] = useState(profileId);
-  // Gasto no cartão com limite: o toast diz quanto falta no lugar do "Lançado".
-  useSuccessToast(isPending, state.error, state.aviso ?? t.lancamentoSalvo);
+  // O lançamento novo aparece na lista, e isso basta. Só o gasto no cartão com limite ganha a
+  // pílula, porque o quanto falta no limite não está na tela.
+  useSuccessToast(isPending, state.error, state.aviso);
 
   useEffect(() => {
     if (wasPending.current && !isPending && !state.error) {

@@ -8,6 +8,8 @@ import type { ParentCategory } from "@prisma/client";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO } from "@/components/ui/ErroNoBotao";
+import { vibrar } from "@/lib/celebrar";
 import { CurrencySwitch, ExchangeRateLine } from "@/components/forms/CurrencySwitch";
 import { CasalFields } from "@/components/forms/CasalFields";
 import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/mensal/[year]/[month]/actions";
@@ -68,7 +70,9 @@ export function Digitar({
   // A ação de sempre, chamada direto: deu certo, avisa e fecha a folha; deu erro, mostra aqui.
   const [isPending, iniciarEnvio] = useTransition();
   const [state, setState] = useState<MonthlyEntryState>({});
-  const { showToast, showError } = useToast();
+  // O Salvar falhou (rede, servidor): o botão vira "Tentar de novo" até a próxima tentativa.
+  const [falhou, setFalhou] = useState(false);
+  const { showToast } = useToast();
 
   const [perfilDaTela] = useState(profileId);
   // O que estava digitado quando o app recarregou para a versão nova (13/10/2026). Só sem `inicial`
@@ -128,7 +132,7 @@ export function Digitar({
     try {
       window.sessionStorage.removeItem(CHAVE_RASCUNHO_LANCAR);
     } catch {}
-    showToast("Voltei com o que estava digitado antes da atualização.");
+    showToast("Rascunho de volta");
   }, [rascunho, showToast]);
 
   const ehGasto = tipo === "EXPENSE";
@@ -143,18 +147,19 @@ export function Digitar({
   const salvar = () => {
     // Sem valor, o toque não pode morrer calado (o botão some de cinza no sol e parece ativo).
     if (!centavos) {
-      showError("Digite o valor no teclado antes de salvar.");
+      setState({ error: "Digite o valor primeiro" });
+      setFalhou(false);
       return;
     }
+    setState({});
     try {
       salvarDeVerdade();
     } catch (err) {
       // Qualquer falha ANTES de chegar ao servidor (aparelho antigo, campo que não existe) vira
       // aviso e registro, em vez de um toque que não faz nada.
       registrarErroNoCliente("lancar", err);
-      const msg = "Não consegui salvar neste aparelho. Toque em Salvar de novo; se continuar, fale com a gente.";
-      setState({ error: msg });
-      showError(msg);
+      setState({ error: "Não salvou neste aparelho. Se continuar, fale com a gente." });
+      setFalhou(true);
     }
   };
 
@@ -203,17 +208,19 @@ export function Digitar({
         registrarErroNoCliente("lancar", err);
         // App atualizado com a folha aberta: o aviso e a recarga já vêm, o rascunho fica guardado.
         if (ehVersaoNovaERecarrega(err)) return;
-        const msg = ehFalhaDeRede(err) ? "Não consegui salvar: parece que a internet caiu. Toque em Salvar de novo." : MSG_FALHA_NOSSA;
-        setState({ error: msg });
-        showError(msg);
+        setState({ error: ehFalhaDeRede(err) ? "Não salvou. A internet caiu." : MSG_FALHA_NOSSA });
+        setFalhou(true);
         return;
       }
       setState(res);
+      setFalhou(Boolean(res.error));
       if (res.error) {
-        showError(res.error);
+        vibrar("erro");
         return;
       }
-      showToast(res.aviso ?? t.lancamentoSalvo);
+      // O lançamento novo aparece na lista, e isso basta (14/10/2026). Só o gasto no cartão com
+      // limite ganha a pílula, porque o quanto falta no limite não está na tela.
+      if (res.aviso) showToast(res.aviso);
       onSuccess?.();
     });
   };
@@ -271,7 +278,6 @@ export function Digitar({
 
   return (
     <div className="flex flex-col gap-3.5">
-      {state.error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
       <div className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1" role="group" aria-label="Gasto ou entrada">
         {segmento("EXPENSE", "Gasto")}
         {segmento("INCOME", "Entrada")}
@@ -382,11 +388,14 @@ export function Digitar({
         </form>
       </details>
 
-      {/* O erro também aqui, colado no botão: o do topo fica fora da vista de quem tocou em Salvar. */}
-      {state.error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{state.error}</p>}
-      <button type="button" onClick={salvar} disabled={isPending} aria-disabled={!centavos} className="min-h-12 w-full rounded-full bg-ink text-[16px] font-medium text-canvas disabled:opacity-40 aria-disabled:opacity-40">
-        {isPending ? t.formSalvando : "Salvar"}
-      </button>
+      {/* Erro no lugar (14/10/2026): embaixo do botão que falhou, e o botão vira "Tentar de novo"
+          até a próxima tentativa. Antes ia também para um aviso no rodapé que sumia. */}
+      <div>
+        <button type="button" onClick={salvar} disabled={isPending} aria-disabled={!centavos} className={`min-h-12 w-full rounded-full bg-ink text-[16px] font-medium text-canvas disabled:opacity-40 aria-disabled:opacity-40 ${falhou && !isPending ? "erro-treme" : ""}`}>
+          {isPending ? t.formSalvando : falhou ? TENTAR_DE_NOVO : "Salvar"}
+        </button>
+        <ErroNoBotao erro={isPending ? null : state.error} />
+      </div>
     </div>
   );
 }

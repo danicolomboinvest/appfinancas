@@ -13,7 +13,7 @@ const initialState: ReferenceRateState = {};
 export function ReferenceRateForm() {
   const [state, formAction, isPending] = useActionState(createReferenceRateAction, initialState);
   const { titulos: t } = useProfileTheme().voz;
-  useSuccessToast(isPending, state.error, t.cfgTaxaAdicionadaToast);
+  useSuccessToast(isPending, state.error);
 
   return (
     <form action={formAction} className="flex flex-col gap-3 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]">

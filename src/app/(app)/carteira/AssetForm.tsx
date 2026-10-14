@@ -122,7 +122,7 @@ export function AssetForm({
       : null;
   const isFixedIncome = assetClass === "RENDA_FIXA" || assetClass === "TESOURO_DIRETO";
   const wasPending = useRef(false);
-  useSuccessToast(isPending, state.error, assetId ? t.formAtivoAtualizado : t.formAtivoAdicionado);
+  useSuccessToast(isPending, state.error);
 
   useEffect(() => {
     if (wasPending.current && !isPending && !state.error) {
