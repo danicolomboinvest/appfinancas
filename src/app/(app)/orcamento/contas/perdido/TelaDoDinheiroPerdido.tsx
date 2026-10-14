@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition, type PointerEvent as PointerEventReact } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Copy, Receipt, Repeat, ShieldQuestion, Sun, TrendingUp, type LucideIcon } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Globe, Percent, Receipt, Repeat, ShieldQuestion, Sun, TrendingUp, type LucideIcon } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { Modal } from "@/components/ui/Modal";
@@ -32,7 +32,7 @@ const ARRASTE_DECIDE = 80;
 function iconeDa(c: Pick<CartaDaTela, "tipo" | "tarifa">): LucideIcon {
   if (c.tipo === "repetida") return Copy;
   if (c.tipo === "aumento") return TrendingUp;
-  if (c.tipo === "tarifa") return c.tarifa === "seguro" ? ShieldQuestion : Receipt;
+  if (c.tipo === "tarifa") return c.tarifa === "seguro" ? ShieldQuestion : c.tarifa === "iof" ? Globe : c.tarifa === "juros" ? Percent : Receipt;
   return Repeat;
 }
 
@@ -41,7 +41,12 @@ function IconeDoAchado({ c, size }: { c: Pick<CartaDaTela, "tipo" | "tarifa">; s
   const p = { size, strokeWidth: 2.2, "aria-hidden": true } as const;
   if (c.tipo === "repetida") return <Copy {...p} />;
   if (c.tipo === "aumento") return <TrendingUp {...p} />;
-  if (c.tipo === "tarifa") return c.tarifa === "seguro" ? <ShieldQuestion {...p} /> : <Receipt {...p} />;
+  if (c.tipo === "tarifa") {
+    if (c.tarifa === "seguro") return <ShieldQuestion {...p} />;
+    if (c.tarifa === "iof") return <Globe {...p} />;
+    if (c.tarifa === "juros") return <Percent {...p} />;
+    return <Receipt {...p} />;
+  }
   return <Repeat {...p} />;
 }
 
@@ -239,7 +244,7 @@ function Carta({ c, atras = false, saindo = null, onEscolher }: { c: CartaDaTela
   const grande = c.mensal ? c.anual : (c.unico ?? c.anual);
 
   function down(ev: PointerEventReact<HTMLDivElement>) {
-    if (atras || (ev.target as HTMLElement).closest("button")) return;
+    if (atras || (ev.target as HTMLElement).closest("button, a")) return;
     inicio.current = ev.clientX;
     try {
       ev.currentTarget.setPointerCapture(ev.pointerId);
@@ -295,6 +300,12 @@ function Carta({ c, atras = false, saindo = null, onEscolher }: { c: CartaDaTela
       </div>
       <span className="text-[14px] text-ink-muted">{subDaCarta(c, money)}</span>
       <span className="w-full rounded-xl bg-surface-2 px-3 py-2 text-[14px] leading-snug text-ink">{porqueDaCarta(c, money)}</span>
+      {/* Juros e multa: o caminho é pagar em dia, então a carta leva para Dívidas (sem estorno). */}
+      {!atras && c.tipo === "tarifa" && c.tarifa === "juros" && (
+        <Link href="/dividas" className="inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-accent-strong">
+          Ver minhas dívidas <ChevronRight size={16} aria-hidden />
+        </Link>
+      )}
       {!atras && (
         <div className="mt-1 grid w-full grid-cols-2 gap-2">
           <button type="button" onClick={() => onEscolher?.(true)} className="botao-principal min-h-[52px] rounded-full px-3 text-[15px] font-semibold leading-tight active:scale-[0.97]">

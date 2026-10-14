@@ -9,7 +9,9 @@ import { parseInstallment } from "@/lib/entries/recurrence";
  * 1. Assinatura: a mesma cobrança, uma vez por mês, de um serviço (logo do catálogo quando tem).
  * 2. Cobrança repetida: o mesmo comerciante, o mesmo valor, em até 3 dias. Mercado, padaria,
  *    café e transporte ficam de fora (é normal passar duas vezes), e parcela também.
- * 3. Tarifa e seguro: pacote de serviços, anuidade, seguro, IOF, juros e multa, pelo nome.
+ * 3. Cobranças do banco: pacote de serviços, anuidade, seguro, IOF, juros e multa, pelo nome. IOF
+ *    (imposto) e juros (atraso, fatura parcelada) não são tarifa: a carta diz o nome certo e não
+ *    oferece estorno (ver placar.ts).
  * 4. Aumentou: a mesma assinatura, mais cara que a mediana dos meses de antes (régua do Rocket
  *    Money: só acima de R$ 2 E de 5%, para não avisar centavo).
  *

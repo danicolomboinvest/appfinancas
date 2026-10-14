@@ -47,11 +47,22 @@ export function contraOPreco(porAno: number, preco: number): { pagou: boolean; v
 /** As duas escolhas de cada carta (protótipo B): a da esquerda corta, a da direita deixa como está. */
 export type Escolhas = { sim: string; nao: string; estadoSim: EstadoDoAchado; estadoNao: EstadoDoAchado; abreEstorno: boolean };
 
+/**
+ * IOF e juros não são tarifa (13/10/2026, pedido da Dani): o IOF da compra internacional é imposto
+ * e não tem estorno; os juros e a multa vêm de atraso ou do parcelamento da fatura. A carta mostra
+ * o nome certo, explica, e não abre mensagem de estorno nem soma no "Até agora".
+ */
+export function ehImpostoOuJuros(a: Pick<Achado, "tipo" | "tarifa">): boolean {
+  return a.tipo === "tarifa" && (a.tarifa === "iof" || a.tarifa === "juros");
+}
+
 export function escolhasDaCarta(a: Pick<Achado, "tipo" | "tarifa" | "mensal" | "unico">): Escolhas {
+  // "Vou evitar" fica guardado como descartado: não é dinheiro que volta, então não soma.
+  if (ehImpostoOuJuros(a)) return { sim: "Vou evitar", nao: "Tudo bem", estadoSim: "descartado", estadoNao: "uso", abreEstorno: false };
   if (a.tipo === "repetida") return { sim: "Pedir estorno", nao: "Foram 2 pedidos", estadoSim: "pedi_estorno", estadoNao: "descartado", abreEstorno: true };
   if (a.tipo === "aumento") return { sim: "Vou rever", nao: "Tudo bem", estadoSim: "nao_uso", estadoNao: "uso", abreEstorno: false };
   if (a.tipo === "tarifa") {
-    // Tarifa de uma vez (IOF, juros): só o estorno traz de volta.
+    // Tarifa de uma vez: só o estorno traz de volta.
     if (!a.mensal) return { sim: "Pedir estorno", nao: "Está certo", estadoSim: "pedi_estorno", estadoNao: "uso", abreEstorno: true };
     if (a.tarifa === "seguro") return { sim: "Não lembro", nao: "Contratei", estadoSim: "nao_uso", estadoNao: "uso", abreEstorno: true };
     return { sim: "Quero rever", nao: "Está certo", estadoSim: "nao_uso", estadoNao: "uso", abreEstorno: true };
@@ -59,20 +70,21 @@ export function escolhasDaCarta(a: Pick<Achado, "tipo" | "tarifa" | "mensal" | "
   return { sim: "Não uso", nao: "Uso", estadoSim: "nao_uso", estadoNao: "uso", abreEstorno: false };
 }
 
-/** Quanto a escolha "sim" põe no "para recuperar" (por ano): o mês × 12, ou o de uma vez. */
-export function valorDoSim(a: Pick<Achado, "mensal" | "unico">): number {
+/** Quanto a escolha "sim" põe no "para recuperar" (por ano): o mês × 12, ou o de uma vez. IOF e juros, nada. */
+export function valorDoSim(a: Pick<Achado, "tipo" | "tarifa" | "mensal" | "unico">): number {
+  if (ehImpostoOuJuros(a)) return 0;
   return a.mensal ? a.mensal * 12 : (a.unico ?? 0);
 }
 
 export const ROTULO_DO_TIPO: Record<TipoDeAchado, string> = {
   assinatura: "Assinatura",
   repetida: "Cobrança repetida",
-  tarifa: "Tarifa e seguro",
+  tarifa: "Cobranças do banco",
   aumento: "Aumentou",
 };
 
 export function rotuloDaCarta(a: Pick<Achado, "tipo" | "tarifa">): string {
-  if (a.tipo === "tarifa") return a.tarifa === "seguro" ? "Seguro escondido" : a.tarifa === "iof" || a.tarifa === "juros" ? "Taxa para conferir" : "Tarifa escondida";
+  if (a.tipo === "tarifa") return a.tarifa === "seguro" ? "Seguro escondido" : a.tarifa === "iof" ? "IOF" : a.tarifa === "juros" ? "Juros e multa" : "Tarifa escondida";
   if (a.tipo === "assinatura") return "Assinatura esquecida";
   return ROTULO_DO_TIPO[a.tipo];
 }
@@ -91,6 +103,8 @@ export function porqueDaCarta(a: Pick<Achado, "tipo" | "tarifa" | "dia" | "meses
     if (a.tarifa === "seguro") return "Lembra de ter contratado? Se não, vale pedir o comprovante.";
     if (a.tarifa === "pacote") return "Existe conta só com serviços essenciais, sem tarifa. Vale perguntar.";
     if (a.tarifa === "anuidade") return "Muitos cartões tiram a anuidade se você pedir. Vale tentar.";
+    if (a.tarifa === "iof") return "É imposto da compra em outra moeda. Não tem estorno.";
+    if (a.tarifa === "juros") return "Vem de atraso ou de parcelar a fatura. Pagar em dia evita.";
     return "Cobrança do banco. Vale conferir se faz sentido.";
   }
   const dia = a.dia ? `Todo dia ${a.dia}` : "Todo mês";
