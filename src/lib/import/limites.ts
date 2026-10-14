@@ -53,4 +53,4 @@ export function ehImagem(arquivo: { name: string; type: string }): boolean {
 }
 
 /** Prints de uma vez: a fatura aberta rolada cabe em poucos; mais que isso é engano. */
-export const MAX_PRINTS = 8;
+export const MAX_PRINTS = 12;

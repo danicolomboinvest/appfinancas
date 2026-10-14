@@ -371,6 +371,11 @@ export function StatementImport({
     let banco: string | null = null;
     let erro: string | null = null;
     const lista = arquivos.slice(0, MAX_PRINTS);
+    // Os que passam do limite não somem calados: a pessoa sabe quais mandar de novo.
+    if (arquivos.length > MAX_PRINTS) {
+      const fora = arquivos.length - MAX_PRINTS;
+      showToast(`Leio até ${MAX_PRINTS} prints por vez. ${fora === 1 ? "1 ficou" : `${fora} ficaram`} de fora: mande ${fora === 1 ? "esse" : "esses"} de novo depois.`);
+    }
     for (const [i, arquivo] of lista.entries()) {
       setLendoPrint({ atual: i + 1, total: lista.length });
       const form = new FormData();
@@ -1701,6 +1706,22 @@ export function StatementImport({
                 {separadas === 1 ? "1 já separada" : `${separadas} já separadas`}
                 {stats?.conferencia.status === "fechou" && <span className="text-ink-muted" title={t.impBateuComTotal(money(stats.conferencia.esperado))}> · bateu com o total</span>}
               </span>
+              {aberta && stats?.invoiceTotal ? (
+                Math.abs(totalGap) >= 1 ? (
+                  <span className="mt-1 text-sm text-accent-strong" data-falta-total>
+                    {totalGap > 0
+                      ? `Faltam ${money(totalGap)} para o total da fatura (${money(stats.invoiceTotal)}). Mande o print que falta.`
+                      : `Li ${money(-totalGap)} a mais que o total da fatura (${money(stats.invoiceTotal)}).`}
+                  </span>
+                ) : (
+                  <span className="mt-1 text-sm text-ink-muted" data-bateu-total>Bateu com o total da fatura</span>
+                )
+              ) : null}
+              {aberta && (stats?.semValorEmReal ?? []).map((c, i) => (
+                <span key={`${c.nome}-${i}`} className="mt-1 break-words text-sm text-accent-strong" data-sem-valor-em-real>
+                  {c.nome}, {c.texto}: não entrou, o print não mostra o valor em real.
+                </span>
+              ))}
               {docType === "fatura" && contarNoMes && (
                 <div className="mt-3 w-full text-left">
                   <MonthPicker label={t.impFaturaTudoNoMes} id="fatura-month-confirmar-mes" value={faturaMonth} onChange={escolherMesFatura} />
