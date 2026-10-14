@@ -1,4 +1,5 @@
 import { installmentCanonical, parseInstallment } from "@/lib/entries/recurrence";
+import { cierreArgentino } from "./argentina";
 import { detectarVencimento } from "./vencimento";
 
 /**
@@ -102,6 +103,8 @@ export function lerDatasDaFatura(texto: string, nomeDoArquivo?: string | null): 
   const ate = t.match(/realizad[oa]s\s+at[e]\s+(\d{2})\/(\d{2})(?:\/(\d{4}))?/i);
   if (ate) candidatos.push(ate[3] ? dataValida(Number(ate[1]), Number(ate[2]), Number(ate[3])) : comAnoDoVencimento(Number(ate[1]), Number(ate[2]), vencimento));
   const nubank = t.match(/EMISSAO E ENVIO (\d{2}) (JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ) (\d{4})/i);
+  // Argentina: "CIERRE ACTUAL 23-Oct-26".
+  candidatos.push(cierreArgentino(texto));
   if (nubank) candidatos.push(dataValida(Number(nubank[1]), MESES_CURTOS[nubank[2].toLowerCase()], Number(nubank[3])));
 
   const fechamento =

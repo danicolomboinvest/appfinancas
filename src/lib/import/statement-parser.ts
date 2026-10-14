@@ -6,6 +6,9 @@
  * Convenção de sinal em `amount`: negativo = saída (vira EXPENSE), positivo = entrada (INCOME).
  */
 
+import { dataArgentinaNoInicio } from "./argentina";
+import { isArgentinaCuenta, parseArgentinaCuenta } from "./argentina-cuenta-pdf";
+import { isArgentinaTarjeta, parseArgentinaTarjeta } from "./argentina-tarjeta-pdf";
 import { isBanestesStatement, parseBanestesStatement } from "./banestes-pdf";
 import { isBanrisulStatement, parseBanrisulStatement } from "./banrisul-pdf";
 import { isXpContaDigitalStatement, parseXpContaDigitalStatement } from "./xp-conta-pdf";
@@ -150,6 +153,10 @@ export function normalizeDate(raw: string): string {
   }
   const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // "15-oct-26", "15 OCT 2026": o mês em espanhol das exportações argentinas (só com o ano junto;
+  // sem ano, quem completa é quem sabe o ano de referência).
+  const es = /^\d{1,2}[\s.\-/]+[a-z]{3,}/i.test(trimmed) ? dataArgentinaNoInicio(trimmed, 0) : null;
+  if (es?.temAno) return es.iso;
   const ofx = trimmed.match(/^(\d{4})(\d{2})(\d{2})/); // OFX DTPOSTED: YYYYMMDD[HHMMSS]
   if (ofx) return `${ofx[1]}-${ofx[2]}-${ofx[3]}`;
   return trimmed;
@@ -251,12 +258,13 @@ function splitCsvLine(line: string, delimiter: string): string[] {
   return result.map((c) => c.trim().replace(/^"|"$/g, ""));
 }
 
-const DATE_HEADERS = ["data", "date", "dt"];
-const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title"];
+/** "fecha", "concepto", "importe", "monto": os mesmos papéis nas exportações dos bancos argentinos. */
+const DATE_HEADERS = ["data", "date", "dt", "fecha"];
+const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title", "concepto", "detalle"];
 /** "R$" sozinho é o nome da coluna de valor na fatura do Santander em Excel. */
-const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value", "r$", "reais"];
+const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value", "r$", "reais", "importe", "monto", "pesos"];
 /** Coluna de valor que NÃO é a certa: "Valor (em US$)" do C6 vinha antes de "Valor (em R$)" e levava tudo. */
-const AMOUNT_AVOID = ["us$", "usd", "dólar", "dolar", "cotação", "cotacao"];
+const AMOUNT_AVOID = ["us$", "u$s", "usd", "dólar", "dolar", "cotação", "cotacao", "cotización", "cotizacion"];
 /** Extratos com duas colunas (Bradesco, Santander, Sicoob, Caixa): crédito e débito separados. */
 const CREDIT_HEADERS = ["crédito", "credito", "entrada", "credit"];
 const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit"];
@@ -305,7 +313,8 @@ function findAmountColumn(headers: string[]): number {
   if (candidates.length === 0) return -1;
   const good = candidates.filter(({ h }) => !AMOUNT_AVOID.some((a) => h.includes(a)));
   const pool = good.length > 0 ? good : candidates;
-  const brl = pool.find(({ h }) => /r\$|brl|reais/.test(h));
+  // A moeda do perfil: real no Brasil, peso ("Importe en pesos", "Pesos", "ARS") na Argentina.
+  const brl = pool.find(({ h }) => /r\$|brl|reais|pesos|\bars\b/.test(h));
   return (brl ?? pool[0]).i;
 }
 
@@ -321,6 +330,29 @@ type CsvLayout = {
   dcCol: number;
   /** Coluna do ramo da loja (ver CATEGORY_HEADERS); -1 quando não tem. */
   catCol?: number;
+  /** "RECORD_TYPE" do relatório do Mercado Pago (Argentina): só a linha "release" é movimento. */
+  registroCol?: number;
+};
+
+/**
+ * Relatório de dinheiro liberado do Mercado Pago (Argentina), segundo a documentação pública
+ * (mercadopago.com.ar/developers, "Campos del reporte"): DATE, SOURCE_ID, EXTERNAL_REFERENCE,
+ * RECORD_TYPE, DESCRIPTION, NET_CREDIT_AMOUNT, NET_DEBIT_AMOUNT... O RECORD_TYPE diz se a linha é
+ * movimento ("release") ou saldo e total ("initial_available_balance", "total",
+ * "available_balance"), e a DESCRIPTION vem em código.
+ */
+const MERCADO_PAGO_AR_DESCRICAO: Record<string, string> = {
+  payment: "Cobro Mercado Pago",
+  payout: "Retiro de dinero Mercado Pago",
+  refund: "Devolución Mercado Pago",
+  chargeback: "Contracargo Mercado Pago",
+  mediation: "Reclamo Mercado Pago",
+  shipping: "Envío Mercado Pago",
+  tax_credit_debit: "Impuesto Ley 25413 (débitos y créditos)",
+  tax_iva: "IVA Mercado Pago",
+  tax_payment_iibb: "Percepción IIBB Mercado Pago",
+  credit_payment: "Pago de crédito Mercado Pago",
+  fee: "Comisión Mercado Pago",
 };
 
 /** Tem valor em dinheiro na linha? Cabeçalho não tem; linha de lançamento tem. */
@@ -354,6 +386,7 @@ function readHeaderLayout(line: string): CsvLayout | null {
   if (dateCol === -1 && descCol === -1) return null;
   const transCol = findColumn(cells, TRANSACTION_HEADERS);
   const catCol = cells.findIndex((h, idx) => idx !== descCol && idx !== dateCol && idx !== amountCol && CATEGORY_HEADERS.some((n) => h.includes(n)));
+  const registroCol = cells.findIndex((h) => h === "record_type");
   const ehColunaDeSinal = (h: string, idx: number) => idx !== descCol && DC_HEADERS.some((n) => h === n || h.startsWith(n));
   // Uma coluna só pra sinal ("D/C", "Natureza") vence. Sem ela, a coluna "Tipo" faz os dois
   // papéis: quando a célula é D/C/Saída/Entrada ela dá o sinal, quando é "Pix enviado" ela
@@ -365,9 +398,9 @@ function readHeaderLayout(line: string): CsvLayout | null {
   // colunas de crédito e débito (as duas apontavam pra ela, a conta dava zero e o sinal sumia).
   if (creditCol !== -1 && creditCol === debitCol && amountCol !== -1) {
     if (dcCol === -1) dcCol = creditCol;
-    return { delimiter, dateCol, descCol, amountCol, transCol, creditCol: -1, debitCol: -1, dcCol, catCol };
+    return { delimiter, dateCol, descCol, amountCol, transCol, creditCol: -1, debitCol: -1, dcCol, catCol, registroCol };
   }
-  return { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol, catCol };
+  return { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol, catCol, registroCol };
 }
 
 /**
@@ -385,6 +418,10 @@ function splitDateFromDescription(cell: string, refYear: number): { date: string
 function readTransactionLine(line: string, layout: CsvLayout, refYear: number): ParsedTransaction | null {
   const { delimiter, dateCol, descCol, amountCol, transCol, creditCol, debitCol, dcCol } = layout;
   const cols = splitCsvLine(line, delimiter);
+  if (layout.registroCol !== undefined && layout.registroCol !== -1) {
+    const registro = (cols[layout.registroCol] ?? "").trim().toLowerCase();
+    if (registro && registro !== "release") return null;
+  }
 
   let amount: number;
   if (creditCol !== -1 && debitCol !== -1) {
@@ -401,7 +438,8 @@ function readTransactionLine(line: string, layout: CsvLayout, refYear: number): 
   if (Number.isNaN(amount) || amount === 0) return null;
 
   const juntas = dateCol !== -1 && dateCol === descCol ? splitDateFromDescription(cols[dateCol] ?? "", refYear) : null;
-  const desc = (juntas ? juntas.description : (cols[descCol] ?? "")).trim();
+  const descBruta = (juntas ? juntas.description : (cols[descCol] ?? "")).trim();
+  const desc = layout.registroCol !== undefined && layout.registroCol !== -1 ? (MERCADO_PAGO_AR_DESCRICAO[descBruta.toLowerCase()] ?? descBruta) : descBruta;
   // Data repetida na coluna de "Transação" não enriquece nada: virava "1/07/26 · PAGAMENTO…".
   const transRaw = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
   // A coluna "Tipo" que só traz D/C/Saída/Entrada já deu o sinal: não vira "D · Mercado".
@@ -501,8 +539,9 @@ export function parseCsv(content: string, refYear: number = new Date().getFullYe
 
 /** Palavras que indicam entrada (crédito) numa linha de extrato sem coluna de débito/crédito.
  * "REND PAGO APLIC AUT MAIS" é o rendimento da aplicação automática do Itaú: o "PAGO" é o banco
- * pagando, e sem a abreviação o rendimento entrava como gasto. */
-const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|rend\.?\s+pago|dep[oó]sito|cr[eé]dito|recebid[oa]|estorno|reembolso|proventos)\b/i;
+ * pagando, e sem a abreviação o rendimento entrava como gasto. Em espanhol (Argentina): "ACREDITACION
+ * HABERES" (salário), "TRANSFERENCIA RECIBIDA", "Rendimientos", "REINTEGRO", "DEVOLUCION". */
+const CREDIT_HINTS = /\b(sal[aá]rio|rendimento|rend\.?\s+pago|dep[oó]sito|cr[eé]dito|recebid[oa]|estorno|reembolso|proventos|acreditaci[oó]n|acred|haberes|sueldo|rendimientos?|reintegro|devoluci[oó]n)\b/i;
 /**
  * "Crédito" que é o PRODUTO, não o sentido do dinheiro: pagar o cartão de crédito ou a parcela
  * do crédito pessoal é saída. Antes a palavra sozinha virava entrada, e como renda o pagamento
@@ -858,6 +897,9 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "safra-json", reconhece: isSafraJsonPdf, le: (t) => parseSafraJsonPdf(t) },
   { nome: "israel-extrato", reconhece: isIsraelBankStatement, le: (t) => parseIsraelBankStatement(t) },
   { nome: "israel-cartao", reconhece: isIsraelCardStatement, le: (t) => parseIsraelCardStatement(t) },
+  // Argentina (14/10/2026): só reconhece texto com três sinais que nenhum banco brasileiro tem.
+  { nome: "argentina-tarjeta", reconhece: isArgentinaTarjeta, le: (t, ano) => parseArgentinaTarjeta(t, ano) },
+  { nome: "argentina-cuenta", reconhece: isArgentinaCuenta, le: (t, ano) => parseArgentinaCuenta(t, ano) },
   { nome: "picpay", reconhece: isPicPayStatement, le: (t) => parsePicPayStatement(t) },
   { nome: "mercado-pago", reconhece: isMercadoPagoStatement, le: (t) => parseMercadoPagoStatement(t) },
   { nome: "inter-fatura", reconhece: isInterInvoice, le: (t) => parseInterInvoice(t) },

@@ -1,3 +1,5 @@
+import { isArgentinaCuenta } from "./argentina-cuenta-pdf";
+import { isArgentinaTarjeta } from "./argentina-tarjeta-pdf";
 import { isBanestesStatement } from "./banestes-pdf";
 import { isBanrisulInvoice } from "./banrisul-fatura-pdf";
 import { isBanrisulStatement } from "./banrisul-pdf";
@@ -55,6 +57,7 @@ const MOLDES_DE_EXTRATO: [(t: string) => boolean, string][] = [
   [isSantanderConsolidatedStatement, EXTRATO_SANTANDER],
   [isBanrisulStatement, "extrato do Banrisul"],
   [isXpContaDigitalStatement, "extrato da Conta Digital XP"],
+  [isArgentinaCuenta, "extrato de banco argentino"],
 ];
 const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isNubankInvoice, "fatura do Nubank"],
@@ -73,6 +76,7 @@ const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isSicrediInvoice, "fatura do Sicredi"],
   [isMercadoPagoInvoice, "fatura do Mercado Pago"],
   [isBanrisulInvoice, "fatura do Banrisul"],
+  [isArgentinaTarjeta, "resumen de tarjeta (Argentina)"],
 ];
 
 const MOTIVOS_ESTRUTURAIS_DE_EXTRATO = new Set([OFX_DE_CONTA, CSV_EXTRATO_NUBANK, ...MOLDES_DE_EXTRATO.map(([, motivo]) => motivo)]);
@@ -117,7 +121,7 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
   const firstLine = head.split(/\r?\n/).find((l) => l.trim())?.toLowerCase() ?? "";
   if (/^date\s*,\s*title\s*,\s*amount/.test(firstLine)) return { kind: "fatura", reason: "fatura do Nubank (CSV)" };
   if (/identificador/.test(firstLine) && /descri/.test(firstLine)) return { kind: "extrato", reason: CSV_EXTRATO_NUBANK };
-  if (/final do cart[aã]o|nome no cart[aã]o|parcela/.test(firstLine)) return { kind: "fatura", reason: "fatura de cartão (CSV)" };
+  if (/final do cart[aã]o|nome no cart[aã]o|parcela|\bcuotas?\b/.test(firstLine)) return { kind: "fatura", reason: "fatura de cartão (CSV)" };
   if (/saldo/.test(firstLine)) return { kind: "extrato", reason: "extrato com coluna de saldo" };
 
   // PDF de banco que o app conhece: o molde decide, não as palavras. (Inclui o Santander, que
@@ -129,10 +133,14 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
   // (não "vencimentos" de um CDB) e "fatura" fora das linhas de lançamento.
   const cabeca = cabecalhoSemLancamentos(headLower);
   if (/fatura|\bvencimento\b|limite dispon[ií]vel|pagamento m[ií]nimo/.test(cabeca) && !/extrato/.test(headLower)) return { kind: "fatura", reason: "cabeçalho de fatura" };
+  // Espanhol (Argentina), quando o molde não decidiu (antes do "saldo anterior", que a fatura de lá também tem): o resumen de tarjeta tem pago mínimo,
+  // cierre e vencimiento; o de cuenta tem caja de ahorro, cuenta corriente, movimientos.
+  if (/pago m[ií]nimo|cierre actual|vencimiento actual|resumen de tarjeta|l[ií]mite de compra|total consumos/.test(cabeca)) return { kind: "fatura", reason: "cabeçalho de resumen de tarjeta" };
+  if (/caja de ahorros?|cuenta corriente|movimientos|resumen de cuenta/.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato (resumen de cuenta)" };
   if (/extrato|saldo (anterior|do dia|final)|conta corrente/.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato" };
 
-  if (/fatura|invoice/.test(name) || /^nubank_\d{4}-\d{2}-\d{2}\.csv$/.test(name)) return { kind: "fatura", reason: "nome do arquivo" };
-  if (/extrato|statement|^nu_\d+_/.test(name)) return { kind: "extrato", reason: "nome do arquivo" };
+  if (/fatura|invoice|tarjeta|resumen[_ -]?(?:visa|master|amex)/.test(name) || /^nubank_\d{4}-\d{2}-\d{2}\.csv$/.test(name)) return { kind: "fatura", reason: "nome do arquivo" };
+  if (/extrato|statement|^nu_\d+_|movimientos|extracto/.test(name)) return { kind: "extrato", reason: "nome do arquivo" };
   return { kind: "unknown", reason: "" };
 }
 
@@ -167,6 +175,12 @@ export function sinaisDesmentemExtrato(txns: ParsedTransaction[], reason: string
  * mínimo (com juros), mais abaixo, e a conferência dizia que a leitura não fechou quando fechou. */
 export function detectInvoiceTotal(text: string): number | null {
   const m = text.match(/(?:total\s+(?:da\s+(?:sua\s+)?fatura|desta\s+fatura|a\s+pagar|geral)|valor\s+total(?:\s+da\s+fatura)?)\s*[:\-]?\s*(?:R\$\s?)?(-?\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  // Argentina: "SALDO ACTUAL $ 123.456,78" é o total a pagar em pesos (o "$" sem o "R").
+  if (!m) {
+    const ar = text.match(/saldo\s+actual\s*\$\s*:?\s*(\d{1,3}(?:\.\d{3})*,\d{2})(?!-)/i);
+    const n = ar ? Number(ar[1].replace(/\./g, "").replace(",", ".")) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
   if (!m) return null;
   const n = Number(m[1].replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) && n > 0 ? n : null;

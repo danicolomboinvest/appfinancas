@@ -10,6 +10,8 @@
  * vê e pode trocar, e uma sugestão errada é pior que nenhuma.
  */
 
+import { vencimientoArgentino } from "./argentina";
+
 const MESES_CURTOS: Record<string, number> = {
   jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
 };
@@ -48,6 +50,8 @@ export function detectarVencimento(texto: string, nomeDoArquivo?: string | null)
     vencimentoComAno(texto) ??
     vencimentoNaLinhaDeBaixo(texto) ??
     vencimentoSemAno(texto) ??
+    // Resumen de tarjeta argentino: "VENCIMIENTO ACTUAL 05-Nov-26".
+    vencimientoArgentino(texto) ??
     (nomeDoArquivo ? vencimentoNoNomeDoArquivo(nomeDoArquivo) : null)
   );
 }

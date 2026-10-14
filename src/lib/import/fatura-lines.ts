@@ -18,7 +18,7 @@ const FATURA_SUMMARY_RE =
  * (R$ 2.800) entrava como gasto NEGATIVO e o mês parecia ter gastado quase nada.
  */
 const FATURA_PAGAMENTO_RE =
-  /\b((pagamentos?|pagto|pgto)\.?\s+(d[aeo]\s+)?fatura|pagamentos?\s+on\s*-?\s*line|inclus[aã]o\s+de\s+pagamentos?|(pagamentos?|pagto|pgto)\.?\s+(por\s+)?d[eé]b(ito)?\.?\s+autom([aá]tic[oa]?)?|pagamentos?\s+v[aá]lidos|pgto\.?\s+cash|(pagamentos?|pagto|pgto)\.?\s+antecipad[oa])(?![a-z])/i;
+  /\b((pagamentos?|pagto|pgto)\.?\s+(d[aeo]\s+)?fatura|pagamentos?\s+on\s*-?\s*line|inclus[aã]o\s+de\s+pagamentos?|(pagamentos?|pagto|pgto)\.?\s+(por\s+)?d[eé]b(ito)?\.?\s+autom([aá]tic[oa]?)?|pagamentos?\s+v[aá]lidos|pgto\.?\s+cash|(pagamentos?|pagto|pgto)\.?\s+antecipad[oa]|su\s+pago(\s+en\s+(pesos|d[oó]lares|usd))?|pago\s+en\s+(pesos|d[oó]lares|usd))(?![a-z])/i;
 /**
  * Linha do quadro "Limites" da fatura do Bradesco ("Compras  R$ 14.400,00  R$ 3.626,29
  * R$ 10.773,71"): a data do quadro vem na linha de cima, então o leitor achava que era uma compra
