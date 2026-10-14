@@ -3,6 +3,7 @@ import { naAppDaApple } from "@/lib/apple/app-da-apple";
 import { prisma } from "@/lib/db/prisma";
 import { PARTES, type Parte } from "@/lib/limpar-dados/regras";
 import { listProfiles } from "@/lib/repositories/profile.repo";
+import { listImportBatches } from "@/lib/repositories/import-batch.repo";
 import { temMoneyReset } from "@/lib/repositories/produtoLiberado.repo";
 import { ApagarDadosOuConta } from "./ApagarDadosOuConta";
 
@@ -15,11 +16,13 @@ export const metadata = { title: "Apagar dados ou conta · SPI Finance" };
 export default async function ApagarDadosOuContaPage() {
   const ctx = await getRequiredSession();
   const ehPar = Boolean(ctx.par && ctx.donoId && ctx.donoId !== ctx.userId);
-  const [naApple, assinaturasApple, meus, comReset] = await Promise.all([
+  const [naApple, assinaturasApple, meus, comReset, [ultimoLote]] = await Promise.all([
     naAppDaApple(),
     prisma.assinaturaApple.count({ where: { userId: ctx.userId, revogadaEm: null } }),
     listProfiles(ctx.userId),
     ehPar ? Promise.resolve(false) : temMoneyReset(ctx.userId),
+    // A saída menor do "Importei errado" e do "Apareceu repetido": a última importação deste perfil.
+    listImportBatches(ctx, 1),
   ]);
   // Aviso de que apagar a conta não cancela a assinatura: no app iOS, ou para quem assinou por lá.
   const avisoDaApple = naApple || assinaturasApple > 0;
@@ -34,5 +37,9 @@ export default async function ApagarDadosOuContaPage() {
   // O que aparece para escolher: o Money Reset só para quem tem; o par não tem a área de investimentos.
   const partesVisiveis: Parte[] = PARTES.filter((p) => (p !== "moneyReset" || comReset) && (p !== "carteira" || !ehPar));
 
-  return <ApagarDadosOuConta avisoDaApple={avisoDaApple} perfis={perfis} perfilAtual={ctx.profileId} partesVisiveis={partesVisiveis} />;
+  const ultimaImportacao = ultimoLote
+    ? { id: ultimoLote.id, fatura: ultimoLote.docType === "fatura", arquivo: ultimoLote.fileName, em: ultimoLote.createdAt.toISOString(), lancamentos: ultimoLote.entryCount }
+    : null;
+
+  return <ApagarDadosOuConta avisoDaApple={avisoDaApple} perfis={perfis} perfilAtual={ctx.profileId} partesVisiveis={partesVisiveis} ultimaImportacao={ultimaImportacao} />;
 }

@@ -30,8 +30,9 @@ export function Botao({ children, onClick, secundario = false, disabled = false 
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition-opacity disabled:opacity-60 ${
-        secundario ? "border border-border text-ink-muted" : "bg-pill text-on-pill"
+      // Visual novo (13/10/2026): o bg-pill do tema Padrão é branco e sumia no cartão branco.
+      className={`flex min-h-12 w-full items-center justify-center rounded-full px-5 py-2.5 text-center text-[15px] font-semibold leading-tight transition-opacity active:scale-[0.98] disabled:opacity-60 ${
+        secundario ? "text-ink shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]" : "botao-principal"
       }`}
     >
       {children}

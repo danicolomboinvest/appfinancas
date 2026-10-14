@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ateAgora, contraOPreco, escolhasDaCarta, mensagemDeEstorno, porqueDaCarta, subDaCarta } from "../placar";
+import { ateAgora, contraOPreco, escolhasDaCarta, mensagemDeEstorno, porqueDaCarta, rotuloDaCarta, subDaCarta, valorDoSim } from "../placar";
 import type { Achado } from "../detectar";
 
 const money = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -65,7 +65,6 @@ describe("cartas", () => {
       { tipo: "tarifa", tarifa: "pacote", mensal: 64.9, unico: null },
       { tipo: "tarifa", tarifa: "seguro", mensal: 9.9, unico: null },
       { tipo: "tarifa", tarifa: "anuidade", mensal: 32, unico: null },
-      { tipo: "tarifa", tarifa: "iof", mensal: null, unico: 6.48, datas: ["2026-09-10"] },
     ];
     for (const t of tipos) {
       const m = mensagemDeEstorno({ ...base, ...t }, money);
@@ -74,5 +73,25 @@ describe("cartas", () => {
       expect(m.toLowerCase()).not.toContain("indevid");
     }
     expect(mensagemDeEstorno(base, money)).toContain("nos dias 12/09 e 13/09");
+  });
+
+  it("IOF e juros não são tarifa: nome certo, sem estorno, nada para recuperar", () => {
+    const iof = { ...base, tipo: "tarifa" as const, tarifa: "iof" as const, nome: "IOF", mensal: null, unico: 6.48, datas: ["2026-09-10"] };
+    const juros = { ...base, tipo: "tarifa" as const, tarifa: "juros" as const, nome: "Juros e multa", mensal: null, unico: 42.1, datas: ["2026-09-15"] };
+    expect(rotuloDaCarta(iof)).toBe("IOF");
+    expect(rotuloDaCarta(juros)).toBe("Juros e multa");
+    expect(rotuloDaCarta({ tipo: "tarifa", tarifa: "pacote" })).toBe("Tarifa escondida");
+    expect(porqueDaCarta(iof, money)).toContain("imposto");
+    expect(porqueDaCarta(iof, money)).toContain("Não tem estorno");
+    expect(porqueDaCarta(juros, money)).toContain("Pagar em dia");
+    for (const c of [iof, juros]) {
+      expect(porqueDaCarta(c, money).toLowerCase()).not.toContain("tarifa");
+      const e = escolhasDaCarta(c);
+      expect(e).toMatchObject({ sim: "Vou evitar", nao: "Tudo bem", abreEstorno: false });
+      expect(e.estadoSim).not.toBe("pedi_estorno");
+      expect(valorDoSim(c)).toBe(0);
+      // "Vou evitar" não vira dinheiro recuperado, nem quando se repete todo mês.
+      expect(ateAgora([{ mensal: 12, unico: null, estado: e.estadoSim }]).porAno).toBe(0);
+    }
   });
 });

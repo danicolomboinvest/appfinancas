@@ -3,12 +3,13 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  Check, ChevronLeft, ChevronRight, Crown, DoorOpen, Download, FileSpreadsheet, KeyRound, Palette, RotateCcw, Smartphone, Sprout, Trash2, UserRound, type LucideIcon,
+  Check, ChevronLeft, ChevronRight, Copy, CreditCard, Crown, DoorOpen, Download, FileSpreadsheet, FileText, FileX, FlaskConical, KeyRound, MoreHorizontal, Palette, RotateCcw, Shuffle, Smartphone, Sprout, Trash2, Undo2, UserRound, type LucideIcon,
 } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { PasswordField } from "@/components/ui/PasswordField";
-import { alternarParte, PALAVRA_DE_CONFIRMACAO, type Parte } from "@/lib/limpar-dados/regras";
-import { copiaAntesDeLimparAction, limparDadosAction } from "../dados/limpar-dados-actions";
+import { alternarParte, PALAVRA_DE_CONFIRMACAO, temSaidaMenor, type MotivoDaLimpeza, type Parte, type RespostaDoMotivo } from "@/lib/limpar-dados/regras";
+import { copiaAntesDeLimparAction, desfazerUltimaImportacaoAction, limparDadosAction, registrarMotivoDaLimpezaAction } from "../dados/limpar-dados-actions";
+import { ImportarExtrato } from "../_ajustes/Interativos";
 import { deleteAccountAction, type DeleteAccountState } from "../dados/delete-account-actions";
 import { PARTE_NA_TELA } from "./partes-da-tela";
 import { SegureParaConfirmar } from "./SegureParaConfirmar";
@@ -20,15 +21,30 @@ import { SegureParaConfirmar } from "./SegureParaConfirmar";
  * A tela já é a escolha: um cartão grande e claro para limpar e recomeçar (a conta fica) e um
  * menor e sóbrio para apagar a conta. Uma coisa por vez, pouco texto, sem vermelho no limpar.
  *
- * Limpar: o que sai e o que fica → o que sai e de qual perfil → cópia (opcional) → segurar
- * para confirmar → pronto. Apagar conta: o que acontece (com a linha da Apple) → senha.
+ * Limpar: por que (um toque, ou Pular) → o que sai e o que fica → o que sai e de qual perfil →
+ * cópia (opcional) → segurar para confirmar → pronto. Apagar conta: o que acontece (com a linha da
+ * Apple) → senha.
+ *
+ * O "por que" (13/10/2026): 7 de 9 pessoas que limparam no primeiro dia importaram tudo de novo.
+ * Para "Importei errado" e "Apareceu repetido", antes de seguir, a saída menor: desfazer só a
+ * última importação. Um toque, ao lado do "Não, quero limpar", sem empurrar.
  */
 
-type Tela = "inicio" | "sai-fica" | "partes" | "copia" | "confirmar" | "pronto" | "conta" | "senha";
+type Tela = "inicio" | "motivo" | "saida" | "sai-fica" | "partes" | "copia" | "confirmar" | "pronto" | "conta" | "senha";
 type PerfilDaTela = { id: string; nome: string };
 type Copia = "nao" | "baixando" | "ok" | "erro";
+export type UltimaImportacao = { id: string; fatura: boolean; arquivo: string | null; em: string; lancamentos: number };
 
-const PASSOS_DO_LIMPAR: Partial<Record<Tela, number>> = { "sai-fica": 1, partes: 2, copia: 3, confirmar: 4 };
+const PASSOS_DO_LIMPAR: Partial<Record<Tela, number>> = { motivo: 1, saida: 1, "sai-fica": 2, partes: 3, copia: 4, confirmar: 5 };
+const VOLTAR_PARA: Partial<Record<Tela, Tela>> = { motivo: "inicio", saida: "motivo", "sai-fica": "motivo", partes: "sai-fica", copia: "partes", confirmar: "copia", conta: "inicio", senha: "conta" };
+
+const MOTIVOS: { motivo: MotivoDaLimpeza; rotulo: string; Icone: LucideIcon }[] = [
+  { motivo: "importei_errado", rotulo: "Importei errado", Icone: FileX },
+  { motivo: "repetido", rotulo: "Apareceu repetido", Icone: Copy },
+  { motivo: "categorias", rotulo: "Categorias bagunçadas", Icone: Shuffle },
+  { motivo: "testar", rotulo: "Quero testar do zero", Icone: FlaskConical },
+  { motivo: "outro", rotulo: "Outro", Icone: MoreHorizontal },
+];
 const PASSOS_DA_CONTA: Partial<Record<Tela, number>> = { conta: 1, senha: 2 };
 
 function baixar(nome: string, csv: string) {
@@ -45,11 +61,13 @@ export function ApagarDadosOuConta({
   perfis,
   perfilAtual,
   partesVisiveis,
+  ultimaImportacao = null,
 }: {
   avisoDaApple: boolean;
   perfis: PerfilDaTela[];
   perfilAtual: string;
   partesVisiveis: Parte[];
+  ultimaImportacao?: UltimaImportacao | null;
 }) {
   const { titulos: t } = useProfileTheme().voz;
   const [tela, setTela] = useState<Tela>("inicio");
@@ -60,6 +78,10 @@ export function ApagarDadosOuConta({
   const [erro, setErro] = useState<string | null>(null);
   const [limpando, startLimpar] = useTransition();
   const [feito, setFeito] = useState<{ partes: Parte[]; recomecar: boolean } | null>(null);
+  const [motivo, setMotivo] = useState<RespostaDoMotivo | null>(null);
+  // A importação da saída menor, guardada na hora da escolha: depois de desfazer, a página volta
+  // do servidor sem ela, e a tela de "Importação desfeita" precisa continuar de pé.
+  const [loteDaSaida, setLoteDaSaida] = useState<UltimaImportacao | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   const primeira = useRef(true);
 
@@ -78,6 +100,15 @@ export function ApagarDadosOuConta({
     if (proxima === "inicio") setCopia("nao");
     setTela(proxima);
   };
+
+  /** Um toque: grava a resposta (uma vez só, em segundo plano) e segue. */
+  function responder(r: RespostaDoMotivo) {
+    if (motivo === null) void registrarMotivoDaLimpezaAction(r).catch(() => undefined);
+    setMotivo(r);
+    const saida = temSaidaMenor(r) ? ultimaImportacao : null;
+    setLoteDaSaida(saida);
+    ir(saida ? "saida" : "sai-fica");
+  }
 
   async function baixarCopia() {
     setCopia("baixando");
@@ -132,13 +163,13 @@ export function ApagarDadosOuConta({
         <div className="flex items-center">
           <button
             type="button"
-            onClick={() => ir(tela === "sai-fica" || tela === "conta" ? "inicio" : tela === "senha" ? "conta" : tela === "partes" ? "sai-fica" : tela === "copia" ? "partes" : "copia")}
+            onClick={() => ir(VOLTAR_PARA[tela] ?? "inicio")}
             aria-label="Voltar"
             className="-ml-2 flex size-11 items-center justify-center rounded-full text-ink hover:bg-surface-2"
           >
             <ChevronLeft size={22} aria-hidden />
           </button>
-          <Pontos atual={passo} total={cuidado ? 2 : 4} cuidado={cuidado} />
+          <Pontos atual={passo} total={cuidado ? 2 : 5} cuidado={cuidado} />
           <span className="size-11" aria-hidden />
         </div>
       )}
@@ -150,7 +181,7 @@ export function ApagarDadosOuConta({
           </h1>
           <button
             type="button"
-            onClick={() => ir("sai-fica")}
+            onClick={() => ir("motivo")}
             className="flex min-h-[188px] flex-col justify-between gap-4 rounded-[26px] border p-5 text-left transition-transform active:scale-[0.985]"
             style={{
               background: "var(--heroi-fundo, linear-gradient(145deg, var(--color-heroi-de), var(--color-heroi-para)))",
@@ -200,6 +231,39 @@ export function ApagarDadosOuConta({
           </BotaoDeTexto>
           {copia === "erro" && <Erro>Não consegui baixar a cópia. Tente de novo.</Erro>}
         </>
+      )}
+
+      {tela === "motivo" && (
+        <>
+          <Titulo refTitulo={titulo}>Por que está limpando?</Titulo>
+          <div role="group" aria-label="Por que está limpando" className="flex flex-col gap-2">
+            {MOTIVOS.map(({ motivo: m, rotulo, Icone }) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => responder(m)}
+                className="flex min-h-[58px] w-full items-center gap-3 rounded-[20px] bg-surface px-4 py-2.5 text-left shadow-[inset_0_0_0_1px_var(--color-border)] transition-transform active:scale-[0.985]"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                  <Icone size={19} strokeWidth={1.8} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1 text-[15.5px] font-semibold leading-snug text-ink">{rotulo}</span>
+                <ChevronRight size={18} className="shrink-0 text-ink-faint" aria-hidden />
+              </button>
+            ))}
+          </div>
+          <BotaoDeTexto onClick={() => responder("pulou")}>Pular</BotaoDeTexto>
+        </>
+      )}
+
+      {tela === "saida" && loteDaSaida && (
+        <SaidaMenor
+          key={loteDaSaida.id}
+          refTitulo={titulo}
+          lote={loteDaSaida}
+          repetido={motivo === "repetido"}
+          aoSeguir={() => ir("sai-fica")}
+        />
       )}
 
       {tela === "sai-fica" && (
@@ -386,7 +450,7 @@ export function ApagarDadosOuConta({
           </div>
           <button
             type="button"
-            onClick={() => ir("sai-fica")}
+            onClick={() => ir("motivo")}
             className="flex min-h-12 items-center gap-2.5 rounded-[18px] bg-accent-soft px-3.5 py-3 text-left text-sm font-medium text-ink"
           >
             <RotateCcw size={20} className="shrink-0 text-accent" aria-hidden />
@@ -407,6 +471,91 @@ export function ApagarDadosOuConta({
 
       {tela === "senha" && <Senha refTitulo={titulo} aoDesistir={() => ir("inicio")} />}
     </div>
+  );
+}
+
+/** "Importei errado" ou "Apareceu repetido": desfazer só a última importação, ou seguir limpando. */
+function SaidaMenor({
+  refTitulo,
+  lote,
+  repetido,
+  aoSeguir,
+}: {
+  refTitulo: React.RefObject<HTMLHeadingElement | null>;
+  lote: UltimaImportacao;
+  repetido: boolean;
+  aoSeguir: () => void;
+}) {
+  const [desfazendo, startDesfazer] = useTransition();
+  const [erro, setErro] = useState<string | null>(null);
+  const [removidos, setRemovidos] = useState<number | null>(null);
+  const Icone = lote.fatura ? CreditCard : FileText;
+  const nome = lote.arquivo ? lote.arquivo.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim() : "";
+  const quando = new Date(lote.em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+
+  function desfazer() {
+    setErro(null);
+    startDesfazer(async () => {
+      try {
+        const r = await desfazerUltimaImportacaoAction(lote.id);
+        if (r.ok) setRemovidos(r.removidos);
+        else setErro(r.erro);
+      } catch {
+        setErro("Não consegui desfazer agora. Nada foi apagado. Tente de novo.");
+      }
+    });
+  }
+
+  if (removidos !== null) {
+    return (
+      <div className="flex flex-col items-center gap-3 pt-2 text-center">
+        <span className="flex size-[76px] items-center justify-center rounded-full bg-success text-canvas">
+          <Check size={34} strokeWidth={2.4} aria-hidden />
+        </span>
+        <h2 ref={refTitulo} tabIndex={-1} className="titulo-tema text-[24px] font-medium leading-tight text-ink outline-none">
+          Importação desfeita
+        </h2>
+        <p aria-live="polite" className="-mt-1 text-[15px] text-ink-muted">
+          {removidos === 1 ? "Saiu 1 lançamento." : `Saíram ${removidos} lançamentos.`} O resto ficou.
+        </p>
+        <div className="flex w-full flex-col gap-2 pt-1">
+          <ImportarExtrato fatura={lote.fatura} />
+          <Link href="/inicio" className={CLASSE_TEXTO}>
+            Ir para o início
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <Titulo refTitulo={refTitulo}>{repetido ? "Repetiu na última importação?" : "Desfazer só a última importação?"}</Titulo>
+        <p className="text-[15px] text-ink-muted">Sai só o que veio dela. O resto fica.</p>
+      </div>
+      <div className="flex items-center gap-3 rounded-[22px] bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+          <Icone size={22} strokeWidth={1.8} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <b className="block break-words text-[16px] font-semibold capitalize leading-snug text-ink">{nome || (lote.fatura ? "Fatura" : "Extrato")}</b>
+          <small className="mt-0.5 block text-[13.5px] text-ink-muted">
+            {quando} · {lote.lancamentos === 1 ? "1 lançamento" : `${lote.lancamentos} lançamentos`}
+          </small>
+        </span>
+      </div>
+      {erro && <Erro>{erro}</Erro>}
+      <div className="flex flex-col gap-2.5">
+        <BotaoPrincipal onClick={desfazer} disabled={desfazendo}>
+          <Undo2 size={18} aria-hidden />
+          {desfazendo ? "Desfazendo..." : "Desfazer esta importação"}
+        </BotaoPrincipal>
+        <BotaoContorno onClick={aoSeguir} disabled={desfazendo}>
+          Não, quero limpar
+        </BotaoContorno>
+      </div>
+    </>
   );
 }
 

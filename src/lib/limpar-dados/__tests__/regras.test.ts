@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alternarParte, casalParaRecomecar, comDependencias, comecoParaRecomecar, confirmacaoValida, conexoesDosPerfis, ehEscopoDaLimpeza, lerPartes, PARTES, voltaAoComeco } from "../regras";
+import { alternarParte, caminhoDoMotivo, casalParaRecomecar, comDependencias, comecoParaRecomecar, confirmacaoValida, conexoesDosPerfis, ehEscopoDaLimpeza, lerPartes, ehRespostaDoMotivo, MOTIVOS_DA_LIMPEZA, PARTES, temSaidaMenor, voltaAoComeco } from "../regras";
 
 describe("confirmação digitada", () => {
   it("aceita LIMPAR com qualquer caixa e espaço nas pontas", () => {
@@ -98,5 +98,19 @@ describe("partes da limpeza", () => {
   it("volta ao começo só quando os lançamentos saem", () => {
     expect(voltaAoComeco(["metas", "carteira"])).toBe(false);
     expect(voltaAoComeco(["lancamentos"])).toBe(true);
+  });
+});
+
+describe("Por que está limpando?", () => {
+  it("só as respostas da lista (e o Pular) valem", () => {
+    for (const m of MOTIVOS_DA_LIMPEZA) expect(ehRespostaDoMotivo(m)).toBe(true);
+    expect(ehRespostaDoMotivo("pulou")).toBe(true);
+    expect(ehRespostaDoMotivo("qualquer coisa")).toBe(false);
+    expect(ehRespostaDoMotivo(undefined)).toBe(false);
+    expect(caminhoDoMotivo("repetido")).toBe("/configuracoes/limpar/motivo/repetido");
+  });
+  it("só importei errado e repetido ganham a saída menor", () => {
+    expect(MOTIVOS_DA_LIMPEZA.filter(temSaidaMenor)).toEqual(["importei_errado", "repetido"]);
+    expect(temSaidaMenor("pulou")).toBe(false);
   });
 });

@@ -4,7 +4,22 @@ import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { cabeMaisUmaLimpeza, limparDados, PerfilDeOutraPessoa } from "@/lib/repositories/limpar-dados.repo";
 import { revogarNaPluggy } from "@/lib/pluggy/revogar";
-import { confirmacaoValida, ehEscopoDaLimpeza, lerPartes, PALAVRA_DE_CONFIRMACAO, PARTES, type ContagensDaLimpeza, type EscopoDaLimpeza, type Parte } from "@/lib/limpar-dados/regras";
+import {
+  caminhoDoMotivo,
+  confirmacaoValida,
+  ehEscopoDaLimpeza,
+  ehRespostaDoMotivo,
+  EVENTO_MOTIVO_DA_LIMPEZA,
+  EVENTO_SAIDA_MENOR,
+  lerPartes,
+  PALAVRA_DE_CONFIRMACAO,
+  PARTES,
+  type ContagensDaLimpeza,
+  type EscopoDaLimpeza,
+  type Parte,
+} from "@/lib/limpar-dados/regras";
+import { prisma } from "@/lib/db/prisma";
+import { deleteImportBatchWithEntries } from "@/lib/repositories/import-batch.repo";
 import { exportAssetsCsvAction, exportEntriesCsvAction } from "./actions";
 
 /*
@@ -79,4 +94,43 @@ export async function limparDadosAction(entrada: LimparDadosEntrada): Promise<Li
 export async function copiaAntesDeLimparAction(): Promise<{ lancamentos: string; carteira: string }> {
   const [lancamentos, carteira] = await Promise.all([exportEntriesCsvAction(), exportAssetsCsvAction()]);
   return { lancamentos, carteira };
+}
+
+/**
+ * "Por que está limpando?" (13/10/2026): grava só o código da resposta (ou "pulou") como evento de
+ * uso. Melhor esforço: nunca atrapalha o limpar. Admin navegando não conta (igual ao /api/track).
+ */
+export async function registrarMotivoDaLimpezaAction(resposta: unknown): Promise<void> {
+  if (!ehRespostaDoMotivo(resposta)) return;
+  const ctx = await getRequiredSession();
+  if (ctx.role === "ADMIN") return;
+  try {
+    await prisma.usageEvent.create({ data: { userId: ctx.userId, name: EVENTO_MOTIVO_DA_LIMPEZA, path: caminhoDoMotivo(resposta) } });
+  } catch (err) {
+    console.error("registrarMotivoDaLimpezaAction falhou:", err);
+  }
+}
+
+/**
+ * A saída menor do "Importei errado" e do "Apareceu repetido": desfaz a última importação (o mesmo
+ * "Desfazer" do histórico de importações) em vez de limpar tudo. Só um lote do próprio perfil.
+ */
+export async function desfazerUltimaImportacaoAction(loteId: unknown): Promise<{ ok: true; removidos: number } | { ok: false; erro: string }> {
+  if (typeof loteId !== "string" || loteId.length === 0 || loteId.length > 64) return { ok: false, erro: "Não achei essa importação." };
+  const ctx = await getRequiredSession();
+  const lote = await prisma.importBatch.findFirst({ where: { id: loteId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
+  if (!lote) return { ok: false, erro: "Não achei essa importação." };
+  let removidos: number;
+  try {
+    removidos = await deleteImportBatchWithEntries(ctx, lote.id);
+  } catch (err) {
+    console.error("desfazerUltimaImportacaoAction falhou:", err);
+    return { ok: false, erro: "Não consegui desfazer agora. Nada foi apagado. Tente de novo." };
+  }
+  if (ctx.role !== "ADMIN") {
+    await prisma.usageEvent.create({ data: { userId: ctx.userId, name: EVENTO_SAIDA_MENOR, path: "/configuracoes/limpar/desfez-importacao" } }).catch(() => undefined);
+  }
+  revalidatePath("/", "layout");
+  for (const tela of TELAS) revalidatePath(tela);
+  return { ok: true, removidos };
 }
