@@ -17,6 +17,11 @@ import { estadoDoMes, vozDoTema } from "@/lib/profiles/voice";
 import { ThemeFooter } from "./ThemeFooter";
 import { PrimeiroPassoDoMes } from "./PrimeiroPassoDoMes";
 import { prisma } from "@/lib/db/prisma";
+import { nowInBrazil } from "@/lib/date/brazil-now";
+import { ehFuturo, mesDeAgora } from "@/lib/visao-geral/periodo";
+import { carregarMesesPrevistos } from "@/lib/repositories/previsao.repo";
+import { serverMoney } from "@/lib/money-server";
+import { MesPrevistoNaTela } from "@/components/previsao/MesesPrevistos";
 
 
 export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]">) {
@@ -30,6 +35,12 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   }
 
   const ctx = await getRequiredSession();
+  // Mês que ainda não chegou (voltou em 14/10/2026): em cima, o previsto (parcelas, contas,
+  // assinaturas); embaixo, o que já foi lançado para ele (conta que repete, parcela projetada).
+  const agora = nowInBrazil();
+  const futuro = ehFuturo({ ano: year, mes: month }, agora);
+  const previsto = futuro ? (await carregarMesesPrevistos(ctx, mesDeAgora(agora), { ano: year, mes: month }, 1))[0] : null;
+  const moneyP = previsto ? await serverMoney() : null;
   const ocultos = await valoresOcultos();
   // Só o que a lista precisa (a tela antiga também calculava gráficos, DRE e comparações que
   // saíram daqui): menos consultas, a aba abre mais rápido.
@@ -49,7 +60,7 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const contaNova =
     entries.length === 0 &&
     !(await prisma.monthlyEntry.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } }));
-  if (contaNova) {
+  if (contaNova && !previsto) {
     const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
     return (
       <PrimeiroPassoDoMes titulo={t.uiMesNovoTitulo} texto={t.uiMesNovoTexto} importar="Extrato ou fatura" />
@@ -68,8 +79,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
           abaixo das abas; aqui fica só a lista. Os números e gráficos do mês saíram (o Resumo e o
           Orçamento já mostram o mês). */}
 
+      {previsto && moneyP && <MesPrevistoNaTela m={previsto} money={(v) => moneyP(v, { round: true })} />}
       <CartaoAReceber aReceber={divisao.aReceber} />
-      {entries.length === 0 ? (
+      {entries.length === 0 && previsto ? null : entries.length === 0 ? (
         <VazioDeTransacoes />
       ) : (
         <EntryList

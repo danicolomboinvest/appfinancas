@@ -16,13 +16,19 @@ const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julh
 const CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 /** Quantos meses para trás a folha oferece. */
 export const MESES_NA_FOLHA = 12;
+/**
+ * Quantos meses À FRENTE dá para abrir (14/10/2026). A versão nova de 11/10 travou o seletor no mês
+ * de agora e tirou a tela do ano: sumiu o "ver os próximos meses" com parcelas, contas e
+ * assinaturas previstas, e virou motivo de reembolso. Volta, marcado como previsto.
+ */
+export const MESES_A_FRENTE = 6;
 
 const indice = (m: MesDoPeriodo) => m.ano * 12 + (m.mes - 1);
 const doIndice = (i: number): MesDoPeriodo => ({ ano: Math.floor(i / 12), mes: (i % 12) + 1 });
 export const mesDeAgora = (agora: Date): MesDoPeriodo => ({ ano: agora.getFullYear(), mes: agora.getMonth() + 1 });
 export const mesmoMes = (a: MesDoPeriodo, b: MesDoPeriodo) => a.ano === b.ano && a.mes === b.mes;
 
-/** "2026-09" → setembro de 2026. Inválido, no futuro ou antes de 2000: o mês de agora. */
+/** "2026-09" → setembro de 2026. Inválido, além de MESES_A_FRENTE ou antes de 2000: o mês de agora. */
 export function lerMesEscolhido(valor: string | string[] | undefined | null, agora: Date): MesDoPeriodo {
   const atual = mesDeAgora(agora);
   const texto = Array.isArray(valor) ? valor[0] : valor;
@@ -30,8 +36,11 @@ export function lerMesEscolhido(valor: string | string[] | undefined | null, ago
   if (!m) return atual;
   const escolhido = { ano: Number(m[1]), mes: Number(m[2]) };
   if (escolhido.mes < 1 || escolhido.mes > 12 || escolhido.ano < 2000) return atual;
-  return indice(escolhido) > indice(atual) ? atual : escolhido;
+  return indice(escolhido) > indice(atual) + MESES_A_FRENTE ? atual : escolhido;
 }
+
+/** O mês ainda não chegou: tudo nele é previsto (parcelas, contas, assinaturas). */
+export const ehFuturo = (m: MesDoPeriodo, agora: Date) => indice(m) > indice(mesDeAgora(agora));
 
 export const paraParametro = (m: MesDoPeriodo) => `${m.ano}-${String(m.mes).padStart(2, "0")}`;
 
@@ -44,14 +53,16 @@ export function rotuloDoPeriodo(m: MesDoPeriodo, agora: Date): { nome: string; s
     return { nome: "Esse mês", sub: dia === 1 ? `1 ${CURTO[m.mes - 1]}` : `1 a ${dia} ${CURTO[m.mes - 1]}` };
   }
   if (indice(m) === indice(atual) - 1) return { nome: "Mês passado", sub: `${CURTO[m.mes - 1]} ${m.ano}` };
+  if (indice(m) === indice(atual) + 1) return { nome: "Mês que vem", sub: `previsto · ${CURTO[m.mes - 1]}` };
+  if (indice(m) > indice(atual)) return { nome: nomeDoMes, sub: `previsto · ${m.ano}` };
   return { nome: nomeDoMes, sub: String(m.ano) };
 }
 
-/** O mês ao lado (−1 ou +1), ou nulo se passaria do mês de agora ou do limite da folha. */
+/** O mês ao lado (−1 ou +1), ou nulo se passaria de MESES_A_FRENTE ou do limite da folha. */
 export function mesAoLado(m: MesDoPeriodo, passo: -1 | 1, agora: Date): MesDoPeriodo | null {
   const alvo = indice(m) + passo;
   const atual = indice(mesDeAgora(agora));
-  if (alvo > atual || alvo < atual - (MESES_NA_FOLHA - 1)) return null;
+  if (alvo > atual + MESES_A_FRENTE || alvo < atual - (MESES_NA_FOLHA - 1)) return null;
   return doIndice(alvo);
 }
 

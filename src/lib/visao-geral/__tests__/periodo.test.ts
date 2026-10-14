@@ -4,9 +4,12 @@ import { hrefDoMes, lerMesEscolhido, mesAoLado, mesesDaFolha, periodoDaRota, rot
 const agora = new Date(2026, 9, 11, 10); // 11 de outubro de 2026
 
 describe("seletor de mês da Visão geral", () => {
-  it("lê o mês da URL; inválido ou no futuro volta para o mês de agora", () => {
+  it("lê o mês da URL; inválido ou além de 6 meses à frente volta para o mês de agora", () => {
     expect(lerMesEscolhido("2026-09", agora)).toEqual({ ano: 2026, mes: 9 });
-    expect(lerMesEscolhido("2026-11", agora)).toEqual({ ano: 2026, mes: 10 });
+    // Os próximos meses voltaram (14/10/2026): até 6 à frente, como previstos.
+    expect(lerMesEscolhido("2026-11", agora)).toEqual({ ano: 2026, mes: 11 });
+    expect(lerMesEscolhido("2027-04", agora)).toEqual({ ano: 2027, mes: 4 });
+    expect(lerMesEscolhido("2027-05", agora)).toEqual({ ano: 2026, mes: 10 });
     expect(lerMesEscolhido("abc", agora)).toEqual({ ano: 2026, mes: 10 });
     expect(lerMesEscolhido(undefined, agora)).toEqual({ ano: 2026, mes: 10 });
   });
@@ -15,10 +18,14 @@ describe("seletor de mês da Visão geral", () => {
     expect(rotuloDoPeriodo({ ano: 2026, mes: 10 }, agora)).toEqual({ nome: "Esse mês", sub: "1 a 11 out" });
     expect(rotuloDoPeriodo({ ano: 2026, mes: 9 }, agora)).toEqual({ nome: "Mês passado", sub: "set 2026" });
     expect(rotuloDoPeriodo({ ano: 2026, mes: 3 }, agora)).toEqual({ nome: "Março", sub: "2026" });
+    expect(rotuloDoPeriodo({ ano: 2026, mes: 11 }, agora)).toEqual({ nome: "Mês que vem", sub: "previsto · nov" });
+    expect(rotuloDoPeriodo({ ano: 2027, mes: 1 }, agora)).toEqual({ nome: "Janeiro", sub: "previsto · 2027" });
   });
 
-  it("as setas param no mês de agora e no limite da folha", () => {
-    expect(mesAoLado({ ano: 2026, mes: 10 }, 1, agora)).toBeNull();
+  it("as setas vão até 6 meses à frente e param no limite da folha", () => {
+    expect(mesAoLado({ ano: 2026, mes: 10 }, 1, agora)).toEqual({ ano: 2026, mes: 11 });
+    expect(mesAoLado({ ano: 2027, mes: 3 }, 1, agora)).toEqual({ ano: 2027, mes: 4 });
+    expect(mesAoLado({ ano: 2027, mes: 4 }, 1, agora)).toBeNull();
     expect(mesAoLado({ ano: 2026, mes: 10 }, -1, agora)).toEqual({ ano: 2026, mes: 9 });
     expect(mesAoLado({ ano: 2026, mes: 1 }, -1, agora)).toEqual({ ano: 2025, mes: 12 });
     const folha = mesesDaFolha(agora);

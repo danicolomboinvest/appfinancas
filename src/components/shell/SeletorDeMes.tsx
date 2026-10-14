@@ -49,6 +49,7 @@ export function SeletorDeMes() {
   const apagada = "flex size-11 shrink-0 items-center justify-center rounded-full text-ink-faint opacity-40 shadow-[inset_0_0_0_1px_var(--color-border)]";
   const esse = mesDeAgora(agora);
   const passado = mesAoLado(esse, -1, agora);
+  const queVem = mesAoLado(esse, 1, agora);
 
   const ir = (href: string) => {
     setFolha(false);
@@ -59,6 +60,8 @@ export function SeletorDeMes() {
     { chave: "mes", nome: "Esse mês", on: !!mes && mesmoMes(mes, esse), href: hrefDoMes(aba, esse, agora) },
     { chave: "7d", nome: "Últimos 7 dias", on: intervalo?.tipo === "7d", href: hrefDoIntervalo(aba, intervaloDoTipo("7d", agora)) },
     { chave: "passado", nome: "Mês passado", on: !!mes && !!passado && mesmoMes(mes, passado), href: passado ? hrefDoMes(aba, passado, agora) : hrefDoMes(aba, esse, agora) },
+    // Os próximos meses voltaram (14/10/2026): o que já está previsto (parcelas, contas, assinaturas).
+    ...(queVem ? [{ chave: "que-vem", nome: "Mês que vem", on: !!mes && mesmoMes(mes, queVem), href: hrefDoMes(aba, queVem, agora) }] : []),
     { chave: "tri", nome: "Esse trimestre", on: intervalo?.tipo === "tri", href: hrefDoIntervalo(aba, intervaloDoTipo("tri", agora)) },
     { chave: "tri-ant", nome: "Trimestre passado", on: intervalo?.tipo === "tri-ant", href: hrefDoIntervalo(aba, intervaloDoTipo("tri-ant", agora)) },
     { chave: "ano", nome: "Esse ano", on: intervalo?.tipo === "ano", href: hrefDoIntervalo(aba, intervaloDoTipo("ano", agora)) },
