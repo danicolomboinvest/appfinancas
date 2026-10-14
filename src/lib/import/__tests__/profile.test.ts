@@ -117,3 +117,32 @@ describe("extrato com data de um dígito (Banco Inter)", () => {
     expect(p.contents).not.toContain("position");
   });
 });
+
+describe("Relatório de Performance de investimentos (BTG)", () => {
+  // Amostra inventada: só a forma do arquivo, sem nome nem número reais.
+  const RELATORIO = [
+    "Relatório",
+    "de Performance",
+    "Informações detalhadas sobre investimentos e",
+    "evolução de patrimônio",
+    "BTG Pactual",
+    "Patrimônio",
+    "R$ 100.000,00",
+    "Rentabilidade",
+    "Mês \t1.000,00 \t1,00 \t1,00",
+    "FII Exemplo: R$ 25.000,00",
+    "CRI Exemplo: R$ 30.000,00",
+    "Total: R$ 55.000,00",
+  ].join("\n");
+
+  it("é posição de investimentos, não fatura nem extrato", () => {
+    const p = profileDocument(RELATORIO);
+    expect(p.kind).toBe("position");
+    expect(p.contents).not.toContain("movements");
+  });
+
+  it("um extrato comum do BTG continua extrato", () => {
+    const extrato = ["Extrato da conta corrente BTG Pactual", "05/10/2026 Pix recebido Fulana Exemplo R$ 100,00", "06/10/2026 Pix enviado Beltrano Exemplo -R$ 50,00", "07/10/2026 Pix enviado Ciclano Exemplo -R$ 20,00"].join("\n");
+    expect(profileDocument(extrato).kind).toBe("statement");
+  });
+});
