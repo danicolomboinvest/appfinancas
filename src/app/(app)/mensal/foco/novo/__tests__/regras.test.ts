@@ -76,6 +76,17 @@ describe("Qual número vai no topo, caso a caso", () => {
     expect(porcentagemQueFicou(5480, 610)).toBe(11);
     expect(porcentagemQueFicou(0, 0)).toBeNull();
   });
+
+  it("dias 1 a 7 com o mês passado só com a fatura (entrou 0): nunca 'saiu a mais do que entrou'", () => {
+    const e = { ...base, dia: 3, atual: { ...SEM, gastos: 300 }, passado: { ...SEM, gastos: 2140, fatura: true }, mesesComDado: 2 };
+    expect(escolherCaso(e)).toBe("dia-a-dia");
+    const vazio = { ...base, dia: 3, passado: { ...SEM, gastos: 2140, fatura: true }, mesesComDado: 2, ultimoArquivo: { mes: SET, extrato: false, fatura: true } };
+    expect(escolherCaso(vazio)).toBe("fatura");
+  });
+
+  it("com resgate o que ficou passa do que entrou: sem porcentagem (nunca 133%)", () => {
+    expect(porcentagemQueFicou(3000, 4000)).toBeNull();
+  });
 });
 
 describe("Comparação até o mesmo dia", () => {
@@ -120,6 +131,17 @@ describe("Comparação até o mesmo dia", () => {
     expect(m.map((c) => c.categoria)).toEqual(["LAZER", "ALIMENTACAO"]);
     expect(m[0]).toMatchObject({ atual: 50, passado: 0, diferenca: 50, compras: 1 });
     expect(m[1]).toMatchObject({ atual: 100, passado: 80, diferenca: 20 });
+  });
+
+  it("estorno baixa o valor, mas não conta como compra", () => {
+    const m = categoriasQueMudaram(
+      [{ valor: 100, dia: 2, categoria: "LAZER" }, { valor: -40, dia: 3, categoria: "LAZER" }],
+      [],
+      12,
+      12,
+      new Set(),
+    );
+    expect(m[0]).toMatchObject({ atual: 60, compras: 1 });
   });
 
   it("direção: a mais, a menos, igual", () => {

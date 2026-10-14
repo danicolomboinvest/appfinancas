@@ -68,10 +68,10 @@ function Curva({ atual, passado, dias, mes, mesPassado }: { atual: number[]; pas
           <i className="h-[3px] w-4 rounded-full" style={{ background: "var(--r-linha)" }} aria-hidden />
           {Nome(mes)}
         </span>
-        <span className="inline-flex items-center gap-1.5">
+        {passado.length > 0 && <span className="inline-flex items-center gap-1.5">
           <i className="h-0 w-4 border-t-2 border-dashed" style={{ borderColor: "var(--r-linha)", opacity: 0.7 }} aria-hidden />
           {Nome(mesPassado)}, tracejado
-        </span>
+        </span>}
       </div>
     </div>
   );
@@ -96,7 +96,9 @@ export function HeroiDoDiaADia({ h, mes, passado, money, cor }: { h: HeroiDiaADi
       <Numero texto={money(c.atual)} />
       <Sub>
         saíram.{" "}
-        {d === "igual" ? (
+        {h.passadoVazio ? (
+          <>Nada em {nome(passado)} para comparar.</>
+        ) : d === "igual" ? (
           <>O mesmo que {nome(passado)} até {dd(c.cortePassado)}/{dd(passado.mes)}.</>
         ) : (
           <>
@@ -107,7 +109,7 @@ export function HeroiDoDiaADia({ h, mes, passado, money, cor }: { h: HeroiDiaADi
           </>
         )}
       </Sub>
-      <Curva atual={h.curvaAtual} passado={h.curvaPassado} dias={h.diasDoMes} mes={mes} mesPassado={passado} />
+      <Curva atual={h.curvaAtual} passado={h.passadoVazio ? [] : h.curvaPassado} dias={h.diasDoMes} mes={mes} mesPassado={passado} />
       {(fp || h.guardadoNoAno) && (
         <div className="grid grid-cols-2 gap-2">
           {fp &&
@@ -123,7 +125,7 @@ export function HeroiDoDiaADia({ h, mes, passado, money, cor }: { h: HeroiDiaADi
                 </span>
               ),
             )}
-          {h.guardadoNoAno && quadrinho(`Guardado em ${mes.ano}`, money(h.guardadoNoAno.valor), h.guardadoNoAno.pct !== null ? `${h.guardadoNoAno.pct}% do que entrou` : " ")}
+          {h.guardadoNoAno && quadrinho(`Guardado em ${mes.ano}`, money(h.guardadoNoAno.valor), h.guardadoNoAno.pct !== null ? (h.guardadoNoAno.pct < 1 ? "menos de 1% do que entrou" : `${h.guardadoNoAno.pct}% do que entrou`) : " ")}
         </div>
       )}
     </CaixaDoHeroi>

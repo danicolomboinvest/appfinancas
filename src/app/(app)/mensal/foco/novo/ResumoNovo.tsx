@@ -231,7 +231,7 @@ function ParaOndeFoi({ r, money }: { r: Dados; money: (v: number) => string }) {
   const proximo = (m: Mes) => MESES[m.mes % 12];
   return (
     <section className="flex flex-col gap-2.5" data-para-onde-foi>
-      <h2 className="px-1 text-base font-semibold text-ink">{p.cartao ? `Os ${p.paraOndeFoi.length} maiores` : "Para onde foi"}</h2>
+      <h2 className="px-1 text-base font-semibold text-ink">{p.cartao ? (p.paraOndeFoi.length === 1 ? "O maior" : `Os ${p.paraOndeFoi.length} maiores`) : "Para onde foi"}</h2>
       <Card className="flex flex-col p-1.5">
         {p.faturaUmGasto && linha("fatura", redondo(CreditCard), "Fatura do cartão", "um valor só, por enquanto", money(p.faturaUmGasto))}
         {p.paraOndeFoi.map((c) => linha(c.chave, <IconeDa c={c} />, c.nome, p.cartao ? `${c.compras === 1 ? "1 compra" : `${c.compras} compras`} · ${c.pct}%` : `${c.compras === 1 ? "1 compra" : `${c.compras} compras`}`, money(c.valor)))}
