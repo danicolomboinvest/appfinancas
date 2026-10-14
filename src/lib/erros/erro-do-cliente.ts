@@ -4,9 +4,11 @@
  * nascia e morria no celular. Agora cada um vai para o mesmo AppError do servidor, marcado como
  * "client", com onde aconteceu e a mensagem (nunca o conteúdo do arquivo, valores ou nomes).
  */
+import { tratarErroDeVersao } from "./versao-nova";
+
 export type ErroDoCliente = { onde: string; mensagem: string; rota: string };
 
-const ONDES = new Set(["importar-ler", "importar-gravar", "lancar", "voz", "janela", "promessa", "comeco-arquivo"]);
+const ONDES = new Set(["importar-ler", "importar-print", "importar-gravar", "lancar", "voz", "janela", "promessa", "comeco-arquivo"]);
 
 /** Monta o que vai para o servidor, já cortado e sem nada que identifique a pessoa. */
 export function montarErroDoCliente(onde: string, erro: unknown, rota: string): ErroDoCliente {
@@ -19,8 +21,12 @@ export function montarErroDoCliente(onde: string, erro: unknown, rota: string): 
   return { onde: ONDES.has(onde) ? onde : "outro", mensagem, rota: rota.split(/[?#]/)[0].slice(0, 200) || "/" };
 }
 
-/** Manda sem esperar e sem nunca virar outro erro. */
+/**
+ * Manda sem esperar e sem nunca virar outro erro. Também é o ponto central da versão nova
+ * (13/10/2026): se o erro veio de o app ter sido atualizado com a tela aberta, avisa e recarrega.
+ */
 export function registrarErroNoCliente(onde: string, erro: unknown): void {
+  void tratarErroDeVersao(erro);
   try {
     if (typeof window === "undefined") return;
     const corpo = montarErroDoCliente(onde, erro, window.location.pathname);
@@ -30,15 +36,6 @@ export function registrarErroNoCliente(onde: string, erro: unknown): void {
   }
 }
 
-/**
- * Foi a internet mesmo? (12/10/2026) Só quando o aparelho diz que está sem rede ou o envio nem
- * saiu ("Failed to fetch", "Load failed", "NetworkError"). Qualquer outra falha é nossa, e dizer
- * "confira a internet" mandava a cliente procurar o problema no lugar errado.
- */
-export function ehFalhaDeRede(erro: unknown, online: boolean | undefined = typeof navigator !== "undefined" ? navigator.onLine : undefined): boolean {
-  if (online === false) return true;
-  const texto = erro instanceof Error ? `${erro.name} ${erro.message}` : String(erro ?? "");
-  return /failed to fetch|load failed|networkerror|network request failed|internet connection appears to be offline|err_internet_disconnected/i.test(texto);
-}
+export { ehFalhaDeRede } from "./rede";
 
 export const MSG_FALHA_NOSSA = "Algo deu errado do nosso lado. Já ficou registrado: tente de novo em alguns minutos, e se continuar, fale com a gente.";

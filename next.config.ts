@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Versão deste build (13/10/2026). O aparelho guarda a dele e, quando uma ação falha sem dizer
+  // por quê, pergunta a do servidor (/api/versao): se mudou, o app foi atualizado com a tela aberta
+  // e recarrega sozinho (src/lib/erros/versao-nova.ts). Vazio fora da Vercel: aí nunca recarrega.
+  // O deploymentId NÃO é definido aqui: com o Skew Protection ligado, a Vercel preenche o
+  // NEXT_DEPLOYMENT_ID sozinha, e o Next usa esse para manter cada aparelho na versão dele.
+  env: {
+    NEXT_PUBLIC_VERSAO_DO_APP: process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || "",
+  },
+
   // pdf-parse/pdfjs carregam um worker por caminho relativo em runtime — se o Turbopack
   // empacota, o worker some ("Cannot find module pdf.worker.mjs"). Externalizar mantém o
   // require nativo do Node, onde o worker resolve normalmente.
