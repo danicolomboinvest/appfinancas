@@ -39,7 +39,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { trackEvent } from "@/lib/usage/track-event";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
-import { categoryIcon, categoryLabel } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoriaOculta, categoryIcon, categoryLabel } from "@/lib/categories";
 import { profileTheme, profileThemeCss } from "@/lib/profiles/themes";
 import { CURRENCIES, CURRENCY_CODES, type CurrencyCode } from "@/lib/money";
 import {
@@ -1113,7 +1113,13 @@ function Digitar({ money, onLancado, onFalar }: { money: Money; onLancado: (linh
 
 function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: (linha: string) => void; onDigitar: () => void }) {
   const { categorias } = useProfileTheme();
-  const [entendi, setEntendi] = useState<ParsedVoiceEntry | null>(null);
+  const [entendi, setEntendiCru] = useState<ParsedVoiceEntry | null>(null);
+  // A categoria que o motor sugeriu já vem marcada; ela troca tocando em outra.
+  const [mae, setMae] = useState<ParentCategory | null>(null);
+  const setEntendi = (e: ParsedVoiceEntry | null) => {
+    setEntendiCru(e);
+    setMae(e?.category === "EXPENSE" ? e.parentCategory : null);
+  };
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, startSalvar] = useTransition();
   const confirmar = () =>
@@ -1124,15 +1130,16 @@ function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: (linh
         valor: entendi.amount,
         descricao: entendi.description || "Gasto",
         categoria: entendi.category,
-        parentCategory: entendi.parentCategory,
+        parentCategory: mae,
+        sub: mae && mae === entendi.parentCategory ? entendi.subcategory : null,
         como: "falado",
       });
       if (!r.ok) return setErro(r.erro);
       trackEvent("registro_voz", "/comecar/falar");
-      const onde = entendi.parentCategory ? categoryLabel(categorias, entendi.parentCategory) : entendi.description || "Outros";
+      const onde = mae ? categoryLabel(categorias, mae) : entendi.description || "Outros";
       onLancado(`${valorCurto(money, entendi.amount)} em ${onde}, hoje`);
     });
-  const iconeDaFala = entendi?.parentCategory ? categoryIcon(categorias, entendi.parentCategory) : Wallet;
+  const iconeDaFala = mae ? categoryIcon(categorias, mae) : Wallet;
   return (
     <>
       <Titulo centro>Falar</Titulo>
@@ -1145,10 +1152,19 @@ function Falar({ money, onLancado, onDigitar }: { money: Money; onLancado: (linh
             <LogoDoLancamento descricao={entendi.description} icon={iconeDaFala} size={40} />
             <span className="flex min-w-0 flex-col">
               <b className="truncate text-[15px] font-semibold">{entendi.description || "Gasto"}</b>
-              <small className="text-[12.5px] font-medium text-ink-muted">{entendi.parentCategory ? `${categoryLabel(categorias, entendi.parentCategory)} · Hoje` : "Hoje"}</small>
+              <small className="text-[12.5px] font-medium text-ink-muted">{mae ? `${categoryLabel(categorias, mae)} · Hoje` : "Hoje"}</small>
             </span>
             <em className="whitespace-nowrap text-[15px] font-medium not-italic tabular-nums">{entendi.amount ? money(entendi.amount) : "sem valor"}</em>
           </div>
+          {entendi.category === "EXPENSE" && (
+            <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Categoria">
+              {PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc)).map((pc) => (
+                <Pilula key={pc} ativa={mae === pc} onClick={() => setMae(pc)}>
+                  {categoryLabel(categorias, pc)}
+                </Pilula>
+              ))}
+            </div>
+          )}
           {!entendi.amount && <Nota centro>Não ouvi o valor. Fale de novo com o número, ou digite.</Nota>}
           {erro && <p className="text-center text-sm text-danger">{erro}</p>}
           <Pe>

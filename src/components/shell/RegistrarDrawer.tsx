@@ -199,23 +199,31 @@ export function RegistrarDrawer({
           customCategories={customCategories}
           goals={goals}
           onSuccess={onClose}
-          inicial={
-            parsed
-              ? {
-                  valor: parsed.amount ?? undefined,
-                  tipo: parsed.category,
-                  categoria: parsed.parentCategory ?? undefined,
-                  subcategoria: voiceSubcategory(parsed, kind),
-                  descricao: voiceSubcategory(parsed, kind) ? undefined : parsed.description,
-                  moeda: parsed.currency ?? undefined,
-                }
-              : undefined
-          }
+          inicial={parsed ? inicialDaVoz(parsed, kind) : undefined}
         />
       )}
       </div>
     </Modal>
   );
+}
+
+/**
+ * O que ela falou, já preenchido no Digitar (14/10/2026): no gasto, a categoria que o motor da
+ * importação achou vem marcada (a que ela criou, ou a padrão com a subcategoria) e a descrição é
+ * a frase limpa ("Posto"); ela troca se quiser. Sem categoria reconhecida, fica sem marcar.
+ */
+function inicialDaVoz(parsed: ParsedVoiceEntry, kind: ProfileKind) {
+  const base = { valor: parsed.amount ?? undefined, tipo: parsed.category, moeda: parsed.currency ?? undefined };
+  if (parsed.category === "EXPENSE") {
+    return {
+      ...base,
+      categoria: parsed.customCategoryId ?? parsed.parentCategory ?? undefined,
+      subcategoria: parsed.customCategoryId ? undefined : (parsed.subcategory ?? undefined),
+      descricao: parsed.description || undefined,
+    };
+  }
+  const tipoLivre = voiceSubcategory(parsed, kind);
+  return { ...base, subcategoria: tipoLivre, descricao: tipoLivre ? undefined : parsed.description || undefined };
 }
 
 /**

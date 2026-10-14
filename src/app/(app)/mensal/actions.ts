@@ -6,6 +6,8 @@ import { listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
+import { listTransactionRules } from "@/lib/repositories/transaction-rule.repo";
+import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
 
 export async function getRecentSubcategoriesAction(): Promise<Record<ParentCategory, string[]>> {
   const ctx = await getRequiredSession();
@@ -31,4 +33,25 @@ export async function getOtherProfilesAction(): Promise<{ id: string; name: stri
   const profiles = await listProfiles(ctx.userId);
   // O tipo diz como cada categoria se chama lá (na Empresa, ALIMENTACAO é "Mercadorias e insumos").
   return profiles.filter((p) => p.id !== ctx.profileId).map((p) => ({ id: p.id, name: p.name, kind: p.kind }));
+}
+
+/**
+ * O que ela falou, entendido com as regras DELA (14/10/2026): o mesmo motor da importação, com as
+ * correções que ela já ensinou e as categorias que ela criou. As regras não saem do servidor; o
+ * aparelho só recebe a resposta.
+ */
+export async function entenderFalaAction(transcricao: string): Promise<ParsedVoiceEntry> {
+  const texto = String(transcricao ?? "").slice(0, 300);
+  const ctx = await getRequiredSession();
+  const [regras, personalizadas] = await Promise.all([listTransactionRules(ctx), listCustomCategories(ctx)]);
+  return parseVoiceEntry(texto, {
+    profileKind: ctx.profileKind,
+    regras: regras.map((r) => ({
+      pattern: r.pattern,
+      parentCategory: r.parentCategory,
+      subcategory: r.subcategory ?? undefined,
+      customCategoryId: r.customCategoryId ?? undefined,
+    })),
+    personalizadas: personalizadas.map((c) => ({ id: c.id, name: c.name })),
+  });
 }

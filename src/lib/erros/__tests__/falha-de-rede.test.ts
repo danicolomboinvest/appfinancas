@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ehFalhaDeRede } from "../erro-do-cliente";
+// O gravador chama a ação do servidor que entende a frase (14/10/2026); aqui só o texto importa.
+vi.mock("@/app/(app)/mensal/actions", () => ({ entenderFalaAction: vi.fn() }));
 import { joinFinalTranscript } from "@/app/(app)/mensal/VoiceRecorder";
 
 describe("só culpa a internet quando foi a internet", () => {

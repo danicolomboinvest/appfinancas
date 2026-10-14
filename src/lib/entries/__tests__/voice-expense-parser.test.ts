@@ -60,9 +60,10 @@ describe("parseVoiceEntry", () => {
     expect(result.amount).toBe(1200);
   });
 
-  it("falls back the description to the raw text when no category matches", () => {
+  it("cleans the description even when no category matches", () => {
     const result = parseVoiceEntry("gastei 30 reais com uma coisa qualquer");
-    expect(result.description).toBe("gastei 30 reais com uma coisa qualquer");
+    expect(result.description).toBe("Coisa qualquer");
+    expect(result.parentCategory).toBeNull();
   });
   // O caso que a Dani gravou: "acabei de receber 4 mil reais" virava um GASTO de R$ 4,00 —
   // dois erros no mesmo áudio (o verbo no infinitivo e o "mil" solto).
@@ -166,5 +167,74 @@ describe("voz com shekel (cliente em Israel, 12/10/2026)", () => {
   it("continua entendendo dólar e euro", () => {
     expect(parseVoiceEntry("gastei 30 dólares no uber")).toMatchObject({ amount: 30, currency: "USD" });
     expect(parseVoiceEntry("paguei 2 mil euros de aluguel")).toMatchObject({ amount: 2000, currency: "EUR" });
+  });
+});
+
+describe("a voz usa o motor da importação (14/10/2026)", () => {
+  it("o caso da Dani: posto é Combustível, com a descrição limpa", () => {
+    expect(parseVoiceEntry("gastei 300 reais com posto")).toMatchObject({
+      category: "EXPENSE",
+      parentCategory: "TRANSPORTE",
+      subcategory: "Combustível",
+      amount: 300,
+      description: "Posto",
+    });
+  });
+
+  it.each([
+    ["paguei 45 no ifood", "ALIMENTACAO", "Delivery", "iFood"],
+    ["50 reais de remédio", "SAUDE", "Farmácia", "Remédio"],
+    ["paguei 20 no uber", "TRANSPORTE", "Aplicativo", "Uber"],
+    ["gastei 120 reais no almoço no Coco Bambu", "ALIMENTACAO", "Restaurante", "Almoço no Coco Bambu"],
+    ["gastei 70 reais na janta", "ALIMENTACAO", "Restaurante", "Janta"],
+  ])("%j → %s › %s, descrição %j", (frase, mae, sub, descricao) => {
+    expect(parseVoiceEntry(frase)).toMatchObject({ parentCategory: mae, subcategory: sub, description: descricao });
+  });
+
+  it("roupa vai para a categoria Cuidado pessoal dela, ou Outros › Cuidado pessoal sem ela", () => {
+    expect(parseVoiceEntry("comprei uma blusa na zara 199")).toMatchObject({
+      parentCategory: "OUTROS",
+      subcategory: "Cuidado pessoal",
+      customCategoryId: null,
+      amount: 199,
+    });
+    const dela = parseVoiceEntry("comprei uma blusa na zara 199", { personalizadas: [{ id: "cp", name: "Beleza" }] });
+    expect(dela).toMatchObject({ parentCategory: null, customCategoryId: "cp", amount: 199 });
+  });
+
+  it("não chuta: o que o motor não conhece fica sem categoria", () => {
+    expect(parseVoiceEntry("gastei 80 reais com o fulano")).toMatchObject({ parentCategory: null, subcategory: null, customCategoryId: null });
+  });
+
+  it("a regra que ela ensinou vence o dicionário", () => {
+    const regras = [{ pattern: "coco bambu", parentCategory: "LAZER" as const, subcategory: "Passeios" }];
+    expect(parseVoiceEntry("gastei 120 reais no almoço no Coco Bambu", { regras })).toMatchObject({ parentCategory: "LAZER", subcategory: "Passeios" });
+    const propria = [{ pattern: "shell", parentCategory: "OUTROS" as const, customCategoryId: "carro" }];
+    expect(parseVoiceEntry("gastei 300 reais no shell", { regras: propria, personalizadas: [{ id: "carro", name: "Carro" }] })).toMatchObject({
+      parentCategory: null,
+      customCategoryId: "carro",
+    });
+  });
+
+  it("o nome da categoria que ela criou, dito na frase, escolhe essa categoria", () => {
+    expect(parseVoiceEntry("gastei 60 no pet", { personalizadas: [{ id: "pet", name: "Pet" }] })).toMatchObject({ customCategoryId: "pet", description: "Pet" });
+  });
+
+  it("as moedas continuam, e a descrição fica sem elas", () => {
+    expect(parseVoiceEntry("gastei 80 sheqel no uber")).toMatchObject({ amount: 80, currency: "ILS", parentCategory: "TRANSPORTE", description: "Uber" });
+    expect(parseVoiceEntry("AR$ 1200 de taxi")).toMatchObject({ amount: 1200, currency: "ARS", parentCategory: "TRANSPORTE", description: "Táxi" });
+    expect(parseVoiceEntry("gastei 500 pesos argentinos no mercado")).toMatchObject({ amount: 500, currency: "ARS", parentCategory: "ALIMENTACAO", description: "Mercado" });
+    expect(parseVoiceEntry("gastei € 2.000 no hotel")).toMatchObject({ amount: 2000, currency: "EUR", parentCategory: "LAZER", description: "Hotel" });
+    expect(parseVoiceEntry("paguei 30 dólares no uber")).toMatchObject({ currency: "USD", description: "Uber" });
+  });
+
+  it("frase só com verbo e valor fica sem descrição", () => {
+    expect(parseVoiceEntry("gastei 300 reais").description).toBe("");
+    expect(parseVoiceEntry("gastei quinhentos reais").description).toBe("");
+    expect(parseVoiceEntry("gastei 4 mil e quinhentos reais no aluguel").description).toBe("Aluguel");
+  });
+
+  it("o app 99 não some como se fosse valor", () => {
+    expect(parseVoiceEntry("paguei 15 no 99")).toMatchObject({ amount: 15, parentCategory: "TRANSPORTE", subcategory: "Aplicativo", description: "99" });
   });
 });

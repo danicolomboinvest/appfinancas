@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
 import { Mic } from "lucide-react";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
+import { entenderFalaAction } from "./actions";
 import { ondaPodeAbrirMicrofone } from "@/lib/entries/onda-do-microfone";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Titulos } from "@/lib/profiles/voice";
@@ -127,6 +128,22 @@ function runVisualizerLoop(
   }
 
   rafHolder.id = requestAnimationFrame(() => runVisualizerLoop(analyser, levels, barEls, timerEl, startedAt, rafHolder));
+}
+
+/**
+ * A frase entendida no servidor, com as regras e as categorias DELA (o mesmo motor da importação).
+ * Sem internet, ou se o servidor demorar, o aparelho entende sozinho (dicionário e palavras
+ * faladas, sem as regras dela): o lançamento nunca fica parado esperando.
+ */
+async function entender(transcricao: string): Promise<ParsedVoiceEntry> {
+  const local = () => parseVoiceEntry(transcricao);
+  try {
+    const espera = new Promise<null>((r) => setTimeout(() => r(null), 3000));
+    return (await Promise.race([entenderFalaAction(transcricao), espera])) ?? local();
+  } catch (err) {
+    registrarErroNoCliente("voz", err);
+    return local();
+  }
 }
 
 /**
@@ -260,7 +277,7 @@ export function VoiceRecorder({ onParsed }: { onParsed: (parsed: ParsedVoiceEntr
       const transcript = results ? joinFinalTranscript(results) : "";
       if (transcript.trim()) {
         setDica(null);
-        onParsed(parseVoiceEntry(transcript));
+        entender(transcript).then(onParsed);
       } else if (toqueRapidoRef.current) {
         // A dica de segurar o botão já apareceu ao soltar.
       } else {

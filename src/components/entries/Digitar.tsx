@@ -49,7 +49,7 @@ export function Digitar({
   criandoCategoria?: boolean;
   onCriandoCategoria?: (v: boolean) => void;
   /** Vindo da voz: o que ela disse já preenchido. */
-  inicial?: { valor?: number; tipo?: string; categoria?: ParentCategory; subcategoria?: string; descricao?: string; moeda?: CurrencyCode };
+  inicial?: { valor?: number; tipo?: string; /** A categoria padrão ou o id da que ela criou. */ categoria?: ParentCategory | string; subcategoria?: string; descricao?: string; moeda?: CurrencyCode };
 }) {
   const { voz, profileId, cartaoComLimite, kind, categorias } = useProfileTheme();
   const t = voz.titulos;

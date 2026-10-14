@@ -1,11 +1,16 @@
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
+import { categoriaDaFala, type ContextoDaFala } from "./categoria-da-fala";
 
 export type VoiceEntryCategory = "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
 
 export type ParsedVoiceEntry = {
   category: VoiceEntryCategory;
   parentCategory: ParentCategory | null;
+  /** A subcategoria que o motor achou ("Combustível", "Delivery"), quando achou. */
+  subcategory?: string | null;
+  /** A categoria que ELA criou, quando é essa a resposta (manda sobre a `parentCategory`). */
+  customCategoryId?: string | null;
   amount: number | null;
   description: string;
   /** Moeda dita na frase ("2 mil euros"); null quando a pessoa não disse nenhuma. */
@@ -38,8 +43,9 @@ function extractCurrency(normalized: string): CurrencyCode | null {
 }
 
 /**
- * Palavras-chave faladas por categoria, vocabulário do dia a dia, não os rótulos formais de
- * SUBCATEGORIES (ex.: "uber" em vez de "Aplicativo"). Comparado sempre sem acento (ver `normalize`).
+ * Palavras-chave faladas por categoria. Desde 14/10/2026 o GASTO é categorizado pelo mesmo motor
+ * da importação (categoria-da-fala.ts); esta lista ficou para o aporte ("investi em cdb") e para a
+ * descrição curta da renda e do aporte. Comparado sempre sem acento (ver `normalize`).
  */
 const CATEGORY_KEYWORDS: Record<ParentCategory, string[]> = {
   MORADIA: ["aluguel", "condominio", "luz", "energia", "agua", "gas", "internet", "iptu", "reforma"],
@@ -262,21 +268,88 @@ function toLabel(word: string): string {
   return DISPLAY_LABEL[word] ?? word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-export function parseVoiceEntry(text: string): ParsedVoiceEntry {
+/** Verbos e muletas do começo da frase falada, que não dizem O QUE foi. */
+const INICIO_SEM_SENTIDO = new Set([
+  "eu", "a", "o", "as", "os", "um", "uma", "uns", "umas", "com", "no", "na", "nos", "nas", "num", "numa", "de", "do", "da",
+  "dos", "das", "em", "pra", "para", "pro", "por", "hoje", "ontem", "agora", "so", "mais", "acabei", "aqui", "tambem", "e",
+  "gastei", "gastamos", "gastou", "gasto", "gastar", "paguei", "pagamos", "pagou", "pagar", "comprei", "compramos", "comprou",
+  "comprar", "torrei", "desembolsei", "assinei", "foi", "foram", "deu", "recebi", "recebemos", "recebeu", "receber", "ganhei",
+  "ganhou", "caiu", "entrou", "vendi", "investi", "investir", "apliquei", "aportei", "guardei", "poupei", "me", "pagaram",
+  "valor", "total", "reais", "real",
+]);
+/** O que sobra no fim da frase sem sentido ("Posto de", "Uber hoje"). */
+const FIM_SEM_SENTIDO = new Set(["de", "do", "da", "no", "na", "com", "em", "e", "por", "pra", "para", "hoje", "ontem", "agora", "reais", "real"]);
+const PALAVRA_DE_DINHEIRO = new RegExp(`^(${MONEY_WORDS}|real|dolares|dolar|argentinos?)$`);
+const PALAVRA_DE_NUMERO = (t: string) => t in UNITS || t in TENS || t in HUNDREDS || t === "mil" || t === "milhao" || t === "milhoes" || t === "e";
+const EH_NUMERO = /^(r\$|us\$|ar\$|\$|€|£|₪)?\d[\d.,]*(k|mil)?$|^(r\$|us\$|ar\$|\$|€|£|₪)$/;
+
+/**
+ * O essencial do que ela disse, para a descrição: sem "gastei/paguei", sem o valor, sem a moeda,
+ * sem o "com/no/de" do começo. "gastei 300 reais com posto" → "Posto"; "paguei 45 no ifood" →
+ * "iFood"; "gastei 120 reais no almoço no Coco Bambu" → "Almoço no Coco Bambu". Mantém a grafia
+ * que o reconhecedor de voz escreveu (o nome próprio já vem com maiúscula) e põe maiúscula só na
+ * primeira letra. Vazio quando a frase era só verbo e valor ("gastei 300 reais").
+ */
+export function descricaoDaFala(text: string): string {
+  const crus = text.trim().split(/\s+/).filter(Boolean);
+  const limpos = crus.map((t) => normalize(t).replace(/^[^a-z0-9$€£₪]+|[^a-z0-9$€£₪]+$/g, ""));
+  const fora = new Set<number>();
+  limpos.forEach((t, i) => {
+    if (!t) fora.add(i);
+    // O app "99" ("paguei 15 no 99") é nome, não valor.
+    else if (EH_NUMERO.test(t) && !(t === "99" && /^(no|do|o)$/.test(limpos[i - 1] ?? ""))) fora.add(i);
+    else if (PALAVRA_DE_DINHEIRO.test(t)) {
+      fora.add(i);
+      // O valor por extenso antes da moeda: "quinhentos reais", "dois mil e duzentos euros".
+      for (let j = i - 1; j >= 0 && (PALAVRA_DE_NUMERO(limpos[j]) || EH_NUMERO.test(limpos[j])); j -= 1) fora.add(j);
+    } else if (/^(mil|milhao|milhoes)$/.test(t)) {
+      fora.add(i);
+      for (let j = i - 1; j >= 0 && (PALAVRA_DE_NUMERO(limpos[j]) || EH_NUMERO.test(limpos[j])); j -= 1) fora.add(j);
+      // "4 mil e quinhentos": a cauda por extenso também é valor.
+      for (let j = i + 1; j < limpos.length && PALAVRA_DE_NUMERO(limpos[j]); j += 1) fora.add(j);
+    }
+    // "pesos argentinos": o "argentinos" só é moeda logo depois de "pesos".
+    if (t === "argentinos" && limpos[i - 1]?.startsWith("peso")) fora.add(i);
+  });
+  let palavras = crus.map((c, i) => ({ c: c.replace(/[,;:.!?]+$/, ""), n: limpos[i] })).filter((_, i) => !fora.has(i));
+  while (palavras.length && INICIO_SEM_SENTIDO.has(palavras[0].n)) palavras = palavras.slice(1);
+  while (palavras.length && FIM_SEM_SENTIDO.has(palavras[palavras.length - 1].n)) palavras = palavras.slice(0, -1);
+  // A grafia certa do que o reconhecedor escreveu sem acento ou sem a caixa da marca ("ifood").
+  const grafada = palavras.map(({ c, n }) => (DISPLAY_LABEL[n] && c === c.toLowerCase() && normalize(c) === c ? DISPLAY_LABEL[n] : c));
+  if (!grafada.length) return "";
+  // A primeira com maiúscula, menos a marca que começa minúscula ("iFood").
+  const primeira = grafada[0] === DISPLAY_LABEL[palavras[0].n] ? grafada[0] : grafada[0].charAt(0).toUpperCase() + grafada[0].slice(1);
+  return [primeira, ...grafada.slice(1)].join(" ").slice(0, 60).trim();
+}
+
+/**
+ * `contexto`: as regras que ELA ensinou e as categorias que ela criou (quem chama no servidor
+ * passa; sem contexto, só o dicionário, a base comunitária e as palavras faladas).
+ */
+export function parseVoiceEntry(text: string, contexto: ContextoDaFala = {}): ParsedVoiceEntry {
   const normalized = normalize(text);
   const category = extractEntryCategory(normalized);
+  const limpa = descricaoDaFala(text);
+  const base = { category, amount: extractAmount(normalized), currency: extractCurrency(normalized) };
+
+  if (category === "EXPENSE") {
+    // O mesmo motor da importação (14/10/2026): "posto" é Combustível lá, e tem que ser aqui.
+    const achada = categoriaDaFala(limpa || text, contexto);
+    return {
+      ...base,
+      parentCategory: achada?.customCategoryId ? null : (achada?.parentCategory ?? null),
+      subcategory: achada?.customCategoryId ? null : (achada?.subcategory ?? null),
+      customCategoryId: achada?.customCategoryId ?? null,
+      description: limpa,
+    };
+  }
+
+  // Renda e aporte: sem categoria de gasto. A descrição curta ("Salário", "CDB") vira o Tipo.
   const match = findMatchedKeyword(normalized);
   // As categorias-mãe são de GASTO. Em "recebi 4 mil de aluguel" o aluguel é a origem do
   // dinheiro, não um gasto com moradia — marcar a categoria ali só sujaria o orçamento.
   const parentCategory = category === "INCOME" ? null : (match?.parentCategory ?? null);
   const incomeNoun = category === "INCOME" ? normalized.match(INCOME_NOUNS)?.[0] : undefined;
   const label = incomeNoun ?? (parentCategory ? match?.keyword : undefined);
-
-  return {
-    category,
-    parentCategory,
-    amount: extractAmount(normalized),
-    description: label ? toLabel(label) : text.trim().slice(0, 60),
-    currency: extractCurrency(normalized),
-  };
+  return { ...base, parentCategory, subcategory: null, customCategoryId: null, description: label ? toLabel(label) : limpa };
 }
