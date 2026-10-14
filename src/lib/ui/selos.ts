@@ -48,3 +48,13 @@ const VAZIO: Selos = {};
 export function useSelos(): Selos {
   return useSyncExternalStore(assinar, () => selos, () => VAZIO);
 }
+
+/** A chave do selinho de uma categoria num mês ("outubro"): a mesma na folha e na lista. */
+export function seloDaCategoria(categoria: string, mes: string | undefined) {
+  return `cat-${categoria}@${mes ?? ""}`;
+}
+
+/** O mês de hoje como o Orçamento escreve ("outubro"), para o teto e o "pontual" do mês. */
+export function mesDeHoje() {
+  return new Date().toLocaleDateString("pt-BR", { month: "long", timeZone: "America/Sao_Paulo" });
+}

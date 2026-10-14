@@ -115,7 +115,6 @@ export type TextosShell = {
    * mesma compra, por exemplo) — modo "Selecionar" da lista. */
   uiMudarCategoria: string;
   uiMudarCategoriaTitulo(quantos: number): string;
-  uiCategoriaAtualizada(quantos: number): string;
   uiEditarLancamento: string;
   uiRemoverLancamento: string;
   /** Título da folha que abre ao tocar numa linha. */
@@ -132,7 +131,6 @@ export type TextosShell = {
   uiExcluido(quantos: number): string;
   uiExcluidoContinuaNaCarteira: string;
   uiDesfazer: string;
-  uiRestaurado(quantos: number): string;
   uiRestaurarFalhou: string;
   /** Lançamento que se repete todo mês ("Repetir todo mês"). Pode ser renda ou aporte, não só
    * despesa: chamar o salário de "despesa fixa" confundia justo na hora de escolher entre
@@ -287,7 +285,6 @@ export const PADRAO_SHELL: TextosShell = {
   uiSairDaSelecao: "Sair da seleção",
   uiMudarCategoria: "Categoria",
   uiMudarCategoriaTitulo: (quantos) => `Mudar a categoria de ${quantos} ${quantos === 1 ? "lançamento" : "lançamentos"}`,
-  uiCategoriaAtualizada: (quantos) => `${quantos} ${quantos === 1 ? "lançamento atualizado" : "lançamentos atualizados"}`,
   uiEditar: "Editar",
   uiRemover: "Remover",
   uiEditarLancamento: "Editar lançamento",
@@ -302,9 +299,8 @@ export const PADRAO_SHELL: TextosShell = {
   uiTipoResgate: "Resgatei",
   uiCategoriaSemNome: "Categoria",
   uiExcluido: (quantos) => (quantos === 1 ? "Apagado" : `${quantos} apagados`),
-  uiExcluidoContinuaNaCarteira: "· segue na carteira",
+  uiExcluidoContinuaNaCarteira: ", fica no ativo",
   uiDesfazer: "Desfazer",
-  uiRestaurado: (quantos) => (quantos === 1 ? "Lançamento restaurado." : `${quantos} lançamentos restaurados.`),
   uiRestaurarFalhou: "Não voltou. Lance de novo.",
   uiFixoApagarTitulo: (tipo) => `Apagar ${nomeDoFixo(tipo)}`,
   uiFixoApagarTexto: (tipo) =>

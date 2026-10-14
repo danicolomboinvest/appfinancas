@@ -79,7 +79,6 @@ export type TextosConfiguracoes = {
   cfgConexoesSub: string;
   cfgConexoesDesligada: string;
   cfgConexaoConectado(banco: string): string;
-  cfgConexaoConectadoToast(banco: string): string;
   cfgConexaoNadaNovo: string;
   cfgConexaoChegaram(novos: number, semCategoria: number): string;
   cfgConexaoVerNoMes: string;
@@ -102,7 +101,6 @@ export type TextosConfiguracoes = {
   cfgConexaoNovos(novos: number): string;
   cfgDesconectar: string;
   cfgDesconectarConfirma(banco: string): string;
-  cfgDesconectadoToast: string;
   cfgConexaoNaoDeu(motivo: string): string;
   cfgConexaoNaoConcluida: string;
   cfgConexaoNaoAbriu: string;
@@ -140,7 +138,6 @@ export type TextosConfiguracoes = {
   cfgTaxaSua: string;
   cfgTaxaPadraoSistema: string;
   cfgTaxaAdicionar: string;
-  cfgTaxaAdicionadaToast: string;
   cfgTaxasVazio: string;
   // Perfis financeiros: a página, o trocador do topo e o gerenciador
   cfgPerfisTitulo: string;
@@ -153,9 +150,7 @@ export type TextosConfiguracoes = {
   cfgPerfisEditarTitulo: string;
   cfgPerfisCriar: string;
   cfgPerfisTrocouToast(nome: string): string;
-  cfgPerfisAtualizadoToast: string;
   cfgPerfisCriadoToast(nome: string): string;
-  cfgPerfisExcluidoToast(nome: string): string;
   cfgPerfisFalhou: string;
   cfgPerfisNome: string;
   cfgPerfisNomePlaceholder: string;
@@ -281,7 +276,6 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgConexoesSub: "Open Finance: os lançamentos da conta e do cartão chegam sozinhos, toda noite.",
   cfgConexoesDesligada: "A conexão com bancos ainda não está ligada. Por enquanto: Registrar › Importar extrato ou fatura.",
   cfgConexaoConectado: (banco) => `${banco} conectado`,
-  cfgConexaoConectadoToast: (banco) => `${banco} conectado.`,
   cfgConexaoNadaNovo: "Nenhum lançamento novo por enquanto. O SPI busca de novo toda noite.",
   cfgConexaoChegaram: (novos, semCategoria) =>
     `Chegaram ${novos} lançamentos dos últimos 90 dias${semCategoria > 0 ? `, ${semCategoria} sem categoria` : ""}.`,
@@ -305,7 +299,6 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgConexaoNovos: (novos) => (novos === 0 ? "Nada novo" : `${novos} lançamento${novos === 1 ? "" : "s"} novo${novos === 1 ? "" : "s"}`),
   cfgDesconectar: "Desconectar",
   cfgDesconectarConfirma: (banco) => `Desconectar ${banco}? Os lançamentos que já entraram ficam.`,
-  cfgDesconectadoToast: "Desconectado.",
   cfgConexaoNaoDeu: (motivo) => `Não deu: ${motivo}`,
   cfgConexaoNaoConcluida: "A conexão não terminou",
   cfgConexaoNaoAbriu: "Não abriu. Tente de novo.",
@@ -345,7 +338,6 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgTaxaSua: "Sua taxa",
   cfgTaxaPadraoSistema: "Padrão do sistema",
   cfgTaxaAdicionar: "Adicionar",
-  cfgTaxaAdicionadaToast: "Taxa adicionada com sucesso.",
   cfgTaxasVazio: "Nenhuma taxa cadastrada ainda.",
   // Perfis financeiros
   cfgPerfisTitulo: "Seus perfis",
@@ -358,9 +350,7 @@ export const PADRAO_CONFIGURACOES: TextosConfiguracoes = {
   cfgPerfisEditarTitulo: "Editar perfil",
   cfgPerfisCriar: "Criar perfil",
   cfgPerfisTrocouToast: (nome) => `Agora em ${nome}`,
-  cfgPerfisAtualizadoToast: "Perfil atualizado.",
   cfgPerfisCriadoToast: (nome) => `Agora em ${nome}`,
-  cfgPerfisExcluidoToast: (nome) => `Perfil ${nome} excluído.`,
   cfgPerfisFalhou: "Não deu certo. Tente de novo.",
   cfgPerfisNome: "Nome",
   cfgPerfisNomePlaceholder: "Empresa, Casal, Casa…",

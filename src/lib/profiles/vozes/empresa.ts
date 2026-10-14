@@ -82,7 +82,6 @@ const TITULOS_EMPRESA: Partial<Titulos> = {
   reservaGuardeiBotao: (v) => `Separei ${v} para o caixa este mês`,
   reservaGuardeiDica: "Soma no caixa de segurança e entra no mês como retenção.",
   reservaGuardeiFeito: (mes) => `Retenção de ${mes} no caixa`,
-  reservaGuardeiToast: (v) => `${v} somados no caixa de segurança.`,
   cartVazioCadastrar: "Cadastrar onde está o caixa da empresa",
   formCusto: "Quanto a empresa gasta de despesas fixas por mês?",
   formCustoHint: "Aluguel, equipe, pró-labore, contador, sistemas: o que precisa ser pago mesmo sem vender nada.",

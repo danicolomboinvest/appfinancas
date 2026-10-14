@@ -214,8 +214,6 @@ export type TextosFoco = {
   avisoPlanoBaixoFeito(categoria: string, valor: string): string;
   avisoPontualT: string;
   avisoPontualSub: string;
-  /** Toast de quem escondeu o aviso até o mês que vem. */
-  avisoAnotado: string;
   avisoErroSalvar: string;
   avisoOndeFoi(categoria: string): string;
   avisoSobramEm(categoria: string, dias: number): string;
@@ -259,7 +257,6 @@ export type TextosFoco = {
   avisoNadaEntrou: string;
   avisoNoMes(categoria: string, gasto: string, plano: string): string;
   avisoVerGastos: string;
-  avisoDesfeito: string;
   avisoDesfazerFalhou: string;
   avisoGastosDe(categoria: string): string;
   /** "3 gastos" ou, quando a lista mostra só os maiores, "5 maiores de 15 gastos". */
@@ -532,7 +529,6 @@ export const PADRAO_FOCO: TextosFoco = {
   avisoPlanoBaixoFeito: (c, v) => `${c} em ${v}`,
   avisoPontualT: "Foi pontual",
   avisoPontualSub: "sigo o plano",
-  avisoAnotado: "Anotado. Esse aviso some até o mês que vem.",
   avisoErroSalvar: "Não salvou. Tente de novo.",
   avisoOndeFoi: (c) => `Onde foi o dinheiro de ${c}`,
   avisoSobramEm: (c, d) => `sobram em ${c} para ${nDias(d)}`,
@@ -573,7 +569,6 @@ export const PADRAO_FOCO: TextosFoco = {
   avisoNadaEntrou: "Nada entrou depois do combinado",
   avisoNoMes: (c, g, p) => `${c} no mês: ${g} de ${p}`,
   avisoVerGastos: "Ver os gastos",
-  avisoDesfeito: "Combinado desfeito.",
   avisoDesfazerFalhou: "Não desfez. Tente de novo.",
   avisoGastosDe: (c) => `Gastos de ${c}`,
   avisoContagem: (mostrados, total) =>

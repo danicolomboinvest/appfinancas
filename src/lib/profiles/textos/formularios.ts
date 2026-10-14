@@ -78,8 +78,6 @@ export type TextosFormularios = {
   // Ativo da carteira (AssetForm)
   formAtivoAdicionar: string;
   formAtivoSalvar: string;
-  formAtivoAdicionado: string;
-  formAtivoAtualizado: string;
   formAtivoClasse: string;
   formAtivoClasses: Record<ClasseDeAtivo, string>;
   formAtivoQual: string;
@@ -114,7 +112,6 @@ export type TextosFormularios = {
   formOrcVazioTitulo: string;
   formOrcVazioSub: string;
   formOrcVazioBotao: string;
-  formOrcSalvo: string;
   formOrcTitulo: string;
   formOrcQuantoEntra: string;
   formOrcRenda: string;
@@ -334,8 +331,6 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
 
   formAtivoAdicionar: "Adicionar",
   formAtivoSalvar: "Salvar alterações",
-  formAtivoAdicionado: "Ativo adicionado com sucesso.",
-  formAtivoAtualizado: "Ativo atualizado com sucesso.",
   formAtivoClasse: "Classe",
   formAtivoClasses: {
     RENDA_FIXA: "Renda Fixa",
@@ -382,7 +377,6 @@ export const PADRAO_FORMULARIOS: TextosFormularios = {
   formOrcVazioTitulo: "O SPI monta o seu orçamento",
   formOrcVazioSub: "Com base nos seus gastos",
   formOrcVazioBotao: "Montar para mim",
-  formOrcSalvo: "Plano salvo daqui até dezembro.",
   formOrcTitulo: "Vamos montar seu orçamento",
   formOrcQuantoEntra: "Quanto entra por mês?",
   formOrcRenda: "Renda por mês",

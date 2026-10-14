@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
+import { marcarSelo, mesDeHoje, seloDaCategoria } from "@/lib/ui/selos";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { isParentCategoryKey } from "@/lib/categories";
 import type { FocoCombinado, FocoItem } from "@/lib/decisoes/foco";
@@ -56,11 +57,12 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
   // Resolvido, o aviso sai da lista e o cartão (com a janela) some. Desde 14/10/2026 só avisa
   // quando o resultado não fica na tela ("Segurar em" vira o combinado, com Desfazer); "Foi
   // pontual" e "Entendi" não avisam nada. Erro fica dentro da janela, embaixo dos botões.
-  const fazer = (acao: () => Promise<unknown>, mensagem: string | null, desfazer?: () => Promise<unknown>) => {
+  const fazer = (acao: () => Promise<unknown>, mensagem: string | null, desfazer?: () => Promise<unknown>, aoFeito?: () => void) => {
     erro.limpar();
     start(async () => {
       try {
         await acao();
+        aoFeito?.();
         setAberto(false);
         if (mensagem) showToast(mensagem, desfazer ? { label: t.uiDesfazer, onClick: () => void desfazer().then(() => router.refresh()) } : undefined);
         router.refresh();
@@ -136,7 +138,18 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
             disabled={salvando}
             titulo={t.avisoTetoT(m(d.sobra))}
             sub={t.avisoTetoSub(d.label)}
-            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: d.sobra }), t.avisoTetoFeito(m(d.sobra), d.label), () => desfazerTetoAction(d.categoria))}
+            onClick={() =>
+              fazer(
+                () => definirTetoAction({ categoria: d.categoria, valor: d.sobra }),
+                t.avisoTetoFeito(m(d.sobra), d.label),
+                () => {
+                  marcarSelo(seloDaCategoria(d.categoria, mesDeHoje()), null);
+                  return desfazerTetoAction(d.categoria);
+                },
+                // O selinho "teto R$ 36" na categoria, no Orçamento (14/10/2026).
+                () => marcarSelo(seloDaCategoria(d.categoria, mesDeHoje()), `teto ${m(d.sobra)}`),
+              )
+            }
           />
           <Botao icone={Check} disabled={salvando} titulo={t.avisoPontualT} sub={t.avisoPontualSub} onClick={pontual()} />
         </Botoes>

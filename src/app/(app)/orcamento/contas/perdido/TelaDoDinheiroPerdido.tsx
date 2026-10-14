@@ -88,7 +88,7 @@ export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, precoDoSpi, 
   function gravar(chave: string, estado: EstadoDoAchado) {
     iniciar(async () => {
       const r = await decidirAchadoAction({ chave, estado }).catch(() => ({ ok: false }));
-      if (!r.ok) showError("Não deu para guardar. Atualize a tela e tente de novo.");
+      if (!r.ok) showError("Não guardou. Atualize a tela.");
     });
   }
 

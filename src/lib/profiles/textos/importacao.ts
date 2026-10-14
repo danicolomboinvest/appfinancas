@@ -117,10 +117,8 @@ export type TextosImportacao = {
   // Extrato/fatura: pronto
   impImportadosSucesso(n: number): string;
   impToastImportados(n: number): string;
-  impToastJaExistiam(n: number): string;
   impPagamentoFatura(n: number): string;
   impSemData: string;
-  impRemovidoExtrato: string;
   impManter: string;
   // Posição da corretora (carteira)
   impCarteiraArquivoGrande: string;
@@ -174,8 +172,6 @@ export type TextosImportacao = {
   impRepeteVistoEm(n: number): string;
   impRepeteLancar: string;
   impRepeteTodoMes: string;
-  impRepeteLancado: string;
-  impRepeteLancadoAteDezembro: string;
   impRepeteErro: string;
   // Resumo mensal: o convite no topo do Fluxo
   impResumoPronto: string;
@@ -413,10 +409,8 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   // Extrato/fatura: pronto
   impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`} com sucesso.`,
   impToastImportados: (n) => `${n} importados`,
-  impToastJaExistiam: (n) => `${n} já existiam (ignorados)`,
   impPagamentoFatura: (n) => `${n === 1 ? "Este parece" : "Estes parecem"} o pagamento desta fatura. Remover para não contar duas vezes?`,
   impSemData: "sem data",
-  impRemovidoExtrato: "Removido do extrato.",
   impManter: "Manter",
   // Posição da corretora
   impCarteiraArquivoGrande: "Arquivo muito grande (máx. 4 MB). Exporte um relatório menor e tente de novo.",
@@ -481,8 +475,6 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRepeteVistoEm: (n) => `${n} dos últimos 3 meses`,
   impRepeteLancar: "Lançar",
   impRepeteTodoMes: "Todo mês",
-  impRepeteLancado: "Lançado.",
-  impRepeteLancadoAteDezembro: "Lançado neste mês e nos seguintes até dezembro.",
   impRepeteErro: "Não lançou. Tente de novo.",
   // Resumo mensal: convite
   impResumoPronto: "Seu resumo mensal está pronto",

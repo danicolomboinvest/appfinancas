@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { ErroNoBotao, TENTAR_DE_NOVO } from "@/components/ui/ErroNoBotao";
 import { vibrar } from "@/lib/celebrar";
 import { brilharQuandoAparecer } from "@/lib/ui/brilho";
-import { marcarSelo } from "@/lib/ui/selos";
+import { marcarSelo, seloDaCategoria } from "@/lib/ui/selos";
 import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
 import { fontesParaCobrir, planoDeCobrir, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
@@ -80,7 +80,7 @@ export function OQueFazer({
     iniciar(async () => {
       try {
         await dispensarAvisoAction(`estouro-${categoria.key}`, "mes");
-        marcarSelo(`cat-${categoria.key}@${mes ?? ""}`, "pontual");
+        marcarSelo(seloDaCategoria(categoria.key, mes), "pontual");
         feito(null);
       } catch {
         vibrar("erro");

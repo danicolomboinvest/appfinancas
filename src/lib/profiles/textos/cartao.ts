@@ -16,8 +16,6 @@ export type TextosLimiteCartao = {
   limCampoHint: string;
   limSalvar: string;
   limRemover: string;
-  limSalvo: string;
-  limRemovido: string;
   limInvalido: string;
   /** Rótulo do cartão no Foco e na tela: "Cartão em outubro". */
   limDoMes(mes: string): string;
@@ -57,8 +55,6 @@ export const PADRAO_LIMITE_CARTAO: TextosLimiteCartao = {
   limCampoHint: "Conta o que você lançar marcando “No cartão” e a fatura que você importar.",
   limSalvar: "Salvar limite",
   limRemover: "Tirar o limite",
-  limSalvo: "Limite do cartão salvo.",
-  limRemovido: "Limite do cartão removido.",
   limInvalido: "Digite um valor válido.",
   limDoMes: (mes) => `Cartão em ${mes}`,
   limGastoDe: (gasto, limite) => `${gasto} de ${limite}`,

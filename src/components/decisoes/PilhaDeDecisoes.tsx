@@ -7,6 +7,7 @@ import { Check, PiggyBank, Receipt, Repeat, ShieldCheck, Target, Tag } from "luc
 import type { LucideIcon } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
 import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
+import { marcarSelo, mesDeHoje, seloDaCategoria } from "@/lib/ui/selos";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { isParentCategoryKey, PARENT_CATEGORY_ICON } from "@/lib/categories";
 import { contadorDaPilha, juntarComE, ordenarPilha, type CartaoDaPilha, type RespostaDaPilha } from "@/lib/decisoes/pilha";
@@ -109,8 +110,16 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
         return { texto: "Sobra vai para a reserva", desfazer: () => desfazerSobraNaReservaAction() };
       case "teto":
         await definirTetoAction({ categoria: c.categoria ?? "", valor: a.teto ?? 0 });
-        // "Segurar em R$ 36" vira "Teto de R$ 36", com Desfazer (tabela da proposta, 14/10/2026).
-        return { texto: r.titulo.replace(/^Segurar em /i, "Teto de "), desfazer: () => desfazerTetoAction(c.categoria ?? "") };
+        // "Segurar em R$ 36" vira "Teto de R$ 36", com Desfazer, e a categoria ganha o selinho
+        // "teto R$ 36" no Orçamento (tabela da proposta, 14/10/2026).
+        marcarSelo(seloDaCategoria(c.categoria ?? "", mesDeHoje()), r.titulo.replace(/^Segurar em /i, "teto "));
+        return {
+          texto: r.titulo.replace(/^Segurar em /i, "Teto de "),
+          desfazer: async () => {
+            marcarSelo(seloDaCategoria(c.categoria ?? "", mesDeHoje()), null);
+            await desfazerTetoAction(c.categoria ?? "");
+          },
+        };
       case "ja_guardei": {
         const id = await guardeiOQueFaltaAction();
         return { texto: "Guardado anotado", desfazer: id ? () => apagarAporteDaPilhaAction(id) : null };

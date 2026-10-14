@@ -131,7 +131,6 @@ export type TextosCarteira = {
   reservaGuardeiDica: string;
   /** Depois de marcar: o mês já guardado. */
   reservaGuardeiFeito(mes: string): string;
-  reservaGuardeiToast(valor: string): string;
   /** "Tempo até completar" quando a reserva já chegou no valor. */
   reservaPronta: string;
   // Carteira · por objetivo (page + StrategyComparisonSection)
@@ -360,7 +359,6 @@ export const PADRAO_CARTEIRA: TextosCarteira = {
   reservaGuardeiBotao: (v) => `Guardei ${v} este mês`,
   reservaGuardeiDica: "Soma na reserva e entra no mês como dinheiro guardado.",
   reservaGuardeiFeito: (mes) => `Guardado em ${mes}`,
-  reservaGuardeiToast: (v) => `${v} somados na reserva.`,
   reservaPronta: "Pronta!",
   // Carteira · por objetivo
   cartDaMeta: (pct, valor) => `${pct} da meta (${valor})`,

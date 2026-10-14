@@ -286,7 +286,7 @@ export function EntryList({
       // real da pessoa). Dizer isso na hora é o que impede o mês e a carteira de divergirem
       // sem ninguém perceber.
       const base = mensagem ?? t.uiExcluido(quantos);
-      showToast(jaNaCarteira > 0 ? `${base} ${t.uiExcluidoContinuaNaCarteira}` : base, {
+      showToast(jaNaCarteira > 0 ? `${base}${t.uiExcluidoContinuaNaCarteira}` : base, {
         label: t.uiDesfazer,
         onClick: () => {
           startTransition(async () => {
@@ -322,7 +322,7 @@ export function EntryList({
       }
       // Mesmo aviso do "Só este mês": aporte já distribuído fica no ativo, e ela precisa saber.
       const base = t.uiExcluido(apagados);
-      showToast(jaNaCarteira > 0 ? `${base} ${t.uiExcluidoContinuaNaCarteira}` : base, {
+      showToast(jaNaCarteira > 0 ? `${base}${t.uiExcluidoContinuaNaCarteira}` : base, {
         label: t.uiDesfazer,
         onClick: () => {
           startTransition(async () => {

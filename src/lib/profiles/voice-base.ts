@@ -305,7 +305,6 @@ export type TitulosBase = {
   registrarNovo: string;
   registrarFalar: string;
   registrarImportar: string;
-  lancamentoSalvo: string;
   /** Uma ação do dia a dia (excluir, trocar categoria, passo do Fechamento) não chegou ao servidor:
    * internet caiu ou a sessão expirou. Vira aviso na própria tela, sem trocar o app pela tela de erro. */
   acaoFalhou: string;
@@ -487,7 +486,6 @@ const TITULOS_BASE: TitulosBase = {
   registrarNovo: "Novo lançamento",
   registrarFalar: "Falar lançamento",
   registrarImportar: "Importar extrato",
-  lancamentoSalvo: "Lançamento salvo com sucesso.",
   acaoFalhou: "Não deu certo. Tente de novo.",
   comparacao: (tipo, valor, mes) =>
     tipo === "sem" ? `Não teve gasto em ${mes}` : tipo === "igual" ? `Igual a ${mes}` : tipo === "mais" ? `${valor} a mais que em ${mes}` : `${valor} a menos que em ${mes}`,

@@ -1,7 +1,7 @@
 "use client";
 
 import { Selinho } from "@/components/ui/Selinho";
-import { useSelos } from "@/lib/ui/selos";
+import { seloDaCategoria, useSelos } from "@/lib/ui/selos";
 import { brilharQuandoAparecer } from "@/lib/ui/brilho";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -108,7 +108,7 @@ export function CategoriasDoMes({
                   <span className="flex items-baseline justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="min-w-0 truncate text-[16px] text-ink">{l.label}</span>
-                      {selos[`cat-${l.key}@${mes ?? ""}`] && <Selinho>{selos[`cat-${l.key}@${mes ?? ""}`]}</Selinho>}
+                      {selos[seloDaCategoria(l.key, mes)] && <Selinho>{selos[seloDaCategoria(l.key, mes)]}</Selinho>}
                     </span>
                     {pct !== null && (
                       <span className={`shrink-0 text-[16px] tabular-nums ${passou ? "text-danger" : "text-ink"}`}>

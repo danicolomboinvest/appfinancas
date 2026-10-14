@@ -33,8 +33,8 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
   function executar(fn: () => Promise<{ ok: boolean; error?: string }>, sucesso: string | null, aoFim?: () => void) {
     iniciar(async () => {
       const r = await fn();
-      if (r.ok && sucesso) showToast(sucesso);
-      else showError(r.error ?? t.cfgPerfisFalhou);
+      if (!r.ok) showError(r.error ?? t.cfgPerfisFalhou);
+      else if (sucesso) showToast(sucesso);
       if (r.ok) aoFim?.();
     });
   }

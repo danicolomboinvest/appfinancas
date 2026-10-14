@@ -214,7 +214,6 @@ export const manifestacao: Voz = {
     registrar: "Registrar",
     registrarNovo: "Novo registro",
     registrarFalar: "Falar o registro",
-    lancamentoSalvo: "Registrado. Um passo a mais",
     campeaoTitulo: "Para onde mais foi este mês",
     campeaoPergunta: (_k, label) => `Quanto foi para ${label.toLowerCase()}?`,
     // Aspiracional: futuro, sonho, a vida que ela quer. Um ✨ aqui e ali, nunca mais que isso.
@@ -366,7 +365,6 @@ export const manifestacao: Voz = {
     formMetaMesAno: "Quando quer realizar",
     formAtivoObjetivos: { OUTRO: "Outro", RESERVA_EMERGENCIA: "Sua segurança", LIBERDADE_FINANCEIRA: "Sua liberdade", META: "Um sonho" },
     formAtivoMetaVinculada: "Sonho vinculado",
-    formOrcSalvo: "Plano salvo daqui até dezembro",
     formOrcTitulo: "Vamos desenhar o seu plano",
     formOrcQuantoGuardar: "Quanto vai para o seu futuro?",
     formOrcGuardarPorMes: "Para o futuro, por mês",
@@ -406,8 +404,6 @@ export const manifestacao: Voz = {
     impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`}. Seu mês ganhou forma`,
     impCarteiraEmDia: (n) =>
       `Sua carteira já está em dia com esse extrato: ${n} ativo${s(n)} conferido${s(n)}, nenhuma mudança encontrada`,
-    impRepeteLancado: "Registrado.",
-    impRepeteLancadoAteDezembro: "Registrado neste mês e nos seguintes até dezembro.",
     impResumoPronto: "Seu resumo do mês está pronto",
     impResumoProntoSub: "Veja o que o seu dinheiro fez por você este mês",
     impStorySub: "O que o seu dinheiro fez este mês.",
