@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { classificarAntigo, TERMOS_REVISAO, type TipoRevisao } from "@/lib/decisoes/revisao-antigos";
 
+/** O rótulo que a importação põe no que ficou sem resposta (StatementImport, A_CONFERIR). */
+const A_CONFERIR = "A conferir";
+
 /** Até onde olhar pra trás: um ano. Mais que isso já não mexe no que o app mostra hoje. */
 const MESES_DE_REVISAO = 12;
 
@@ -25,7 +28,11 @@ export async function carregarRevisaoAntigos(ctx: AuthContext): Promise<ItemRevi
         userId: ctx.userId, profileId: ctx.profileId,
         category: { in: ["INCOME", "EXPENSE"] },
         amount: { gt: 0 },
-        AND: [{ OR: meses }, { OR: termos.map((t) => ({ description: { contains: t, mode: "insensitive" as const } })) }],
+        AND: [
+          // O "A conferir" tem a lista dele: aqui ele contava duas vezes no "Revisar N". (Sem
+          // subcategoria precisa vir à parte: no SQL, NOT (null = x) não é verdade.)
+          { OR: [{ subcategory: null }, { NOT: { subcategory: A_CONFERIR } }] },
+          { OR: meses }, { OR: termos.map((t) => ({ description: { contains: t, mode: "insensitive" as const } })) }],
       },
       select: { id: true, category: true, description: true, amount: true, entryDate: true, year: true, month: true },
       orderBy: [{ year: "desc" }, { month: "desc" }, { entryDate: "desc" }],
@@ -44,8 +51,6 @@ export async function carregarRevisaoAntigos(ctx: AuthContext): Promise<ItemRevi
   return itens;
 }
 
-/** O rótulo que a importação põe no que ficou sem resposta (StatementImport, A_CONFERIR). */
-const A_CONFERIR = "A conferir";
 
 export type ItemAConferir = { id: string; entrada: boolean; descricao: string; valor: number; data: string | null; ano: number; mes: number };
 
