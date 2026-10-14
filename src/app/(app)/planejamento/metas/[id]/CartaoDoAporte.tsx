@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Check } from "lucide-react";
@@ -139,12 +140,12 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
         </div>
         <label className="mx-auto flex items-baseline gap-2">
           <span className="text-lg text-ink-muted">{simbolo}</span>
-          <input
-            inputMode="numeric"
+          <CampoDeDinheiro
             aria-label="Valor do aporte"
-            value={form.valor ? form.valor.toLocaleString("pt-BR") : ""}
-            onChange={(ev) => setForm({ ...form, valor: Number(ev.target.value.replace(/\D/g, "")) || 0 })}
-            className="w-[6ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[34px] font-light tabular-nums text-ink outline-none"
+            placeholder="0,00"
+            valor={form.valor}
+            onValor={(v) => setForm({ ...form, valor: v ?? 0 })}
+            className="w-[9ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[34px] font-light tabular-nums text-ink outline-none"
           />
         </label>
         <div className="flex flex-wrap gap-2">
@@ -188,7 +189,7 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
         <button type="button" disabled={pendente} onClick={() => rodar(() => adiarAporteAction(metaId))} className={`${botao} bg-surface-2 text-ink`}>
           Ainda não
         </button>
-        <button type="button" onClick={() => setForm({ valor: Math.round(estado.combinado), origem: "pix", dia: estado.diaMax })} className={`${botao} bg-ink text-canvas`}>
+        <button type="button" onClick={() => setForm({ valor: Math.round(estado.combinado * 100) / 100, origem: "pix", dia: estado.diaMax })} className={`${botao} bg-ink text-canvas`}>
           Já fiz
         </button>
       </div>

@@ -69,7 +69,7 @@ export function GuardeiNaReservaButton({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
           type="text"
-          inputMode="numeric"
+          inputMode="decimal"
           autoFocus
           aria-label={t.metaOutroValor}
           value={centavos === null ? "" : formatMoney(centavos / 100, currency)}

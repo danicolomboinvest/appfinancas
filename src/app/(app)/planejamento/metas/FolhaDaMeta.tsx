@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTecladoNaFolha } from "@/components/ui/useTecladoNaFolha";
@@ -275,14 +276,13 @@ function FolhaDaMeta({ hoje, meta, onFechar }: { hoje: { ano: number; mes: numbe
         <h3 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-ink">Quanto você precisa?</h3>
         <label className="mx-auto mt-2 flex items-baseline gap-3">
           <span className="text-xl text-ink-muted">{simbolo}</span>
-          <input
+          <CampoDeDinheiro
             autoFocus
-            inputMode="numeric"
             aria-label="Quanto você precisa"
-            placeholder="0"
-            value={e.alvo ? e.alvo.toLocaleString("pt-BR") : ""}
-            onChange={(ev) => muda({ alvo: Number(ev.target.value.replace(/\D/g, "")) || 0 })}
-            className="w-[7ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[44px] font-light tabular-nums text-ink outline-none"
+            placeholder="0,00"
+            valor={e.alvo}
+            onValor={(v) => muda({ alvo: v ?? 0 })}
+            className="w-[10ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[44px] font-light tabular-nums text-ink outline-none"
           />
         </label>
       </>

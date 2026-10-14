@@ -101,7 +101,7 @@ export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFe
           <span className="text-xs font-medium text-ink-muted">Valor</span>
           <input
             type="text"
-            inputMode="numeric"
+            inputMode="decimal"
             value={!cents ? "" : formatMoney(cents / 100, currency)}
             // Selecionado ao tocar: o que ela digita SUBSTITUI o valor errado. Sem isso os dígitos
             // novos entravam depois dos antigos (1.428,57 virava 142.851.500,00 no teste).
