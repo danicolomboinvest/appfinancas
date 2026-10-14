@@ -1588,7 +1588,8 @@ export async function importTransactionsAction(
   // vencimento lido, o último mês das compras.
   const mesDoPagamento = faturaTarget ?? mesDaData(datasDaFatura.vencimento) ?? contextoFatura?.limite ?? null;
   const cardPaymentCandidates =
-    ehFatura && mesDoPagamento && created > 0 ? await findCardPaymentCandidates(ctx, mesDoPagamento.year, mesDoPagamento.month) : [];
+    // A fatura ABERTA (prints) ainda não foi paga: o pagamento que aparecia era o da fatura anterior.
+    ehFatura && !aberta && mesDoPagamento && created > 0 ? await findCardPaymentCandidates(ctx, mesDoPagamento.year, mesDoPagamento.month) : [];
 
   for (const key of touchedMonths) {
     const [year, month] = key.split("/");

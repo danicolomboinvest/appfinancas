@@ -34,7 +34,7 @@ import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
 import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { perguntasDeMaiorValor } from "@/lib/onboarding/conferencia-inicial";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
-import { faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
+import { comprasDaFatura, faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
 import { mesDaRevelacao } from "@/lib/import/revelacao";
 import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/mensal/revelacao-actions";
 import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
@@ -1655,7 +1655,7 @@ export function StatementImport({
           const textoMeses = meses.length === 0 ? "" : meses.length === 1 ? new Date(Number(meses[0].slice(0, 4)), Number(meses[0].slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "long" }) : `${mesCurto(meses[0])} a ${mesCurto(meses[meses.length - 1])}`;
           const aberta = stats?.faturaAberta === true;
           const deOnde = aberta ? `Fatura aberta${stats?.banco ? ` ${stats.banco}` : ""}` : stats?.banco ? `${docType === "fatura" ? "Fatura" : "Extrato"} ${stats.banco}` : docType === "fatura" ? "Fatura do cartão" : "Extrato da conta";
-          const compras = docType === "fatura" ? importable.filter((it) => it.category === "EXPENSE").length : importable.length;
+          const compras = docType === "fatura" ? comprasDaFatura(importable) : importable.length;
           const separadas = importable.filter((it) => foiSeparada(it)).length;
           return (
             <section className="relative flex flex-col items-center gap-1 rounded-3xl bg-surface-2 px-4 py-6 text-center" data-confirmacao-do-arquivo>
