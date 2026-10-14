@@ -11,6 +11,7 @@ import {
   decidirTela,
   estadoDoConvite,
   letraDoPar,
+  nomeDadoAoPar,
   outraLetra,
   primeiroNome,
   type CanalDoConvite,
@@ -390,8 +391,12 @@ export async function aceitarConvite(
         const chavePar = letraPar === "A" ? "nomeA" : "nomeB";
         const chaveTitular = letraPar === "A" ? "nomeB" : "nomeA";
         const novo = { ...config };
-        const nomeDoConvite = c.nomePar && c.nomePar !== "seu par" ? c.nomePar : primeiroNome("novaConta" in entrada ? entrada.novaConta.nome : null, "");
-        if (/^Pessoa [12]$/.test(config[chavePar]) && nomeDoConvite) novo[chavePar] = nomeDoConvite.slice(0, 30);
+        const nomeDoConvite = nomeDadoAoPar(c.nomePar) || primeiroNome("novaConta" in entrada ? entrada.novaConta.nome : null, "");
+        // Par novo depois de outro que saiu (ou foi tirado): o nome guardado é do par de antes. Sem
+        // isso a pessoa nova entrava e via o acerto entre "Lucas" e a titular, com a inicial dele.
+        const teveOutroPar = await tx.membroCasal.findFirst({ where: { profileId: c.profileId, saiuEm: { not: null }, NOT: { userId: id! } }, select: { id: true } });
+        if (teveOutroPar) novo[chavePar] = (nomeDoConvite || `Pessoa ${letraPar === "A" ? 1 : 2}`).slice(0, 30);
+        else if (/^Pessoa [12]$/.test(config[chavePar]) && nomeDoConvite) novo[chavePar] = nomeDoConvite.slice(0, 30);
         if (/^Pessoa [12]$/.test(config[chaveTitular]) && perfil.user.name) novo[chaveTitular] = primeiroNome(perfil.user.name).slice(0, 30);
         if (novo.nomeA !== config.nomeA || novo.nomeB !== config.nomeB) await tx.financialProfile.update({ where: { id: c.profileId }, data: { casal: novo } });
       }

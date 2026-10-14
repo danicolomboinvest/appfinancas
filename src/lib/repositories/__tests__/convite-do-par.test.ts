@@ -34,8 +34,10 @@ vi.mock("@/lib/db/prisma", async () => {
   const id = () => `id${++db.seq}`;
   const casa = (o: Record<string, unknown>, w: Record<string, unknown>): boolean =>
     Object.entries(w).every(([k, v]) => {
+      if (k === "NOT") return !casa(o, v as Record<string, unknown>);
       if (v && typeof v === "object" && !(v instanceof Date)) {
-        const c = v as { gt?: Date; lt?: Date; equals?: string; mode?: string };
+        const c = v as { gt?: Date; lt?: Date; equals?: string; mode?: string; not?: unknown };
+        if ("not" in c) return (o[k] ?? null) !== c.not;
         if (c.gt) return (o[k] as Date).getTime() > c.gt.getTime();
         if (c.lt) return (o[k] as Date).getTime() < c.lt.getTime();
         if (c.equals !== undefined) return String(o[k]).toLowerCase() === c.equals.toLowerCase();
@@ -278,6 +280,16 @@ describe("aceitar: uso único, prazo e cada caso de borda", () => {
     expect(db.membros[0]).toMatchObject({ saiuEm: AGORA, motivoSaida: "removido" });
     const novo = await criarConvite(ANA_CTX, "Lucas", AGORA);
     expect((await lerConviteParaTela(novo.token, null, AGORA)).tela).toBe("entrar");
+  });
+
+  it("par novo depois de outro que saiu: o nome do par de antes não fica para a pessoa nova", async () => {
+    const { token } = await criarConvite(ANA_CTX, "Beto", AGORA);
+    await aceitarConvite({ token, userId: "beto" }, AGORA);
+    expect((db.perfis[0].casal as { nomeB: string }).nomeB).toBe("Beto");
+    await removerPar(ANA_CTX, AGORA);
+    const novo = await criarConvite(ANA_CTX, "Lucas", AGORA);
+    expect((await aceitarConvite({ token: novo.token, novaConta: lucas }, AGORA)).ok).toBe(true);
+    expect((db.perfis[0].casal as { nomeB: string }).nomeB).toBe("Lucas");
   });
 
   it("quem já entrou e abre o link de novo vai direto pro Nós dois", async () => {
