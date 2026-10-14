@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { contaDaLiberdade, patrimonioNecessario, prazoDaLiberdade, type ValoresDaLiberdade } from "@/lib/calculadoras/liberdade";
 import { salvarLiberdadeComoMetaAction } from "@/app/(app)/simuladores/liberdade/actions";
 import { Fim, Passo, useIrParaCalculadoras } from "../Passo";
-import { AjustesFinos, Atalhos, BotaoGrande, CampoFino, CartaoValor, Colunas, HeroiDoResultado, Selo, pc, useSimbolo } from "../pecas";
+import { AjustesFinos, Atalhos, BotaoGrande, CampoFino, CartaoValor, Colunas, FALHOU_AO_SALVAR, HeroiDoResultado, Selo, pc, useSimbolo } from "../pecas";
 
 const NOME = "Liberdade financeira";
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -115,7 +115,8 @@ export function LiberdadeGuiada({
   const daPe = r.daPe;
   const salvar = () =>
     iniciar(async () => {
-      const res = await salvarLiberdadeComoMetaAction(v);
+      const res = await salvarLiberdadeComoMetaAction(v).catch(() => null);
+      if (!res) return showError(FALHOU_AO_SALVAR);
       if (!res.ok) return showError(res.erro);
       // Sem aviso (14/10/2026): o botão vira o atalho para a meta.
       setSalvaComo(res.id);

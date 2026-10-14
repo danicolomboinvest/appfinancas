@@ -71,3 +71,14 @@ describe("mesmaCompra", () => {
     expect(mesmaCompra({ key: 0, date: "2026-10-12", description: "Supermercado Bom Prego", valor: 287.43 }, g)).not.toBeNull();
   });
 });
+
+describe("a revisão só promete as parcelas seguintes quando a gravação lança", () => {
+  it("fatura fechada: promete; print da fatura aberta: não (o print não projeta)", async () => {
+    const { prometeParcelasSeguintes } = await import("../fatura-aberta");
+    const p = { current: 2, total: 3, confident: true };
+    expect(prometeParcelasSeguintes(p, false)).toBe(true);
+    expect(prometeParcelasSeguintes(p, true)).toBe(false);
+    expect(prometeParcelasSeguintes({ current: 3, total: 3, confident: true }, false)).toBe(false);
+    expect(prometeParcelasSeguintes({ current: 2, total: 3, confident: false }, false)).toBe(false);
+  });
+});

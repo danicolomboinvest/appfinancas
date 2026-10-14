@@ -112,7 +112,9 @@ export async function virarMetaAction(input: z.input<typeof metaSchema>): Promis
   await createGoal(ctx, {
     name: nome,
     targetAmount: r.data.total,
-    targetDate: new Date(Date.UTC(r.data.ano, r.data.mes - 1, 1)),
+    // Meio-dia do dia 1, como as outras metas: meia-noite UTC é o dia 31 do mês anterior no
+    // horário de Brasília, e a meta mostrava "ago/2027" para um plano que acaba em set/2027.
+    targetDate: new Date(r.data.ano, r.data.mes - 1, 1, 12),
     currentAmount: 0,
     // Dinheiro que vai para dívida não rende: a meta conta sem juros.
     annualRate: 0,

@@ -22,7 +22,8 @@ export function CartaoFinal({ dados, achei }: { dados: Extract<DadosDoMarco, { n
 
   const frases: string[] = [];
   if (achei > 0) frases.push(comValor ? `Achei ${valor}` : "Achei o que escapava");
-  if (dados.reserva) frases.push("Minha reserva começou");
+  // "Começou" só com dinheiro dentro; com o alvo e nada guardado ainda, o cartão diz o que é verdade.
+  if (dados.reserva) frases.push(dados.reservaTem > 0 ? "Minha reserva começou" : "Minha reserva tem um alvo");
   if (dados.fechouMes) frases.push("Fechei meu primeiro mês no app");
   if (dados.temOrcamento) frases.push("Cada real tem um destino");
   if (dados.guardar) frases.push("Guardo primeiro, gasto depois");

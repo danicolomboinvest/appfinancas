@@ -16,10 +16,10 @@ import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/me
 import { NovaCategoria } from "./NovaCategoria";
 import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { dataDoChip, paraDecimal, teclar } from "@/lib/entries/digitar";
+import { chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclar, textoDoRepetir } from "@/lib/entries/digitar";
 import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
 import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
-import type { CurrencyCode } from "@/lib/money";
+import { formatMoney, type CurrencyCode } from "@/lib/money";
 
 const ULTIMO_NO_CARTAO = "spi-ultimo-no-cartao";
 type Tipo = "EXPENSE" | "INCOME" | "INVESTMENT_CONTRIBUTION" | "RESGATE";
@@ -61,6 +61,8 @@ export function Digitar({
     moeda?: CurrencyCode;
     /** A palavra-chave da fala: se ela trocar a categoria sugerida, o app aprende (aprender-da-voz.ts). */
     chaveDaFala?: string;
+    /** "Ontem" ou "anteontem" dito na frase. */
+    quando?: "ontem" | "anteontem";
   };
 }) {
   const { voz, profileId, cartaoComLimite, kind, categorias } = useProfileTheme();
@@ -93,8 +95,8 @@ export function Digitar({
   const [tipoLivre, setTipoLivre] = useState<string>(
     rascunho?.tipoLivre ?? (inicial?.tipo === "INCOME" || inicial?.tipo === "INVESTMENT_CONTRIBUTION" ? (inicial?.subcategoria ?? "") : ""),
   );
-  const [chip, setChip] = useState<string>(rascunho?.chip ?? "hoje");
-  const [outraData, setOutraData] = useState(false);
+  const [chip, setChip] = useState<string>(rascunho?.chip ?? chipDaFala(inicial?.quando, nowInBrazil()));
+  const [outraData, setOutraData] = useState(() => !rascunho && inicial?.quando === "anteontem");
   const [noCartao, setNoCartao] = useState(() => {
     try {
       return window.localStorage.getItem(ULTIMO_NO_CARTAO) === "1";
@@ -103,13 +105,14 @@ export function Digitar({
     }
   });
   const [repetir, setRepetir] = useState(false);
-  const [mais, setMais] = useState(false);
+  const [mais, setMais] = useState(() => Boolean(inicial?.moeda && inicial.moeda !== moedaDoApp));
   const [descricao, setDescricao] = useState(rascunho?.descricao ?? inicial?.descricao ?? "");
   const [moeda, setMoeda] = useState<CurrencyCode>(inicial?.moeda ?? moedaDoApp);
   const [meta, setMeta] = useState("");
   const [mesSeguinte, setMesSeguinte] = useState(false);
   const [extras, setExtras] = useState<{ id: string; name: string; icon?: string }[]>([]);
   const [criandoLocal, setCriandoLocal] = useState(false);
+  const tituloCategoria = useRef<HTMLHeadingElement>(null);
   const criando = criandoCategoria ?? criandoLocal;
   const setCriando = (v: boolean) => (onCriandoCategoria ? onCriandoCategoria(v) : setCriandoLocal(v));
 
@@ -142,13 +145,19 @@ export function Digitar({
   const pais = PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc));
   const personalizadas = [...customCategories, ...extras];
   const estrangeira = moeda !== moedaDoApp;
-  const valorTexto = money(centavos / 100);
+  // Em outra moeda o valor grande mostra o símbolo dela: "50 dólares" falado aparecia "R$ 50,00" e
+  // parecia que ia gravar 50 reais (14/10/2026). A conversão fica em Mais opções, que já abre.
+  const valorTexto = estrangeira ? formatMoney(centavos / 100, moeda) : money(centavos / 100);
 
   const salvar = () => {
     // Sem valor, o toque não pode morrer calado (o botão some de cinza no sol e parece ativo).
-    if (!centavos) {
-      setState({ error: "Digite o valor primeiro" });
+    // Gasto sem categoria também responde aqui mesmo, e a folha sobe até a Categoria. O aviso
+    // fica embaixo do Salvar (14/10/2026), não no rodapé.
+    const falta = faltaParaSalvar(centavos, ehGasto, categoria);
+    if (falta) {
+      setState({ error: falta });
       setFalhou(false);
+      if (centavos) tituloCategoria.current?.scrollIntoView?.({ block: "center", behavior: "smooth" });
       return;
     }
     setState({});
@@ -252,7 +261,7 @@ export function Digitar({
     </button>
   );
   const bloco = (chave: string, rotulo: string, Icone: typeof Shapes, cor: string) => (
-    <button key={chave} type="button" aria-pressed={categoria === chave || tipoLivre === chave} onClick={() => (ehGasto ? setCategoria(chave) : setTipoLivre(chave))} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] leading-tight text-ink-muted aria-pressed:font-medium aria-pressed:text-ink">
+    <button key={chave} type="button" aria-pressed={categoria === chave || tipoLivre === chave} onClick={() => (ehGasto ? setCategoria(chave) : setTipoLivre(chave), setState((st) => (st.error ? {} : st)))} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] leading-tight text-ink-muted aria-pressed:font-medium aria-pressed:text-ink">
       <span
         className={`flex size-12 items-center justify-center rounded-full transition-shadow ${categoria === chave || tipoLivre === chave ? "shadow-[0_0_0_2px_var(--color-surface),0_0_0_3.5px_var(--color-ink)]" : ""}`}
         style={{ background: `color-mix(in srgb, ${cor} 18%, var(--color-surface))`, color: cor }}
@@ -297,7 +306,7 @@ export function Digitar({
         ))}
       </div>
 
-      <h3 className="pt-1 text-[15px] font-medium text-ink">{ehGasto ? "Categoria" : tipo === "RESGATE" ? "De onde saiu" : "Tipo"}</h3>
+      <h3 ref={tituloCategoria} className="pt-1 text-[15px] font-medium text-ink">{ehGasto ? "Categoria" : tipo === "RESGATE" ? "De onde saiu" : "Tipo"}</h3>
       <div className="grid grid-cols-4 gap-x-1 gap-y-2.5">
         {ehGasto
           ? [
@@ -331,14 +340,14 @@ export function Digitar({
         </button>
       </div>
       {outraData && (
-        <input type="date" aria-label="Outra data" max={dataDoChip("hoje", hoje)} defaultValue={dataDoChip("ontem", hoje)} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
+        <input type="date" aria-label="Outra data" max={dataDoChip("hoje", hoje)} defaultValue={chip === "hoje" || chip === "ontem" ? dataDoChip("ontem", hoje) : chip} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
       )}
 
       <div className="flex flex-col divide-y divide-border">
         {cartaoComLimite && ehGasto && linhaSw("No cartão de crédito", noCartao, () => setNoCartao((v) => !v))}
         {linhaSw("Repetir todo mês", repetir, () => setRepetir((v) => !v))}
       </div>
-      {repetir && <p className="-mt-1 text-sm text-ink-muted">Vai aparecer em Recorrentes</p>}
+      {repetir && <p className="-mt-1 text-sm text-ink-muted">{textoDoRepetir(dataDoChip(chip, hoje))}</p>}
 
       <details open={mais} onToggle={(e) => setMais((e.target as HTMLDetailsElement).open)} className="group rounded-2xl border border-border bg-surface">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-[15px] text-ink [&::-webkit-details-marker]:hidden">

@@ -235,3 +235,31 @@ describe("Fila de sugestões e dispensa", () => {
     expect(escolherSugestao([S("indo-bem", "TRANSPORTE")], [boa2], { ...ctx, marca: "2026-10-14" })?.id).toBe("TRANSPORTE");
   });
 });
+
+describe("a parcela projetada não vira dado do mês seguinte (14/10/2026)", () => {
+  it("só a fatura de setembro, com a 3/3 projetada em outubro: o topo é a fatura de setembro", async () => {
+    const { semAsProjetadas, escolherCaso } = await import("../regras");
+    const valores = [
+      { ano: 2026, mes: 9, entrou: 0, gastou: 482.65, guardou: 0 },
+      { ano: 2026, mes: 10, entrou: 0, gastou: 150, guardou: 0 },
+    ];
+    const porLote = [
+      { year: 2026, month: 9, importBatchId: "f1", _count: { _all: 7 } },
+      { year: 2026, month: 10, importBatchId: "f1", _count: { _all: 1 } },
+    ];
+    const limpo = semAsProjetadas(valores, porLote, [{ ano: 2026, mes: 10, valor: 150, loteId: "f1" }]);
+    expect(limpo.valores[1].gastou).toBe(0);
+    expect(limpo.porLote).toHaveLength(1);
+    const vazio = { gastos: 0, entradas: 0, extrato: false, fatura: false, digitados: 0 };
+    const caso = escolherCaso({
+      dia: 14,
+      atual: { ...vazio, gastos: limpo.valores[1].gastou },
+      passado: { ...vazio, gastos: limpo.valores[0].gastou, fatura: true },
+      mesesComDado: limpo.valores.filter((v) => v.gastou !== 0).length,
+      ultimoArquivo: { mes: { ano: 2026, mes: 9 }, extrato: false, fatura: true },
+    });
+    expect(caso).toBe("fatura");
+    // Antes: as duas contavam, e a conta nova caía no "dia a dia" de outubro.
+    expect(escolherCaso({ dia: 14, atual: { ...vazio, gastos: 150, fatura: true }, passado: { ...vazio, gastos: 482.65, fatura: true }, mesesComDado: 2, ultimoArquivo: { mes: { ano: 2026, mes: 10 }, extrato: false, fatura: true } })).toBe("dia-a-dia");
+  });
+});

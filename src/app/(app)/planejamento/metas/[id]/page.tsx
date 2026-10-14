@@ -12,7 +12,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { ProvedorDaFolhaDaMeta } from "../FolhaDaMeta";
-import { editarEmDaMeta, metaParaEditar, textoDoSelo } from "../visual";
+import { editarEmDaMeta, metaParaEditar, textoDoSelo, valorDoLancamento } from "../visual";
 import { MaisDaMeta } from "../MenuDaMeta";
 import { GraficoQuandoChego } from "./GraficoQuandoChego";
 import { CartaoDoAporte, type EstadoDoAporte } from "./CartaoDoAporte";
@@ -100,7 +100,7 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
             month: a.mes,
             description: a.descricao,
             futuro: false,
-            linha: `${a.valor < 0 ? "retirou " : ""}${m(Math.abs(a.valor))} · ${origemDoTexto(a.descricao)}${a.dia ? ` em ${dd(a.dia)}/${dd(a.mes)}` : ""}`,
+            linha: `${a.valor < 0 ? "retirou " : ""}${valorDoLancamento(money, Math.abs(a.valor))} · ${origemDoTexto(a.descricao)}${a.dia ? ` em ${dd(a.dia)}/${dd(a.mes)}` : ""}`,
           })),
       };
     });

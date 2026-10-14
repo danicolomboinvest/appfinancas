@@ -1,5 +1,6 @@
 "use client";
 
+import { rolouDeVerdade } from "@/lib/ui/rolagem";
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -292,11 +293,15 @@ function MenuFlutuante({
     const tecla = (e: KeyboardEvent) => e.key === "Escape" && onFechar();
     window.addEventListener("keydown", tecla);
     // Só a rolagem da página (sem capture): carrossel que rola sozinho por dentro não fecha o menu.
-    window.addEventListener("scroll", onFechar, { passive: true });
+    // E só rolagem de verdade (14/10/2026): o fim do embalo do dedo, ou a página que se ajusta
+    // logo depois do toque, fechava o menu no mesmo instante e o "…" parecia não responder.
+    const rolar = () => rolouDeVerdade(y0, window.scrollY) && onFechar();
+    const y0 = window.scrollY;
+    window.addEventListener("scroll", rolar, { passive: true });
     window.addEventListener("resize", onFechar);
     return () => {
       window.removeEventListener("keydown", tecla);
-      window.removeEventListener("scroll", onFechar);
+      window.removeEventListener("scroll", rolar);
       window.removeEventListener("resize", onFechar);
     };
   }, [onFechar]);

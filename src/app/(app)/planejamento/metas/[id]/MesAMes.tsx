@@ -6,6 +6,7 @@ import { Explica } from "@/components/ui/Explica";
 import { useMoney } from "@/components/money/MoneyProvider";
 import type { SituacaoDoMes } from "@/lib/metas/projecao";
 import { EditarGuardado, type GuardadoDoSonho } from "./GuardadosDoSonho";
+import { valorDoLancamento } from "../visual";
 
 export type MesDaMeta = { chave: string; curto: string; nome: string; situacao: SituacaoDoMes; total: number; aportes: (GuardadoDoSonho & { linha: string })[] };
 
@@ -60,7 +61,7 @@ export function MesAMes({ meses }: { meses: MesDaMeta[] }) {
                   <li key={a.id}>
                     <button type="button" onClick={() => setAberto(a.id)} className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-surface-2">
                       <span className="min-w-0 flex-1 truncate text-ink-muted">{a.description ?? "Aporte"}</span>
-                      <span className={`shrink-0 font-semibold tabular-nums ${a.amount < 0 ? "text-danger" : "text-ink"}`}>{money(a.amount, { round: true })}</span>
+                      <span className={`shrink-0 font-semibold tabular-nums ${a.amount < 0 ? "text-danger" : "text-ink"}`}>{valorDoLancamento(money, a.amount)}</span>
                       <span className="shrink-0 text-caption text-ink-faint">Corrigir</span>
                       <ChevronRight size={14} className="shrink-0 text-ink-faint" aria-hidden />
                     </button>

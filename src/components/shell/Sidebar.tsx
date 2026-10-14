@@ -182,7 +182,7 @@ export function Sidebar({
                   }`}
                 >
                   <Icon size={20} strokeWidth={1.5} className="shrink-0" />
-                  <span className={`truncate ${hideLabelDesktopOnly}`}>{rotuloDoMenu(section, empresa)}</span>
+                  <span className={`min-w-0 break-words leading-snug ${hideLabelDesktopOnly}`}>{rotuloDoMenu(section, empresa)}</span>
                   {section.premium && !isPremium && (
                     <>
                       <Lock size={13} strokeWidth={2} aria-hidden className={`ml-auto shrink-0 text-ink-faint ${hideLabelDesktopOnly}`} />
@@ -245,7 +245,9 @@ function ItemDoMenuDaEmpresa({ item, on, collapsed, esconder, onClick }: { item:
         }`}
       >
         <Icon size={20} strokeWidth={1.5} className="shrink-0" />
-        <span className={`truncate ${esconder}`}>{item.label}</span>
+        {/* Quebra linha em vez de "…": "Configurações da empresa" e "Como vai a empresa" (com o
+            NOVO ao lado) não cabem a 320 px nem na barra do computador. */}
+        <span className={`min-w-0 break-words leading-snug ${esconder}`}>{item.label}</span>
         {item.novo && <em className={`ml-auto shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold not-italic uppercase tracking-wider text-accent-strong ${esconder}`}>novo</em>}
       </Link>
     </li>

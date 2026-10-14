@@ -2,41 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth.config";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeUsagePath } from "@/lib/usage/normalize-path";
-import { NOMES_DOS_EVENTOS_DO_COMECO } from "@/lib/onboarding/comeco";
-
-/**
- * Eventos aceitos. Lista fechada de propósito: o cliente não inventa nome de evento, senão o
- * relatório vira um saco de strings e ninguém confia no que está lendo.
- *
- * Os nomeados existem pra medir o que o banco não revela depois. Um gasto digitado e um gasto
- * ditado terminam idênticos na tabela — sem marcar na hora, não dá pra saber se o áudio serve
- * pra alguém.
- */
-const ALLOWED_EVENTS = new Set([
-  "pageview",
-  "registro_voz",
-  "registro_digitado",
-  "registro_importacao",
-  "posso_comprar",
-  "conta_a_pagar",
-  // 07/10/2026: a tela de assinar do iPhone e o tour de boas-vindas não deixavam rastro nenhum.
-  "assinar_apple_viu",
-  "assinar_apple_tocou",
-  "tour_terminou",
-  "tour_pulou",
-  // 11/10/2026: o "Tivemos uma mudança" da versão nova.
-  "novidades_terminou",
-  "novidades_pulou",
-  // 13/10/2026: o "Como funciona o casal" (Casal simples).
-  "tutorial_casal_terminou",
-  "tutorial_casal_pulou",
-  // 13/10/2026: o "O casal ficou mais simples" (casa migrada do Nós dois).
-  "aviso_casa_migrada_ver",
-  "aviso_casa_migrada_agora_nao",
-  // 11/10/2026: o funil do começo (onboarding) da versão nova. O path diz qual pergunta, porta ou
-  // banco (ver caminhoDoEvento em lib/onboarding/comeco.ts); nunca o nome nem a renda.
-  ...NOMES_DOS_EVENTOS_DO_COMECO,
-]);
+import { ALLOWED_EVENTS } from "@/lib/usage/eventos";
 
 /**
  * Recebe os eventos de uso do próprio app (rastreio primeiro, sem script de terceiro).
@@ -46,8 +12,10 @@ const ALLOWED_EVENTS = new Set([
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
-    // Sem sessão não há o que medir (e nada de aceitar userId vindo do corpo).
-    return NextResponse.json({ ok: false }, { status: 401 });
+    // Sem sessão não há o que medir (e nada de aceitar userId vindo do corpo). Responde 200: o
+    // pageview que sai na hora do login (a sessão ainda nascendo) virava "401" vermelho no
+    // console de toda compradora nova, e o caçador de erros contava isso como erro.
+    return NextResponse.json({ ok: false, skipped: "sem-sessao" });
   }
   // Admin navegando (você!) poluiria a estatística das clientas.
   if (session.user.role === "ADMIN") {

@@ -238,3 +238,41 @@ describe("a voz usa o motor da importação (14/10/2026)", () => {
     expect(parseVoiceEntry("paguei 15 no 99")).toMatchObject({ amount: 15, parentCategory: "TRANSPORTE", subcategory: "Aplicativo", description: "99" });
   });
 });
+
+describe("valor falado: centavos e jeitos de escrever o número (14/10/2026)", () => {
+  it("12 reais e 50 centavos é 12,50, e a descrição não leva os centavos", () => {
+    expect(parseVoiceEntry("gastei 12 reais e 50 centavos na padaria")).toMatchObject({ amount: 12.5, description: "Padaria" });
+  });
+  it("um real e noventa por extenso", () => {
+    expect(parseVoiceEntry("gastei um real e noventa")).toMatchObject({ amount: 1.9, description: "" });
+  });
+  it("12 reais e 50 na padaria", () => {
+    expect(parseVoiceEntry("gastei 12 reais e 50 na padaria")).toMatchObject({ amount: 12.5, description: "Padaria" });
+  });
+  it("não inventa centavos de outra coisa", () => {
+    expect(parseVoiceEntry("paguei 30 reais e 2 cafés").amount).toBe(30);
+    expect(parseVoiceEntry("gastei 50 reais e 20 de gorjeta").amount).toBe(50);
+  });
+  it("100.50 é cem e cinquenta, não dez mil", () => {
+    expect(parseVoiceEntry("gastei 100.50 no mercado").amount).toBe(100.5);
+  });
+  it("1.5 mil é mil e quinhentos", () => {
+    expect(parseVoiceEntry("gastei 1.5 mil na viagem").amount).toBe(1500);
+  });
+  it("número escrito do jeito de fora: US$ 1,234.56", () => {
+    expect(parseVoiceEntry("gastei US$ 1,234.56 em compras")).toMatchObject({ amount: 1234.56, currency: "USD" });
+  });
+  it("o jeito do Brasil continua: R$ 1.250,90", () => {
+    expect(parseVoiceEntry("paguei R$ 1.250,90 de aluguel").amount).toBe(1250.9);
+  });
+});
+
+describe("o dia dito na fala", () => {
+  it("ontem não vira hoje nem entra na descrição", () => {
+    expect(parseVoiceEntry("gastei 45 reais no mercado ontem")).toMatchObject({ quando: "ontem", description: "Mercado" });
+  });
+  it("anteontem", () => {
+    expect(parseVoiceEntry("anteontem paguei 30 no uber")).toMatchObject({ quando: "anteontem", amount: 30 });
+  });
+  it("sem dia, null", () => expect(parseVoiceEntry("gastei 45 no mercado").quando).toBeNull());
+});

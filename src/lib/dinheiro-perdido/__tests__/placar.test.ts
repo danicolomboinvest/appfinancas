@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ateAgora, contraOPreco, escolhasDaCarta, mensagemDeEstorno, porqueDaCarta, rotuloDaCarta, subDaCarta, valorDoSim } from "../placar";
+import { ateAgora, contraOPreco, escolhasDaCarta, mensagemDeEstorno, paraOSac, porqueDaCarta, rotuloDaCarta, subDaCarta, valorDoSim } from "../placar";
 import type { Achado } from "../detectar";
 
 const money = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -93,5 +93,14 @@ describe("cartas", () => {
       // "Vou evitar" não vira dinheiro recuperado, nem quando se repete todo mês.
       expect(ateAgora([{ mensal: 12, unico: null, estado: e.estadoSim }]).porAno).toBe(0);
     }
+  });
+});
+
+describe("para quem vai a mensagem pronta", () => {
+  it("sem o nome do banco, 'do seu banco' (antes: 'SAC de banco')", () => {
+    expect(paraOSac("banco")).toBe("Para o SAC do seu banco. É só copiar e colar.");
+  });
+  it("com o nome, o nome", () => {
+    expect(paraOSac("Nubank")).toBe("Para o SAC de Nubank. É só copiar e colar.");
   });
 });

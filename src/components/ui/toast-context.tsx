@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { vibrar } from "@/lib/celebrar";
+import { entrarNaFila } from "@/lib/ui/fila-de-avisos";
 
 /**
  * Os avisos do app (14/10/2026, decisão da Dani: "B como regra, a pílula de A como exceção").
@@ -40,7 +41,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (process.env.NODE_ENV !== "production" && !item.erro && item.message.length > LIMITE_DO_AVISO) {
       console.warn(`[aviso] "${item.message}" tem ${item.message.length} caracteres. A pílula é de até ${LIMITE_DO_AVISO}.`);
     }
-    setAviso({ id: Date.now() + Math.random(), ...item });
+    // Um aviso por vez: o novo substitui o anterior. A fila da main (lib/ui/fila-de-avisos) segue
+    // valendo: sucesso tira o erro da tentativa anterior e o mesmo texto não entra duas vezes.
+    setAviso((atual) => entrarNaFila(atual ? [atual] : [], { id: Date.now() + Math.random(), ...item }).at(-1) ?? null);
   }, []);
 
   const showToast = useCallback(

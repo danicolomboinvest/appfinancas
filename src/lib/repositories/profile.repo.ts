@@ -68,6 +68,15 @@ const CAMPOS = { id: true, name: true, kind: true, icon: true, theme: true, posi
  */
 export const SEM_CASAL_MIGRADO: Prisma.FinancialProfileWhereInput = { NOT: { kind: "CASAL", membrosCasal: { some: { saiuEm: null, modelo: "simples" } } } };
 
+/**
+ * Os perfis que OCUPAM os 3 lugares (Pessoal, Nós dois, Empresa): todos, inclusive o Casal que
+ * virou casa simples. Ele some da lista e da troca, mas o lugar do Nós dois continua dele: sem
+ * isso, quem estava numa casa via "Criar Nós dois" e criava um segundo Casal.
+ */
+export async function perfisDosLugares(userId: string): Promise<ProfileRow[]> {
+  return prisma.financialProfile.findMany({ where: { userId }, select: CAMPOS, orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+}
+
 export async function listProfiles(userId: string): Promise<ProfileRow[]> {
   return prisma.financialProfile.findMany({
     where: { userId, ...SEM_CASAL_MIGRADO },

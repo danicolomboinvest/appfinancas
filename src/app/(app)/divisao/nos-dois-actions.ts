@@ -7,7 +7,7 @@ import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { ehCasal } from "@/lib/profiles/casal";
 import { PARENT_CATEGORIES } from "@/lib/categories";
-import { ehCanal, limparNomeDoPar } from "@/lib/casal-login/regras";
+import { ehCanal, limparNomeDoPar, NOME_GENERICO_DO_PAR } from "@/lib/casal-login/regras";
 import {
   ErroDoConvite,
   cancelarConvite,
@@ -57,7 +57,7 @@ async function responder<T extends object>(fn: () => Promise<T>, revalidar = tru
 export async function criarConviteAction(nome: string): Promise<Resposta<{ link: string; expiraEm: string; nomePar: string }>> {
   return responder(async () => {
     const ctx = await contextoDoCasal();
-    const nomePar = limparNomeDoPar(nome) || "seu par";
+    const nomePar = limparNomeDoPar(nome) || NOME_GENERICO_DO_PAR;
     const { token, expiraEm } = await criarConvite(ctx, nomePar);
     return { link: `${await urlDoApp()}/par/${token}`, expiraEm: expiraEm.toISOString(), nomePar };
     // Sem recarregar a tela agora: a folha está aberta mostrando o link. Ela recarrega ao fechar.

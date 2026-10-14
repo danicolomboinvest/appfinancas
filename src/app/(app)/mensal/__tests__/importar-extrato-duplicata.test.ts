@@ -179,12 +179,25 @@ describe("mesmo dia e valor de outra importação, na leitura do arquivo", () =>
     jaImportado("PIX ENVIADO MARIA", 100);
     const items = await lerExtrato(["10/09/2026;Pix enviado Maria;-100,00"]);
     expect(items[0].possivelDuplicata).toBeFalsy();
+    // …e a conferência já mostra que ela estava no app: antes dizia "Pronto, anotar 1" e, depois
+    // de gravar, "Nada novo".
+    expect(items[0].jaNoApp).toMatchObject({ importado: true, id: "" });
+  });
+
+  it("o resgate subido de novo também já estava no app (ele é gravado negativo)", async () => {
+    const primeira = await lerExtrato(["20/09/2026;Resgate RDB;200,00"]);
+    expect(primeira[0]).toMatchObject({ category: "INVESTMENT_CONTRIBUTION", resgate: true });
+    await importTransactionsAction(primeira.map((i) => ({ ...i, learn: false })), "extrato");
+    const segunda = await lerExtrato(["20/09/2026;Resgate RDB;200,00"]);
+    expect(segunda[0].jaNoApp).toMatchObject({ importado: true });
   });
 
   it("cada lançamento já importado responde por uma linha só: a igual fica com ele, a outra não pergunta", async () => {
     jaImportado("UBER TRIP", 15);
     const items = await lerExtrato(["10/09/2026;99 POP;-15,00", "10/09/2026;UBER TRIP;-15,00"]);
     expect(items.every((i) => !i.possivelDuplicata)).toBe(true);
+    expect(items.find((i) => i.description === "UBER TRIP")?.jaNoApp).toMatchObject({ importado: true });
+    expect(items.find((i) => i.description === "99 POP")?.jaNoApp).toBeFalsy();
   });
 });
 

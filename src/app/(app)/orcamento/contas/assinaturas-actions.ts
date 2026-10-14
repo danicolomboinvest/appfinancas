@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
 import type { ComercianteParaEscolher } from "@/lib/contas/assinaturas";
-import { adicionarDosLancamentos, escreverAssinatura, listarParaEscolher, recusarAssinatura, removerAssinatura, sugerirCategoria } from "@/lib/repositories/assinaturas.repo";
+import { adicionarDosLancamentos, desfazerRecusaDeAssinatura, escreverAssinatura, listarParaEscolher, recusarAssinatura, removerAssinatura, sugerirCategoria } from "@/lib/repositories/assinaturas.repo";
 
 function revalidar() {
   revalidatePath("/orcamento", "layout");
@@ -65,5 +65,12 @@ export async function removerAssinaturaAction(id: string): Promise<void> {
 export async function naoEAssinaturaAction(nome: string): Promise<void> {
   const ctx = await getRequiredSession();
   await recusarAssinatura(ctx, z.string().trim().min(1).max(80).parse(nome));
+  revalidar();
+}
+
+/** Desfazer o "Não é assinatura": ela volta para a lista. */
+export async function desfazerNaoEAssinaturaAction(nome: string): Promise<void> {
+  const ctx = await getRequiredSession();
+  await desfazerRecusaDeAssinatura(ctx, z.string().trim().min(1).max(80).parse(nome));
   revalidar();
 }

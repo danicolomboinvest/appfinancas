@@ -56,6 +56,7 @@ import {
 } from "@/lib/travel/estimates";
 import {
   boardingMonth,
+  proximoDestinoDosDias,
   cheaperMonthTip,
   monthFromToday,
   monthsAhead,
@@ -262,7 +263,8 @@ export function AssistenteDeViagem({
     fd.set("plano", enviado);
     if (metaAtual) fd.set("goalId", metaAtual);
     iniciar(async () => {
-      const r: TravelGoalState = await salvarViagemAction({}, fd);
+      // Sem internet, a ação recusa: vira o aviso de erro da tela, não a tela de erro do app.
+      const r: TravelGoalState = await salvarViagemAction({}, fd).catch(() => ({ error: "Não salvou. Sem internet?" }));
       if (r.error || !r.goalId) return setErro(r.error ?? "Não salvou. Tente de novo.");
       setErro(null);
       // A meta nova vive em Metas, fora desta tela: só ela ganha a pílula (14/10/2026).
@@ -302,6 +304,14 @@ export function AssistenteDeViagem({
     }
     if (passo === 1) setDiaDe(0);
     // Padrão: um destino por vez no passo dos dias (o "Continuar" anda pelos destinos primeiro).
+    // Faltava andar: o "Continuar" pulava das primeiras para "Quantas pessoas?" e os outros
+    // destinos ficavam nos 3 dias de partida sem ela ver (14/10/2026).
+    const proximo = proximoDestinoDosDias(passo, tema, diaDe, destinos.length);
+    if (proximo !== null) {
+      setDiaDe(proximo);
+      topo.current?.scrollIntoView({ block: "start" });
+      return window.scrollTo({ top: 0 });
+    }
     if (passo === 4) setAnoVisto(null);
     irPara(passo + 1);
   }
@@ -310,6 +320,11 @@ export function AssistenteDeViagem({
     if (ajustando) {
       setAjustando(false);
       return irPara(7);
+    }
+    // E o "Voltar" anda de volta pelos destinos do passo dos dias.
+    if (passo === 2 && tema === "padrao" && diaDe > 0) {
+      setDiaDe(Math.min(diaDe, destinos.length - 1) - 1);
+      return window.scrollTo({ top: 0 });
     }
     if (passo === 3) setDiaDe(Math.max(0, plano.legs.length - 1));
     irPara(Math.max(1, passo - 1));
@@ -773,7 +788,8 @@ export function AssistenteDeViagem({
             const trocado = plano.overrides[key] !== undefined;
             return (
               <div key={key} className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full" style={{ background: `color-mix(in srgb, ${cor} 16%, transparent)`, color: cor }}>
+                {/* Abaixo de 360 px o ícone sai: sem ele, "Hospedagem" e "Alimentação" cabiam cortados. */}
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full max-[359px]:hidden" style={{ background: `color-mix(in srgb, ${cor} 16%, transparent)`, color: cor }}>
                   <Icone className="size-[18px]" aria-hidden />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-1.5">

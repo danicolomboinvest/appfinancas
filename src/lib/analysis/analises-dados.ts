@@ -216,6 +216,6 @@ export async function analiseDaRendaFixa(ctx: AuthContext, id: string) {
     investido: a.investedValue ? Number(a.investedValue) : null,
     peso: total > 0 ? (Number(a.currentValue) / total) * 100 : 0,
     logo: logoDe(a.name),
-    perguntas: perguntasRendaFixa({ nome: a.name, classe: a.assetClass as "RENDA_FIXA" | "TESOURO_DIRETO", indexador: a.fixedIncomeIndex }),
+    perguntas: perguntasRendaFixa({ nome: a.name, classe: a.assetClass as "RENDA_FIXA" | "TESOURO_DIRETO", indexador: a.fixedIncomeIndex, taxaCompra: a.taxaCompra === null ? null : Number(a.taxaCompra) }),
   };
 }

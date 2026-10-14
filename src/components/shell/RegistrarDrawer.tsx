@@ -10,7 +10,7 @@ import { CalendarClock, ChevronDown, ChevronRight, FileUp, Mic, Pencil, Shopping
 import { Modal } from "@/components/ui/Modal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { Digitar } from "@/components/entries/Digitar";
-import { subcategoriesFor, incomeTypesFor } from "@/lib/categories";
+import { subcategoriesFor, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { getCustomCategoriesAction, getGoalsAction, getOtherProfilesAction } from "@/app/(app)/mensal/actions";
 import { currentYearMonthFromPath } from "@/app/(app)/mensal/current-month";
 import { VoiceRecorder } from "@/app/(app)/mensal/VoiceRecorder";
@@ -187,6 +187,7 @@ export function RegistrarDrawer({
             setParsed(result);
             setMode("type");
           }}
+          onDigitar={() => setMode("type")}
         />
       )}
 
@@ -214,7 +215,7 @@ export function RegistrarDrawer({
  * categoria reconhecida, fica sem marcar.
  */
 function inicialDaVoz(parsed: ParsedVoiceEntry, kind: ProfileKind) {
-  const base = { valor: parsed.amount ?? undefined, tipo: parsed.category, moeda: parsed.currency ?? undefined };
+  const base = { valor: parsed.amount ?? undefined, tipo: parsed.category, moeda: parsed.currency ?? undefined, quando: parsed.quando ?? undefined };
   if (parsed.category === "EXPENSE") {
     return {
       ...base,
@@ -236,7 +237,9 @@ function inicialDaVoz(parsed: ParsedVoiceEntry, kind: ProfileKind) {
 function voiceSubcategory(parsed: ParsedVoiceEntry, kind: ProfileKind): string | undefined {
   const label = parsed.description.trim();
   if (!label) return undefined;
-  const pool = parsed.category === "INCOME" ? incomeTypesFor(kind) : parsed.parentCategory ? subcategoriesFor(kind, parsed.parentCategory) : [];
+  // Aporte: os tipos de aporte ("investi 200 no tesouro" marca Tesouro Direto). Antes buscava nas
+  // subcategorias de gasto de Outros e o tipo nunca vinha marcado.
+  const pool = parsed.category === "INCOME" ? incomeTypesFor(kind) : parsed.category === "INVESTMENT_CONTRIBUTION" ? investmentTypesFor(kind) : parsed.parentCategory ? subcategoriesFor(kind, parsed.parentCategory) : [];
   const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return pool.find((t) => norm(t) === norm(label) || norm(t).startsWith(norm(label)));
 }

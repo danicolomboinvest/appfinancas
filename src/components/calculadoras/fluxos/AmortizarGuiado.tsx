@@ -12,7 +12,7 @@ import { AoVivo } from "../AoVivo";
 import { CAMPOS_AMORTIZAR, COMO_LER } from "../campos";
 import { Fim, Passo, useIrParaCalculadoras, type DadosDaTela, type SimulacaoAberta } from "../Passo";
 import type { DividaParaCalculadora } from "@/lib/calculadoras/fontes";
-import { AcoesDoResultado, AjustesFinos, Atalhos, BotaoGrande, CampoFino, CartaoValor, Colunas, HeroiDoResultado, IconeRedondo, Linha, Opcao, SegmentoFino, Selo, pc, useSalvar } from "../pecas";
+import { AcoesDoResultado, AjustesFinos, Atalhos, BotaoGrande, CampoFino, CartaoValor, Colunas, HeroiDoResultado, IconeRedondo, Linha, Opcao, SegmentoFino, Selo, pc, useDinheiroParaGuardar, useSalvar } from "../pecas";
 
 const NOME = "Quitar ou investir";
 
@@ -57,7 +57,8 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
   const saldo = Number(v.outstandingBalance);
   const prazo = Number(v.remainingMonths);
   const res = vereditoAmortizar(v);
-  const s = useSalvar("AMORTIZAR_VS_INVESTIR", v, `${res.veredito.frase} · ${r0(res.veredito.numero)}`);
+  const guardar = useDinheiroParaGuardar();
+  const s = useSalvar("AMORTIZAR_VS_INVESTIR", v, `${res.veredito.frase} · ${guardar(res.veredito.numero, { round: true })}`);
 
   if (modo === "vivo") {
     return (
@@ -68,7 +69,7 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
         exemplo={EXEMPLO_AMORTIZAR}
         inicial={v}
         tipo="AMORTIZAR_VS_INVESTIR"
-        salvaInicial={!!salva}
+        salvaInicial={!!salva || s.salva}
         onValores={setV}
         calcular={(x) => ({ veredito: vereditoAmortizar(x).veredito, sub: "É quanto um lado fica à frente no fim do prazo" })}
         detalhes={(x) => {

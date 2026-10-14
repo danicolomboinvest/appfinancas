@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, useTransition, type ReactNode } from "react";
+import { useId, useMemo, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, SlidersHorizontal } from "lucide-react";
@@ -10,7 +10,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { useToast } from "@/components/ui/toast-context";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
-import { currencySymbol } from "@/lib/money";
+import { currencySymbol, makeMoneyFormatter } from "@/lib/money";
 import { valorCurto } from "@/lib/calculadoras/vereditos";
 import type { TipoDeSimulacao, ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
 import { saveSimulationAction, virarMetaAction } from "@/app/(app)/simuladores/actions";
@@ -34,6 +34,33 @@ export const pc = (v: number, casas = 2) => (Math.round(v * 10 ** casas) / 10 **
 /** Contagem (anos, meses): só os dígitos, inteiro. Dinheiro NUNCA passa por aqui (ver CampoDeDinheiro). */
 const soDigitos = (t: string) => Number(t.replace(/\D/g, "")) || 0;
 export const comCentavos = (v: number) => (v ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
+
+/** Largura média de um algarismo da fonte do número grande, em em (medida: 0,49; com folga). */
+const POR_CARACTERE = 0.52;
+
+/**
+ * O número grande que cabe na linha (14/10/2026). Antes o campo tinha fonte fixa e "500.000,00"
+ * (o exemplo do imóvel, na primeira tela) saía cortado "500.000,0" a 375 px; a 320 px até
+ * "100.000,00" cortava. Agora a fonte diminui com a quantidade de caracteres, medida na largura
+ * da própria linha (`cqw`, a linha é um container), descontado o que mais ocupa a linha (botões,
+ * "R$", "por mês"). Sem suporte a `cqw` (iOS 15), vale o tamanho da classe, como antes.
+ */
+export function tamanhoQueCabe(valor: number, maxRem: number, reservaRem: number) {
+  const n = Math.max(4, comCentavos(valor).length);
+  return {
+    fontSize: `min(${maxRem}rem, calc((100cqw - ${reservaRem}rem) / ${(n * POR_CARACTERE).toFixed(2)}))`,
+    width: `${(n * POR_CARACTERE + 0.3).toFixed(2)}em`,
+  };
+}
+
+/**
+ * O dinheiro para GUARDAR (o resumo da simulação salva): nunca escondido. Com o olho do topo
+ * fechado, o `useMoney` devolve "R$ ••••", e o resumo era gravado assim para sempre (14/10/2026).
+ */
+export function useDinheiroParaGuardar() {
+  const currency = useCurrency();
+  return useMemo(() => makeMoneyFormatter(currency, false), [currency]);
+}
 
 export function useSimbolo() {
   return currencySymbol(useCurrency());
@@ -149,7 +176,7 @@ export function ContadorComFoto({
           <span className="rounded-full bg-black/35 px-3 py-1 text-sm text-white backdrop-blur">{rotulo}</span>
           {selo && <Selo claro>{selo}</Selo>}
         </div>
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 [container-type:inline-size]">
           <button
             type="button"
             aria-label={`Menos ${simbolo} ${milhar(passo)}`}
@@ -166,8 +193,9 @@ export function ContadorComFoto({
               placeholder="0,00"
               valor={valor}
               onValor={(v) => onChange(v ?? 0)}
-              style={{ width: `${Math.max(4, comCentavos(valor).length) * 0.6 + 0.2}em` }}
-              className="min-w-0 max-w-[9em] bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-white outline-none max-[359px]:text-[1.8rem]"
+              // Os dois botões (3rem cada), os espaços e o "R$".
+              style={tamanhoQueCabe(valor, 2.5, 9)}
+              className="min-w-0 max-w-full bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-white outline-none max-[359px]:text-[1.8rem]"
             />
           </label>
           <button
@@ -212,7 +240,7 @@ export function CartaoValor({
         <span className="text-sm text-ink-muted">{rotulo}</span>
         {selo && <Selo>{selo}</Selo>}
       </div>
-      <label className="flex items-baseline gap-1.5 text-ink">
+      <label className="flex items-baseline gap-1.5 text-ink [container-type:inline-size]">
         <span className="text-base text-ink-muted">{simbolo}</span>
         {editavel && onChange ? (
           <CampoDeDinheiro
@@ -220,8 +248,9 @@ export function CartaoValor({
             placeholder="0,00"
             valor={valor}
             onValor={(v) => onChange(v ?? 0)}
-            style={{ width: `${Math.max(4, comCentavos(valor).length) * 0.6 + 0.2}em` }}
-            className="min-w-0 max-w-[9em] bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-ink outline-none max-[359px]:text-[2.1rem]"
+            // O "R$" e, quando há, o "por mês" ao lado.
+            style={tamanhoQueCabe(valor, 2.5, sufixo ? 7 : 2)}
+            className="min-w-0 max-w-full bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-ink outline-none max-[359px]:text-[2.1rem]"
           />
         ) : (
           <span className="text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums">{texto}</span>
@@ -472,6 +501,9 @@ export function Recolhivel({ titulo, children }: { titulo: string; children: Rea
 
 /* ---------- virar meta ---------- */
 
+/** Quando a ação nem chega a responder (sem internet, app atualizado com a tela aberta). */
+export const FALHOU_AO_SALVAR = "Não salvou. Tente de novo.";
+
 export type MetaSugerida = { nome: string; alvo: number; foto: string; icone: "CASA" | "CARRO" | "GENERICO" };
 
 /** "Virar meta": cria a meta com o valor da conta (24 meses de prazo, como no protótipo). Depois, "Ver minha meta". */
@@ -489,7 +521,9 @@ export function BotaoVirarMeta({ titulo, sub, meta }: { titulo: string; sub: str
       onClick={() => {
         if (feita) return router.push(`/planejamento/metas/${criada!.id}`);
         start(async () => {
-          const r = await virarMetaAction({ nome: meta.nome, alvo: meta.alvo, icone: meta.icone });
+          // Sem internet (ou com o app atualizado no meio), a ação recusa: vira aviso, não tela de erro.
+          const r = await virarMetaAction({ nome: meta.nome, alvo: meta.alvo, icone: meta.icone }).catch(() => null);
+          if (!r) return showError(FALHOU_AO_SALVAR);
           if (!r.ok) return showError(r.error);
           // Sem aviso: o próprio botão vira "Ver minha meta".
           setCriada({ id: r.id, chave });
@@ -521,7 +555,8 @@ export function useSalvar(tipo: TipoDeSimulacao, values: ValoresDaCalculadora, r
   const salva = salvoComo === foto;
   const salvar = () =>
     start(async () => {
-      const r = await saveSimulationAction({ type: tipo, name: nome, inputs: values, resumo });
+      const r = await saveSimulationAction({ type: tipo, name: nome, inputs: values, resumo }).catch(() => null);
+      if (!r) return showError(FALHOU_AO_SALVAR);
       if (r.error) return showError(r.error);
       setSalvoComo(foto);
       setAbrindo(false);

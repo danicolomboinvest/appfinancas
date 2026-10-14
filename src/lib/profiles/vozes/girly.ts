@@ -403,7 +403,8 @@ const GIRLY_IMP: Partial<Titulos> = {
   impImportarComo: (tipo) => `Entrar como ${tipo === "fatura" ? "fatura" : "extrato"}`,
   impEMesmo: (tipo) => `É ${tipo === "fatura" ? "fatura" : "extrato"} mesmo`,
   impRevisar: (atual, total) => `Conferindo ${atual} de ${total}`,
-  impParcela: (atual, total, restantes) => `Parcela ${atual} de ${total}: as ${restantes} seguintes entram sozinhas nos próximos meses`,
+  impParcela: (atual, total, restantes) =>
+    restantes === 1 ? `Parcela ${atual} de ${total}: a última entra sozinha no mês que vem` : `Parcela ${atual} de ${total}: as ${restantes} seguintes entram sozinhas nos próximos meses`,
   impQualCategoria: "Isso é o quê?",
   impOutra: "Outra",
   impNovaCategoriaPlaceholder: "Nome da categoria (ex.: Fatura, Pet, Farmácia)",
@@ -428,7 +429,7 @@ const GIRLY_IMP: Partial<Titulos> = {
   impImportando: "Anotando tudo…",
   impImportarN: (n) => `Anotar ${n} lançamento${s(n)}`,
   impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento anotado" : `${n} lançamentos anotados`}! Boaaaa`,
-  impToastImportados: (n) => `${n} anotados!`,
+  impToastImportados: (n) => (n === 1 ? "1 anotado!" : `${n} anotados!`),
   impSemData: "sem data",
   impManter: "Deixar",
   impCarteiraArquivoGrande: "Arquivo grande demais (o máximo são 4 MB) Exporta um relatório menor e tenta de novo.",

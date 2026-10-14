@@ -28,8 +28,9 @@ export function TelaDoParPausado({ nomeTitular, ate, simples = false, saiu = nul
             : `O Casal de ${nomeTitular} não foi renovado. Tudo fica guardado${ateTxt ? ` até ${ateTxt}` : " por 90 dias"} e volta como estava com a renovação.`}
         </p>
         <div className="mt-8 flex flex-col gap-3">
-          {/* No Casal simples o que ele lançou já é dele, no Pessoal dele: nada para baixar daqui. */}
-          {ateTxt && !simples && (
+          {/* No Casal simples o que ele lançou está no Pessoal dele, que fica fechado nesta pausa: a
+              cópia sai do mesmo link (o termo promete "Se eu sair, levo uma cópia do que lancei"). */}
+          {ateTxt && (
             <a href="/api/casal/lancamentos" className={BOTAO_ESCURO}>
               <Download size={20} strokeWidth={1.7} aria-hidden />
               Baixar o que eu lancei

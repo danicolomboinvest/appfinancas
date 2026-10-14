@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
 import { NUMERO_DESTAQUE, ValorDestaque, separarPrefixo } from "@/components/ui/ValorDestaque";
 import { MESES } from "../dados";
 import type { HeroiDiaADia, HeroiDigitou, HeroiMesFechado, HeroiPrimeiraVez } from "./dados";
@@ -77,7 +77,7 @@ function Curva({ atual, passado, dias, mes, mesPassado }: { atual: number[]; pas
   );
 }
 
-export function HeroiDoDiaADia({ h, mes, passado, money, cor }: { h: HeroiDiaADia; mes: Mes; passado: Mes; money: Money; cor: CorDoHeroi }) {
+export function HeroiDoDiaADia({ h, mes, passado, money, cor, tocavel }: { h: HeroiDiaADia; mes: Mes; passado: Mes; money: Money; cor: CorDoHeroi; tocavel?: boolean }) {
   const c = h.comparacao;
   const d = direcao(c.diferenca);
   const quadrinho = (rotulo: string, valor: string, extra: ReactNode) => (
@@ -91,7 +91,13 @@ export function HeroiDoDiaADia({ h, mes, passado, money, cor }: { h: HeroiDiaADi
   return (
     <CaixaDoHeroi cor={cor}>
       <Rotulo>
-        {Nome(mes)} até dia {c.corte}
+        <span className="flex items-center justify-between gap-2">
+          <span>
+            {Nome(mes)} até dia {c.corte}
+          </span>
+          {/* Tocar no cartão abre o que entrou no número (AbrirDetalhe). */}
+          {tocavel && <ChevronRight size={18} className="shrink-0" aria-hidden />}
+        </span>
       </Rotulo>
       <Numero texto={money(c.atual)} />
       <Sub>
@@ -149,6 +155,8 @@ export function HeroiDoMesFechado({ h, money, cor }: { h: HeroiMesFechado; money
           {h.pct}% do que entrou.{h.pctAnterior !== null ? ` Em ${nome(anterior)} ${h.pctAnterior >= 0 ? `foram ${h.pctAnterior}%` : "saiu mais do que entrou"}.` : ""}
         </Sub>
       )}
+      {/* Saiu a mais: só o mês anterior, para comparar (14/10/2026). */}
+      {faltou && h.pctAnterior !== null && <Sub>{h.pctAnterior < 0 ? `Em ${nome(anterior)} também.` : `Em ${nome(anterior)} ficaram ${h.pctAnterior}%.`}</Sub>}
       <div className="mt-1 grid grid-cols-6 items-end gap-2" aria-label="Quanto ficou com você nos últimos 6 meses">
         {h.barras.map((b, i) => {
           const ultimo = i === h.barras.length - 1;

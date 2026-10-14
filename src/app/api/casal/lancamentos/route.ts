@@ -34,7 +34,13 @@ export async function GET() {
     // Saiu (ou está nos perfis próprios): o último Nós dois em que foi par, nos 90 dias.
     const v = await ultimoVinculoComoPar(ctx.userId);
     if (v && podeBaixarCopia(v.saiuEm, new Date())) {
-      where = { profileId: v.profileId, OR: [{ userId: v.profile.userId, autorUserId: ctx.userId }, { userId: ctx.userId }] };
+      // Casal simples: o que ele lançou mora no Pessoal DELE (o perfil Casal da titular não tem
+      // nada dele). Sem isso, quem saiu da casa (ou ficou com a casa pausada) não tinha como levar
+      // a cópia que o termo promete ("Se eu sair, levo uma cópia do que lancei").
+      where =
+        v.modelo === "simples" && v.perfilParId
+          ? { userId: ctx.userId, profileId: v.perfilParId }
+          : { profileId: v.profileId, OR: [{ userId: v.profile.userId, autorUserId: ctx.userId }, { userId: ctx.userId }] };
       casal = v.profile.casal;
     }
   }

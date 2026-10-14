@@ -20,6 +20,7 @@ import { normalizarDescricao } from "@/lib/marcas/marca";
 import { carregarFoco } from "@/app/(app)/mensal/foco/dados";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
+import { acharMetaDaReserva } from "@/lib/portfolio/reserva-da-pessoa";
 
 /**
  * Os números de cada missão do Money Reset, com os dados DELA, e as marcas que ela paga (o logo
@@ -37,6 +38,24 @@ function mesesAntes(ano: number, mes: number, n: number) {
 }
 
 type Entrada = Awaited<ReturnType<typeof listEntriesForMonths>>[number];
+type Meta = Awaited<ReturnType<typeof listGoalsWithProgress>>[number];
+
+/**
+ * A reserva para a missão 10 e o cartão final. A tela da Reserva saiu em 11/10: a reserva é a meta
+ * do tipo Reserva de emergência; quem ainda tem a do simulador antigo fica com ela se não criou a meta.
+ */
+function reservaDaTela(f: Awaited<ReturnType<typeof getEmergencyFund>>, goals: Meta[]): { alvo: number; tem: number } | null {
+  const meta = acharMetaDaReserva(goals.filter((g) => Number(g.targetAmount) > 0));
+  if (meta) return { alvo: Number(meta.targetAmount), tem: meta.computedCurrentAmount };
+  return f && Number(f.targetAmount) > 0 ? { alvo: Number(f.targetAmount), tem: Number(f.currentAmount) } : null;
+}
+
+/** O sonho (missões 11 e 21): a primeira meta com data que não seja a reserva. */
+function sonhoDasMetas(goals: Meta[]): Meta | null {
+  const reserva = acharMetaDaReserva(goals);
+  const sonhos = goals.filter((g) => g.id !== reserva?.id);
+  return sonhos.find((x) => x.targetDate) ?? sonhos[0] ?? null;
+}
 
 /** Os meses que TÊM lançamento (quem chegou há 2 meses não divide por 3). */
 const mesesCom = (entradas: Entrada[]) => new Set(entradas.map((e) => e.year * 12 + e.month)).size;
@@ -86,7 +105,7 @@ export type DadosDoMarco =
   | { n: 15; livreSemana: number | null; ritmo: string | null }
   | { n: 17; marcas: GastoDeMarca[] }
   | { n: 20; semana: number; mediaSemana: number; marcas: GastoDeMarca[] }
-  | { n: 21; livreSemana: number | null; guardar: number | null; reserva: number | null; sonho: { nome: string; data: string | null } | null; ritmo: string | null; fechouMes: boolean; temOrcamento: boolean }
+  | { n: 21; livreSemana: number | null; guardar: number | null; reserva: number | null; reservaTem: number; sonho: { nome: string; data: string | null } | null; ritmo: string | null; fechouMes: boolean; temOrcamento: boolean }
   | { n: number };
 
 export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: { fixasTotal?: number } = {}): Promise<DadosDoMarco> {
@@ -175,12 +194,11 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
       return { n: 9, guardar: p && p.plannedInvestment > 0 ? p.plannedInvestment : null, renda: p?.plannedIncome ?? null };
     }
     case 10: {
-      const f = await getEmergencyFund(ctx);
-      return { n: 10, reserva: f && Number(f.targetAmount) > 0 ? { alvo: Number(f.targetAmount), tem: Number(f.currentAmount) } : null };
+      const [f, goals] = await Promise.all([getEmergencyFund(ctx), listGoalsWithProgress(ctx)]);
+      return { n: 10, reserva: reservaDaTela(f, goals) };
     }
     case 11: {
-      const goals = await listGoalsWithProgress(ctx);
-      const g = goals.find((x) => x.targetDate) ?? goals[0] ?? null;
+      const g = sonhoDasMetas(await listGoalsWithProgress(ctx));
       return { n: 11, sonho: g ? { nome: g.name, valor: Number(g.targetAmount), data: g.targetDate ? g.targetDate.toISOString().slice(0, 10) : null } : null };
     }
     case 12: {
@@ -233,12 +251,14 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
         prisma.budget.count({ where: { ...dono, year: ano, month: mes, plannedAmount: { gt: 0 } } }),
       ]);
       const l = foco.foco.livre;
-      const sonho = goals.find((g) => g.targetDate) ?? goals[0] ?? null;
+      const sonho = sonhoDasMetas(goals);
+      const reserva = reservaDaTela(fund, goals);
       return {
         n: 21,
         livreSemana: l.tipo === "semana" || l.tipo === "mes" ? l.porSemana : null,
         guardar: p && p.plannedInvestment > 0 ? p.plannedInvestment : null,
-        reserva: fund && Number(fund.targetAmount) > 0 ? Number(fund.targetAmount) : null,
+        reserva: reserva?.alvo ?? null,
+        reservaTem: reserva?.tem ?? 0,
         sonho: sonho ? { nome: sonho.name, data: sonho.targetDate ? sonho.targetDate.toISOString().slice(0, 10) : null } : null,
         ritmo: user.ritmoAcompanhamento ?? null,
         fechouMes: fechou > 0,

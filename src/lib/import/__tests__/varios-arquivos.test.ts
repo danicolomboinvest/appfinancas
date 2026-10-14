@@ -28,3 +28,17 @@ describe("vários arquivos de uma vez", () => {
     expect(f.faltam).toEqual(["março", "abril"]);
   });
 });
+
+describe("comprasDaFatura", () => {
+  it("o estorno não é compra: a lista e a conferência dizem o mesmo número", async () => {
+    const { comprasDaFatura, resumoDoArquivo } = await import("../varios-arquivos");
+    const linhas = [
+      { date: "2026-10-10", category: "EXPENSE" },
+      { date: "2026-10-11", category: "EXPENSE" },
+      { date: "2026-10-12", category: "EXPENSE", estorno: true },
+      { date: "2026-10-12", category: "EXPENSE", ignorar: true },
+    ];
+    expect(comprasDaFatura(linhas)).toBe(2);
+    expect(resumoDoArquivo("fatura", { faturaAberta: true }, linhas).chips).toEqual(["2 compras até hoje"]);
+  });
+});

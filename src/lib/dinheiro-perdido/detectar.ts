@@ -205,8 +205,46 @@ export function comercianteDe(l: LancamentoParaCacar): { chave: string; nome: st
   return { chave: c, nome: nomeLegivel(c, l.descricao ?? ""), marca };
 }
 
+const semAcentoMinusculo = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const LIGACAO = new Set(["de", "da", "do", "das", "dos", "e"]);
+
+/**
+ * O nome com a grafia da descrição (14/10/2026): a chave é sem acento ("pao acucar"), e a tela
+ * mostrava "Pao Acucar", "Anuidade Cartao", "Iof Compra Internacional". Agora volta o trecho da
+ * descrição que deu a chave: "Pão de Açúcar", "IOF compra internacional". Descrição toda em
+ * maiúsculas (o jeito do extrato) vira "Pao de Acucar". Null quando a chave não está na descrição.
+ */
+export function nomeDaDescricao(chave: string, descricao: string): string | null {
+  const alvo = chave.split(" ").filter(Boolean).slice(0, 3);
+  if (alvo.length === 0) return null;
+  const palavras = descricao.trim().split(/\s+/).filter(Boolean);
+  const limpas = palavras.map(semAcentoMinusculo);
+  const inicio = limpas.indexOf(alvo[0]);
+  if (inicio < 0) return null;
+  let fim = inicio;
+  let k = 1;
+  for (let i = inicio + 1; i < palavras.length && k < alvo.length && i - fim <= 2; i += 1) {
+    if (limpas[i] === alvo[k]) {
+      fim = i;
+      k += 1;
+    } else if (!LIGACAO.has(limpas[i])) break;
+  }
+  if (k < alvo.length) return null;
+  const trecho = palavras.slice(inicio, fim + 1).map((p) => p.replace(/[^\p{L}\p{N}&'.-]/gu, "")).filter(Boolean);
+  const gritado = descricao === descricao.toUpperCase();
+  const escrito = trecho.map((p, i) => {
+    if (!gritado) return p;
+    const min = p.toLowerCase();
+    return i > 0 && LIGACAO.has(min) ? min : min.charAt(0).toUpperCase() + min.slice(1);
+  });
+  const nome = escrito.join(" ");
+  return nome ? (nome.charAt(0).toUpperCase() + nome.slice(1)).slice(0, 40) : null;
+}
+
 /** "netflix com" → "Netflix"; sem nada útil, o começo da descrição. */
 function nomeLegivel(chave: string, descricao: string): string {
+  const daDescricao = chave && chaveUtil(chave) ? nomeDaDescricao(chave, descricao) : null;
+  if (daDescricao) return daDescricao;
   const base = chave && chaveUtil(chave) ? chave : descricao.trim().toLowerCase();
   const nome = base
     .split(" ")

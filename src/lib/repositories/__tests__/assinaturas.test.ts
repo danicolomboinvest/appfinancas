@@ -46,6 +46,11 @@ vi.mock("@/lib/db/prisma", () => ({
         for (const r of data) if (!banco.recusas.some((x) => x.userId === r.userId && x.profileId === r.profileId && x.chave === r.chave)) banco.recusas.push(r);
         return { count: data.length };
       }),
+      deleteMany: vi.fn(async ({ where }: { where: Omit<Recusa, "chave"> & { chave: { in: string[] } } }) => {
+        const antes = banco.recusas.length;
+        banco.recusas = banco.recusas.filter((r) => !(r.userId === where.userId && r.profileId === where.profileId && where.chave.in.includes(r.chave)));
+        return { count: antes - banco.recusas.length };
+      }),
     },
     transactionCategoryRule: { findMany: vi.fn(async () => []) },
   },
@@ -138,6 +143,15 @@ describe("não duplica com a detectada e 'Não é assinatura'", () => {
     const achadas = [{ chave: "rx:spotify", nome: "Spotify", mensal: 21.9 }];
     expect(juntarAssinaturas({ dela: [], achadas, contas: [], recusas: await repo.listarRecusasDeAssinatura(pessoal), lancamentosDoMes: [] })).toEqual([]);
     expect(juntarAssinaturas({ dela: [], achadas, contas: [], recusas: await repo.listarRecusasDeAssinatura(empresa), lancamentosDoMes: [] })).toHaveLength(1);
+  });
+
+  it("Desfazer do 'Não é assinatura' traz ela de volta, só neste perfil", async () => {
+    await repo.recusarAssinatura(pessoal, "Spotify");
+    await repo.recusarAssinatura(empresa, "Spotify");
+    await repo.desfazerRecusaDeAssinatura(pessoal, "Spotify");
+    const achadas = [{ chave: "rx:spotify", nome: "Spotify", mensal: 21.9 }];
+    expect(juntarAssinaturas({ dela: [], achadas, contas: [], recusas: await repo.listarRecusasDeAssinatura(pessoal), lancamentosDoMes: [] })).toHaveLength(1);
+    expect(juntarAssinaturas({ dela: [], achadas, contas: [], recusas: await repo.listarRecusasDeAssinatura(empresa), lancamentosDoMes: [] })).toEqual([]);
   });
 
   it("remover a dela apaga e a achada igual não volta no lugar", async () => {

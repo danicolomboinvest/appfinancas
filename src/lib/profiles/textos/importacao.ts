@@ -117,6 +117,8 @@ export type TextosImportacao = {
   // Extrato/fatura: pronto
   impImportadosSucesso(n: number): string;
   impToastImportados(n: number): string;
+  /** "e 1 parcela nos próximos meses": as parcelas seguintes que a fatura projetou. */
+  impParcelasFuturas(n: number): string;
   impPagamentoFatura(n: number): string;
   impSemData: string;
   impManter: string;
@@ -360,7 +362,9 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   // Extrato/fatura: revisão
   impRevisar: (atual, total) => `Revisar ${atual} de ${total}`,
   impParcela: (atual, total, restantes) =>
-    `Parcela ${atual} de ${total}: as ${restantes} seguintes entram sozinhas nos próximos meses.`,
+    restantes === 1
+      ? `Parcela ${atual} de ${total}: a última entra sozinha no mês que vem.`
+      : `Parcela ${atual} de ${total}: as ${restantes} seguintes entram sozinhas nos próximos meses.`,
   impQualCategoria: "Qual a categoria?",
   impOutra: "Outra",
   impNovaCategoriaPlaceholder: "Nome da categoria (ex.: Fatura, Pet, Farmácia)",
@@ -408,7 +412,8 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impImportarN: (n) => `Importar ${n} lançamento${s(n)}`,
   // Extrato/fatura: pronto
   impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`} com sucesso.`,
-  impToastImportados: (n) => `${n} importados`,
+  impToastImportados: (n) => (n === 1 ? "1 importado" : `${n} importados`),
+  impParcelasFuturas: (n) => (n === 1 ? "e 1 parcela nos próximos meses" : `e ${n} parcelas nos próximos meses`),
   impPagamentoFatura: (n) => `${n === 1 ? "Este parece" : "Estes parecem"} o pagamento desta fatura. Remover para não contar duas vezes?`,
   impSemData: "sem data",
   impManter: "Manter",

@@ -26,6 +26,7 @@ import { FolhaDaTransacao } from "./FolhaDaTransacao";
 import { EnviarParaPerfil, type PerfilParaEnviar } from "./EnviarParaPerfil";
 import { RESGATE } from "@/components/forms/CategoryFields";
 import { ehResgate } from "@/lib/entries/resgate";
+import { casaComABusca } from "@/lib/entries/busca";
 import {
   deleteMonthlyEntriesAction,
   deleteSeriesFromAction,
@@ -476,7 +477,6 @@ export function EntryList({
     );
   }
 
-  const termo = busca.trim().toLocaleLowerCase("pt-BR");
   const filtradas = entries.filter((e) => {
     if (filtro === "saidas" && e.category !== "EXPENSE") return false;
     if (filtro === "entradas" && e.category !== "INCOME") return false;
@@ -484,10 +484,7 @@ export function EntryList({
     if (pessoa && e.dono !== pessoa) return false;
     // "SEM": o gasto sem categoria (o link da linha "Sem categoria" do Orçamento).
     if (categoriasFiltro.length > 0 && !categoriasFiltro.includes((e.customCategoryId ?? e.parentCategory ?? (e.category === "EXPENSE" ? "SEM" : "")) as string)) return false;
-    if (termo) {
-      const texto = `${e.description ?? ""} ${e.subcategory ?? ""} ${categoryName(e, customCategories, voz, kind)}`.toLocaleLowerCase("pt-BR");
-      if (!texto.includes(termo)) return false;
-    }
+    if (busca.trim() && !casaComABusca(busca, [e.description, e.subcategory, categoryName(e, customCategories, voz, kind)], e.amount)) return false;
     return true;
   });
   // Por dia, do mais recente: "Hoje, quarta 7", "Ontem, terça 6", "Segunda 5". Sem data, no fim.

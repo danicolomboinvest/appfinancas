@@ -70,11 +70,14 @@ export function ResolverAgora({
             const r = await cobrirCategoriaAction({ de: o.key, para: categoria, valor: o.valor });
             if (r.error) throw new Error(r.error);
           }
+          // Cobriu: o aviso some também (e só volta se passar bem mais, ver resposta-ao-aviso.ts).
+          await dispensarAvisoAction(idDoAviso, "mes", valor);
           desfazer = async () => {
             for (const o of plano.origens) await cobrirCategoriaAction({ de: categoria, para: o.key, valor: o.valor });
+            await desfazerDispensaAction(idDoAviso, "mes");
           };
         } else {
-          await dispensarAvisoAction(idDoAviso, "mes");
+          await dispensarAvisoAction(idDoAviso, "mes", valor);
           desfazer = () => desfazerDispensaAction(idDoAviso, "mes");
         }
         setAberta(false);

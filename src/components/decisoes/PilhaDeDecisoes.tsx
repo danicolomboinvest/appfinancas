@@ -37,7 +37,7 @@ const semAnimacao = () => typeof window !== "undefined" && (window.matchMedia("(
 export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; depois: CartaoDaPilha[] }) {
   const router = useRouter();
   const { key: tema } = useProfileTheme();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   // Erro no lugar (14/10/2026): embaixo das respostas do cartão, até a próxima tentativa.
   const erro = useErroNoBotao();
   const [pendente, iniciar] = useTransition();
@@ -151,7 +151,12 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
                 label: "Desfazer",
                 onClick: () =>
                   iniciar(async () => {
-                    await desfazer();
+                    // Sem o try, uma falha aqui derrubava a tela inteira (erro solto na transição).
+                    try {
+                      await desfazer();
+                    } catch {
+                      return showError("Não desfez. Tente de novo.");
+                    }
                     setFeitos((f) => {
                       const n = new Set(f);
                       n.delete(c.id);

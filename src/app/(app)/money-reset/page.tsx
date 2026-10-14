@@ -33,7 +33,8 @@ export default async function MoneyResetPage() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-caption font-semibold uppercase tracking-[0.11em] text-accent-strong">{t.mrTopo}</p>
-      <Placar porMes={reset.achei} />
+      {/* No fim do mapa, "cresce a cada marco" com R$ 0 não faz sentido: o placar só fica se achou algo. */}
+      {(estado.fase !== "concluido" || reset.achei > 0) && <Placar porMes={reset.achei} />}
       <MapaDoReset status={estado.status} semana={estado.semana} titulos={titulos} admin={ctx.role === "ADMIN"} historias />
 
       {atual && (

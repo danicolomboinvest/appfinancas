@@ -44,7 +44,7 @@ function CartaoComFoto({ c, largo }: { c: CartaoDeCalculadora; largo: boolean })
 export function TelaDasCalculadoras({ salvas }: { salvas: SalvaNaLista[] }) {
   const [momento, setMomento] = useState<IdDoMomento>("tudo");
   const [escondidas, setEscondidas] = useState<Set<string>>(new Set());
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   const trilho = useRef<HTMLDivElement>(null);
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const primeira = useRef(true);
@@ -75,9 +75,18 @@ export function TelaDasCalculadoras({ salvas }: { salvas: SalvaNaLista[] }) {
         });
       },
     });
-    // Apaga de verdade só depois do tempo do "Desfazer".
+    // Apaga de verdade só depois do tempo do "Desfazer". Se falhar (sem internet, app atualizado),
+    // ela volta para a lista com o aviso, em vez de virar uma promessa recusada sem dono.
     setTimeout(() => {
-      if (!desfeito) void deleteSimulationAction(s.id);
+      if (desfeito) return;
+      deleteSimulationAction(s.id).catch(() => {
+        setEscondidas((e) => {
+          const n = new Set(e);
+          n.delete(s.id);
+          return n;
+        });
+        showError("Não apagou. Tente de novo.");
+      });
     }, 6200);
   };
 

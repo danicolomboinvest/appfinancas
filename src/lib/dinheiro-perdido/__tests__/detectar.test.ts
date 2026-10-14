@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cacarDinheiroPerdido, estornoCaiu, type LancamentoParaCacar } from "../detectar";
+import { cacarDinheiroPerdido, comercianteDe, estornoCaiu, nomeDaDescricao, type LancamentoParaCacar } from "../detectar";
 
 let seq = 0;
 /** Um lançamento: `data` "AAAA-MM-DD" decide o mês. */
@@ -266,5 +266,20 @@ describe("estorno", () => {
     expect(estornoCaiu(achado, [l("ESTORNO IFOOD", 30, "2026-09-20", { tipo: "INCOME" })])).toBeNull();
     expect(estornoCaiu(achado, [l("ESTORNO IFOOD", 58.4, "2026-09-01", { tipo: "INCOME" })])).toBeNull();
     expect(estornoCaiu(achado, [l("SALARIO", 58.4, "2026-09-20", { tipo: "INCOME" })])).toBeNull();
+  });
+});
+
+describe("o nome do comerciante com a grafia da descrição (14/10/2026)", () => {
+  it("volta o acento e o 'de' que a chave tirou", () => {
+    expect(comercianteDe({ descricao: "Pão de Açúcar" } as never).nome).toBe("Pão de Açúcar");
+    expect(comercianteDe({ descricao: "Anuidade cartão" } as never).nome).toBe("Anuidade cartão");
+    expect(comercianteDe({ descricao: "IOF compra internacional" } as never).nome).toBe("IOF compra internacional");
+  });
+  it("descrição toda em maiúsculas vira nome de gente", () => {
+    expect(comercianteDe({ descricao: "PAO DE ACUCAR 123 SAO PAULO" } as never).nome).toBe("Pao de Acucar");
+    expect(nomeDaDescricao("academia boa forma", "ACADEMIA BOA FORMA LTDA")).toBe("Academia Boa Forma");
+  });
+  it("a chave que não está na descrição não inventa", () => {
+    expect(nomeDaDescricao("netflix", "NFLX*SERVICO")).toBeNull();
   });
 });

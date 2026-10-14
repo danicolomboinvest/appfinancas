@@ -11,6 +11,7 @@ import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/Err
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { adiarAporteAction, marcarAporteAction, responderAporteAction } from "../acoes";
+import { valorDoLancamento } from "../visual";
 
 export type EstadoDoAporte =
   | { tipo: "feito"; mes: string; valor: number; origem: string; data: string | null; proximo: { mes: string; valor: number } | null }
@@ -64,7 +65,7 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
             <small className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-success">
               {Maiuscula(estado.mes)} <Check size={14} aria-hidden />
             </small>
-            <ValorDestaque texto={m(estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
+            <ValorDestaque texto={valorDoLancamento(money, estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
             <small className="text-[12.5px] font-medium text-ink-muted">
               {estado.origem}
               {estado.data ? ` · ${estado.data}` : ""}
@@ -97,7 +98,7 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
           )}
           <div className="flex min-w-0 flex-col gap-px">
             <small className="text-[12.5px] font-medium text-ink-muted">Aporte{estado.mes ? ` de ${estado.mes}` : ""}</small>
-            <ValorDestaque texto={m(estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
+            <ValorDestaque texto={valorDoLancamento(money, estado.valor)} className="text-[26px] font-normal leading-tight tracking-[-0.02em] tabular-nums text-ink" />
             <small className="text-[12.5px] font-medium text-ink-muted">
               {estado.origem === "pix" ? "Pix para você" : "Aplicação"}
               {estado.quando ? ` · ${estado.quando}` : ""}
@@ -172,6 +173,13 @@ export function CartaoDoAporte({ metaId, estado }: { metaId: string; estado: Est
           {pendente ? "Salvando…" : erro.erro ? TENTAR_DE_NOVO : "Salvar aporte"}
         </button>
         <ErroNoBotao erro={erro.erro} />
+        {/* Abriu o "Já fiz" sem querer: volta para a pergunta, sem salvar nada. */}
+        <button type="button" disabled={pendente} onClick={() => {
+            setForm(null);
+            erro.limpar();
+          }} className="-mt-1 min-h-11 text-sm font-medium text-ink-muted">
+          Cancelar
+        </button>
       </section>
     );
   }

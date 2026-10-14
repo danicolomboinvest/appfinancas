@@ -103,6 +103,18 @@ export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: 
             {pendente ? "Salvando…" : erro.erro ? TENTAR_DE_NOVO : tipo === "adicionar" ? "Adicionar" : "Retirar"}
           </button>
           <ErroNoBotao erro={erro.erro} />
+          <button
+            type="button"
+            disabled={pendente}
+            onClick={() => {
+              setTipo(null);
+              setValor(0);
+              erro.limpar();
+            }}
+            className="-mt-1 min-h-11 text-sm font-medium text-ink-muted"
+          >
+            Cancelar
+          </button>
         </section>
       )}
       <div className="sticky bottom-[calc(10px+var(--safe-bottom))] z-10 mt-auto flex items-center gap-2.5 pt-1.5">

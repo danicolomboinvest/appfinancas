@@ -86,7 +86,8 @@ export function LinhaDoRecibo({ rotulo, valor, menos = false, nota }: { rotulo: 
       </span>
       <span className="min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-border-strong" aria-hidden />
       <span className="shrink-0 tabular-nums text-ink">
-        {menos ? "−" : ""}
+        {/* Sem sinal no zero: "−R$ 0" no recibo do mês que acabou de abrir parecia dívida. */}
+        {menos && /[1-9]/.test(valor) ? "−" : ""}
         {valor}
       </span>
     </div>

@@ -21,9 +21,26 @@ export const GUARDADO_SEM_RENOVAR_MS = DIAS_GUARDADO_SEM_RENOVAR * 24 * 60 * 60 
  */
 export const TERMOS_DO_PAR_VERSAO = "par-2026-10-11";
 
-/** As três frases dos termos, na tela de entrada (protótipo c2). `{titular}` e `{par}` são nomes. */
+/** O nome que o convite guarda quando a titular não escreveu nenhum (ver criarConviteAction). */
+export const NOME_GENERICO_DO_PAR = "seu par";
+
+/**
+ * O nome do par como a tela do convite usa: vazio quando a titular não escreveu nenhum. Sem isso o
+ * campo "Seu nome" do par vinha preenchido com "seu par" (e virava o nome dele se não apagasse) e o
+ * termo dizia "o que for de seu par" para o próprio par.
+ */
+export function nomeDadoAoPar(nome: string | null | undefined): string {
+  const n = (nome ?? "").trim();
+  return n.toLowerCase() === NOME_GENERICO_DO_PAR ? "" : n;
+}
+
+/**
+ * As três frases dos termos, na tela de entrada (protótipo c2). `{titular}` e `{par}` são nomes;
+ * sem o nome do par a tela passa "você", e a frase vira "o que for seu".
+ */
 export function frasesDosTermos(titular: string, par: string): string[] {
-  return [`${titular} vê o que for nosso e o que for de ${par}`, "O que for só meu, só eu vejo", "Se eu sair, levo uma cópia do que lancei"];
+  const doPar = par === "você" ? "o que for seu" : `o que for de ${par}`;
+  return [`${titular} vê o que for nosso e ${doPar}`, "O que for só meu, só eu vejo", "Se eu sair, levo uma cópia do que lancei"];
 }
 
 export type StatusGravado = "aberto" | "aceito" | "cancelado" | "substituido";

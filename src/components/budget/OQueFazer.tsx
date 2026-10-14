@@ -12,6 +12,8 @@ import { brilharQuandoAparecer } from "@/lib/ui/brilho";
 import { marcarSelo, seloDaCategoria } from "@/lib/ui/selos";
 import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
+import { desfazerDispensaAction } from "@/app/(app)/decidir/actions";
+import { idDoEstouro } from "@/lib/decisoes/resposta-ao-aviso";
 import { fontesParaCobrir, planoDeCobrir, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 
 /**
@@ -65,8 +67,8 @@ export function OQueFazer({
   const valor = quantoPassou(categoria);
 
   /**
-   * "Foi pontual" não avisa nada (14/10/2026): a categoria ganha o selinho "pontual" e acende.
-   * Cobrir ganha a pílula curta, porque tem Desfazer.
+   * As respostas daqui têm Desfazer: pílula curta (14/10/2026), e a categoria acende na lista.
+   * "Foi pontual" também deixa o selinho "pontual" na categoria.
    */
   function feito(mensagem: string | null, desfazer?: () => Promise<unknown>) {
     if (mensagem) showToast(mensagem, desfazer ? { label: "Desfazer", onClick: () => iniciar(async () => { await desfazer(); router.refresh(); }) } : undefined);
@@ -75,13 +77,21 @@ export function OQueFazer({
     brilharQuandoAparecer(`cat-${categoria.key}`);
   }
 
+  // Toda resposta tira o aviso desta categoria no mês (pedido da Dani, 14/10/2026), guardando o
+  // quanto passava: ele só volta se passar bem mais (ver resposta-ao-aviso.ts).
+  const idDoAviso = idDoEstouro(categoria.key);
   function dispensar() {
     setErro(null);
     iniciar(async () => {
       try {
-        await dispensarAvisoAction(`estouro-${categoria.key}`, "mes");
+        await dispensarAvisoAction(idDoAviso, "mes", valor);
+        // A categoria ganha o selinho "pontual"; como agora dá para desfazer, vem também a
+        // pílula curta com Desfazer (o mesmo tratamento do "Segurar em").
         marcarSelo(seloDaCategoria(categoria.key, mes), "pontual");
-        feito(null);
+        feito("Foi pontual", async () => {
+          marcarSelo(seloDaCategoria(categoria.key, mes), null);
+          await desfazerDispensaAction(idDoAviso, "mes");
+        });
       } catch {
         vibrar("erro");
         setErro({ onde: "pontual", texto: "Não salvou" });
@@ -104,8 +114,10 @@ export function OQueFazer({
           return setErro({ onde: "cobrir", texto: r.error });
         }
       }
+      await dispensarAvisoAction(idDoAviso, "mes", valor).catch(() => undefined);
       feito(`${categoria.label} coberta`, async () => {
         for (const o of origens) await cobrirCategoriaAction({ de: categoria.key, para: o.key, valor: o.valor });
+        await desfazerDispensaAction(idDoAviso, "mes");
       });
     });
   }

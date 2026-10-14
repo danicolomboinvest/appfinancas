@@ -10,7 +10,7 @@ import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import type { AssinaturaDaTela, ComercianteParaEscolher } from "@/lib/contas/assinaturas";
-import { adicionarDosLancamentosAction, escreverAssinaturaAction, listarParaEscolherAction, naoEAssinaturaAction, removerAssinaturaAction, sugerirCategoriaAction } from "./assinaturas-actions";
+import { adicionarDosLancamentosAction, escreverAssinaturaAction, listarParaEscolherAction, desfazerNaoEAssinaturaAction, naoEAssinaturaAction, removerAssinaturaAction, sugerirCategoriaAction } from "./assinaturas-actions";
 
 /**
  * Assinaturas (13/10/2026, pedido da Dani: "um botãozinho ali, mais, e ela selecionar alguma
@@ -291,7 +291,7 @@ function Escrever({ item, rotulos, onFeito }: { item?: AssinaturaDaTela; rotulos
 function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoEditar: () => void; onFeito: () => void }) {
   const money = useMoney();
   const router = useRouter();
-  const { showError } = useToast();
+  const { showToast, showError } = useToast();
   const [ocupado, iniciar] = useTransition();
   const sua = item.origem === "sua";
 
@@ -299,7 +299,11 @@ function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoE
     iniciar(async () => {
       try {
         await naoEAssinaturaAction(item.nome);
-        // Sem aviso: a folha fecha e a assinatura some da lista.
+        // Tem Desfazer: pílula curta (14/10/2026).
+        showToast("Não é assinatura", {
+          label: "Desfazer",
+          onClick: () => void desfazerNaoEAssinaturaAction(item.nome).then(() => router.refresh(), () => showError("Não desfez. Tente de novo.")),
+        });
         router.refresh();
         onFeito();
       } catch {

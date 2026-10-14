@@ -288,3 +288,39 @@ export function limiteProposto(meses: number[]): number | null {
 function centavos(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/* ---------------------------------------------------------------- parcelas projetadas */
+
+/** Uma parcela que a fatura lançou num mês seguinte (lib/import/total-do-lote: parcelasProjetadas). */
+export type ParcelaProjetada = { ano: number; mes: number; valor: number; loteId: string };
+
+/**
+ * Quem acabou de mandar a fatura de setembro com uma compra em 3x tem a parcela 3/3 projetada em
+ * outubro (14/10/2026). Para escolher o caso do topo, essa parcela não é "dado de outubro": a
+ * conta nova caía no dia a dia ("Outubro até dia 10: R$ 150 saíram") em vez de "Pronto. Esse é o
+ * seu cartão em setembro.". Tira as projetadas do gasto de cada mês e do lote naquele mês.
+ */
+export function semAsProjetadas<V extends { ano: number; mes: number; gastou: number }, L extends { year: number; month: number; importBatchId: string | null; _count: { _all: number } }>(
+  valores: V[],
+  porLote: L[],
+  projetadas: ParcelaProjetada[],
+): { valores: V[]; porLote: L[] } {
+  if (projetadas.length === 0) return { valores, porLote };
+  const valor = new Map<string, number>();
+  const contagem = new Map<string, number>();
+  for (const p of projetadas) {
+    valor.set(`${p.ano}-${p.mes}`, (valor.get(`${p.ano}-${p.mes}`) ?? 0) + p.valor);
+    contagem.set(`${p.ano}-${p.mes}|${p.loteId}`, (contagem.get(`${p.ano}-${p.mes}|${p.loteId}`) ?? 0) + 1);
+  }
+  return {
+    valores: valores.map((v) => {
+      const tirar = valor.get(`${v.ano}-${v.mes}`) ?? 0;
+      return tirar ? { ...v, gastou: Math.round((v.gastou - tirar) * 100) / 100 } : v;
+    }),
+    porLote: porLote.flatMap((l) => {
+      const tirar = contagem.get(`${l.year}-${l.month}|${l.importBatchId}`) ?? 0;
+      const sobra = l._count._all - tirar;
+      return sobra > 0 ? [tirar ? { ...l, _count: { _all: sobra } } : l] : [];
+    }),
+  };
+}
