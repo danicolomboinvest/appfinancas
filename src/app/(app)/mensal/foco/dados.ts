@@ -395,6 +395,8 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
   return {
     t,
     m,
+    // As metas com o quanto cada uma pede por mês (o "em dia" do fechamento).
+    metas: metas.map((x) => ({ id: x.id, porMes: x.porMes })),
     gastosFora,
     maioresGastos,
     raioxAnual,
