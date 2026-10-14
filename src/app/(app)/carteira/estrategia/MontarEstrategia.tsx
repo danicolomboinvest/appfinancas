@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
@@ -174,12 +175,12 @@ export function MontarEstrategia({
           {tenhoMais ? (
             <label className="flex items-baseline gap-2">
               <span className="text-[15px] text-heroi-suave">{currencySymbol(moedaDoApp)}</span>
-              <input
+              <CampoDeDinheiro
                 autoFocus
-                inputMode="numeric"
                 aria-label="Quanto você tem de reserva"
-                defaultValue={Math.round(res).toLocaleString("pt-BR")}
-                onChange={(e) => setRes(Number(e.target.value.replace(/\D/g, "")) || 0)}
+                placeholder="0,00"
+                valor={res}
+                onValor={(v) => setRes(v ?? 0)}
                 className="min-w-0 flex-1 bg-transparent text-[2.25rem] font-light tabular-nums outline-none"
               />
             </label>

@@ -967,9 +967,9 @@ export const MAX_CATEGORY_VALUE = 1_000_000;
 /** Máximo de categorias extras criadas pela pessoa (compras, seguro, chip...). */
 export const MAX_EXTRA_CATEGORIES = 10;
 
-/** Valor editado pela pessoa, saneado: inteiro, nunca negativo, nunca absurdo, NaN vira 0. */
+/** Valor editado pela pessoa, saneado: em centavos (R$ 1.234,56 fica), nunca negativo, nunca absurdo, NaN vira 0. */
 export function clampCategoryValue(value: number): number {
-  return Math.min(Math.max(Math.round(value) || 0, 0), MAX_CATEGORY_VALUE);
+  return Math.min(Math.max(Math.round(value * 100) / 100 || 0, 0), MAX_CATEGORY_VALUE);
 }
 
 /**
@@ -978,9 +978,9 @@ export function clampCategoryValue(value: number): number {
  * (a margem sempre acompanha o que estiver na lista).
  */
 export function computeTripTotals(values: number[]): { subtotal: number; buffer: number; total: number } {
-  const subtotal = values.reduce((sum, v) => sum + clampCategoryValue(v), 0);
+  const subtotal = Math.round(values.reduce((sum, v) => sum + clampCategoryValue(v), 0) * 100) / 100;
   const buffer = Math.round(subtotal * 0.1);
-  return { subtotal, buffer, total: subtotal + buffer };
+  return { subtotal, buffer, total: Math.round((subtotal + buffer) * 100) / 100 };
 }
 
 /**

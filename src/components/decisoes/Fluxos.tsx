@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -322,13 +323,13 @@ export function FluxoMinhaMeta({ metas, hoje }: { metas: MetaDoFluxo[]; hoje: { 
         {outro && (
           <label className="flex items-baseline justify-center gap-2 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
             <span className="text-lg text-ink-muted">{currencySymbol(moeda)}</span>
-            <input
-              inputMode="numeric"
+            <CampoDeDinheiro
               autoFocus
               aria-label="Quanto guarda por mês"
-              value={ritmo ?? ""}
-              onChange={(e) => setRitmo(Number(e.target.value.replace(/\D/g, "")) || 0)}
-              className="w-32 bg-transparent text-[2rem] font-light tabular-nums text-ink outline-none"
+              placeholder="0,00"
+              valor={ritmo}
+              onValor={(v) => setRitmo(v ?? 0)}
+              className="w-40 bg-transparent text-[2rem] font-light tabular-nums text-ink outline-none"
             />
           </label>
         )}

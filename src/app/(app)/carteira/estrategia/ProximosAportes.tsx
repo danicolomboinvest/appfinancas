@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
@@ -30,8 +31,8 @@ export type DadosDosProximosAportes = {
 export function ProximosAportes({ dados }: { dados: DadosDosProximosAportes }) {
   const money = useMoney();
   const moeda = currencySymbol(useCurrency());
-  const [digitado, setDigitado] = useState("");
-  const valor = dados.valor ?? (Number(digitado.replace(/\D/g, "")) || 0);
+  const [digitado, setDigitado] = useState<number | null>(null);
+  const valor = dados.valor ?? digitado ?? 0;
   const d = useMemo(
     () => dividirProximoAporte({ valor, posicoes: dados.posicoes, mesesDeReserva: dados.mesesDeReserva, reservaCompleta: dados.reservaCompleta, semReserva: dados.semReserva, nomes: NOME_DA_LINHA }),
     [valor, dados],
@@ -53,7 +54,7 @@ export function ProximosAportes({ dados }: { dados: DadosDosProximosAportes }) {
             <span className="text-[14px] text-ink">Quanto você vai aportar?</span>
             <span className="flex items-baseline gap-2 rounded-2xl bg-surface-2 px-3.5 py-2">
               <span className="text-[14px] text-ink">{moeda}</span>
-              <input inputMode="numeric" value={digitado} onChange={(e) => setDigitado(e.target.value)} placeholder="0" aria-label="Quanto você vai aportar" className="min-w-0 flex-1 bg-transparent text-[22px] font-light tabular-nums text-ink outline-none" />
+              <CampoDeDinheiro valor={digitado} onValor={setDigitado} placeholder="0,00" aria-label="Quanto você vai aportar" className="min-w-0 flex-1 bg-transparent text-[22px] font-light tabular-nums text-ink outline-none" />
             </span>
           </label>
         )}

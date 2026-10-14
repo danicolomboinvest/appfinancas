@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Check, ChevronLeft, CircleCheck, TriangleAlert, Zap } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Explica } from "@/components/ui/Explica";
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { escolherTipo, perfilDoTipo, taxaDe, taxaEstimadaDoTipo, TIPOS, type TipoDeDivida } from "@/lib/dividas/tipos";
@@ -51,8 +52,8 @@ function rascunhoDe(d?: DividaDoSpi): Rascunho {
   };
 }
 
+// Só para as parcelas (contagem). Os valores em dinheiro vão pelo CampoDeDinheiro, com centavos.
 const soDigitos = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
-const milhar = (v: number) => (v ? Math.round(v).toLocaleString("pt-BR") : "");
 
 /**
  * O cadastro guiado: uma pergunta por tela, 8 passos, e a revelação com o selo (Saudável, Atenção
@@ -272,7 +273,7 @@ export function CadastroDaDivida({
         {pergunta("Quanto falta pagar?")}
         <label className="flex items-baseline gap-2 border-b border-border-strong pb-2">
           <span className="text-lg text-ink-muted">{simbolo}</span>
-          <input inputMode="numeric" autoFocus aria-label="Valor total hoje" placeholder="0" value={milhar(r.saldo)} onChange={(e) => muda({ saldo: soDigitos(e.target.value) })} className="w-full bg-transparent text-[2.25rem] font-light tabular-nums text-ink outline-none" />
+          <CampoDeDinheiro autoFocus aria-label="Valor total hoje" placeholder="0,00" valor={r.saldo} onValor={(v) => muda({ saldo: v ?? 0 })} className="w-full bg-transparent text-[2.25rem] font-light tabular-nums text-ink outline-none" />
         </label>
         <p className="text-sm text-ink-muted">O total de hoje, somando o que falta.</p>
         {continuar(r.saldo > 0, 6, "Digite quanto falta pagar.")}
@@ -286,7 +287,7 @@ export function CadastroDaDivida({
         {pergunta(sp ? "Quanto você paga por mês?" : "Parcela por mês")}
         <label className="flex items-baseline gap-2 border-b border-border-strong pb-2">
           <span className="text-lg text-ink-muted">{simbolo}</span>
-          <input inputMode="numeric" autoFocus aria-label={sp ? "Quanto paga por mês" : "Parcela por mês"} placeholder="0" value={milhar(r.porMes ?? 0)} onChange={(e) => muda({ porMes: soDigitos(e.target.value) })} className="w-full bg-transparent text-[2.25rem] font-light tabular-nums text-ink outline-none" />
+          <CampoDeDinheiro autoFocus aria-label={sp ? "Quanto paga por mês" : "Parcela por mês"} placeholder="0,00" valor={r.porMes} onValor={(v) => muda({ porMes: v ?? 0 })} className="w-full bg-transparent text-[2.25rem] font-light tabular-nums text-ink outline-none" />
         </label>
         {sp ? (
           <p className="text-sm text-ink-muted">Pode ser zero, se hoje você não está pagando.</p>

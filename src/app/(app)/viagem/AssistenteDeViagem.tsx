@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -194,24 +195,17 @@ function Pilula({ ativa, onClick, children }: { ativa: boolean; onClick: () => v
   );
 }
 
-/** Campo de valor com o R$ fixo dentro. O texto digitado é rascunho até sair do campo. */
+/** Campo de valor com o R$ fixo dentro, com centavos (os dígitos entram pela direita). */
 function CampoValor({ valor, rotulo, onMudar, placeholder }: { valor: number; rotulo: string; onMudar: (v: number) => void; placeholder?: string }) {
   const currency = useCurrency();
-  const [rascunho, setRascunho] = useState<string | null>(null);
   return (
-    <label className="flex w-[7.25rem] shrink-0 items-center gap-1 rounded-xl border border-border bg-surface px-2.5 py-1.5 focus-within:border-accent">
+    <label className="flex w-[8.25rem] shrink-0 items-center gap-1 rounded-xl border border-border bg-surface px-2.5 py-1.5 focus-within:border-accent">
       <span className="text-xs text-ink-faint">{currencySymbol(currency)}</span>
-      <input
-        inputMode="numeric"
+      <CampoDeDinheiro
         aria-label={rotulo}
         placeholder={placeholder}
-        value={rascunho ?? (valor ? valor.toLocaleString("pt-BR") : "")}
-        onChange={(e) => {
-          const digitos = e.target.value.replace(/\D/g, "");
-          setRascunho(digitos ? Number(digitos).toLocaleString("pt-BR") : "");
-          onMudar(clampCategoryValue(Number(digitos)));
-        }}
-        onBlur={() => setRascunho(null)}
+        valor={valor}
+        onValor={(v) => onMudar(clampCategoryValue(v ?? 0))}
         className="w-full min-w-0 bg-transparent text-right text-sm tabular-nums text-ink outline-none placeholder:text-ink-faint"
       />
     </label>
@@ -812,7 +806,7 @@ export function AssistenteDeViagem({
                 onChange={(ev) => mudar({ extras: plano.extras.map((x, k) => (k === i ? { ...x, name: ev.target.value.replace(/[<>&"]/g, "") } : x)) })}
                 className="min-w-[7.5rem] flex-1 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
               />
-              <CampoValor valor={e.value} rotulo={`Valor de ${e.name || "outro custo"}`} placeholder="0" onMudar={(v) => mudar({ extras: plano.extras.map((x, k) => (k === i ? { ...x, value: v } : x)) })} />
+              <CampoValor valor={e.value} rotulo={`Valor de ${e.name || "outro custo"}`} placeholder="0,00" onMudar={(v) => mudar({ extras: plano.extras.map((x, k) => (k === i ? { ...x, value: v } : x)) })} />
               <button type="button" aria-label="Tirar este custo" onClick={() => mudar({ extras: plano.extras.filter((_, k) => k !== i) })} className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-faint hover:bg-surface-2">
                 <X className="size-4" aria-hidden />
               </button>

@@ -6,26 +6,28 @@ import { ChevronLeft, Minus, Plus } from "lucide-react";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { Explica } from "@/components/ui/Explica";
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { quantoCobrar } from "@/lib/empresa/regras";
 import { BOTAO_PRINCIPAL, Cartao, Chip, Voltar } from "../partes";
 
 const MARGENS = [10, 15, 20, 30];
 
-function Campo({ rotulo, valor, onMudar }: { rotulo: string; valor: string; onMudar: (v: string) => void }) {
+function Campo({ rotulo, valor, onMudar }: { rotulo: string; valor: number | null; onMudar: (v: number | null) => void }) {
   const simbolo = currencySymbol(useCurrency());
   return (
     <label className="flex min-h-16 items-center justify-between gap-3 border-b border-border last:border-b-0">
       <b className="text-[15px] font-medium text-ink">{rotulo}</b>
       <span className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2">
         <span className="text-sm text-ink-muted">{simbolo}</span>
-        <input inputMode="decimal" value={valor} onChange={(e) => onMudar(e.target.value.replace(/[^\d,]/g, "").slice(0, 9))} placeholder="0" aria-label={`${rotulo}, em reais`} className="w-20 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none" />
+        <CampoDeDinheiro valor={valor} onValor={onMudar} max={9_999_999} placeholder="0,00" aria-label={`${rotulo}, em reais`} className="w-24 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none" />
       </span>
     </label>
   );
 }
 
-const lerReais = (t: string) => Number(t.replace(",", ".")) || 0;
+// "1234.56" (teclado em inglês) virava 123456: agora o campo é o CampoDeDinheiro, com centavos.
+const lerReais = (v: number | null) => v ?? 0;
 
 /**
  * O "Quanto cobrar" do protótipo: o que vai no produto, quanto tempo leva e a etiqueta com o preço
@@ -36,8 +38,8 @@ export function QuantoCobrar(p: { nome: string; produto: string; materiais: stri
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   const [passo, setPasso] = useState(1);
-  const [mat, setMat] = useState("");
-  const [emb, setEmb] = useState("");
+  const [mat, setMat] = useState<number | null>(null);
+  const [emb, setEmb] = useState<number | null>(null);
   const [horas, setHoras] = useState(1);
   const [margem, setMargem] = useState(15);
   const contasPorUnidade = p.vendasDoMes > 0 ? p.contasDoMes / p.vendasDoMes : 0;
@@ -179,7 +181,7 @@ export function QuantoCobrar(p: { nome: string; produto: string; materiais: stri
             </Link>
           )}
           <div className="mt-auto flex justify-center">
-            <button type="button" onClick={() => { setPasso(1); setMat(""); setEmb(""); setHoras(1); }} className="min-h-11 px-3 text-sm text-ink-muted underline underline-offset-4">
+            <button type="button" onClick={() => { setPasso(1); setMat(null); setEmb(null); setHoras(1); }} className="min-h-11 px-3 text-sm text-ink-muted underline underline-offset-4">
               Calcular de novo
             </button>
           </div>

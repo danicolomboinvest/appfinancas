@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -84,15 +85,14 @@ export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: 
           <b className="text-base font-semibold text-ink">{tipo === "adicionar" ? "Quanto você vai adicionar?" : "Quanto você vai retirar?"}</b>
           <label className="mx-auto flex items-baseline gap-2">
             <span className="text-lg text-ink-muted">{simbolo}</span>
-            <input
+            <CampoDeDinheiro
               ref={campo}
-              inputMode="numeric"
-              placeholder="0"
+              placeholder="0,00"
               aria-label="Valor"
-              value={valor ? valor.toLocaleString("pt-BR") : ""}
-              onChange={(ev) => setValor(Number(ev.target.value.replace(/\D/g, "")) || 0)}
+              valor={valor}
+              onValor={(v) => setValor(v ?? 0)}
               onKeyDown={(ev) => ev.key === "Enter" && confirmar()}
-              className="w-[6ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[34px] font-light tabular-nums text-ink outline-none"
+              className="w-[9ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[34px] font-light tabular-nums text-ink outline-none"
             />
           </label>
           <button type="button" disabled={pendente || !(valor > 0)} onClick={confirmar} className="min-h-12 rounded-full bg-ink text-[15px] font-semibold text-canvas disabled:opacity-50">

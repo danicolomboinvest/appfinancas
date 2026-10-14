@@ -1,5 +1,6 @@
 "use client";
 
+import { reaisDoCampo } from "@/lib/dinheiro/digitado";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Compass, FileUp, Landmark, LineChart, Search, Wallet } from "lucide-react";
@@ -88,6 +89,8 @@ const lerNumero = (s: string) => {
   const n = Number(limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo);
   return Number.isFinite(n) ? n : 0;
 };
+/** Valores em dinheiro: "1.500" é mil e quinhentos (o lerNumero lia 1,5), "1234.56" e "1.234,56" com centavos. */
+const lerReais = (s: string) => reaisDoCampo(s) ?? 0;
 const MES_A = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 export function NovoAtivo({
@@ -191,9 +194,9 @@ export function NovoAtivo({
   };
   const avancar = () => (i >= 0 && i < passos.length - 1 ? setPasso(passos[i + 1]) : null);
 
-  const investido = lerNumero(inv);
+  const investido = lerReais(inv);
   const qtd = lerNumero(cotas);
-  const precoMedio = lerNumero(pm);
+  const precoMedio = lerReais(pm);
   const ehExt = x?.k === "ext";
   const dolar = cot?.dolar ?? null;
   const horaDaCotacao = cot ? new Date(cot.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
@@ -205,9 +208,9 @@ export function NovoAtivo({
     if (!x) return 0;
     if (x.k === "bolsa") return qtd * (cot?.preco ?? precoMedio);
     if (x.k === "ext") return qtd * (cot?.preco ?? precoMedio) * (dolar ?? 1);
-    if (x.k === "tesouro") return modoHoje === "titulos" && tit ? lerNumero(qtdTitulos) * tit.preco : lerNumero(hojeTxt);
-    if (x.k === "rf") return exato || estimado === null ? lerNumero(hojeTxt) : estimado;
-    return lerNumero(hojeTxt);
+    if (x.k === "tesouro") return modoHoje === "titulos" && tit ? lerNumero(qtdTitulos) * tit.preco : lerReais(hojeTxt);
+    if (x.k === "rf") return exato || estimado === null ? lerReais(hojeTxt) : estimado;
+    return lerReais(hojeTxt);
   })();
   const investidoFinal = x && (x.k === "bolsa" || x.k === "ext") ? qtd * precoMedio * (ehExt ? (dolar ?? 1) : 1) : investido;
 
