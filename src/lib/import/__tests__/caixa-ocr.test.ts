@@ -87,3 +87,50 @@ describe("Caixa lida por OCR, conferida pelo saldo", () => {
     expect(r.txns).toEqual([]);
   });
 });
+
+describe("Caixa por OCR: os jeitos reais de 13/10/2026 (dados inventados)", () => {
+  it("'Extrato da conta': os lançamentos do dia vêm antes dos anteriores", () => {
+    const t = [
+      OCR_MARCA,
+      "CAIXA",
+      "Extrato da conta",
+      "Cliente        FULANA EXEMPLO",
+      "Saldo próprio disponível        40,00",
+      "SALDO ANTERIOR            R$ 1.000,00 C",
+      "Lançamentos do dia",
+      "11/10/2026 - 12:00:00   111200   DEB PIX CHAVE   Fulana Ex   ***,111.222***  60,00 D   40,00 C",
+      "Lançamentos",
+      "13/10/2026 - 00:00:00   000000   SALDO DIA       0,00 C   40,00 C",
+      "02/10/2026 - 00:00:00   000000   SALDO DIA       0,00 C   100,00 C",
+      "02/10/2026 - 07:30:00   020730   DEB PIX CHAVE   Fulana Ex   ***,111.222***  900,00 D   100,00 C",
+    ].join("\n");
+    expect(isCaixaOcrStatement(t)).toBe(true);
+    const r = parseCaixaOcrStatement(t);
+    expect(r.map((x) => [x.date, x.amount])).toEqual([
+      ["2026-10-02", -900],
+      ["2026-10-11", -60],
+    ]);
+  });
+
+  it("traço solto, '€' e vírgula lida como espaço não derrubam a linha", () => {
+    const t = texto([
+      "30/09/2026 - 10:00:00   300001   DEB PIX CHAVE   Padaria   50,00 D — 1.700,00 C",
+      "25/09/2026 - 10:00:00   250001   DEB PIX CHAVE   Mercado   300,00 D   1.750 00C€C",
+      "20/09/2026 - 09:00:00   200001   PIX RECEBIDO   Fulana   50,00 C   2.050,00 C",
+      "19/09/2026 - 03:00:00   190001   CRED PIX CHAVE   Fulana   2.000,00 C   2.000,00 C",
+      "18/09/2026 - 03:00:00   000000   DEBITO PRESTACAO HAB      1.000,00 D —/0,00C",
+    ]);
+    expect(parseCaixaOcrStatement(t).map((x) => x.amount)).toEqual([-1000, 2000, 50, -300, -50]);
+  });
+
+  it("dias em ordem crescente com as horas de cada dia ao contrário", () => {
+    const t = texto([
+      "01/10/2026 - 00:00:00   000000   SALDO DIA       0,00 C   1.100,00 C",
+      "01/10/2026 - 02:00:00   000000   DEBITO PRESTACAO HAB      500,00 D   1.100,00 C",
+      "01/10/2026 - 00:20:00   010020   CRED PIX CHAVE   Fulana   300,00 C   1.600,00 C",
+      "01/10/2026 - 00:10:00   010010   CRED PIX CHAVE   Fulana   300,00 C   1.300,00 C",
+      "02/10/2026 - 21:00:00   022100   CRED PIX CHAVE   Fulana   100,00 C   1.200,00 C",
+    ]);
+    expect(parseCaixaOcrStatement(t).map((x) => x.amount)).toEqual([300, 300, -500, 100]);
+  });
+});

@@ -107,8 +107,21 @@ const PDF_INDISPONIVEL =
  * então uma casca vazia basta pra biblioteca carregar e o texto sair. Não substitui nada que já
  * exista: onde os objetos são de verdade (um navegador), eles continuam sendo os de verdade.
  */
-function prepararAmbienteDoPdf(): void {
+async function prepararAmbienteDoPdf(): Promise<void> {
   const g = globalThis as Record<string, unknown>;
+  if (g.DOMMatrix && g.Path2D && g.ImageData) return;
+  // Os de verdade primeiro (os do @napi-rs/canvas, que o próprio pdf.js usaria). A casca vazia
+  // bastava pra extrair texto, mas quebrava a leitura por imagem (OCR): desenhar uma página com
+  // traços chama `new Path2D().moveTo(...)`, e a casca não tem moveTo ("path2d.moveTo is not a
+  // function", 13/10/2026). Como a casca entrava antes, o pdf.js nem tentava pôr os dele.
+  try {
+    const canvas = (await import("@napi-rs/canvas")) as unknown as Record<string, unknown>;
+    g.DOMMatrix ??= canvas.DOMMatrix;
+    g.Path2D ??= canvas.Path2D;
+    g.ImageData ??= canvas.ImageData;
+  } catch {
+    // Sem o canvas no servidor: a casca vazia ainda deixa o texto sair.
+  }
   g.DOMMatrix ??= class {};
   g.Path2D ??= class {};
   g.ImageData ??= class {};
@@ -147,7 +160,7 @@ function semLixoAntesDoPdf(buffer: Buffer): Buffer {
 }
 
 async function pdfToText(buffer: Buffer, password: string | undefined): Promise<string> {
-  prepararAmbienteDoPdf();
+  await prepararAmbienteDoPdf();
   let PDFParse: typeof import("pdf-parse").PDFParse;
   try {
     ({ PDFParse } = await import("pdf-parse"));
