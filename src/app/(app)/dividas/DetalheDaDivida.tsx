@@ -11,6 +11,7 @@ import { ehImpossivel, type Plano, type PlanoImpossivel } from "@/lib/dividas/pl
 import { taxaDe } from "@/lib/dividas/tipos";
 import { FRASE_DA_SAUDE, saudeDe, taxaAnual, type DividaDoSpi } from "@/lib/dividas/saude";
 import { desfazerAction, pagarParcelaAction, quitarDividaAction } from "./actions";
+import { MaisDaDivida } from "./MenuDaDivida";
 import { SeloDaSaude, mesAdiante, mesPorExtenso, pct, type Hoje } from "./partes";
 
 /**
@@ -83,7 +84,7 @@ export function DetalheDaDivida({
   );
 
   return (
-    <Modal open onClose={onFechar} title={d.nome}>
+    <Modal open onClose={onFechar} title={d.nome} acoes={<MaisDaDivida divida={d} onEditar={() => onEditar(d)} onApagou={onFechar} />}>
       <div className="flex flex-col gap-4">
         <div className="flex flex-col items-start gap-1.5">
           <SeloDaSaude saude={saude} comIcone />
