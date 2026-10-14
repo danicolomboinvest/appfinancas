@@ -1,5 +1,6 @@
 "use client";
 
+import { CurrencyField } from "@/components/ui/CurrencyField";
 import { Explica } from "@/components/ui/Explica";
 
 import { useActionState, type ElementType } from "react";
@@ -9,8 +10,6 @@ import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { updateProfileAction, type ProfileState } from "./actions";
-import { useCurrency } from "@/components/money/MoneyProvider";
-import { currencySymbol } from "@/lib/money";
 
 const initialState: ProfileState = {};
 
@@ -25,7 +24,6 @@ export function ProfileForm({
   const [state, formAction, isPending] = useActionState(updateProfileAction, initialState);
   useSuccessToast(isPending, state.error);
   const { titulos: t } = useProfileTheme().voz;
-  const moeda = useCurrency();
 
   // Na janela do lápis, um <form> simples; na tela, o cartão de sempre.
   const Raiz = (semMoldura ? "form" : Card) as ElementType;
@@ -58,7 +56,7 @@ export function ProfileForm({
           defaultValue={defaults.phone ?? ""}
         />
         <Field label="Data de nascimento" name="nascimento" type="date" defaultValue={defaults.nascimento ?? ""} />
-        <Field label={`Renda mensal (${currencySymbol(moeda)})`} name="renda" inputMode="decimal" placeholder="0" defaultValue={defaults.renda ? String(defaults.renda).replace(".", ",") : ""} />
+        <CurrencyField label="Renda mensal" name="renda" defaultValue={defaults.renda ?? undefined} />
       </div>
       <Button type="submit" disabled={isPending} className="min-h-12 w-full">
         {isPending ? t.cfgSalvando : t.cfgSalvar}

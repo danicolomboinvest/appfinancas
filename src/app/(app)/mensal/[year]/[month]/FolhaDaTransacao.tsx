@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useState, useTransition, type ReactNode } from "react";
 import { Check, ChevronRight, EyeOff, Pencil, PieChart, Scissors, Send, SplitSquareHorizontal, Tag, Trash2, User, Users } from "lucide-react";
@@ -352,21 +353,21 @@ function Separar({
   nomeAtual: string;
   onFeito: () => void;
 }) {
-  const [texto, setTexto] = useState(() => (Math.round(entry.amount * 0.75 * 100) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }));
+  const [primeiraDigitada, setPrimeira] = useState<number | null>(() => Math.round(entry.amount * 0.75 * 100) / 100);
   const [outra, setOutra] = useState(opcoes[0] ?? null);
   const [pendente, start] = useTransition();
   const { showToast, showError } = useToast();
-  const primeira = Number(texto.replace(/\./g, "").replace(",", ".")) || 0;
+  const primeira = primeiraDigitada ?? 0;
   const { v1, v2 } = contaDaSeparacao(entry.amount, primeira);
   return (
     <div className="flex flex-col gap-3" data-separar>
       <h3 className="text-[15px] font-medium text-ink">Separar em categorias</h3>
       <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-3xl bg-surface p-3 pl-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
         <span className="truncate text-[15px] text-ink">{nomeAtual}</span>
-        <input
-          inputMode="decimal"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value.replace(/[^\d.,]/g, ""))}
+        <CampoDeDinheiro
+          valor={primeiraDigitada}
+          onValor={setPrimeira}
+          placeholder="0,00"
           aria-label="Valor da primeira categoria"
           className="h-10 w-[116px] rounded-full bg-canvas px-3.5 text-right text-base font-medium tabular-nums text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]"
         />

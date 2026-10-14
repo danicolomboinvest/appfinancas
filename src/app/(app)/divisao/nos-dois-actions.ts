@@ -1,5 +1,6 @@
 "use server";
 
+import { reaisDoCampo } from "@/lib/dinheiro/digitado";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { ParentCategory } from "@prisma/client";
@@ -127,7 +128,7 @@ export async function sairDoCasalAction(): Promise<Resposta> {
 
 function lerLancamento(d: Record<string, unknown>): NovoLancamentoDoCasal {
   const categoria = d.categoria === "INCOME" ? "INCOME" : "EXPENSE";
-  const valor = Math.round(Number(String(d.valor ?? "").replace(/\./g, "").replace(",", ".")) * 100) / 100;
+  const valor = reaisDoCampo(String(d.valor ?? "")) ?? NaN;
   if (!Number.isFinite(valor) || valor <= 0 || valor > 10_000_000) throw new ErroDoConvite("Digite um valor maior que zero.");
   const destino: Destino = d.destino === "so-meu" || d.destino === "da-pessoa" ? d.destino : "nosso";
   const pc = typeof d.parentCategory === "string" && (PARENT_CATEGORIES as string[]).includes(d.parentCategory) ? (d.parentCategory as ParentCategory) : null;
@@ -179,7 +180,7 @@ export async function criarMetaDoCasalAction(dados: { nome: string; alvo: string
     const ctx = await contextoDoCasal();
     const nome = String(dados.nome ?? "").trim().slice(0, 40);
     if (!nome) throw new ErroDoConvite("Dê um nome para a meta.");
-    const alvo = Math.round(Number(String(dados.alvo ?? "").replace(/\./g, "").replace(",", ".")) * 100) / 100;
+    const alvo = reaisDoCampo(String(dados.alvo ?? "")) ?? NaN;
     if (!Number.isFinite(alvo) || alvo <= 0) throw new ErroDoConvite("Quanto vocês querem juntar?");
     const ate = /^\d{4}-\d{2}$/.test(String(dados.ate ?? "")) ? new Date(`${dados.ate}-01T12:00:00Z`) : null;
     await criarMetaDoCasal(ctx, { nome, alvo, ate });

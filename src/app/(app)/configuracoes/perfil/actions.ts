@@ -1,5 +1,6 @@
 "use server";
 
+import { reaisDoCampo } from "@/lib/dinheiro/digitado";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { updateOwnProfile, getOwnUser } from "@/lib/repositories/user.repo";
@@ -46,7 +47,7 @@ export async function updateProfileAction(_prevState: ProfileState, formData: Fo
   const nascimento = /^\d{4}-\d{2}-\d{2}$/.test(nascTexto) ? new Date(`${nascTexto}T00:00:00Z`) : null;
   if (nascTexto && !nascimento) return { error: "Data de nascimento inválida." };
   const rendaTexto = String(formData.get("renda") ?? "").trim();
-  const renda = rendaTexto ? Number(rendaTexto.replace(/\./g, "").replace(",", ".")) : null;
+  const renda = rendaTexto ? reaisDoCampo(rendaTexto) : null;
   if (rendaTexto && !(renda !== null && renda >= 0 && renda < 1e8)) return { error: "Renda inválida." };
 
   await updateOwnProfile(ctx, {
@@ -69,7 +70,8 @@ export type RendaState = { error?: string; ok?: boolean };
 export async function salvarRendaAction(_prev: RendaState, formData: FormData): Promise<RendaState> {
   const ctx = await getRequiredSession();
   const rendaTexto = String(formData.get("renda") ?? "").trim();
-  const renda = Number(rendaTexto.replace(/\./g, "").replace(",", "."));
+  // O campo é o CurrencyField: chega "1234.56". Antes o ponto era tirado como milhar e virava 123456.
+  const renda = reaisDoCampo(rendaTexto) ?? NaN;
   if (!rendaTexto || !(renda >= 0 && renda < 1e8)) return { error: "Coloque a renda do mês." };
   const dia = Number(formData.get("dia"));
   if (!Number.isInteger(dia) || dia < 1 || dia > 31) return { error: "O dia do pagamento vai de 1 a 31." };
