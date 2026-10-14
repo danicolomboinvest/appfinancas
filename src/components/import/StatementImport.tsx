@@ -1096,7 +1096,10 @@ export function StatementImport({
                   </span>
                 </>
               ) : a.status === "erro" ? (
-                <span className="text-sm text-ink-muted">{a.erro}</span>
+                <span className="flex flex-col gap-2 rounded-lg bg-danger-soft px-3 py-3" data-erro-da-fila>
+                  <span className="text-sm text-danger">{a.erro}</span>
+                  <FalarComSuporte arquivo={a.file.name} problema={a.erro} />
+                </span>
               ) : a.status === "senha" ? (
                 <span className="inline-flex items-center gap-1.5 text-sm text-ink-muted">
                   <Lock size={15} aria-hidden /> Esperando a senha
