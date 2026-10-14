@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { useToast } from "./toast-context";
 
 /**
@@ -14,7 +14,12 @@ import { useToast } from "./toast-context";
  * - Toque no "…" (44 px) ou toque e segure o item: abre o menu pequeno, perto do dedo.
  * - Apagar pede uma confirmação curta numa folha, e depois o aviso traz "Desfazer".
  * - Sem `apagar`, o menu só tem Editar (quem não pode apagar não vê a opção).
+ * - `outras`: ações a mais entre Editar e Apagar, com a mesma confirmação e o mesmo Desfazer (a
+ *   parcela tem "Não é parcela").
  */
+
+/** Uma ação a mais no menu, com a confirmação curta e o Desfazer. */
+export type OutraAcaoDoItem = ApagarDoItem & { rotulo: string; icone: LucideIcon };
 
 export type ApagarDoItem = {
   /** "Apagar a meta Viagem para Lisboa?" */
@@ -23,7 +28,13 @@ export type ApagarDoItem = {
   texto: string;
   /** O aviso depois de apagar ("Meta apagada"). */
   aviso: string;
-  acao: () => Promise<{ ok: true; desfazer: string | null } | { ok: false; erro: string }>;
+  /** Uma escolha a mais na confirmação ("Apagar também as que já passaram"). */
+  opcao?: string;
+  /** O botão que confirma ("Apagar" sem isto). */
+  botao?: string;
+  /** "neutro": o botão sem a cor de perigo (desfazer uma confusão do app não é perigoso). */
+  tom?: "perigo" | "neutro";
+  acao: (marcada: boolean) => Promise<{ ok: true; desfazer: string | null } | { ok: false; erro: string }>;
   desfazer: (recibo: string) => Promise<{ ok: true } | { ok: false; erro: string }>;
   /** Depois de apagar (ex.: sair do detalhe que não existe mais). */
   depois?: () => void;
@@ -32,7 +43,9 @@ export type ApagarDoItem = {
 type Ponto = { x: number; y: number; acima: number };
 
 const LARGURA = 200;
-const ALTURA = 116;
+/** Altura de cada linha do menu (48 px + o espaço) e a borda. */
+const LINHA = 50;
+const BORDA = 16;
 
 /** Tocar e segurar: 450 ms parado (mexer o dedo é rolar a tela, não segurar). */
 function useSegurar(onSegurar: (p: Ponto) => void) {
@@ -74,11 +87,11 @@ function useSegurar(onSegurar: (p: Ponto) => void) {
 }
 
 /** O menu, a confirmação e o aviso com Desfazer. Devolve o que pôr na tela e como abrir. */
-export function useMenuDoItem({ nome, onEditar, apagar }: { nome: string; onEditar: () => void; apagar?: ApagarDoItem }) {
+export function useMenuDoItem({ nome, onEditar, apagar, outras = [] }: { nome: string; onEditar: () => void; apagar?: ApagarDoItem; outras?: OutraAcaoDoItem[] }) {
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [ponto, setPonto] = useState<Ponto | null>(null);
-  const [confirmar, setConfirmar] = useState(false);
+  const [confirmando, setConfirmando] = useState<ApagarDoItem | null>(null);
   const [pendente, iniciar] = useTransition();
 
   const abrirNoBotao = useCallback((el: HTMLElement) => {
@@ -88,12 +101,13 @@ export function useMenuDoItem({ nome, onEditar, apagar }: { nome: string; onEdit
   const segurar = useSegurar(setPonto);
   const fecharMenu = useCallback(() => setPonto(null), []);
 
-  const apagarAgora = () => {
+  const confirmarAgora = (marcada: boolean) => {
+    const apagar = confirmando;
     if (!apagar) return;
     iniciar(async () => {
-      const r = await apagar.acao();
+      const r = await apagar.acao(marcada);
       if (!r.ok) return showError(r.erro);
-      setConfirmar(false);
+      setConfirmando(null);
       const recibo = r.desfazer;
       showToast(
         apagar.aviso,
@@ -125,28 +139,49 @@ export function useMenuDoItem({ nome, onEditar, apagar }: { nome: string; onEdit
             setPonto(null);
             onEditar();
           }}
+          outras={outras.map((o) => ({
+            rotulo: o.rotulo,
+            icone: o.icone,
+            onClick: () => {
+              setPonto(null);
+              setConfirmando(o);
+            },
+          }))}
           onApagar={
             apagar
               ? () => {
                   setPonto(null);
-                  setConfirmar(true);
+                  setConfirmando(apagar);
                 }
               : undefined
           }
         />
       )}
-      {apagar && confirmar && <FolhaDeApagar titulo={apagar.titulo} texto={apagar.texto} pendente={pendente} onCancelar={() => !pendente && setConfirmar(false)} onApagar={apagarAgora} />}
+      {confirmando && (
+        <FolhaDeApagar
+          key={confirmando.titulo}
+          item={confirmando}
+          pendente={pendente}
+          onCancelar={() => !pendente && setConfirmando(null)}
+          onApagar={confirmarAgora}
+        />
+      )}
     </>
   );
 
-  return { abrirNoBotao, segurar, camadas };
+  // `pedirApagar`: o "Apagar" de fora do menu (o arrastar para o lado) cai na mesma confirmação.
+  const pedirApagar = useCallback(() => apagar && setConfirmando(apagar), [apagar]);
+  return { abrirNoBotao, segurar, camadas, pedirApagar };
 }
 
 /**
  * A confirmação curta: a pergunta com o nome inteiro (quebra linha, nunca corta), uma frase do
  * que acontece com o resto e os dois botões. Sem X: o Cancelar e o fundo fecham.
  */
-function FolhaDeApagar({ titulo, texto, pendente, onCancelar, onApagar }: { titulo: string; texto: string; pendente: boolean; onCancelar: () => void; onApagar: () => void }) {
+function FolhaDeApagar({ item, pendente, onCancelar, onApagar }: { item: ApagarDoItem; pendente: boolean; onCancelar: () => void; onApagar: (marcada: boolean) => void }) {
+  const { titulo, texto } = item;
+  const [marcada, setMarcada] = useState(false);
+  const neutro = item.tom === "neutro";
   const cancelar = useRef<HTMLButtonElement>(null);
   const fechar = useRef(onCancelar);
   useEffect(() => {
@@ -181,13 +216,25 @@ function FolhaDeApagar({ titulo, texto, pendente, onCancelar, onApagar }: { titu
             {texto}
           </p>
         </div>
+        {item.opcao && (
+          <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl bg-surface-2 px-4 py-2 text-[15px] text-ink">
+            <input type="checkbox" checked={marcada} onChange={(e) => setMarcada(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-ink)]" />
+            <span className="min-w-0">{item.opcao}</span>
+          </label>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button ref={cancelar} type="button" disabled={pendente} onClick={onCancelar} className="min-h-12 rounded-full border border-border bg-surface-2 px-3 text-[15px] font-medium text-ink disabled:opacity-60">
             Cancelar
           </button>
-          <button type="button" disabled={pendente} onClick={onApagar} data-apagar className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-danger-soft px-3 text-[15px] font-semibold text-danger disabled:opacity-60">
-            <Trash2 size={17} strokeWidth={1.8} aria-hidden />
-            {pendente ? "Apagando…" : "Apagar"}
+          <button
+            type="button"
+            disabled={pendente}
+            onClick={() => onApagar(marcada)}
+            data-apagar
+            className={`flex min-h-12 items-center justify-center gap-2 rounded-full px-3 text-[15px] font-semibold disabled:opacity-60 ${neutro ? "bg-ink text-canvas" : "bg-danger-soft text-danger"}`}
+          >
+            {!neutro && <Trash2 size={17} strokeWidth={1.8} aria-hidden />}
+            {pendente ? "Um instante…" : (item.botao ?? "Apagar")}
           </button>
         </div>
       </div>
@@ -219,7 +266,21 @@ export function BotaoMais({ nome, onAbrir, className = "", miolo = "" }: { nome:
   );
 }
 
-function MenuFlutuante({ ponto, nome, onFechar, onEditar, onApagar }: { ponto: Ponto; nome: string; onFechar: () => void; onEditar: () => void; onApagar?: () => void }) {
+function MenuFlutuante({
+  ponto,
+  nome,
+  onFechar,
+  onEditar,
+  outras = [],
+  onApagar,
+}: {
+  ponto: Ponto;
+  nome: string;
+  onFechar: () => void;
+  onEditar: () => void;
+  outras?: { rotulo: string; icone: LucideIcon; onClick: () => void }[];
+  onApagar?: () => void;
+}) {
   const primeiro = useRef<HTMLButtonElement>(null);
   const [tela, setTela] = useState<{ w: number; h: number } | null>(null);
   const tocou = useRef(false);
@@ -245,7 +306,7 @@ function MenuFlutuante({ ponto, nome, onFechar, onEditar, onApagar }: { ponto: P
   // clique para o que está embaixo dele (o fundo, que fecharia o menu na hora). Só vale clique que
   // começou dentro do menu, ou o do teclado (detail 0).
   const valeu = (e: React.MouseEvent) => tocou.current || e.detail === 0;
-  const altura = onApagar ? ALTURA : ALTURA / 2 + 8;
+  const altura = BORDA + LINHA * (1 + outras.length + (onApagar ? 1 : 0));
   // Alinhado pela direita do dedo ou do "…", sempre dentro da tela (de 320 px para cima).
   const left = Math.min(Math.max(8, ponto.x - LARGURA), tela.w - LARGURA - 8);
   const cabeEmbaixo = ponto.y + altura <= tela.h - 16;
@@ -265,6 +326,12 @@ function MenuFlutuante({ ponto, nome, onFechar, onEditar, onApagar }: { ponto: P
           <Pencil size={18} strokeWidth={1.8} className="text-ink-muted" aria-hidden />
           Editar
         </button>
+        {outras.map((o) => (
+          <button key={o.rotulo} type="button" role="menuitem" onClick={(e) => valeu(e) && o.onClick()} className={item}>
+            <o.icone size={18} strokeWidth={1.8} className="text-ink-muted" aria-hidden />
+            {o.rotulo}
+          </button>
+        ))}
         {onApagar && (
           <button type="button" role="menuitem" onClick={(e) => valeu(e) && onApagar()} className={item}>
             <Trash2 size={18} strokeWidth={1.8} className="text-danger" aria-hidden />
