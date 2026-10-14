@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -255,12 +256,12 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
               </button>
               <label className="flex min-w-0 items-baseline gap-1.5 border-b border-border-strong pb-1">
                 <span className="text-base text-ink-muted">{simbolo}</span>
-                <input
-                  inputMode="numeric"
+                <CampoDeDinheiro
                   aria-label="Quanto custa"
-                  placeholder="0"
-                  value={valor ? valor.toLocaleString("pt-BR") : ""}
-                  onChange={(e) => setValor(Math.min(9_999_999, Number(e.target.value.replace(/\D/g, "")) || 0))}
+                  placeholder="0,00"
+                  valor={valor}
+                  onValor={(v) => setValor(v ?? 0)}
+                  max={9_999_999}
                   className="w-full min-w-0 bg-transparent text-center text-[34px] font-light tabular-nums text-ink outline-none"
                 />
               </label>

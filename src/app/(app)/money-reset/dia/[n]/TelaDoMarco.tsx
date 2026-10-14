@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -356,10 +357,10 @@ function M4({ d, c }: { d: Extract<DadosDoMarco, { n: 4 }>; c: Comum }) {
   const salvo = c.respostas.fixas?.dados as { naoFixas?: string[]; negociar?: string | null; baixou?: number } | null | undefined;
   const [naoFixas, setNaoFixas] = useState<string[]>(salvo?.naoFixas ?? []);
   const [negociar, setNegociar] = useState<string | null>(d.fixas.find((f) => f.nome === salvo?.negociar)?.chave ?? null);
-  const [baixou, setBaixou] = useState(salvo?.baixou ? String(salvo.baixou) : "");
+  const [baixou, setBaixou] = useState<number | null>(salvo?.baixou ?? null);
   const fixas = d.fixas.filter((f) => !naoFixas.includes(f.chave));
   const total = fixas.reduce((s, f) => s + f.mensal, 0) + d.parcelas;
-  const valorBaixou = Math.max(0, Number(baixou.replace(",", ".")) || 0);
+  const valorBaixou = Math.max(0, baixou ?? 0);
   const placar = Math.max(0, c.achei - (salvo?.baixou ?? 0) + valorBaixou);
 
   return (
@@ -417,7 +418,7 @@ function M4({ d, c }: { d: Extract<DadosDoMarco, { n: 4 }>; c: Comum }) {
           <p className="text-[14px] text-ink">Ligue ou abra o chat da empresa. Diga que está revendo as contas e pergunte por um plano mais barato.</p>
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-semibold text-ink-muted">Já negociou? Quanto baixou por mês</span>
-            <input value={baixou} onChange={(e) => setBaixou(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" placeholder="0" aria-label="Quanto baixou por mês" className="min-h-11 rounded-xl border border-border-strong bg-surface-2 px-3 text-[15px] tabular-nums text-ink focus:border-accent focus:outline-none" />
+            <CampoDeDinheiro valor={baixou} onValor={setBaixou} placeholder="0,00" aria-label="Quanto baixou por mês" className="min-h-11 rounded-xl border border-border-strong bg-surface-2 px-3 text-[15px] tabular-nums text-ink focus:border-accent focus:outline-none" />
           </label>
         </Cartao>
       )}

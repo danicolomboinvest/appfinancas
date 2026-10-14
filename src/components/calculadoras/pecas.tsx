@@ -4,6 +4,7 @@ import { useId, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, SlidersHorizontal } from "lucide-react";
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
@@ -29,7 +30,10 @@ export const FOTO = (nome: string) => (nome.startsWith("/") ? nome : `/calculado
 export const milhar = (v: number) => Math.round(v || 0).toLocaleString("pt-BR");
 /** Percentual curto ("11", "7,5"). */
 export const pc = (v: number, casas = 2) => (Math.round(v * 10 ** casas) / 10 ** casas).toLocaleString("pt-BR", { maximumFractionDigits: casas });
+/** O valor como o campo de digitar mostra, com centavos ("500.000,00"), para medir a largura. */
+/** Contagem (anos, meses): só os dígitos, inteiro. Dinheiro NUNCA passa por aqui (ver CampoDeDinheiro). */
 const soDigitos = (t: string) => Number(t.replace(/\D/g, "")) || 0;
+export const comCentavos = (v: number) => (v ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
 
 export function useSimbolo() {
   return currencySymbol(useCurrency());
@@ -135,7 +139,6 @@ export function ContadorComFoto({
   selo?: string;
 }) {
   const simbolo = useSimbolo();
-  const texto = milhar(valor);
   return (
     <div className="relative isolate overflow-hidden rounded-3xl bg-surface-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -158,12 +161,12 @@ export function ContadorComFoto({
           </button>
           <label className="flex min-w-0 items-baseline justify-center gap-1.5 text-white">
             <span className="text-base opacity-80">{simbolo}</span>
-            <input
-              inputMode="numeric"
+            <CampoDeDinheiro
               aria-label={rotulo}
-              value={texto}
-              onChange={(e) => onChange(soDigitos(e.target.value))}
-              style={{ width: `${Math.max(1, texto.length) * 0.6 + 0.2}em` }}
+              placeholder="0,00"
+              valor={valor}
+              onValor={(v) => onChange(v ?? 0)}
+              style={{ width: `${Math.max(4, comCentavos(valor).length) * 0.6 + 0.2}em` }}
               className="min-w-0 max-w-[9em] bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-white outline-none max-[359px]:text-[1.8rem]"
             />
           </label>
@@ -212,12 +215,12 @@ export function CartaoValor({
       <label className="flex items-baseline gap-1.5 text-ink">
         <span className="text-base text-ink-muted">{simbolo}</span>
         {editavel && onChange ? (
-          <input
-            inputMode="numeric"
+          <CampoDeDinheiro
             aria-label={rotulo}
-            value={texto}
-            onChange={(e) => onChange(soDigitos(e.target.value))}
-            style={{ width: `${Math.max(1, texto.length) * 0.6 + 0.2}em` }}
+            placeholder="0,00"
+            valor={valor}
+            onValor={(v) => onChange(v ?? 0)}
+            style={{ width: `${Math.max(4, comCentavos(valor).length) * 0.6 + 0.2}em` }}
             className="min-w-0 max-w-[9em] bg-transparent text-[2.5rem] font-light leading-none tracking-[-0.03em] tabular-nums text-ink outline-none max-[359px]:text-[2.1rem]"
           />
         ) : (
@@ -321,6 +324,27 @@ export function CampoFino({
 }) {
   const [rascunho, setRascunho] = useState<string | null>(null);
   const mostrado = rascunho ?? (casas === 0 ? milhar(valor) : pc(valor, casas));
+  // Com o símbolo da moeda na frente é dinheiro: aceita centavos, como todo campo de valor do app.
+  // Antes "1234,56" no "Combustível por mês" virava R$ 123.456.
+  if (prefixo) {
+    return (
+      <div className="flex items-center justify-between gap-3 py-3">
+        <span className="min-w-0 text-sm text-ink">{rotulo}</span>
+        <label className="flex shrink-0 items-baseline gap-1 rounded-xl bg-surface-2 px-3 py-1.5 focus-within:ring-2 focus-within:ring-accent">
+          <span className="text-caption text-ink-muted">{prefixo}</span>
+          <CampoDeDinheiro
+            aria-label={rotulo}
+            placeholder="0,00"
+            valor={valor}
+            onValor={(v) => onChange(v ?? 0)}
+            style={{ width: `${Math.max(4, comCentavos(valor).length) + 0.5}ch` }}
+            className="bg-transparent text-right text-[15px] font-medium tabular-nums text-ink outline-none"
+          />
+          {sufixo && <span className="text-caption text-ink-muted">{sufixo}</span>}
+        </label>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center justify-between gap-3 py-3">
       <span className="min-w-0 text-sm text-ink">{rotulo}</span>

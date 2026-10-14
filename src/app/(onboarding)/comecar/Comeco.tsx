@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { ACEITA_ARQUIVO_DE_EXTRATO } from "@/lib/import/limites";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -537,16 +538,16 @@ function PerguntaRenda({
           com passos maiores acima de 20 mil. */}
       <label className="mt-2 flex items-baseline justify-center gap-2" data-renda-digitavel>
         <span className="text-xl font-light text-ink-muted">{simbolo}</span>
-        <input
-          inputMode="numeric"
+        {/* Dígitos como centavos, igual ao resto do app: "3500,50" lia R$ 350.050. Ao sair do campo
+            o valor continua indo para o passo da régua, porque aqui a pergunta é "mais ou menos". */}
+        <CampoDeDinheiro
           aria-label="Quanto entra por mês"
-          value={renda ? renda.toLocaleString("pt-BR") : ""}
-          onChange={(e) => {
-            const n = Number(e.target.value.replace(/\D/g, ""));
-            setRenda(Number.isFinite(n) ? Math.min(n, 100_000_000) : 0);
-          }}
+          placeholder="0,00"
+          valor={renda}
+          onValor={(v) => setRenda(v ?? 0)}
+          max={100_000_000}
           onBlur={() => setRenda(rendaDaRegua(renda) ?? RENDA_INICIAL)}
-          className="w-[8ch] min-w-0 border-b-2 border-transparent bg-transparent pb-0.5 text-center text-[clamp(2.25rem,11vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums text-ink outline-none focus:border-accent"
+          className="w-[10ch] min-w-0 border-b-2 border-transparent bg-transparent pb-0.5 text-center text-[clamp(2.25rem,11vw,2.75rem)] font-light leading-none tracking-[-0.02em] tabular-nums text-ink outline-none focus:border-accent"
         />
       </label>
       <input

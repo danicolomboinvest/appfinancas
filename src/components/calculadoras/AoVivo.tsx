@@ -6,9 +6,10 @@ import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { reaisDoTexto } from "@/lib/dinheiro/digitado";
 import type { TipoDeSimulacao, ValoresDaCalculadora } from "@/lib/calculadoras/entradas";
 import type { Veredito } from "@/lib/calculadoras/vereditos";
-import { BotaoVirarMeta, CampoDoNome, IconeRedondo, milhar, pc, useSalvar, useSimbolo, VoltarParaCalculadoras, type MetaSugerida } from "./pecas";
+import { BotaoVirarMeta, CampoDoNome, comCentavos, IconeRedondo, milhar, pc, useSalvar, useSimbolo, VoltarParaCalculadoras, type MetaSugerida } from "./pecas";
 
 /**
  * "Mexer nos números" (protótipo aprovado): uma tela só, o veredito em cima e cada número embaixo
@@ -218,7 +219,7 @@ function CampoAoVivo({ c, v, muda, erro }: { c: Campo; v: ValoresDaCalculadora; 
   }
   const bruto = Number(v[c.k]);
   const tela = Number.isFinite(bruto) ? naTela(c, bruto) : 0;
-  const mostrado = rascunho ?? (v[c.k] === "" ? "" : c.tipo === "brl" ? milhar(tela) : pc(tela));
+  const mostrado = rascunho ?? (v[c.k] === "" ? "" : c.tipo === "brl" ? comCentavos(tela) : pc(tela));
   const min = c.min ?? 0;
   const max = c.max ?? Math.max(1, tela * 2);
   const dentro = Math.min(max, Math.max(min, tela));
@@ -235,8 +236,9 @@ function CampoAoVivo({ c, v, muda, erro }: { c: Campo; v: ValoresDaCalculadora; 
           onBlur={() => setRascunho(null)}
           onChange={(e) => {
             if (c.tipo === "brl") {
-              const n = Number(e.target.value.replace(/\D/g, "")) || 0;
-              setRascunho(milhar(n));
+              // Dígitos como centavos, igual a todo campo de dinheiro do app (lib/dinheiro/digitado).
+              const n = reaisDoTexto(e.target.value) ?? 0;
+              setRascunho(comCentavos(n));
               return muda(c.k, n);
             }
             const t = e.target.value.replace(/[^\d,]/g, "");
