@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { agendarCacaDoDinheiroPerdido } from "@/lib/dinheiro-perdido/agendar";
 import { agendarContasDoHistorico } from "@/lib/contas/agendar-contas";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
-import { installmentCanonical, installmentDescription, parseInstallment } from "@/lib/entries/recurrence";
+import { descricaoComparavel, installmentDescription, mesmaParcela, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { profileDocument } from "@/lib/import/profile";
 import { veioDeImagem } from "@/lib/import/ocr-marca";
@@ -747,10 +747,6 @@ async function marcarDestinoPelaRegra(ctx: AuthContext, items: ReviewItem[]): Pr
   }
 }
 
-function descricaoComparavel(description: string | null): string {
-  return installmentCanonical(description ?? "").trim().toLowerCase();
-}
-
 /** Chave de duplicata: mesma data + valor + descrição = mesma transação do extrato. */
 function dedupeKey(date: string | null, amount: number, description: string | null): string {
   return `${date ?? ""}|${amount.toFixed(2)}|${descricaoComparavel(description)}`;
@@ -765,12 +761,6 @@ function parcelaCerta(description: string | null) {
 /** Parcela de fatura já gravada (sem dia), com o lote que a criou e o mês em que caiu (ano*12+mês). */
 type ParcelaExistente = { valor: number; id: string; loteId: string | null; mes: number; /** Gravada antes de a parcela ter dia (out/2026). */ semDia?: boolean };
 
-/** A mesma compra parcelada pode vir com centavos diferentes de um mês pro outro: a 1ª parcela
- * absorve o arredondamento (R$ 100 em 3x = 33,34 + 33,33 + 33,33). A diferença nunca passa de
- * um centavo por parcela. */
-function mesmaParcela(a: number, b: number, total: number): boolean {
-  return Math.abs(a - b) <= (total - 1) * 0.01 + 0.005;
-}
 
 
 const DIA_MS = 86_400_000;

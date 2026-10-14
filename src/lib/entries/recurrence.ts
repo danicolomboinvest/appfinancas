@@ -156,3 +156,17 @@ export function installmentCanonical(description: string): string {
     `${before}${Number(c)}${/de/i.test(sep) ? " de " : "/"}${Number(t)}`,
   );
 }
+
+/** Descrição comparável entre faturas: sem diferença de maiúscula/espaço nem de como o "N/T" da
+ * parcela foi escrito (ver installmentCanonical). É a chave com que a importação reconhece uma
+ * parcela que já está no mês. */
+export function descricaoComparavel(description: string | null): string {
+  return installmentCanonical(description ?? "").trim().toLowerCase();
+}
+
+/** A mesma compra parcelada pode vir com centavos diferentes de um mês pro outro: a 1ª parcela
+ * absorve o arredondamento (R$ 100 em 3x = 33,34 + 33,33 + 33,33). A diferença nunca passa de
+ * um centavo por parcela. */
+export function mesmaParcela(a: number, b: number, total: number): boolean {
+  return Math.abs(a - b) <= (total - 1) * 0.01 + 0.005;
+}

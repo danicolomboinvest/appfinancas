@@ -85,6 +85,12 @@ export function nomeSemParcela(descricao: string): string {
   return semNT || descricao.trim();
 }
 
+/** A série de uma parcela: o nome sem o "N/T", normalizado, e o total ("amazon marketplace cc|10").
+ * Duas parcelas da mesma série podem ser da mesma compra (ou de duas compras iguais). */
+export function serieDaParcela(descricao: string, total: number): string {
+  return `${normalizar(nomeSemParcela(descricao))}|${total}`;
+}
+
 /**
  * O lançamento é parcela? Com certeza (parseInstallment: "PARC", "2 de 6", "(9/10)", total acima
  * de 12) sempre; o "LOJA 03/10" ambíguo só quando a importação o gravou sem dia, que é como ela
@@ -117,7 +123,7 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
     if (!p) continue;
     const nome = nomeSemParcela(l.descricao);
     const m = indice(l);
-    lidas.push({ ...l, ...p, nome, serie: `${normalizar(nome)}|${p.total}`, origem: m - (p.atual - 1), mes: m });
+    lidas.push({ ...l, ...p, nome, serie: serieDaParcela(l.descricao, p.total), origem: m - (p.atual - 1), mes: m });
   }
 
   const itens: ParcelaDoMes[] = [];
