@@ -120,17 +120,47 @@ export function isInterInvoice(texto: string): boolean {
   return /Despesas da fatura/i.test(texto) && /\bCART[ÃA]O\s+\d{4}\*{4}\d{4}/i.test(texto);
 }
 
+/**
+ * Compra no exterior: a linha da data não tem valor; vêm a moeda de origem, o dólar e a cotação,
+ * e o valor em reais numa linha só dele ("- R$ 933,32"). Antes ela sumia da fatura (13/10/2026:
+ * R$ 1.194,34 de duas compras internacionais fora, "li R$ 3.293, a fatura diz R$ 4.443").
+ */
+const FATURA_SEM_VALOR_RE = /^(\d{1,2})\s+de\s+([a-zç]{3})[a-zç]*\.?\s+(\d{4})\s+(.+)$/i;
+const SO_VALOR_RE = /^-\s+(\+\s*)?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})$/;
+const LINHA_DA_MOEDA_RE = /^(valor e s[íi]mbolo da moeda|valor em d[óo]lar|cota[çc][ãa]o do d[óo]lar|iof)/i;
+
 export function parseInterInvoice(texto: string): ParsedTransaction[] {
   const out: ParsedTransaction[] = [];
+  let pendente: { dia: string; mesAbrev: string; ano: string; descricao: string; linhas: number } | null = null;
   for (const bruta of texto.split(/\r?\n/)) {
     const linha = bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim();
     const m = linha.match(FATURA_LINHA_RE);
-    if (!m) continue;
-    const [, dia, mesAbrev, ano, descricao, credito, valor] = m;
-    const mes = mesPorExtenso(Object.keys(MESES).find((nome) => nome.startsWith(mesAbrev.toLowerCase().replace("ç", "c"))) ?? "");
-    const magnitude = parseBrazilianNumber(valor);
-    if (!mes || Number.isNaN(magnitude) || magnitude === 0) continue;
-    out.push({ date: `${ano}-${mes}-${dia.padStart(2, "0")}`, description: descricao.trim(), amount: credito ? -magnitude : magnitude });
+    if (m) {
+      pendente = null;
+      const [, dia, mesAbrev, ano, descricao, credito, valor] = m;
+      empurrar(dia, mesAbrev, ano, descricao, credito, valor);
+      continue;
+    }
+    const v = linha.match(SO_VALOR_RE);
+    if (v && pendente) {
+      empurrar(pendente.dia, pendente.mesAbrev, pendente.ano, pendente.descricao, v[1], v[2]);
+      pendente = null;
+      continue;
+    }
+    const semValor = linha.match(FATURA_SEM_VALOR_RE);
+    if (semValor && !/R\$/.test(linha)) {
+      pendente = { dia: semValor[1], mesAbrev: semValor[2], ano: semValor[3], descricao: semValor[4], linhas: 0 };
+      continue;
+    }
+    // Entre a data e o valor só podem vir as linhas da moeda; qualquer outra coisa desfaz.
+    if (pendente && (!LINHA_DA_MOEDA_RE.test(linha) || ++pendente.linhas > 4)) pendente = null;
   }
   return out;
+
+  function empurrar(dia: string, mesAbrev: string, ano: string, descricao: string, credito: string | undefined, valor: string) {
+    const mes = mesPorExtenso(Object.keys(MESES).find((nome) => nome.startsWith(mesAbrev.toLowerCase().replace("ç", "c"))) ?? "");
+    const magnitude = parseBrazilianNumber(valor);
+    if (!mes || Number.isNaN(magnitude) || magnitude === 0) return;
+    out.push({ date: `${ano}-${mes}-${dia.padStart(2, "0")}`, description: descricao.trim(), amount: credito ? -magnitude : magnitude });
+  }
 }

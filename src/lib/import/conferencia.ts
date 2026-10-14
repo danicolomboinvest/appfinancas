@@ -107,6 +107,11 @@ function numero(m: RegExpMatchArray | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** O valor casado é exatamente zero ("R$ 0,00"). */
+function zerado(m: RegExpMatchArray | null): boolean {
+  return m !== null && /^0,00$/.test(m[1]);
+}
+
 /** Diferença de centavos é arredondamento; R$ 1 ou 0,5% (o que for maior) ainda é "bateu". */
 function bate(a: number, b: number): boolean {
   return Math.abs(a - b) <= Math.max(1, Math.abs(b) * 0.005);
@@ -141,7 +146,10 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     if (totalItauJunto !== null) referencias.push(totalItauJunto);
     const anterior = numero(texto.match(ANTERIOR));
     const pagamento = numero(texto.match(PAGAMENTO_DO_RESUMO));
-    const totalDoResumo = numero(texto.match(TOTAL_DO_RESUMO)) ?? total;
+    // Fatura já paga antes de fechar: "Total a pagar R$ 0,00". Zero é um total de verdade aqui
+    // (anterior − pagamento + o mês = 0); sem isto a conta do mês não era feita e a leitura certa
+    // de uma fatura do Nubank (13/10/2026) caía em "não fechou".
+    const totalDoResumo = numero(texto.match(TOTAL_DO_RESUMO)) ?? (zerado(texto.match(TOTAL_DO_RESUMO)) ? 0 : total);
     if (totalDoResumo !== null && anterior !== null && pagamento !== null) {
       const doMes = Math.round((totalDoResumo - anterior + pagamento) * 100) / 100;
       if (doMes > 0) referencias.push(doMes);
