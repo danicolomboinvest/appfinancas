@@ -14,7 +14,7 @@ import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { contarGastosReaisDoMes, getUltimoGastoAte, listEntriesForMonths, somarGastosPreCriados } from "@/lib/repositories/monthly-entry.repo";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { prisma } from "@/lib/db/prisma";
-import { carregarRevisaoAntigos } from "./revisar/dados";
+import { contarParaRevisar } from "./revisar/dados";
 import { lerFechamento } from "@/lib/repositories/fechamento.repo";
 import { existeDecisao, lerDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
@@ -107,7 +107,7 @@ export async function carregarFoco(ctx: AuthContext) {
       // Virada do ano: só nos 3 primeiros meses, e só pra quem usou o app no ano passado.
       month <= 3 ? existeDecisao(ctx, "virada_ano", String(year)) : Promise.resolve(true),
       month <= 3 ? prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: year - 1 } }) : Promise.resolve(0),
-      carregarRevisaoAntigos(ctx),
+      contarParaRevisar(ctx),
       listarAvisosDispensados(ctx, chaveDoMes(year, month), semana),
       // Cada gasto do mês: é o que a janela de um aviso mostra ("onde foi o dinheiro") e deixa
       // classificar ali mesmo.
@@ -429,7 +429,8 @@ export async function carregarFoco(ctx: AuthContext) {
     // Fechar um mês em que ela nem usava o app (conta criada agora) só elogiava um plano que não
     // existia: só oferece quando o mês passado teve orçamento montado enquanto ainda corria.
     mesAnteriorTinhaPlano: orcamentoMesAnterior > 0,
-    lancamentosParaRevisar: paraRevisar.length,
+    lancamentosParaRevisar: paraRevisar.antigos + paraRevisar.aConferir,
+    lancamentosAConferir: paraRevisar.aConferir,
     pendentes: pendentes.filter((p) => Date.now() - p.createdAt.getTime() > 20 * 3_600_000),
     ritualFeito,
     fechamentoFeito: fechamento.estado === "fechado",
