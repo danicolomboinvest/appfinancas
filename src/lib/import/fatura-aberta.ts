@@ -104,3 +104,12 @@ export function casarComFaturaAberta(linhas: LinhaQueChega[], gravadas: CompraDo
   }
   return resultado;
 }
+
+/**
+ * A revisão pode prometer "as seguintes entram sozinhas nos próximos meses"? Só quando a
+ * gravação de fato lança as seguintes: parcela com certeza, não a última, e NÃO vinda de print da
+ * fatura aberta (o print não projeta; quem projeta é a fatura fechada, ver importTransactionsAction).
+ */
+export function prometeParcelasSeguintes(installment: { current: number; total: number; confident: boolean } | null | undefined, faturaAberta: boolean): boolean {
+  return !!installment?.confident && installment.current < installment.total && !faturaAberta;
+}

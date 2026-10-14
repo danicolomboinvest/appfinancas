@@ -29,6 +29,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } from "@/lib/import/limites";
 import type { PrintLido } from "@/lib/import/print-fatura";
+import { prometeParcelasSeguintes } from "@/lib/import/fatura-aberta";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
 import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { perguntasDeMaiorValor } from "@/lib/onboarding/conferencia-inicial";
@@ -1463,7 +1464,8 @@ export function StatementImport({
           {/* Só a parcela com certeza: é a única que o servidor lança nos meses seguintes. "03/10"
               sem "parc" pode ser data ("POSTO SHELL 03/09"), e prometer que "as 7 seguintes
               entram sozinhas" fazia ela planejar os próximos meses com gasto que não existe. */}
-          {it.installment?.confident && it.installment.current < it.installment.total && (
+          {/* Print da fatura aberta não lança as seguintes (quem lança é a fatura fechada): ali a frase prometia o que não acontece. */}
+          {it.installment && prometeParcelasSeguintes(it.installment, stats?.faturaAberta === true) && (
             <p className="mt-1.5 text-caption text-accent-strong">
               {t.impParcela(it.installment.current, it.installment.total, it.installment.total - it.installment.current)}
             </p>
