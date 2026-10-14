@@ -254,23 +254,3 @@ export function tituloDaEmpresa(pathname: string, nomeDoPerfil: string): string 
   if (!item) return null;
   return item.href === "/empresa" ? nomeDoPerfil : item.titulo;
 }
-
-/**
- * Menu do primeiro dia (leva 1 do primeiro uso, 14/10/2026): até o primeiro extrato, o ☰ mostra só
- * Visão geral, Metas, Dívidas e Configurações, com "Ver todas as áreas" no fim. Nada some do app:
- * as outras áreas voltam ao menu com o primeiro arquivo importado. O Admin (da dona) fica.
- */
-export const AREAS_DO_PRIMEIRO_DIA = ["/mensal", "/planejamento", "/dividas", "/configuracoes", "/admin"] as const;
-
-export function secoesDoPrimeiroDia<T extends Pick<NavSection, "basePath">>(sections: T[]): T[] {
-  return sections.filter((s) => (AREAS_DO_PRIMEIRO_DIA as readonly string[]).includes(s.basePath));
-}
-
-/**
- * Quem pode ver o menu do primeiro dia: quem passou pelo começo novo (`comeco` gravado na conta),
- * no Pessoal ou no Casal. A Empresa tem o menu dela; quem já usava o app (sem `comeco`) nunca vê.
- * O resto da regra (ainda sem arquivo importado no perfil) é do layout, que olha o banco.
- */
-export function usaMenuDoPrimeiroDia(comeco: unknown, tipoDoPerfil: string): boolean {
-  return comeco !== null && comeco !== undefined && tipoDoPerfil !== "EMPRESA";
-}

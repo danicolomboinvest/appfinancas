@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
-import { NAV_SECTIONS, secoesDoPrimeiroDia, secoesVisiveis, usaMenuDoPrimeiroDia } from "@/components/shell/nav-sections";
+import { NAV_SECTIONS, secoesVisiveis } from "@/components/shell/nav-sections";
 import { CAMINHO_GENERICO, caminhoDoExtrato } from "../bancos";
 import {
   BANCOS_DO_COMECO,
@@ -127,19 +127,10 @@ describe("conferência do primeiro extrato: no máximo 3 perguntas", () => {
   });
 });
 
-describe("menu do primeiro dia", () => {
-  it("até o primeiro extrato: Visão geral, Metas, Dívidas e Configurações", () => {
+describe("menu normal desde o primeiro dia", () => {
+  it("a conta nova já vê todas as áreas, sem Ver todas as áreas", () => {
     const pessoal = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: false });
-    expect(secoesDoPrimeiroDia(pessoal).map((s) => s.label)).toEqual(["Visão geral", "Metas", "Dívidas", "Configurações"]);
-  });
-  it("nada some do app: as outras áreas continuam na lista completa", () => {
-    const pessoal = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: false });
-    expect(pessoal.map((s) => s.label)).toEqual(expect.arrayContaining(["Carteira", "Decidir", "Análises", "Como funciona"]));
-  });
-  it("só para quem passou pelo começo novo, fora da Empresa", () => {
-    expect(usaMenuDoPrimeiroDia({ passo: "porta" }, "PESSOAL")).toBe(true);
-    expect(usaMenuDoPrimeiroDia({ passo: "porta" }, "CASAL")).toBe(true);
-    expect(usaMenuDoPrimeiroDia({ passo: "porta" }, "EMPRESA")).toBe(false);
-    expect(usaMenuDoPrimeiroDia(null, "PESSOAL")).toBe(false);
+    expect(pessoal.map((s) => s.label)).toEqual(expect.arrayContaining(["Visão geral", "Metas", "Dívidas", "Carteira", "Decidir", "Análises", "Como funciona", "Configurações"]));
+    expect(pessoal.map((s) => s.label)).not.toContain("Ver todas as áreas");
   });
 });

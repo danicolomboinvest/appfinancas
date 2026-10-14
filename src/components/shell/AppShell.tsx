@@ -62,7 +62,6 @@ export function AppShell({
   fotoDaConta = null,
   modoPar = null,
   novidades = "novo",
-  menuDoPrimeiroDia = false,
   ferramentasDoMei,
   perfilComprado = null,
 }: {
@@ -74,8 +73,6 @@ export function AppShell({
   modoPar?: { nomeTitular: string } | null;
   /** "Tivemos uma mudança": "mostrar" (já usava e não viu), "visto" ou "novo" (nunca vê). */
   novidades?: EstadoDasNovidades;
-  /** Até o primeiro extrato, o ☰ mostra só 4 áreas e "Ver todas as áreas" (14/10/2026). */
-  menuDoPrimeiroDia?: boolean;
   /** Nome da conta (o avatar do topo mostra a inicial quando não há foto). */
   nomeDaConta?: string | null;
   /** Foto da conta (User.avatarUrl): vira o avatar do app todo. */
@@ -224,7 +221,6 @@ export function AppShell({
           onOpenRegistrar={() => (empresa ? router.push("/empresa?registrar=1") : abrirRegistrar())}
           openFinance={openFinance}
           secoesFixas={modoPar ? SECOES_DO_PAR : undefined}
-          primeiroDia={!modoPar && menuDoPrimeiroDia}
           perfis={perfis}
           nomeDaConta={nomeDaConta}
           ferramentasDoMei={ferramentasDoMei}

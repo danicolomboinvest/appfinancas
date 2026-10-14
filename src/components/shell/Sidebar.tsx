@@ -1,21 +1,18 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircle, Plus, Repeat } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Lock, LogOut, MessageCircle, Plus, Repeat } from "lucide-react";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { abrirComoFunciona } from "./ComoFuncionaSheet";
-import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, menuDaEmpresa, itemDaEmpresaAtivo, withNavFlags, sectionMatches, secoesVisiveis, secoesDoPrimeiroDia, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
+import { ADMIN_NAV_SECTION, NAV_SECTIONS, MAIS_DA_EMPRESA, menuDaEmpresa, itemDaEmpresaAtivo, withNavFlags, sectionMatches, secoesVisiveis, rotuloDoMenu, type ItemDaEmpresa, type NavSection } from "./nav-sections";
 import type { FerramentasDoMei } from "@/lib/empresa/legal";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
 import { useToast } from "@/components/ui/toast-context";
-
-/** O "Ver todas as áreas" do menu do primeiro dia, lembrado no aparelho. */
-const CHAVE_VER_TODAS = "menu-ver-todas-as-areas";
 
 /** Liga cada seção ao passo do tour de boas-vindas (WelcomeTour destaca por data-tour). */
 const SIDEBAR_TOUR: Record<string, string> = {
@@ -40,10 +37,7 @@ export function Sidebar({
   perfis = [],
   nomeDaConta = null,
   ferramentasDoMei = { limite: false, impostos: false },
-  primeiroDia = false,
 }: {
-  /** Até o primeiro extrato: só 4 áreas, com "Ver todas as áreas" no fim (14/10/2026). */
-  primeiroDia?: boolean;
   /** Empresa: Limite do MEI e Impostos só entram no menu quando têm o que mostrar. */
   ferramentasDoMei?: FerramentasDoMei;
   /** Os perfis da conta: na Empresa, o "Ir para Ana, pessoal" do topo do menu. */
@@ -68,27 +62,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { voz, empresa, casal } = useProfileTheme();
-  const todasAsSecoes = secoesFixas ?? secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal, moneyReset: comMoneyReset });
-  // "Ver todas as áreas" fica lembrado neste aparelho: quem abriu uma vez não precisa abrir de novo.
-  const [verTodas, setVerTodas] = useState(false);
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- lê o aparelho, que só existe no cliente
-      if (window.localStorage.getItem(CHAVE_VER_TODAS) === "1") setVerTodas(true);
-    } catch {
-      // Sem acesso ao armazenamento: o menu do primeiro dia continua com o "Ver todas as áreas".
-    }
-  }, []);
-  const soQuatro = primeiroDia && !secoesFixas && !verTodas;
-  const sections = soQuatro ? secoesDoPrimeiroDia(todasAsSecoes) : todasAsSecoes;
-  function abrirTodas() {
-    setVerTodas(true);
-    try {
-      window.localStorage.setItem(CHAVE_VER_TODAS, "1");
-    } catch {
-      // Só não fica lembrado.
-    }
-  }
+  const sections = secoesFixas ?? secoesVisiveis(withNavFlags(isAdmin ? [...NAV_SECTIONS, ADMIN_NAV_SECTION] : NAV_SECTIONS, { openFinance }), { empresa, casal, moneyReset: comMoneyReset });
 
   const router = useRouter();
   const { showError } = useToast();
@@ -222,15 +196,6 @@ export function Sidebar({
             );
           })}
         </ul>
-        {soQuatro && (
-          <div className={`mt-2 flex flex-col gap-1 border-t border-border pt-3 ${hideLabelDesktopOnly}`} data-menu-primeiro-dia>
-            <p className="px-3.5 text-[13px] leading-snug text-ink-muted">As outras áreas entram no menu com o primeiro extrato.</p>
-            <button type="button" onClick={abrirTodas} className="flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-left text-[16px] font-medium text-ink hover:bg-surface-2 md:min-h-0 md:rounded-lg md:px-3 md:text-sm">
-              <ChevronDown size={20} strokeWidth={1.5} className="shrink-0" aria-hidden />
-              Ver todas as áreas
-            </button>
-          </div>
-        )}
         {/* "Fale com a gente" logo depois de Como funciona (protótipo), com o balão. */}
         <a href={linkDoSuporte("Oi! Preciso de ajuda com o SPI Finance.")} className="mt-0.5 flex min-h-12 items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[16px] text-ink hover:bg-surface-2 md:hidden">
           <MessageCircle size={20} strokeWidth={1.5} className="shrink-0" />
