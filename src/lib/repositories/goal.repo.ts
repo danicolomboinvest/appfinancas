@@ -1,4 +1,4 @@
-import type { GoalIcon } from "@prisma/client";
+import { Prisma, type AssetObjective, type GoalIcon, type GoalStatus } from "@prisma/client";
 import { aportesJaOcorridosWhere, goalCurrentAmount, type GoalContribution } from "@/lib/planning/goal-progress";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { prisma } from "@/lib/db/prisma";
@@ -89,6 +89,114 @@ export async function deleteOwnGoal(ctx: AuthContext, id: string) {
     prisma.goal.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }),
   ]);
   return result;
+}
+
+/**
+ * O que o Desfazer precisa para trazer a meta de volta igual (13/10/2026): a linha da meta, os
+ * aportes e os ativos que estavam ligados a ela (com o objetivo de antes). Dinheiro vai como
+ * texto (Decimal) e datas em ISO, para caber num recibo JSON.
+ */
+export type MetaApagada = {
+  meta: {
+    id: string;
+    name: string;
+    targetAmount: string;
+    targetDate: string | null;
+    currentAmount: string;
+    monthlyContribution: string | null;
+    annualRate: string | null;
+    viagem: unknown;
+    status: GoalStatus;
+    icon: GoalIcon;
+    checkinDismissedMonth: string | null;
+    fotoUrl: string | null;
+    aporteAdiadoMes: string | null;
+    aportesRecusados: string[];
+    createdAt: string;
+  };
+  aportes: string[];
+  ativos: { id: string; objective: AssetObjective }[];
+};
+
+/**
+ * Apagar a meta pelo menu "…" (13/10/2026). Some só a meta: os aportes ligados a ela continuam
+ * nos meses (a FK solta o goalId) e os ativos continuam na Carteira, sem objetivo, como no
+ * deleteOwnGoal. Devolve o que recriar no Desfazer; null quando não é dela (ou já foi apagada).
+ */
+export async function apagarMeta(ctx: AuthContext, id: string): Promise<MetaApagada | null> {
+  return prisma.$transaction(async (tx) => {
+    const g = await tx.goal.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
+    if (!g) return null;
+    const [aportes, ativos] = await Promise.all([
+      tx.monthlyEntry.findMany({ where: { goalId: id, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } }),
+      tx.asset.findMany({ where: { goalId: id, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true, objective: true } }),
+    ]);
+    await tx.asset.updateMany({ where: { goalId: id, userId: ctx.userId, profileId: ctx.profileId }, data: { objective: "OUTRO", goalId: null } });
+    await tx.monthlyEntry.updateMany({ where: { goalId: id, userId: ctx.userId, profileId: ctx.profileId }, data: { goalId: null } });
+    const r = await tx.goal.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
+    if (r.count === 0) return null;
+    return {
+      meta: {
+        id: g.id,
+        name: g.name,
+        targetAmount: g.targetAmount.toString(),
+        targetDate: g.targetDate ? g.targetDate.toISOString() : null,
+        currentAmount: g.currentAmount.toString(),
+        monthlyContribution: g.monthlyContribution == null ? null : g.monthlyContribution.toString(),
+        annualRate: g.annualRate == null ? null : g.annualRate.toString(),
+        viagem: g.viagem ?? null,
+        status: g.status,
+        icon: g.icon,
+        checkinDismissedMonth: g.checkinDismissedMonth,
+        fotoUrl: g.fotoUrl,
+        aporteAdiadoMes: g.aporteAdiadoMes,
+        aportesRecusados: g.aportesRecusados,
+        createdAt: g.createdAt.toISOString(),
+      },
+      aportes: aportes.map((a) => a.id),
+      ativos: ativos.map((a) => ({ id: a.id, objective: a.objective })),
+    };
+  });
+}
+
+/**
+ * O Desfazer: a meta volta com o mesmo id e religa os aportes e ativos que eram dela e que
+ * continuam soltos (um aporte que ela ligou a outra meta nesse meio tempo fica onde está). Só no
+ * perfil de quem apagou. Desfazer duas vezes não cria duas metas.
+ */
+export async function restaurarMeta(ctx: AuthContext, a: MetaApagada): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const ja = await tx.goal.findFirst({ where: { id: a.meta.id }, select: { userId: true, profileId: true } });
+    if (ja) return ja.userId === ctx.userId && ja.profileId === ctx.profileId;
+    const m = a.meta;
+    await tx.goal.create({
+      data: {
+        userId: ctx.userId, profileId: ctx.profileId,
+        id: m.id,
+        name: m.name,
+        targetAmount: m.targetAmount,
+        targetDate: m.targetDate ? new Date(m.targetDate) : null,
+        currentAmount: m.currentAmount,
+        monthlyContribution: m.monthlyContribution,
+        annualRate: m.annualRate,
+        viagem: m.viagem == null ? Prisma.DbNull : (m.viagem as Prisma.InputJsonValue),
+        status: m.status,
+        icon: m.icon,
+        checkinDismissedMonth: m.checkinDismissedMonth,
+        fotoUrl: m.fotoUrl,
+        aporteAdiadoMes: m.aporteAdiadoMes,
+        aportesRecusados: m.aportesRecusados,
+        createdAt: new Date(m.createdAt),
+      },
+    });
+    if (a.aportes.length) await tx.monthlyEntry.updateMany({ where: { id: { in: a.aportes }, goalId: null, userId: ctx.userId, profileId: ctx.profileId }, data: { goalId: m.id } });
+    const porObjetivo = new Map<AssetObjective, string[]>();
+    for (const x of a.ativos) porObjetivo.set(x.objective, [...(porObjetivo.get(x.objective) ?? []), x.id]);
+    for (const [objective, ids] of porObjetivo) {
+      await tx.asset.updateMany({ where: { id: { in: ids }, goalId: null, userId: ctx.userId, profileId: ctx.profileId }, data: { goalId: m.id, objective } });
+    }
+    return true;
+  });
 }
 
 /**

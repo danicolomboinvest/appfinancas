@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getRequiredSession } from "@/lib/auth/session";
+import { doDono, getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { createGoal } from "@/lib/repositories/goal.repo";
 import { TIPOS, type TipoDeDivida } from "@/lib/dividas/tipos";
-import { criarDivida, desfazerToque, editarDivida, pagarParcela, quitarDivida, type AntesDoToque } from "@/lib/repositories/divida.repo";
+import { criarRecibo, lerRecibo } from "@/lib/desfazer/recibo";
+import { apagarDivida, criarDivida, desfazerToque, editarDivida, pagarParcela, quitarDivida, restaurarDivida, type AntesDoToque, type DividaApagada } from "@/lib/repositories/divida.repo";
 
 const tipos = TIPOS.map((t) => t.id) as [TipoDeDivida, ...TipoDeDivida[]];
 const texto = (max: number) => z.string().trim().max(max).transform((s) => s.replace(/[<>]/g, ""));
@@ -73,6 +74,25 @@ export async function desfazerAction(id: string, antes: AntesDoToque) {
   const ctx = await getRequiredSession();
   await desfazerToque(ctx, z.string().min(1).parse(id), antesSchema.parse(antes));
   revalidar();
+}
+
+/** Apagar pelo menu "…": só a dívida (ela não tem pagamentos ligados). Devolve o recibo do Desfazer. */
+export async function apagarDividaAction(id: string): Promise<{ ok: true; desfazer: string | null } | { ok: false; erro: string }> {
+  const ctx = await getRequiredSession();
+  const apagada = await apagarDivida(ctx, z.string().min(1).max(60).parse(id));
+  if (!apagada) return { ok: false, erro: "Essa dívida não existe mais. Recarregue a página." };
+  revalidar();
+  return { ok: true, desfazer: criarRecibo("divida", doDono(ctx), apagada) };
+}
+
+/** "Desfazer" no aviso: a mesma dívida volta, no mesmo lugar da lista. */
+export async function desfazerApagarDividaAction(recibo: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const ctx = await getRequiredSession();
+  const apagada = lerRecibo<DividaApagada>("divida", doDono(ctx), recibo);
+  if (!apagada) return { ok: false, erro: "Não deu para desfazer. O tempo passou." };
+  if (!(await restaurarDivida(ctx, apagada))) return { ok: false, erro: "Não deu para desfazer." };
+  revalidar();
+  return { ok: true };
 }
 
 

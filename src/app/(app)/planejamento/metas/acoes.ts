@@ -7,7 +7,8 @@ import { getRequiredSession, doDono } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
-import { deleteOwnGoal } from "@/lib/repositories/goal.repo";
+import { apagarMeta, restaurarMeta, type MetaApagada } from "@/lib/repositories/goal.repo";
+import { criarRecibo, lerRecibo } from "@/lib/desfazer/recibo";
 import { lerMetaDaTela } from "@/lib/repositories/metas.repo";
 import { TAXA_PADRAO_DAS_METAS, mesDaqui, mesDoAporte, porMesDaNovaMeta } from "@/lib/metas/projecao";
 import { TIPOS_DE_META, ehFotoDoBanco, FOTOS_DE_META, urlDaFoto } from "@/lib/metas/tipos";
@@ -116,10 +117,28 @@ export async function editarMetaAction(id: string, dados: MetaGuiada): Promise<R
   return { ok: true };
 }
 
-export async function apagarMetaAction(id: string): Promise<Resultado> {
+/**
+ * Apagar pelo menu "…" (ou pela folha). Some só a meta: os aportes continuam nos meses e os
+ * ativos na Carteira. Devolve o recibo do Desfazer (null quando o servidor não pode assinar).
+ */
+export async function apagarMetaAction(id: string): Promise<{ ok: true; desfazer: string | null } | { ok: false; error: string }> {
   const ctx = await getRequiredSession();
-  await deleteOwnGoal(ctx, z.string().min(1).max(60).parse(id));
-  revalidarMetas();
+  const apagada = await apagarMeta(ctx, z.string().min(1).max(60).parse(id));
+  if (!apagada) return { ok: false, error: "Essa meta não existe mais. Recarregue a página." };
+  revalidarMetas(apagada.meta.id);
+  revalidatePath("/carteira");
+  return { ok: true, desfazer: criarRecibo("meta", doDono(ctx), apagada) };
+}
+
+/** "Desfazer" no aviso: a meta volta igual, com os aportes e ativos que eram dela. */
+export async function desfazerApagarMetaAction(recibo: string): Promise<Resultado> {
+  const ctx = await getRequiredSession();
+  const apagada = lerRecibo<MetaApagada>("meta", doDono(ctx), recibo);
+  if (!apagada) return { ok: false, error: "Não deu para desfazer. O tempo passou." };
+  const ok = await restaurarMeta(ctx, apagada);
+  if (!ok) return { ok: false, error: "Não deu para desfazer." };
+  revalidarMetas(apagada.meta.id);
+  revalidatePath("/carteira");
   return { ok: true };
 }
 
