@@ -29,6 +29,16 @@ export function chaveDaRecusa(nome: string): string {
   return `${PREFIXO_DA_RECUSA}${nomeBase(nome)}`.slice(0, 160);
 }
 
+/**
+ * As chaves que valem como "ela já recusou" para um nome. Desde 14/10/2026 o nome achado no extrato
+ * vem com a grafia da descrição ("Pão de Açúcar"); antes vinha da chave, sem as palavras de ligação
+ * ("Pao Acucar"). A recusa gravada com o nome antigo continua valendo.
+ */
+export function chavesDaRecusa(nome: string): string[] {
+  const semLigacao = nome.split(/\s+/).filter((p) => !/^(de|da|do|das|dos|e)$/i.test(p)).join(" ");
+  return [...new Set([chaveDaRecusa(nome), chaveDaRecusa(semLigacao)])];
+}
+
 /** Quem cobra, na chave do motor ("m:netflix", "manychat"). Nulo quando a descrição não diz nada útil. */
 export function chaveDoComercianteDe(descricao: string | null): string | null {
   if (!descricao) return null;
@@ -147,7 +157,7 @@ export function juntarAssinaturas(e: {
   const achadas: AssinaturaDaTela[] = [];
   for (const a of e.achadas) {
     const base = nomeBase(a.nome);
-    if (!(a.mensal > 0) || vistas.has(base) || e.recusas.has(chaveDaRecusa(a.nome))) continue;
+    if (!(a.mensal > 0) || vistas.has(base) || chavesDaRecusa(a.nome).some((k) => e.recusas.has(k))) continue;
     if (daDela(a) || mesmaCobranca(a.nome, e.contas)) continue;
     vistas.add(base);
     achadas.push({ chave: a.chave, id: null, nome: a.nome, mensal: a.mensal, dia: null, origem: "extrato", pagaEsteMes: false, categoria: null });

@@ -46,9 +46,9 @@ vi.mock("@/lib/db/prisma", () => ({
         for (const r of data) if (!banco.recusas.some((x) => x.userId === r.userId && x.profileId === r.profileId && x.chave === r.chave)) banco.recusas.push(r);
         return { count: data.length };
       }),
-      deleteMany: vi.fn(async ({ where }: { where: Recusa }) => {
+      deleteMany: vi.fn(async ({ where }: { where: Omit<Recusa, "chave"> & { chave: { in: string[] } } }) => {
         const antes = banco.recusas.length;
-        banco.recusas = banco.recusas.filter((r) => !(r.userId === where.userId && r.profileId === where.profileId && r.chave === where.chave));
+        banco.recusas = banco.recusas.filter((r) => !(r.userId === where.userId && r.profileId === where.profileId && where.chave.in.includes(r.chave)));
         return { count: antes - banco.recusas.length };
       }),
     },

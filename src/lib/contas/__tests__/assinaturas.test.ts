@@ -19,7 +19,7 @@ describe("escolher dos meus lançamentos", () => {
       l("NETFLIX.COM", 59.9, "2026-09-08"),
       l("NETFLIX.COM", 59.9, "2026-10-08"),
     ]);
-    expect(r.map((c) => c.nome)).toEqual(["Netflix", "Manychat", "Padaria Pao Quente"].map((n) => r.find((c) => c.nome.toLowerCase() === n.toLowerCase())?.nome ?? n));
+    expect(r.map((c) => c.nome)).toEqual(["Netflix", "Manychat", "Padaria Pão Quente"].map((n) => r.find((c) => c.nome.toLowerCase() === n.toLowerCase())?.nome ?? n));
     const many = r.find((c) => c.chave.includes("manychat"))!;
     expect(many).toMatchObject({ ultimoValor: 899, vezes: 2, meses: 2, ultimaData: "2026-09-28", categoria: "OUTROS" });
     expect(r[r.length - 1].vezes).toBe(1);
@@ -102,5 +102,13 @@ describe("Dinheiro perdido aprende o comerciante que ela marcou", () => {
     const chave = chaveDoComercianteDe("HOSTINGER BR")!;
     const r = cacarDinheiroPerdido(linhas, { assinaturasDela: new Set([chave]) });
     expect(r.achados.map((a) => a.tipo)).toContain("aumento");
+  });
+});
+
+describe("recusa gravada com o nome antigo (sem acento e sem 'de')", () => {
+  it("'Pao Acucar' recusado continua escondendo 'Pão de Açúcar'", () => {
+    const recusas = new Set([chaveDaRecusa("Pao Acucar")]);
+    const r = juntarAssinaturas({ dela: [], achadas: [{ chave: "rx:pao", nome: "Pão de Açúcar", mensal: 30 }], contas: [], recusas, lancamentosDoMes: [] });
+    expect(r).toEqual([]);
   });
 });

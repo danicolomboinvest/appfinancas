@@ -6,7 +6,7 @@ import { mesmaCobranca } from "@/lib/contas/achar-contas";
 import {
   PREFIXO_DA_RECUSA,
   TIPO_ASSINATURA,
-  chaveDaRecusa,
+  chaveDaRecusa, chavesDaRecusa,
   chaveDoComercianteDe,
   comerciantesParaEscolher,
   nomeBase,
@@ -148,7 +148,7 @@ export async function recusarAssinatura(ctx: AuthContext, nome: string): Promise
 
 /** O "Desfazer" do "Não é assinatura" (14/10/2026): um toque errado sumia com ela para sempre. */
 export async function desfazerRecusaDeAssinatura(ctx: AuthContext, nome: string): Promise<void> {
-  await prisma.contaRecusada.deleteMany({ where: { ...doDono(ctx), chave: chaveDaRecusa(nome) } });
+  await prisma.contaRecusada.deleteMany({ where: { ...doDono(ctx), chave: { in: chavesDaRecusa(nome) } } });
 }
 
 /** A categoria que o motor da importação daria para o nome (a regra dela primeiro). */
