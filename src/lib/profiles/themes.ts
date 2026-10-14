@@ -371,11 +371,27 @@ html .botao-flutuante {
   box-shadow: var(--fab-fio);
 }`;
 
+/**
+ * A pílula de aviso (14/10/2026, "B como regra, a pílula de A como exceção"): sempre escura.
+ * No claro é a tinta do tema com texto do fundo; no escuro é o degrau da pílula com a tinta.
+ * O Desfazer vai num destaque claro: o do escuro do próprio tema, ou o que o protótipo fixou.
+ */
+function doAviso(claro: ModoBase, escuro: ModoBase, acaoNoClaro?: string) {
+  return {
+    claro: { aviso: claro.ink, "on-aviso": claro.canvas, "aviso-acao": acaoNoClaro ?? escuro.accent },
+    escuro: { aviso: escuro.extras?.pill ?? escuro.surface2, "on-aviso": escuro.ink, "aviso-acao": escuro.accent },
+  };
+}
+
+/** Desfazer da pílula no claro, tirado do protótipo (avisos-proposta.html). */
+const ACAO_DO_AVISO_NO_CLARO: Partial<Record<ProfileThemeKey, string>> = { padrao: "#f2c47a", girly: "#f0a8be" };
+
 function tema(key: ProfileThemeKey, label: string, descricao: string, claro: ModoBase, escuro: ModoBase): ProfileTheme {
   const logo = `/brand/aurora/${key}`;
+  const aviso = doAviso(claro, escuro, ACAO_DO_AVISO_NO_CLARO[key]);
   // O mesmo logo nos dois modos (decisão da versão nova): a variável vai igual nos dois blocos.
   // As esferas do Decidir (rodada 57) também mudam de cor com o tema e o modo.
-  const comLogo = (b: ModoBase, escuroModo: boolean): ModoBase => ({ ...b, extras: { ...b.extras, "--logo-tema": `url(${logo}/icone.svg)`, ...variaveisDaEsfera(key, escuroModo) } });
+  const comLogo = (b: ModoBase, escuroModo: boolean): ModoBase => ({ ...b, extras: { ...b.extras, ...(escuroModo ? aviso.escuro : aviso.claro), "--logo-tema": `url(${logo}/icone.svg)`, ...variaveisDaEsfera(key, escuroModo) } });
   return { key, label, descricao, modo: "claro", paleta: montar(comLogo(claro, false), false), paletaAlternativa: montar(comLogo(escuro, true), true), logo };
 }
 

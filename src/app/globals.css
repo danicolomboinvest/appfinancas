@@ -29,6 +29,11 @@
      de rosa, porque "pílula preta" foi o que a Dani apontou primeiro na tela dela. */
   --color-pill: var(--color-ink);
   --color-on-pill: var(--color-canvas);
+  /* A pílula de aviso (14/10/2026): sempre escura, texto claro, Desfazer num destaque claro.
+     Cada tema traz as suas (themes.ts, doAviso); estas valem antes do tema carregar. */
+  --color-aviso: #2d2b28;
+  --color-on-aviso: #f3efe6;
+  --color-aviso-acao: #e0b24e;
   /* A marca (sol nascendo): degradê âmbar sobre quadrado escuro. O Girly troca por rosa. */
   /* A aba ATIVA da barra de baixo (Fluxo · Metas · Carteira). No Padrão é tinta sobre um véu
      branco a 10%, que só se vê no escuro; os temas claros pintam com o destaque deles. */
@@ -188,6 +193,9 @@ html.light {
   --color-surface-2: #f4f1ea;
   --color-surface-hover: #eae5da;
   --texture-dot: transparent;
+  --color-aviso: #121212;
+  --color-on-aviso: #ffffff;
+  --color-aviso-acao: #f2c47a;
 
   /* Com fundo e card brancos, é o fio que separa um do outro — ele precisa existir de verdade. */
   --color-border: rgba(26, 24, 21, 0.13);
@@ -264,6 +272,9 @@ html.light {
   --color-border-strong: var(--color-border-strong);
   --color-pill: var(--color-pill);
   --color-on-pill: var(--color-on-pill);
+  --color-aviso: var(--color-aviso);
+  --color-on-aviso: var(--color-on-aviso);
+  --color-aviso-acao: var(--color-aviso-acao);
   --color-tab-active: var(--color-tab-active);
   --color-tab-active-soft: var(--color-tab-active-soft);
   --color-ink: var(--color-ink);
@@ -1138,4 +1149,54 @@ html .resumo-b a.bg-accent-gradient {
   background: var(--color-on-accent);
   color: var(--color-accent);
   box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------------------
+   Avisos (14/10/2026): "B como regra, a pílula de A como exceção".
+   .brilho: a linha que acabou de mudar acende por 1,2 s e volta. É a confirmação no próprio
+   item, no lugar do aviso solto. Usar com brilhar() (src/lib/ui/brilho.ts) ou direto na classe.
+   --------------------------------------------------------------------------------------- */
+@keyframes brilho-da-linha {
+  0% {
+    background-color: color-mix(in srgb, var(--color-accent) 22%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 1px transparent;
+  }
+}
+.brilho {
+  animation: brilho-da-linha 1.2s ease-out both;
+}
+@keyframes aviso-sobe {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.aviso-sobe {
+  animation: aviso-sobe 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes erro-treme {
+  0%, 100% { transform: none; }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.erro-treme {
+  animation: erro-treme 0.36s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aviso-sobe,
+  .erro-treme {
+    animation: none;
+  }
+  /* Sem movimento, o brilho vira só a cor parada por um instante, sem piscar. */
+  .brilho {
+    animation: none;
+    background-color: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  }
 }
