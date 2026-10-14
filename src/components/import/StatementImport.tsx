@@ -1709,6 +1709,7 @@ export function StatementImport({
               <span className="text-[15px] tabular-nums text-ink-muted">
                 {docType === "fatura" ? money(expenseSum) : `Entrou ${money(entrou, { round: true })} · Saiu ${money(expenseSum, { round: true })}`}
               </span>
+              {importable.length > 0 && (
               <span className="mt-2 inline-flex items-center gap-1.5 text-sm text-ink" data-separei>
                 <span className="flex size-5 items-center justify-center rounded-full bg-success-soft text-success" aria-hidden>
                   <Check size={13} strokeWidth={2.6} />
@@ -1716,6 +1717,7 @@ export function StatementImport({
                 {separadas === 1 ? "1 já separada" : `${separadas} já separadas`}
                 {stats?.conferencia.status === "fechou" && <span className="text-ink-muted" title={t.impBateuComTotal(money(stats.conferencia.esperado))}> · bateu com o total</span>}
               </span>
+              )}
               {docType === "fatura" && contarNoMes && (
                 <div className="mt-3 w-full text-left">
                   <MonthPicker label={t.impFaturaTudoNoMes} id="fatura-month-confirmar-mes" value={faturaMonth} onChange={escolherMesFatura} />
@@ -1727,6 +1729,7 @@ export function StatementImport({
 
         {/* Links discretos: ver as separadas, as que já estavam no app (com desfazer), as que ficam de fora. */}
         <div className="flex flex-wrap items-center justify-center gap-x-4 text-sm text-ink-muted" data-links-da-conferencia>
+          {importable.length > 0 && (
           <button
             type="button"
             onClick={() => {
@@ -1738,6 +1741,7 @@ export function StatementImport({
           >
             {separadosEmRevisao ? "Fechar as separadas" : "Ver as separadas"}
           </button>
+          )}
           {jaNoApp.length > 0 && (
             <button type="button" onClick={() => { setSeparadosEmRevisao(null); setAberto((v) => (v === "jaNoApp" ? null : "jaNoApp")); }} aria-expanded={aberto === "jaNoApp"} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-ink" data-ja-no-app>
               {jaNoApp.length === 1 ? "1 já estava no app" : `${jaNoApp.length} já estavam no app`}
@@ -1758,9 +1762,11 @@ export function StatementImport({
                   <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
                   <span className="block text-caption text-ink-muted">
                     {formatDate(it.date)} · {money(it.amount)}
-                    {it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
+                    {it.jaNoApp?.importado ? " · veio de outro arquivo" : it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
                   </span>
                 </span>
+                {/* A que veio de outro arquivo igualzinha não entra de novo nem com o toque: a gravação pula. */}
+                {!it.jaNoApp?.importado && (
                 <button
                   type="button"
                   onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, jaNoApp: null } : x)))}
@@ -1768,6 +1774,7 @@ export function StatementImport({
                 >
                   Anotar também
                 </button>
+                )}
               </li>
             ))}
           </ul>
@@ -1987,7 +1994,8 @@ export function StatementImport({
               </button>
             </>
           ) : (
-            <Button type="button" className="min-h-12" onClick={handleImport} disabled={isPending || semNadaParaGravar}>
+            // Nada novo (o mesmo arquivo de novo): "Pronto" fecha, em vez de ficar apagado sem saída.
+            <Button type="button" className="min-h-12" onClick={semNadaParaGravar ? onDone : handleImport} disabled={isPending}>
               {isPending ? t.impImportando : importable.length === 0 ? "Pronto" : `Pronto, anotar ${importable.length}`}
               <ArrowRight size={16} className="ml-1.5" />
             </Button>

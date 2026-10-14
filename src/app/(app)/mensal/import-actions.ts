@@ -121,7 +121,15 @@ export type ReviewItem = {
   } | null;
   /** Já está no app: um lançamento à mão quase certamente igual (lib/import/parecido-manual). Não
    * entra de novo; na gravação, o lançamento à mão fica com o dia e o valor do arquivo. */
-  jaNoApp?: { descricao: string; data: string | null; id: string; valor: number; faturaAberta?: boolean } | null;
+  jaNoApp?: {
+    descricao: string;
+    data: string | null;
+    id: string;
+    valor: number;
+    faturaAberta?: boolean;
+    /** Veio de outro arquivo, com o mesmo dia, valor e nome: a gravação pula sozinha (é o mesmo arquivo de novo). */
+    importado?: boolean;
+  } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
   /** Por que o app tratou a linha diferente ("Aplicação: entra como guardado"). */
@@ -973,12 +981,24 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
     existentes.set(k, [...(existentes.get(k) ?? []), { descricao: nomesDoBanco.get(e.id) ?? e.description, mostrar: e.description }]);
   }
   const chaves = items.map((it) =>
-    it.amount > 0 && !it.installment && yearMonthFromISO(it.date) ? chaveSoltaDe(it.date, it.estorno && it.category === "EXPENSE" ? -it.amount : it.amount, it.category) : null,
+    // Com o sinal que vai para o banco: estorno e resgate são gravados negativos (o resgate subido de
+    // novo não casava e a conferência prometia "anotar 1" que a gravação pulava).
+    it.amount > 0 && !it.installment && yearMonthFromISO(it.date)
+      ? chaveSoltaDe(it.date, (it.estorno && it.category === "EXPENSE") || (it.resgate && it.category === "INVESTMENT_CONTRIBUTION") ? -it.amount : it.amount, it.category)
+      : null,
   );
   const casados = casarPorDataEValor(chaves, items.map((it) => it.description), existentes, { perguntar: true });
   for (const [i, c] of casados) {
+    if (items[i].possivelDuplicata || items[i].jaNoApp || items[i].ignorar) continue;
+    // Mesmo dia, valor e nome de uma linha que já veio de outro arquivo (14/10/2026): a gravação
+    // pula sozinha, e a tela dizia "Pronto, anotar 10" para depois dizer "Nada novo". Agora a
+    // conferência já mostra "10 já estavam no app" e conta só o que é novo.
+    if (c.tipo === "mesmo") {
+      items[i].jaNoApp = { descricao: items[i].description, data: items[i].date, id: "", valor: items[i].amount, importado: true };
+      continue;
+    }
     // A pergunta do lançamento à mão já cobre a linha: uma pergunta por linha.
-    if (c.tipo !== "parecido" || items[i].possivelDuplicata || items[i].jaNoApp) continue;
+    if (c.tipo !== "parecido") continue;
     items[i].possivelDuplicata = { descricao: c.descricao ?? "(sem descrição)", data: items[i].date, importado: true };
   }
 }
