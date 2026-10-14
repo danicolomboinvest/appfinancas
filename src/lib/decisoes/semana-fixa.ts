@@ -114,10 +114,14 @@ export function semanaNoMes(dia: number, diasNoMes: number, diasAteDomingo: numb
 }
 
 /** Quando o gasto aconteceu para a conta da semana: antes dela, nela, ou chegou depois com data de antes. */
-function quando(g: GastoDoDiaADia, inicio: number, adiar: boolean): "antes" | "semana" | "depois" {
+function quando(g: GastoDoDiaADia, inicio: number, fim: number, adiar: boolean): "antes" | "semana" | "depois" {
   const depois = adiar ? "depois" : "antes";
   if (g.dia === null && g.importado) return g.entrouNoDia < inicio ? "antes" : depois;
   const dia = g.dia ?? g.entrouNoDia;
+  // Com data depois desta semana (o show do dia 28 lançado hoje): já é do mês, mas não desta
+  // semana. Sai da sobra do mês e da próxima semana, nunca vira "Passou da semana" (e o valor
+  // desta semana continua o mesmo, regra A).
+  if (dia > fim) return "depois";
   if (dia >= inicio) return "semana";
   return g.entrouNoDia < inicio ? "antes" : depois;
 }
@@ -146,7 +150,7 @@ export function semanaFixa(e: EntradaDaSemana): SemanaFixa {
   } else {
     for (const g of e.gastos) {
       if (!(g.valor > 0) && !(g.valor < 0)) continue;
-      const q = quando(g, inicio, e.jaTinhaLancamento ?? true);
+      const q = quando(g, inicio, fim, e.jaTinhaLancamento ?? true);
       if (q === "antes") gastoAntes += g.valor;
       else if (q === "semana") gasto += g.valor;
       else chegouDepois += g.valor;

@@ -21,7 +21,7 @@ const PERGUNTA: Record<TipoRevisao, { texto: string; opcoes: { acao: "guardado" 
     ],
   },
   fatura: {
-    texto: "Você importa a fatura, então as compras dela já estão lançadas. Esse pagamento conta tudo de novo.",
+    texto: "As compras da fatura já estão aqui. Este pagamento conta tudo de novo.",
     opcoes: [
       { acao: "tirar", rotulo: "Tirar (as compras já estão lá)" },
       { acao: "manter", rotulo: "Manter" },

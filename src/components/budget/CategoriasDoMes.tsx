@@ -78,7 +78,8 @@ export function CategoriasDoMes({
       <ul className="flex flex-col divide-y divide-border rounded-3xl border border-border bg-surface px-4">
         {linhas.map((l) => {
           const gasto = l.gasto + l.aVencer;
-          const pct = l.planejado > 0 ? Math.round((gasto / l.planejado) * 100) : null;
+          // Estorno maior que o gasto (devolução de compra do mês passado): a barra fica em 0%, nunca "-17%".
+          const pct = l.planejado > 0 ? Math.max(0, Math.round((gasto / l.planejado) * 100)) : null;
           const largura = l.planejado > 0 ? Math.min(100, (gasto / l.planejado) * 100) : 0;
           const passou = l.estado === "passou";
           const escolhido = emojiEscolhido(categorias, l.key);
@@ -313,7 +314,7 @@ function DetalheDaCategoria({ l, mes, hrefTransacoes, onOQueFazer }: { l: LinhaD
         </div>
       )}
 
-      {editando ? (
+      {l.key === "SEM" ? null : editando ? (
         <div className="flex flex-wrap items-end gap-2 rounded-2xl bg-surface-2 p-3">
           <div className="min-w-0 flex-1">
             <CurrencyInputControlled label={`Planejado por mês, de ${mes} em diante`} value={valor} onChange={setValor} />

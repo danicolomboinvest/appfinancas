@@ -21,6 +21,18 @@ export type DetalheDoOrcamento = {
   historico: { ano: number; mes: number; porCategoria: Record<string, { gasto: number; planejado: number }> }[];
 };
 
+/**
+ * O dia de um gasto dentro do mês em que ele conta (year/month). Sem data, ou com data de um mês
+ * anterior: dia 1 (já aconteceu). Data de um mês depois: o último dia + 1 (ainda vai vencer).
+ */
+export function diaNoMesDoLancamento(d: Date | null, ano: number, mes: number): number {
+  if (!d) return 1;
+  const m = d.getUTCFullYear() * 12 + d.getUTCMonth() + 1;
+  if (m < ano * 12 + mes) return 1;
+  if (m > ano * 12 + mes) return new Date(ano, mes, 0).getDate() + 1;
+  return d.getUTCDate();
+}
+
 const chave = (e: { parentCategory: string | null; customCategoryId: string | null }) => e.customCategoryId ?? e.parentCategory ?? "SEM";
 
 export async function carregarDetalheDoOrcamento(ctx: AuthContext, ano: number, mes: number, hoje: Date): Promise<DetalheDoOrcamento> {
@@ -48,10 +60,15 @@ export async function carregarDetalheDoOrcamento(ctx: AuthContext, ano: number, 
   ]);
 
   const mesCorrente = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
-  const diaDeHoje = mesCorrente ? hoje.getDate() : new Date(ano, mes, 0).getDate();
+  // Mês que ainda não chegou (novembro aberto pelo seletor): nada saiu, tudo o que já está lá
+  // (o aluguel pré-lançado, a parcela) é "a vencer". Antes contava como gasto.
+  const mesFuturo = ano * 12 + mes > hoje.getFullYear() * 12 + hoje.getMonth() + 1;
+  const diaDeHoje = mesCorrente ? hoje.getDate() : mesFuturo ? 0 : new Date(ano, mes, 0).getDate();
   const diasNoMes = new Date(ano, mes, 0).getDate();
   // Sem data (compra de fatura, lançamento "do mês"): conta no dia 1, é gasto que já existe.
-  const diaDe = (d: Date | null) => (d ? d.getUTCDate() : 1);
+  // Data de outro mês (a compra de 29/09 que caiu na fatura de outubro): antes do mês conta no
+  // dia 1, já aconteceu. Antes virava o dia 29 de outubro e aparecia como "a vencer".
+  const diaDe = (d: Date | null) => diaNoMesDoLancamento(d, ano, mes);
 
   const porDia = new Array(diasNoMes).fill(0);
   const maiorDoDia = new Map<number, { descricao: string; valor: number }>();
@@ -87,7 +104,7 @@ export async function carregarDetalheDoOrcamento(ctx: AuthContext, ano: number, 
   for (let i = 0; i < diaDeHoje; i++) acumulado.push((soma += porDia[i]));
 
   const porDiaAnterior = new Array(new Date(anterior.getFullYear(), anterior.getMonth() + 1, 0).getDate()).fill(0);
-  for (const e of doAnterior) porDiaAnterior[Math.min(diaDe(e.entryDate), porDiaAnterior.length) - 1] += Number(e.amount);
+  for (const e of doAnterior) porDiaAnterior[Math.min(diaNoMesDoLancamento(e.entryDate, anterior.getFullYear(), anterior.getMonth() + 1), porDiaAnterior.length) - 1] += Number(e.amount);
   let somaAnt = 0;
   const acumuladoAnterior = porDiaAnterior.map((v) => (somaAnt += v));
 

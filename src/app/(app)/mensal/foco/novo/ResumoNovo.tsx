@@ -21,7 +21,8 @@ import { CartaoSugestao } from "./CartaoSugestao";
 import { AbrirDetalhe } from "./AbrirDetalhe";
 import { PainelDoNumero } from "./DetalheDoNumero";
 import { HeroiDaPrimeiraVez, HeroiDoDiaADia, HeroiDoDigitou, HeroiDoMesFechado, HeroiDoNada, type CorDoHeroi } from "./Heroi";
-import { direcao, type Mes } from "./regras";
+import { type Mes } from "./regras";
+import { ListaDeCategorias } from "./ListaDeCategorias";
 
 const ENVIAR = "/comecar?passo=volta";
 const nome = (m: Mes) => MESES[m.mes - 1];
@@ -121,39 +122,7 @@ function IconeDa({ c }: { c: InfoDaCategoria }) {
 }
 
 function Categorias({ r, money }: { r: Dados; money: (v: number) => string }) {
-  const topo = Math.max(1, ...r.categorias.flatMap((c) => [c.atual, c.passado]));
-  return (
-    <section className="flex flex-col gap-2.5" data-bloco-categorias>
-      <h2 className="px-1 text-base font-semibold text-ink">Contra {nome(r.passado)}, no mesmo dia</h2>
-      <Card className="flex flex-col p-1.5">
-        {r.categorias.map((c) => {
-          const d = direcao(c.diferenca);
-          return (
-            <Link key={c.chave} href="/mensal/gastos" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-surface-2">
-              <IconeDa c={c} />
-              <span className="flex min-w-0 flex-col gap-1">
-                <b className="truncate text-[15px] font-semibold text-ink">{c.nome}</b>
-                <span className="text-[12.5px] text-ink-muted">{c.compras === 1 ? "1 compra" : `${c.compras} compras`}</span>
-                <span className="flex flex-col gap-[3px]" aria-hidden>
-                  <i className="h-1.5 rounded-full" style={{ width: `${Math.max(3, (c.atual / topo) * 100)}%`, background: c.cor }} />
-                  <i className="h-1.5 rounded-full" style={{ width: `${Math.max(3, (c.passado / topo) * 100)}%`, background: c.cor, opacity: 0.38 }} />
-                </span>
-              </span>
-              <span className="flex flex-col items-end gap-0.5">
-                <b className="text-[15px] font-semibold tabular-nums text-ink">{money(c.atual)}</b>
-                <span className={`whitespace-nowrap text-[12.5px] font-medium ${d === "menos" ? "text-success" : d === "mais" ? "text-accent-strong" : "text-ink-muted"}`}>
-                  {d === "igual" ? "igual" : `${money(Math.abs(c.diferenca))} a ${d}`}
-                </span>
-              </span>
-            </Link>
-          );
-        })}
-        <Link href="/mensal/gastos" className="flex min-h-11 items-center justify-center gap-1 text-[14px] font-semibold text-ink">
-          Ver todas as categorias <ChevronRight size={15} aria-hidden />
-        </Link>
-      </Card>
-    </section>
-  );
+  return <ListaDeCategorias titulo={`Contra ${nome(r.passado)}, no mesmo dia`} linhas={r.categorias} money={money} href="/mensal/gastos" />;
 }
 
 function LinhaDaSemana({ r, money }: { r: Dados; money: (v: number) => string }) {
@@ -232,7 +201,7 @@ function ParaOndeFoi({ r, money }: { r: Dados; money: (v: number) => string }) {
     <div key={chave} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-2.5 py-2.5">
       {icone}
       <span className="flex min-w-0 flex-col">
-        <b className="truncate text-[15px] font-semibold text-ink">{titulo}</b>
+        <b className="break-words text-[15px] font-semibold leading-snug text-ink">{titulo}</b>
         <span className="text-[12.5px] text-ink-muted">{sub}</span>
       </span>
       <b className="text-[15px] font-semibold tabular-nums text-ink">{valor}</b>
@@ -246,7 +215,7 @@ function ParaOndeFoi({ r, money }: { r: Dados; money: (v: number) => string }) {
   const proximo = (m: Mes) => MESES[m.mes % 12];
   return (
     <section className="flex flex-col gap-2.5" data-para-onde-foi>
-      <h2 className="px-1 text-base font-semibold text-ink">{p.cartao ? `Os ${p.paraOndeFoi.length} maiores` : "Para onde foi"}</h2>
+      <h2 className="px-1 text-base font-semibold text-ink">{p.cartao ? (p.paraOndeFoi.length === 1 ? "O maior" : `Os ${p.paraOndeFoi.length} maiores`) : "Para onde foi"}</h2>
       <Card className="flex flex-col p-1.5">
         {p.faturaUmGasto && linha("fatura", redondo(CreditCard), "Fatura do cartão", "um valor só, por enquanto", money(p.faturaUmGasto))}
         {p.paraOndeFoi.map((c) => linha(c.chave, <IconeDa c={c} />, c.nome, p.cartao ? `${c.compras === 1 ? "1 compra" : `${c.compras} compras`} · ${c.pct}%` : `${c.compras === 1 ? "1 compra" : `${c.compras} compras`}`, money(c.valor)))}
