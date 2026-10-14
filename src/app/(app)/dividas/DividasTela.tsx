@@ -288,8 +288,10 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
                   onEditar={() => setCadastro({ divida: d })}
                   className={`canhoto ${j === 0 ? "foco" : ""} ${arrancando === d.id ? "arranca" : ""}`}
                   style={{ ["--k" as string]: corDe(d.id) }}
-                  // O "…" tem a cor da dívida na rota (era o pontinho do canto).
-                  botao="right-0.5 top-0.5 text-[var(--k)]"
+                  // O "…" leva a cor da dívida na rota (era o pontinho do canto) no círculo, e os
+                  // três pontos na cor do texto do canhoto, para ter contraste nos quatro temas.
+                  botao="right-0.5 top-0.5 text-current"
+                  miolo="bg-[color-mix(in_srgb,var(--k)_30%,transparent)]"
                 >
                   <button type="button" onClick={() => abrirDivida(d.id)} aria-label={`${d.nome}: ${m0(d.saldo)}, ${caiEm(d.id)}. Abrir`} className="absolute inset-0 z-[1] rounded-[20px]" />
                   <small className="pr-8 text-xs font-medium opacity-80">{j === 0 ? "Agora, foque em" : "Depois"}</small>

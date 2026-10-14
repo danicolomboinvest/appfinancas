@@ -21,9 +21,25 @@ function apagarDaDivida(d: DividaDoSpi, depois?: () => void): ApagarDoItem {
   };
 }
 
-export function ItemDaDivida({ divida, onEditar, className, botao, style, children }: { divida: DividaDoSpi; onEditar: () => void; className?: string; botao: string; style?: React.CSSProperties; children: ReactNode }) {
+export function ItemDaDivida({
+  divida,
+  onEditar,
+  className,
+  botao,
+  miolo,
+  style,
+  children,
+}: {
+  divida: DividaDoSpi;
+  onEditar: () => void;
+  className?: string;
+  botao: string;
+  miolo?: string;
+  style?: React.CSSProperties;
+  children: ReactNode;
+}) {
   return (
-    <ItemComMenu nome={divida.nome} onEditar={onEditar} apagar={apagarDaDivida(divida)} className={className} botao={botao} style={style}>
+    <ItemComMenu nome={divida.nome} onEditar={onEditar} apagar={apagarDaDivida(divida)} className={className} botao={botao} miolo={miolo} style={style}>
       {children}
     </ItemComMenu>
   );
