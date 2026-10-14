@@ -488,7 +488,7 @@ const TITULOS_BASE: TitulosBase = {
   registrarFalar: "Falar lançamento",
   registrarImportar: "Importar extrato",
   lancamentoSalvo: "Lançamento salvo com sucesso.",
-  acaoFalhou: "Não consegui fazer isso agora. Confira a internet e tente de novo.",
+  acaoFalhou: "Não deu certo. Tente de novo.",
   comparacao: (tipo, valor, mes) =>
     tipo === "sem" ? `Não teve gasto em ${mes}` : tipo === "igual" ? `Igual a ${mes}` : tipo === "mais" ? `${valor} a mais que em ${mes}` : `${valor} a menos que em ${mes}`,
   campeaoTitulo: "O campeão do mês",

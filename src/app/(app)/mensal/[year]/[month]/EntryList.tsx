@@ -18,6 +18,7 @@ import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Voz } from "@/lib/profiles/voice";
 import { partesDoTexto } from "@/lib/profiles/textos/shell";
 import { useToast } from "@/components/ui/toast-context";
+import { brilharQuandoAparecer } from "@/lib/ui/brilho";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, emojiEscolhido, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
@@ -290,8 +291,8 @@ export function EntryList({
         onClick: () => {
           startTransition(async () => {
             const result = await undoDeleteEntriesAction(snapshots).catch(() => ({ ok: false }));
-            if (result.ok) showToast(t.uiRestaurado(quantos));
-            else showError(t.uiRestaurarFalhou);
+            // Voltou: o lançamento reaparece na lista, e isso basta (14/10/2026).
+            if (!result.ok) showError(t.uiRestaurarFalhou);
           });
         },
       });
@@ -326,8 +327,7 @@ export function EntryList({
         onClick: () => {
           startTransition(async () => {
             const result = await undoDeleteEntriesAction(snapshots).catch(() => ({ ok: false }));
-            if (result.ok) showToast(t.uiRestaurado(apagados));
-            else showError(t.uiRestaurarFalhou);
+            if (!result.ok) showError(t.uiRestaurarFalhou);
           });
         },
       });
@@ -341,8 +341,9 @@ export function EntryList({
     setBulkCategorizing(false);
     startTransition(async () => {
       try {
-        const { count } = await updateMonthlyEntriesCategoryAction(ids, category, year, month);
-        showToast(t.uiCategoriaAtualizada(count));
+        await updateMonthlyEntriesCategoryAction(ids, category, year, month);
+        // Sem aviso (14/10/2026): as linhas trocam de categoria na lista e acendem.
+        ids.forEach((id) => brilharQuandoAparecer(`lanc-${id}`));
       } catch (err) {
         console.error("updateMonthlyEntriesCategoryAction falhou", err);
         showError(t.acaoFalhou);
@@ -373,7 +374,7 @@ export function EntryList({
     // O nome limpo (12/10/2026): sem "Transferência recebida pelo Pix", CNPJ e banco, que ficam no detalhe.
     const titulo = (entry.description ? nomeNaTela(entry.description).nome : "") || entry.subcategory || nomeDaCategoria;
     return (
-      <div key={entry.id} className={`flex items-center gap-3 px-3 py-3 transition-colors ${marcado ? "bg-accent-soft/40" : ""}`}>
+      <div key={entry.id} data-brilho={`lanc-${entry.id}`} className={`flex items-center gap-3 px-3 py-3 transition-colors ${marcado ? "bg-accent-soft/40" : ""}`}>
         <button
           type="button"
           onClick={() => {
@@ -815,17 +816,16 @@ export function EntryList({
             onIgnorar={() => {
               const alvo = open;
               setOpenId(null);
-              removeEntries([alvo], `${open.description || categoryName(open, customCategories, voz, kind)} ignorado: não conta nos totais`);
+              removeEntries([alvo], "Ignorado");
             }}
             onTrocar={(c) => {
               const alvo = open;
-              const de = categoryName(alvo, customCategories, voz, kind);
               setOpenId(null);
               startTransition(async () => {
                 try {
                   await updateMonthlyEntriesCategoryAction([alvo.id], c, alvo.year ?? year, alvo.month ?? month);
-                  const para = c.customCategoryId ? (customCategories.find((x) => x.id === c.customCategoryId)?.name ?? "") : categoryLabel(kind, c.parentCategory as ParentCategory);
-                  showToast(`${alvo.description || de}: ${de} → ${para}`);
+                  // Sem aviso (14/10/2026): a linha troca de categoria na lista e acende.
+                  brilharQuandoAparecer(`lanc-${alvo.id}`);
                 } catch (err) {
                   console.error("updateMonthlyEntriesCategoryAction falhou", err);
                   showError(t.acaoFalhou);

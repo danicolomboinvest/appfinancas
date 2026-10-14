@@ -17,7 +17,7 @@ const DISMISS_KEY = "spi.recurring.dismissed";
  */
 export function RecurringSuggestions({ candidates, year, month }: { candidates: RecurringCandidate[]; year: number; month: number }) {
   const money = useMoney();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   // O convite e os botões vêm da voz do tema; o que se repete continua vindo do servidor.
   const { voz } = useProfileTheme();
   const t = voz.titulos;
@@ -71,8 +71,8 @@ export function RecurringSuggestions({ candidates, year, month }: { candidates: 
         showError(t.impRepeteErro);
         return;
       }
+      // Sem aviso (14/10/2026): a sugestão sai e o lançamento entra na lista.
       hide(c.key);
-      showToast(repeat ? t.impRepeteLancadoAteDezembro : t.impRepeteLancado);
     });
   }
 

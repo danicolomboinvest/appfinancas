@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { ChevronDown, Coins } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { registerDividendIncomeAction } from "./actions";
 
 /** `id` é o do provento (DividendEvent): JSCP e Dividendos do mesmo ativo no mesmo dia são dois itens. */
@@ -26,7 +26,7 @@ export function PaidDividendsCard({
   sub?: string;
 }) {
   const money = useMoney();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const [done, setDone] = useState<Set<string>>(new Set());
   const [aberto, setAberto] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -36,6 +36,7 @@ export function PaidDividendsCard({
   const total = visible.reduce((s, d) => s + d.amount, 0);
 
   function lancar(lista: PaidDividendItem[]) {
+    erro.limpar();
     startTransition(async () => {
       const feitos: string[] = [];
       // Um por vez: cada um vira um lançamento no dia do pagamento, e um erro no meio não pode
@@ -46,9 +47,8 @@ export function PaidDividendsCard({
         feitos.push(d.id);
       }
       if (feitos.length > 0) setDone((prev) => new Set([...prev, ...feitos]));
-      if (feitos.length < lista.length) return showError("Não consegui lançar. Tente de novo.");
-      const soma = lista.reduce((s, d) => s + d.amount, 0);
-      showToast(lista.length === 1 ? `${money(soma)} de ${lista[0].ticker} lançado como renda.` : `${money(soma)} lançados como renda.`);
+      // Sem aviso (14/10/2026): o pagamento sai daqui e entra como renda na lista.
+      if (feitos.length < lista.length) erro.falhou("Não lançou");
     });
   }
 
@@ -78,9 +78,10 @@ export function PaidDividendsCard({
           onClick={() => lancar(visible)}
           className="min-h-10 shrink-0 rounded-full bg-success-soft px-4 text-sm font-semibold text-success disabled:opacity-50"
         >
-          {isPending ? "Lançando…" : "Lançar"}
+          {isPending ? "Lançando…" : erro.erro ? TENTAR_DE_NOVO : "Lançar"}
         </button>
       </div>
+      <ErroNoBotao erro={erro.erro} lado="direita" />
 
       {aberto && (
         <div className="mt-1 border-t border-border pt-2">

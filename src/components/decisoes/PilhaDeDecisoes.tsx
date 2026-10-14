@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, PiggyBank, Receipt, Repeat, ShieldCheck, Target, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { isParentCategoryKey, PARENT_CATEGORY_ICON } from "@/lib/categories";
 import { contadorDaPilha, juntarComE, ordenarPilha, type CartaoDaPilha, type RespostaDaPilha } from "@/lib/decisoes/pilha";
@@ -35,7 +36,9 @@ const semAnimacao = () => typeof window !== "undefined" && (window.matchMedia("(
 export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; depois: CartaoDaPilha[] }) {
   const router = useRouter();
   const { key: tema } = useProfileTheme();
-  const { showToast, showError } = useToast();
+  const { showToast } = useToast();
+  // Erro no lugar (14/10/2026): embaixo das respostas do cartão, até a próxima tentativa.
+  const erro = useErroNoBotao();
   const [pendente, iniciar] = useTransition();
   const [pulos, setPulos] = useState<Record<string, number>>({});
   // O que ela já resolveu nesta visita: some na hora, sem esperar o servidor (o Desfazer devolve).
@@ -80,7 +83,7 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
           if (res.error) throw new Error(res.error);
         }
         return {
-          texto: `${c.assunto} resolvida`,
+          texto: "Resolvida",
           desfazer: async () => {
             for (const o of origens) await cobrirCategoriaAction({ de: c.categoria ?? "", para: o.key, valor: o.valor });
           },
@@ -89,31 +92,32 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
       case "livre":
       case "deixar":
         await dispensarAvisoAction(c.id, "mes");
-        return { texto: r.id === "livre" ? `${c.assunto}: coberta pelo livre do mês` : `${c.assunto} fica como está`, desfazer: () => desfazerDispensaAction(c.id, "mes") };
+        return { texto: r.id === "livre" ? "Coberta pelo livre" : "Fica como está", desfazer: () => desfazerDispensaAction(c.id, "mes") };
       case "guardar_mais": {
         const antes = await guardarMaisNaMetaAction(c.metaId ?? "", a.porMes ?? 0);
         if (!antes) throw new Error("meta");
-        return { texto: `${c.assunto}: ${r.titulo.replace(/^Guardar mais /, "+")}`, desfazer: () => restaurarMetaAction(antes) };
+        return { texto: r.titulo.replace(/^Guardar mais /, "+"), desfazer: () => restaurarMetaAction(antes) };
       }
       case "mudar_data": {
         if (!a.chega) throw new Error("data");
         const antes = await mudarDataDaMetaAction(c.metaId ?? "", a.chega.ano, a.chega.mes);
         if (!antes) throw new Error("meta");
-        return { texto: `${c.assunto}: nova data ${r.sub?.replace(/^para /, "") ?? ""}`.trim(), desfazer: () => restaurarMetaAction(antes) };
+        return { texto: `Nova data: ${r.sub?.replace(/^para /, "") ?? ""}`.trim(), desfazer: () => restaurarMetaAction(antes) };
       }
       case "sobra_reserva":
         await combinarSobraNaReservaAction(a.sobra ?? 0);
-        return { texto: "Combinado: no fechamento, a sobra vai para a reserva", desfazer: () => desfazerSobraNaReservaAction() };
+        return { texto: "Sobra vai para a reserva", desfazer: () => desfazerSobraNaReservaAction() };
       case "teto":
         await definirTetoAction({ categoria: c.categoria ?? "", valor: a.teto ?? 0 });
-        return { texto: `${c.assunto}: ${r.titulo.toLowerCase()} até o fim do mês`, desfazer: () => desfazerTetoAction(c.categoria ?? "") };
+        // "Segurar em R$ 36" vira "Teto de R$ 36", com Desfazer (tabela da proposta, 14/10/2026).
+        return { texto: r.titulo.replace(/^Segurar em /i, "Teto de "), desfazer: () => desfazerTetoAction(c.categoria ?? "") };
       case "ja_guardei": {
         const id = await guardeiOQueFaltaAction();
-        return { texto: "Guardado do mês anotado", desfazer: id ? () => apagarAporteDaPilhaAction(id) : null };
+        return { texto: "Guardado anotado", desfazer: id ? () => apagarAporteDaPilhaAction(id) : null };
       }
       case "guardo_na_semana":
         await dispensarAvisoAction(c.id, "semana");
-        return { texto: "Combinado: esta semana", desfazer: () => desfazerDispensaAction(c.id, "semana") };
+        return { texto: "Fica para esta semana", desfazer: () => desfazerDispensaAction(c.id, "semana") };
       default:
         return { texto: "Feito", desfazer: null };
     }
@@ -124,11 +128,13 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
       router.push(r.href);
       return;
     }
+    erro.limpar();
     iniciar(async () => {
       try {
         const feito = await aplicar(c, r);
         animar(c.id, "sai", () => setFeitos((f) => new Set([...f, c.id])));
         const desfazer = feito.desfazer;
+        // O cartão sai da pilha: pílula curta (2 a 4 palavras), com Desfazer quando dá.
         showToast(
           feito.texto,
           desfazer
@@ -149,7 +155,7 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
         );
         router.refresh();
       } catch {
-        showError("Não consegui salvar. Tente de novo.");
+        erro.falhou("Não salvou. Toque de novo.");
       }
     });
   };
@@ -216,6 +222,7 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
                   </button>
                 ))}
               </div>
+              <ErroNoBotao erro={erro.erro} />
             </div>
           </div>
           {visiveis.length > 1 && (

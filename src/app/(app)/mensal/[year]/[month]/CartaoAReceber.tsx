@@ -32,7 +32,7 @@ export function CartaoAReceber({ aReceber }: { aReceber: { pessoa: string; valor
         onClick={() =>
           start(async () => {
             const r = await marcarRecebidoAction(primeira.pessoa).catch(() => null);
-            if (!r?.ok) return showError("Não deu para marcar. Tente de novo.");
+            if (!r?.ok) return showError("Não marcou. Tente de novo.");
             setRecebeu(primeira.pessoa);
             showToast(`${primeira.pessoa} acertou`, {
               label: "Desfazer",

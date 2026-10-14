@@ -84,15 +84,20 @@ function Passos({ ids, perfis, onFechar, onEnviado }: { ids: string[]; perfis: P
       onFechar();
       onEnviado();
       const desfazer = r.desfazer;
-      showToast(`${r.movidos} ${r.movidos === 1 ? "enviado" : "enviados"} para ${r.destino.name}`, {
+      // Pílula (14/10/2026): o lançamento sai desta tela, então o aviso fica, curto e com
+      // Desfazer. Um aviso por vez: o que ficou aqui (já está na carteira deste perfil) vai na
+      // mesma pílula, senão um apagava o outro.
+      const texto =
+        r.ficaram > 0 ? `${r.movidos} foram, ${r.ficaram} ${r.ficaram === 1 ? "ficou" : "ficaram"}` : r.movidos === 1 ? `Foi para ${r.destino.name}` : `${r.movidos} foram para ${r.destino.name}`;
+      showToast(texto, {
         label: "Desfazer",
         onClick: () => {
+          // Voltou: o lançamento reaparece aqui, e isso basta.
           void desfazerEnvioAction(desfazer)
             .catch(() => ({ ok: false, voltaram: 0 }))
-            .then((d) => (d.ok ? showToast(d.voltaram === 1 ? "Voltou para cá" : `${d.voltaram} voltaram para cá`) : showError("Não deu para desfazer. Tente de novo.")));
+            .then((d) => !d.ok && showError("Não desfez. Tente de novo."));
         },
       });
-      if (r.ficaram > 0) showError(r.ficaram === 1 ? "1 ficou aqui: já está na carteira deste perfil." : `${r.ficaram} ficaram aqui: já estão na carteira deste perfil.`);
     });
   }
 

@@ -5,6 +5,7 @@ import { Tag, TriangleAlert } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { useSelos } from "@/lib/ui/selos";
 import { OQueFazer } from "./OQueFazer";
 import type { LinhaDaCategoria } from "./CategoriasDoMes";
 
@@ -16,7 +17,9 @@ export function AlertaDoOrcamento({ linhas, essenciais, livre, diasRestantes, me
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const [aberto, setAberto] = useState(false);
-  const passou = linhas.filter((l) => l.estado === "passou").sort((a, b) => a.sobra - b.sobra)[0];
+  // "Foi pontual" nesta visita: a categoria fica com o selinho na lista e sai daqui.
+  const selos = useSelos();
+  const passou = linhas.filter((l) => l.estado === "passou" && selos[`cat-${l.key}@${mes ?? ""}`] !== "pontual").sort((a, b) => a.sobra - b.sobra)[0];
   if (!passou) return null;
   const outras = linhas.filter((l) => l.estado === "passou").length - 1;
   return (

@@ -471,7 +471,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impHistoricoConfirmar: "Confirmar exclusão?",
   impHistoricoFaturaAviso:
     "Se você removeu do extrato o pagamento desta fatura, ele não volta sozinho: lance de novo à mão depois de desfazer.",
-  impHistoricoDesfeita: (n) => `Importação desfeita: ${n} lançamento${s(n)} removido${s(n)}.`,
+  impHistoricoDesfeita: (n) => (n === 1 ? "1 lançamento saiu" : `${n} lançamentos saíram`),
   impHistoricoNota: "Desfazer apaga tudo o que aquele arquivo lançou.",
   // "Parece que se repete"
   impRepeteTitulo: "Parece que se repete",
@@ -483,7 +483,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRepeteTodoMes: "Todo mês",
   impRepeteLancado: "Lançado.",
   impRepeteLancadoAteDezembro: "Lançado neste mês e nos seguintes até dezembro.",
-  impRepeteErro: "Não consegui lançar. Tente de novo.",
+  impRepeteErro: "Não lançou. Tente de novo.",
   // Resumo mensal: convite
   impResumoPronto: "Seu resumo mensal está pronto",
   impResumoProntoSub: "Veja o que aconteceu com o seu dinheiro este mês",

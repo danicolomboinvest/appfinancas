@@ -1,5 +1,7 @@
 "use client";
 
+import { Selinho } from "@/components/ui/Selinho";
+import { useSelos } from "@/lib/ui/selos";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Tag } from "lucide-react";
@@ -67,6 +69,8 @@ export function CategoriasDoMes({
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const { categorias } = useProfileTheme();
+  // O selinho da categoria ("pontual"), marcado pela folha "O que fazer?" (14/10/2026).
+  const selos = useSelos();
   // Todas fechadas: o detalhe de cada uma (histórico, lápis, maiores gastos) abre no toque.
   const [aberta, setAberta] = useState<string | null>(null);
   const [resolvendo, setResolvendo] = useState<LinhaDaCategoria | null>(() => linhas.find((l) => l.key === abrirResolvendo && l.estado === "passou") ?? null);
@@ -85,7 +89,7 @@ export function CategoriasDoMes({
           const escolhido = emojiEscolhido(categorias, l.key);
           const Icone = isParentCategoryKey(l.key) ? categoryIcon(categorias, l.key) : (CUSTOM_CATEGORY_ICON_MAP[l.iconeProprio ?? ""] ?? Tag);
           return (
-            <li key={l.key} className="py-3.5">
+            <li key={l.key} data-brilho={`cat-${l.key}`} className="-mx-4 px-4 py-3.5">
               <button
                 type="button"
                 onClick={() => setAberta(l.key)}
@@ -101,7 +105,10 @@ export function CategoriasDoMes({
                 )}
                 <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <span className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 truncate text-[16px] text-ink">{l.label}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 truncate text-[16px] text-ink">{l.label}</span>
+                      {selos[`cat-${l.key}@${mes ?? ""}`] && <Selinho>{selos[`cat-${l.key}@${mes ?? ""}`]}</Selinho>}
+                    </span>
                     {pct !== null && (
                       <span className={`shrink-0 text-[16px] tabular-nums ${passou ? "text-danger" : "text-ink"}`}>
                         {pct}

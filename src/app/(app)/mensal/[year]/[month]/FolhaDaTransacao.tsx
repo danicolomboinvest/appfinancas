@@ -9,6 +9,7 @@ import type { LucideIcon } from "lucide-react";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, categoriasParaEscolher, colorForCategorySlice, type CategoriasDoPerfil } from "@/lib/categories";
 import { contaDaDivisao, contaDaSeparacao, type ModoDaDivisao } from "@/lib/entries/divisao";
 import { dividirLancamentoAction, desfazerDivisaoAction, separarLancamentoAction } from "./transacao-actions";
@@ -197,7 +198,7 @@ function GradeDeCategorias<T extends { key: string; nome: string; icon: LucideIc
 
 function DesfazerDivisao({ id, onFeito }: { id: string; onFeito: () => void }) {
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   return (
     <button
       type="button"
@@ -205,8 +206,8 @@ function DesfazerDivisao({ id, onFeito }: { id: string; onFeito: () => void }) {
       onClick={() =>
         start(async () => {
           const r = await desfazerDivisaoAction(id).catch(() => ({ ok: false }));
-          if (!r.ok) return showError("Não deu para desfazer. Tente de novo.");
-          showToast("Divisão desfeita");
+          if (!r.ok) return showError("Não desfez. Tente de novo.");
+          // Sem aviso (14/10/2026): o lançamento volta inteiro na lista.
           onFeito();
         })
       }
@@ -226,7 +227,7 @@ function Dividir({ entry, money, pessoas, onFeito }: { entry: TransacaoDaFolha; 
   const [quem, setQuem] = useState(entry.divididoCom ?? lista[0] ?? "");
   const [nova, setNova] = useState(lista.length === 0);
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const r = contaDaDivisao(total, modo, pct, volta);
   const MODOS: { m: ModoDaDivisao; nome: string; icon: LucideIcon }[] = [
     { m: "metade", nome: "Metade", icon: SplitSquareHorizontal },
@@ -324,18 +325,20 @@ function Dividir({ entry, money, pessoas, onFeito }: { entry: TransacaoDaFolha; 
       <button
         type="button"
         disabled={pendente || !quem.trim()}
-        onClick={() =>
+        onClick={() => {
+          erro.limpar();
           start(async () => {
             const res = await dividirLancamentoAction({ id: entry.id, modo, pctMeu: pct, volta, quem }).catch(() => ({ ok: false, erro: undefined }));
-            if (!res.ok) return showError(res.erro ?? "Não deu para salvar. Tente de novo.");
-            showToast(r.presente ? `Presente para ${quem.trim()}` : `${quem.trim()} te deve ${money(r.dela)}`);
+            if (!res.ok) return erro.falhou(res.erro ?? "Não salvou");
+            // Sem aviso (14/10/2026): a folha fecha e a divisão aparece no lançamento.
             onFeito();
-          })
-        }
-        className="min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-40"
+          });
+        }}
+        className={`min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-40 ${erro.classe}`}
       >
-        Salvar divisão
+        {erro.erro ? TENTAR_DE_NOVO : "Salvar divisão"}
       </button>
+      <ErroNoBotao erro={erro.erro} />
     </div>
   );
 }
@@ -356,7 +359,7 @@ function Separar({
   const [primeiraDigitada, setPrimeira] = useState<number | null>(() => Math.round(entry.amount * 0.75 * 100) / 100);
   const [outra, setOutra] = useState(opcoes[0] ?? null);
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const primeira = primeiraDigitada ?? 0;
   const { v1, v2 } = contaDaSeparacao(entry.amount, primeira);
   return (
@@ -388,19 +391,21 @@ function Separar({
       <button
         type="button"
         disabled={pendente || !outra || v1 <= 0 || v2 <= 0}
-        onClick={() =>
+        onClick={() => {
+          erro.limpar();
           start(async () => {
             if (!outra) return;
             const res = await separarLancamentoAction({ id: entry.id, primeira: v1, outra: { parentCategory: outra.parentCategory, customCategoryId: outra.customCategoryId } }).catch(() => ({ ok: false, erro: undefined }));
-            if (!res.ok) return showError(res.erro ?? "Não deu para separar. Tente de novo.");
-            showToast(`Separado: ${money(v1)} + ${money(v2)}`);
+            if (!res.ok) return erro.falhou(res.erro ?? "Não separou");
+            // Sem aviso (14/10/2026): a folha fecha e os dois lançamentos aparecem na lista.
             onFeito();
-          })
-        }
-        className="min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-40"
+          });
+        }}
+        className={`min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-40 ${erro.classe}`}
       >
-        Salvar
+        {erro.erro ? TENTAR_DE_NOVO : "Salvar"}
       </button>
+      <ErroNoBotao erro={erro.erro} />
     </div>
   );
 }

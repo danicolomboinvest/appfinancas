@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { isParentCategoryKey } from "@/lib/categories";
 import type { FocoCombinado, FocoItem } from "@/lib/decisoes/foco";
@@ -48,23 +49,28 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
   const t = useProfileTheme().voz.titulos;
   const [aberto, setAberto] = useState(false);
   const [salvando, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const { showToast } = useToast();
+  const erro = useErroNoBotao();
   const d = item.detalhe;
 
-  // A confirmação vai num toast: resolvido, o aviso sai da lista e o cartão (com a janela) some.
-  const fazer = (acao: () => Promise<unknown>, mensagem: string) =>
+  // Resolvido, o aviso sai da lista e o cartão (com a janela) some. Desde 14/10/2026 só avisa
+  // quando o resultado não fica na tela ("Segurar em" vira o combinado, com Desfazer); "Foi
+  // pontual" e "Entendi" não avisam nada. Erro fica dentro da janela, embaixo dos botões.
+  const fazer = (acao: () => Promise<unknown>, mensagem: string | null, desfazer?: () => Promise<unknown>) => {
+    erro.limpar();
     start(async () => {
       try {
         await acao();
         setAberto(false);
-        showToast(mensagem);
+        if (mensagem) showToast(mensagem, desfazer ? { label: t.uiDesfazer, onClick: () => void desfazer().then(() => router.refresh()) } : undefined);
         router.refresh();
       } catch {
-        showError(t.avisoErroSalvar);
+        erro.falhou(t.avisoErroSalvar);
       }
     });
+  };
   const pontual =
-    (quando: "mes" | "semana" = "mes", mensagem = t.avisoAnotado) =>
+    (quando: "mes" | "semana" = "mes", mensagem: string | null = null) =>
     () =>
       fazer(() => dispensarAvisoAction(item.id, quando), mensagem);
 
@@ -100,7 +106,7 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
             disabled={salvando}
             titulo={t.avisoNadaMaisT}
             sub={t.avisoNadaMaisSub(d.label)}
-            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: 0 }), t.avisoNadaMaisFeito(d.label))}
+            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: 0 }), t.avisoNadaMaisFeito(d.label), () => desfazerTetoAction(d.categoria))}
           />
           {isParentCategoryKey(d.categoria) && (
             <Botao
@@ -130,7 +136,7 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
             disabled={salvando}
             titulo={t.avisoTetoT(m(d.sobra))}
             sub={t.avisoTetoSub(d.label)}
-            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: d.sobra }), t.avisoTetoFeito(m(d.sobra), d.label))}
+            onClick={() => fazer(() => definirTetoAction({ categoria: d.categoria, valor: d.sobra }), t.avisoTetoFeito(m(d.sobra), d.label), () => desfazerTetoAction(d.categoria))}
           />
           <Botao icone={Check} disabled={salvando} titulo={t.avisoPontualT} sub={t.avisoPontualSub} onClick={pontual()} />
         </Botoes>
@@ -252,6 +258,7 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
         <div className="flex flex-col gap-3">
           <p className="text-caption text-ink-muted">{item.texto}</p>
           {corpo}
+          <ErroNoBotao erro={erro.erro} />
         </div>
       </Modal>
     </div>
@@ -267,14 +274,14 @@ export function CombinadoFoco({ c, hrefMes, gastos = [], resumo, opcoes = [] }: 
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
   const t = useProfileTheme().voz.titulos;
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [salvando, start] = useTransition();
   const [aberto, setAberto] = useState(false);
+  // Desfeito: o combinado sai e o aviso volta para a lista, e isso basta (14/10/2026).
   const desfazer = () =>
     start(async () => {
       try {
         await desfazerTetoAction(c.categoria);
-        showToast(t.avisoDesfeito);
         router.refresh();
       } catch {
         showError(t.avisoDesfazerFalhou);
@@ -457,6 +464,7 @@ function ListaDeGastos({ titulo, gastos, resumo, hrefMes, opcoes, jaAberta = fal
     });
   };
   const classificar = (g: GastoDaLista, destino: string) => {
+    // O gasto sai desta lista (vai para outra categoria): por isso a pílula, curta.
     const mensagem = destino === "aplicacao" ? t.avisoVirouGuardado(g.descricao) : t.avisoFoiPara(g.descricao, opcoes.find((o) => o.key === destino)?.label ?? "");
     salvar(g, () => classificarGastoAction(g.id, destino), mensagem);
   };

@@ -6,6 +6,10 @@ import Link from "next/link";
 import { ArrowLeftRight, ChevronDown, ChevronRight, CircleCheck, List, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO } from "@/components/ui/ErroNoBotao";
+import { vibrar } from "@/lib/celebrar";
+import { brilharQuandoAparecer } from "@/lib/ui/brilho";
+import { marcarSelo } from "@/lib/ui/selos";
 import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
 import { fontesParaCobrir, planoDeCobrir, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
@@ -51,26 +55,36 @@ export function OQueFazer({
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showToast } = useToast();
   const [pendente, iniciar] = useTransition();
+  // Erro no lugar (14/10/2026): embaixo da opção que falhou, até a próxima tentativa.
+  const [erro, setErro] = useState<{ onde: "pontual" | "cobrir"; texto: string } | null>(null);
   const [vendo, setVendo] = useState(false);
   const comEssencial = categorias.map((c) => ({ ...c, essencial: c.essencial || essenciais.includes(c.key) }));
   const plano = planoDeCobrir(categoria, comEssencial);
   const valor = quantoPassou(categoria);
 
-  function feito(mensagem: string, desfazer?: () => Promise<unknown>) {
-    showToast(mensagem, desfazer ? { label: "Desfazer", onClick: () => iniciar(async () => { await desfazer(); router.refresh(); }) } : undefined);
+  /**
+   * "Foi pontual" não avisa nada (14/10/2026): a categoria ganha o selinho "pontual" e acende.
+   * Cobrir ganha a pílula curta, porque tem Desfazer.
+   */
+  function feito(mensagem: string | null, desfazer?: () => Promise<unknown>) {
+    if (mensagem) showToast(mensagem, desfazer ? { label: "Desfazer", onClick: () => iniciar(async () => { await desfazer(); router.refresh(); }) } : undefined);
     onFeito?.();
     router.refresh();
+    brilharQuandoAparecer(`cat-${categoria.key}`);
   }
 
-  function dispensar(mensagem: string) {
+  function dispensar() {
+    setErro(null);
     iniciar(async () => {
       try {
         await dispensarAvisoAction(`estouro-${categoria.key}`, "mes");
-        feito(mensagem);
+        marcarSelo(`cat-${categoria.key}@${mes ?? ""}`, "pontual");
+        feito(null);
       } catch {
-        showError("Não consegui salvar. Tente de novo.");
+        vibrar("erro");
+        setErro({ onde: "pontual", texto: "Não salvou" });
       }
     });
   }
@@ -81,12 +95,16 @@ export function OQueFazer({
   const escolhida = fontes.find((f) => f.key === de) ?? null;
 
   function cobrirCom(origens: { key: string; label: string; valor: number }[]) {
+    setErro(null);
     iniciar(async () => {
       for (const o of origens) {
         const r = await cobrirCategoriaAction({ de: o.key, para: categoria.key, valor: o.valor });
-        if (r.error) return showError(r.error);
+        if (r.error) {
+          vibrar("erro");
+          return setErro({ onde: "cobrir", texto: r.error });
+        }
       }
-      feito(`${m(valor)} de ${origens.map((o) => o.label).join(" e ")} cobriram ${categoria.label} neste mês`, async () => {
+      feito(`${categoria.label} coberta`, async () => {
         for (const o of origens) await cobrirCategoriaAction({ de: categoria.key, para: o.key, valor: o.valor });
       });
     });
@@ -114,7 +132,8 @@ export function OQueFazer({
         </>
       )}
 
-      <Opcao icone={CircleCheck} seta disabled={pendente} titulo="Foi pontual" sub="Uma consulta, um exame. O plano não muda." onClick={() => dispensar(`Marcado como pontual. O plano de ${categoria.label} não muda.`)} />
+      <Opcao icone={CircleCheck} seta disabled={pendente} titulo="Foi pontual" sub="Uma consulta, um exame. O plano não muda." onClick={dispensar} />
+      {erro?.onde === "pontual" && <ErroNoBotao erro={erro.texto} />}
 
       {temCobrir && (
         <Opcao icone={ArrowLeftRight} titulo="Cobrir com outra categoria" sub="Só deste mês. O total do plano não muda." aberta={cobrindo} onClick={() => setCobrindo((v) => !v)} />
@@ -138,16 +157,18 @@ export function OQueFazer({
             </span>
           </div>
           <button type="button" disabled={pendente} onClick={() => cobrirCom([escolhida])} className="min-h-12 rounded-full bg-ink text-base font-medium text-surface disabled:opacity-50">
-            Cobrir {m(valor)} com {escolhida.label}
+            {erro?.onde === "cobrir" ? TENTAR_DE_NOVO : `Cobrir ${m(valor)} com ${escolhida.label}`}
           </button>
+          {erro?.onde === "cobrir" && <ErroNoBotao erro={erro.texto} />}
         </div>
       )}
       {cobrindo && fontes.length === 0 && plano.origens.length > 0 && (
         <div className="flex flex-col gap-3 rounded-2xl bg-surface p-3.5 shadow-[inset_0_0_0_1px_var(--color-border)]" data-cobrir>
           <p className="text-sm text-ink-muted">Nenhuma categoria cobre sozinha. Juntando duas:</p>
           <button type="button" disabled={pendente} onClick={() => cobrirCom(plano.origens)} className="min-h-12 rounded-full bg-ink px-4 text-[15px] font-medium text-surface disabled:opacity-50">
-            {plano.origens.map((o) => `${m(o.valor)} de ${o.label}`).join(" + ")}
+            {erro?.onde === "cobrir" ? TENTAR_DE_NOVO : plano.origens.map((o) => `${m(o.valor)} de ${o.label}`).join(" + ")}
           </button>
+          {erro?.onde === "cobrir" && <ErroNoBotao erro={erro.texto} />}
         </div>
       )}
 

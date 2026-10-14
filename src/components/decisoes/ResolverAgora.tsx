@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
 import { desfazerDispensaAction } from "@/app/(app)/decidir/actions";
@@ -47,7 +48,8 @@ export function ResolverAgora({
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showToast } = useToast();
+  const erro = useErroNoBotao();
   const [aberta, setAberta] = useState(false);
   const [pendente, iniciar] = useTransition();
   const comEssencial = categorias.map((c) => ({ ...c, essencial: c.essencial || essenciais.includes(c.key) }));
@@ -58,7 +60,8 @@ export function ResolverAgora({
   const valor = quantoPassou(passou);
   const idDoAviso = `estouro-${categoria}`;
 
-  const resolver = () =>
+  const resolver = () => {
+    erro.limpar();
     iniciar(async () => {
       try {
         let desfazer: () => Promise<unknown>;
@@ -75,12 +78,14 @@ export function ResolverAgora({
           desfazer = () => desfazerDispensaAction(idDoAviso, "mes");
         }
         setAberta(false);
+        // A pergunta sai da tela: pílula curta, com Desfazer.
         showToast(`${passou.label} resolvida`, { label: "Desfazer", onClick: () => iniciar(async () => { await desfazer(); router.refresh(); }) });
         router.refresh();
       } catch {
-        showError("Não consegui salvar. Tente de novo.");
+        erro.falhou("Não salvou");
       }
     });
+  };
 
   const cobrir = plano.origens.length > 0 && (
     <Item key="cobrir" sel={opcao === "cobrir"} onClick={() => setOpcao("cobrir")} selo={plano.nivel === 1 ? "sugerida" : undefined}>
@@ -124,9 +129,12 @@ export function ResolverAgora({
               <small className="block text-caption text-ink-muted">O plano não muda. O aviso some até {proximoMes}.</small>
             </Item>
           </div>
-          <button type="button" disabled={pendente} onClick={resolver} className="min-h-12 rounded-full bg-ink px-5 text-[15px] font-semibold text-canvas disabled:opacity-60">
-            Resolver
-          </button>
+          <div>
+            <button type="button" disabled={pendente} onClick={resolver} className={`min-h-12 w-full rounded-full bg-ink px-5 text-[15px] font-semibold text-canvas disabled:opacity-60 ${erro.classe}`}>
+              {erro.erro ? TENTAR_DE_NOVO : "Resolver"}
+            </button>
+            <ErroNoBotao erro={erro.erro} />
+          </div>
           <Link href="/orcamento" className="self-center py-2 text-sm text-ink-muted underline underline-offset-4">
             Ver o que pesou e outras opções
           </Link>

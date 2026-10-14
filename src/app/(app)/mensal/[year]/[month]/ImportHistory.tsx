@@ -73,6 +73,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
       setConfirmingId(null);
       if (!result.ok) return;
       setRemovedIds((prev) => new Set(prev).add(batch.id));
+      // A importação sai do histórico; quantos lançamentos saíram não aparece na tela, por isso a pílula.
       showToast(t.impHistoricoDesfeita(result.removed));
     });
   }
