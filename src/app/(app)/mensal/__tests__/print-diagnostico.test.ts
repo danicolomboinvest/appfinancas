@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
  * Print que quebra no leitor de imagem (14/10/2026): o tesseract rejeitou com texto, não com
  * Error, e o diagnóstico de 18 falhas dizia só "exceção: erro".
  */
-const recordImportDiagnostic = vi.fn(async (_: { message?: string }) => "d1");
+const recordImportDiagnostic = vi.fn<(d: { message?: string }) => Promise<string>>(async () => "d1");
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getRequiredSession: vi.fn(async () => ({ userId: "u1", profileId: "pessoal" })) }));
 vi.mock("@/lib/db/prisma", () => ({ prisma: {} }));

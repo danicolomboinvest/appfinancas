@@ -208,7 +208,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
   // como dado daquele mês (ver semAsProjetadas): a fatura de setembro não vira "dia a dia de outubro".
   const idsDasFaturas = lotes.filter((l) => l.docType === "fatura").map((l) => l.id);
   const dasFaturas = idsDasFaturas.length > 0
-    ? await prisma.monthlyEntry.findMany({ where: { userId: ctx.userId, importBatchId: { in: idsDasFaturas } }, select: { importBatchId: true, year: true, month: true, amount: true, category: true, description: true } })
+    ? await prisma.monthlyEntry.findMany({ where: comFiltro(base, { importBatchId: { in: idsDasFaturas } }), select: { importBatchId: true, year: true, month: true, amount: true, category: true, description: true } })
     : [];
   const projetadas: ParcelaProjetada[] = idsDasFaturas.flatMap((id) => {
     const doLote = dasFaturas.filter((e) => e.importBatchId === id).map((e) => ({ amount: Number(e.amount), category: e.category, year: e.year, month: e.month, description: e.description ?? "" }));
