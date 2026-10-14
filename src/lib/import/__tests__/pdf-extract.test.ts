@@ -205,3 +205,43 @@ describe("PDF protegido por senha", () => {
     expect((erro as Error).message).toContain("Senha incorreta");
   });
 });
+
+/**
+ * Excel com senha (14/10/2026): a senha errada virava erro de leitura. Num envio com vários
+ * arquivos, o Excel saía da espera da senha e a caixa da senha sumia: sem como tentar outra.
+ */
+describe("Excel protegido por senha", () => {
+  async function excelComSenha(senha: string): Promise<Buffer> {
+    const XLSX = await import("xlsx");
+    const office = (await import("officecrypto-tool")) as unknown as { default?: { encrypt: (b: Buffer, o: { password: string }) => Buffer }; encrypt?: (b: Buffer, o: { password: string }) => Buffer };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Data", "Lançamento", "Valor"], ["03/07/2026", "SUPERMERCADO", -150.25]]), "Extrato");
+    const cru = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+    return (office.default ?? office).encrypt!(cru, { password: senha });
+  }
+  function form(buf: Buffer, senha?: string): FormData {
+    const f = new FormData();
+    f.set("file", new File([new Uint8Array(buf)], "extrato.xlsx"));
+    f.set("encoding", "xlsx");
+    if (senha) f.set("password", senha);
+    return f;
+  }
+
+  it("sem senha, pede a senha", async () => {
+    const erro = await extractUploadFromForm(form(await excelComSenha("1234"))).catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(PasswordRequiredError);
+    expect((erro as PasswordRequiredError).senhaErrada).toBe(false);
+  });
+
+  it("senha errada pede a senha de novo, dizendo que estava errada", async () => {
+    const erro = await extractUploadFromForm(form(await excelComSenha("1234"), "errada")).catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(PasswordRequiredError);
+    expect((erro as PasswordRequiredError).senhaErrada).toBe(true);
+    expect((erro as Error).message).toContain("Senha incorreta");
+  });
+
+  it("com a senha certa, lê", async () => {
+    const { text } = await extractUploadFromForm(form(await excelComSenha("1234"), "1234"));
+    expect(text).toContain("SUPERMERCADO");
+  });
+});

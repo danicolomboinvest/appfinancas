@@ -333,7 +333,11 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   } else try {
     ({ text, source } = await extractUploadFromForm(formData));
   } catch (err) {
-    if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
+    if (err instanceof PasswordRequiredError) {
+      // A senha errada continua no diagnóstico (é como se vê quem tenta 20 vezes e desiste).
+      if (err.senhaErrada) await falha(err.message);
+      return { ok: false, error: err.message, needsPassword: true };
+    }
     if (err instanceof UploadReadError) {
       // A pessoa vê a frase limpa; o diagnóstico guarda também a causa técnica.
       await falha(err.detail ? `${err.message} [${err.detail}]` : err.message);

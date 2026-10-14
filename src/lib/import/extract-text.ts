@@ -38,7 +38,14 @@ function causa(err: unknown): string {
 }
 
 /** O arquivo Excel está protegido por senha: o cliente pede a senha e reenvia o mesmo arquivo. */
-export class PasswordRequiredError extends Error {}
+export class PasswordRequiredError extends Error {
+  /** A senha veio e não abriu (a tela pede de novo, com "Senha incorreta"). */
+  readonly senhaErrada: boolean;
+  constructor(message: string, senhaErrada = false) {
+    super(message);
+    this.senhaErrada = senhaErrada;
+  }
+}
 
 /**
  * Muitos bancos exportam o extrato em Excel PROTEGIDO POR SENHA (arquivo criptografado, não é um
@@ -71,7 +78,10 @@ async function decryptIfProtected(buffer: Buffer, password: string | undefined):
   try {
     return await office.decrypt(buffer, { password });
   } catch {
-    throw new UploadReadError("Senha incorreta. Confira a senha do arquivo e tente de novo.");
+    // Pede a senha de novo, como o PDF (14/10/2026). Como erro de leitura, o Excel da lista de
+    // vários arquivos saía da espera da senha e virava "erro": a caixa da senha sumia e não
+    // tinha como tentar outra sem mandar os arquivos de novo.
+    throw new PasswordRequiredError("Senha incorreta. Confira a senha do arquivo e tente de novo.", true);
   }
 }
 
@@ -189,6 +199,7 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
         ehSenhaErrada(err)
           ? "Senha incorreta. Confira a senha do arquivo e tente de novo."
           : "Este arquivo está protegido por senha.",
+        ehSenhaErrada(err),
       );
     }
     // O pdfjs abre o PDF num "worker" que é um arquivo à parte (pdf.worker.mjs). Quando esse
