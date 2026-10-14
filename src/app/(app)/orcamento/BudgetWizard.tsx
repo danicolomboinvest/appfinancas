@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { LapisDaCategoria } from "@/components/categorias/LapisDaCategoria";
 import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -80,6 +81,8 @@ export function BudgetWizard({
 }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: true });
+  /** Com centavos quando o valor tem centavos: "Falta R$ 0,56" não pode aparecer como "Falta R$ 1". */
+  const mc = (v: number) => money(v, { round: Number.isInteger(v) });
   const simbolo = currencySymbol(useCurrency());
   const { key: tema, kind, empresa, voz, categorias } = useProfileTheme();
   const t = voz.titulos;
@@ -170,9 +173,11 @@ export function BudgetWizard({
   }, [alterado]);
   const formId = useId();
 
-  const resto = Math.max(0, income - investment);
-  const distributed = cats.reduce((sum, c) => sum + (values[c.key] ?? 0), 0);
-  const falta = resto - distributed;
+  // Em centavos e de volta: com valores quebrados (1.234,56), a soma em ponto flutuante dava
+  // "Falta R$ 0,00" em vez de "Tudo dividido".
+  const resto = Math.max(0, Math.round((income - investment) * 100) / 100);
+  const distributed = Math.round(cats.reduce((sum, c) => sum + (values[c.key] ?? 0), 0) * 100) / 100;
+  const falta = Math.round((resto - distributed) * 100) / 100;
   const pctAtual = income > 0 ? Math.round((investment / income) * 100) : 0;
   const pctEscolhido = pcts.find((p) => Math.round((income * p) / 100) === investment) ?? null;
   const temPadrao = hints.mesesComDado >= MESES_MINIMOS_DO_PADRAO;
@@ -213,13 +218,12 @@ export function BudgetWizard({
           </button>
           <label className="flex min-w-0 items-baseline justify-center gap-1.5">
             <span className="text-xl text-ink-muted">{simbolo}</span>
-            <input
-              inputMode="numeric"
+            <CampoDeDinheiro
               aria-label={t.formOrcRenda}
-              placeholder="0"
-              value={income ? income.toLocaleString("pt-BR") : ""}
-              onChange={(ev) => setIncome(Number(ev.target.value.replace(/\D/g, "")) || 0)}
-              className="w-full min-w-0 max-w-[7ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[44px] font-light tabular-nums text-ink outline-none max-[359px]:text-[36px]"
+              placeholder="0,00"
+              valor={income}
+              onValor={(v) => setIncome(v ?? 0)}
+              className="w-full min-w-0 max-w-[9ch] border-b-2 border-accent bg-transparent pb-1 text-center text-[44px] font-light tabular-nums text-ink outline-none max-[359px]:text-[36px]"
             />
           </label>
           <button type="button" aria-label={`Mais ${simbolo} 100`} onClick={() => setIncome((v) => v + 100)} className="flex size-11 items-center justify-center rounded-full bg-surface-2 text-ink">
@@ -265,13 +269,13 @@ export function BudgetWizard({
           </label>
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span className="text-xl font-light text-ink-muted">{simbolo}</span>
-            <input
+            <CampoDeDinheiro
               id="guardar-por-mes"
-              inputMode="numeric"
               aria-label="Quanto guardar por mês"
-              placeholder="0"
-              value={investment ? investment.toLocaleString("pt-BR") : ""}
-              onChange={(ev) => setInvestment(Math.min(Number(ev.target.value.replace(/\D/g, "")) || 0, Math.max(income, 0) || Number.MAX_SAFE_INTEGER))}
+              placeholder="0,00"
+              valor={investment}
+              onValor={(v) => setInvestment(v ?? 0)}
+              max={income > 0 ? income : undefined}
               className="w-full min-w-0 border-b-2 border-accent/60 bg-transparent pb-0.5 text-[36px] font-light leading-tight tracking-[-0.03em] tabular-nums text-ink outline-none focus:border-accent"
             />
           </span>
@@ -310,10 +314,10 @@ export function BudgetWizard({
         <div className="sticky -top-4 z-[2] -mx-4 flex flex-col gap-2 bg-canvas/95 px-4 py-2" data-resto={falta}>
           <div className="flex flex-wrap items-baseline justify-between gap-2 text-[15px] text-ink-muted">
             <span>
-              <b className="text-xl font-medium tabular-nums text-ink">{m(resto)}</b> para dividir
+              <b className="text-xl font-medium tabular-nums text-ink">{mc(resto)}</b> para dividir
             </span>
             <em className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-sm font-medium not-italic ${falta < 0 ? "bg-danger-soft text-danger" : falta === 0 ? "bg-success-soft text-success" : "bg-atencao-fundo text-atencao"}`}>
-              {falta < 0 ? `Passou ${m(-falta)}` : falta === 0 ? (<><Check size={14} aria-hidden />Tudo dividido</>) : `Falta ${m(falta)}`}
+              {falta < 0 ? `Passou ${mc(-falta)}` : falta === 0 ? (<><Check size={14} aria-hidden />Tudo dividido</>) : `Falta ${mc(falta)}`}
             </em>
           </div>
           <div className="h-2.5 overflow-hidden rounded-full bg-surface-2">
@@ -346,13 +350,12 @@ export function BudgetWizard({
                   <button type="button" aria-label={`Menos ${STEP} em ${c.label}`} onClick={() => { setNota(""); setValues((p) => ({ ...p, [c.key]: Math.max(0, v - STEP) })); }} className="flex size-[30px] items-center justify-center rounded-full bg-surface-2 text-ink">
                     <Minus size={14} />
                   </button>
-                  <input
-                    inputMode="numeric"
+                  <CampoDeDinheiro
                     aria-label={`Valor de ${c.label}`}
-                    placeholder="0"
-                    value={v ? Math.round(v).toLocaleString("pt-BR") : ""}
-                    onChange={(ev) => { setNota(""); setValues((p) => ({ ...p, [c.key]: Number(ev.target.value.replace(/\D/g, "")) || 0 })); }}
-                    className="h-[34px] w-16 rounded-[10px] border border-border-strong bg-canvas text-center text-[15px] font-medium tabular-nums text-ink outline-none focus:border-ink max-[359px]:w-14"
+                    placeholder="0,00"
+                    valor={v}
+                    onValor={(n) => { setNota(""); setValues((p) => ({ ...p, [c.key]: n ?? 0 })); }}
+                    className="h-[34px] w-20 rounded-[10px] border border-border-strong bg-canvas text-center text-[15px] font-medium tabular-nums text-ink outline-none focus:border-ink max-[359px]:w-[4.5rem]"
                   />
                   <button type="button" aria-label={`Mais ${STEP} em ${c.label}`} onClick={() => { setNota(""); setValues((p) => ({ ...p, [c.key]: v + STEP })); }} className="flex size-[30px] items-center justify-center rounded-full bg-surface-2 text-ink">
                     <Plus size={14} />

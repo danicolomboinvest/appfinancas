@@ -14,7 +14,8 @@ export function fecharExato(
   const ns = Object.keys(base);
   const val: Record<string, number> = {};
   if (ns.length === 0) return { val, abaixo: [] };
-  alvo = Math.max(0, Math.round(alvo));
+  // Os centavos do alvo ficam (renda de R$ 3.456,78): eles vão, com a sobra, para a variável maior.
+  alvo = Math.max(0, Math.round(alvo * 100) / 100);
   let tr = ns.filter((n) => trava.includes(n));
   if (tr.reduce((s, n) => s + base[n], 0) > alvo) tr = [];
   let pool = ns.filter((n) => !tr.includes(n));
@@ -40,7 +41,7 @@ export function fecharExato(
   }
   const variaveis = x.filter((o) => !fixas.includes(o.n) && o.t + sobra >= 0);
   const maior = [...(variaveis.length ? variaveis : x)].sort((a, b) => b.r - a.r)[0];
-  if (maior) maior.t += sobra;
+  if (maior) maior.t = Math.round((maior.t + sobra) * 100) / 100;
   for (const o of x) val[o.n] = o.t;
   return { val, abaixo: ns.filter((n) => val[n] < base[n] - 10) };
 }
