@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import { Segmentado } from "@/components/ui/Interruptor";
-import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { definirDivisaoAction, marcarAcertadoAction } from "./actions";
 
 /** O jeito de dividir (pela renda ou meio a meio) e o "Marcar como acertado". Os dois mexem. */
@@ -11,7 +11,9 @@ export function Escolhas({ divisao, rotuloRenda, ano, mes, acertado, temValor }:
   const [jeito, setJeito] = useState(divisao);
   const [feito, setFeito] = useState(acertado);
   const [pendente, startTransition] = useTransition();
-  const { showError } = useToast();
+  // Erro no lugar (14/10/2026): embaixo do que falhou, até a próxima tentativa.
+  const erroDoJeito = useErroNoBotao();
+  const erroDoAcerto = useErroNoBotao();
   const opcoes = [
     { valor: "renda" as const, rotulo: rotuloRenda },
     { valor: "meio" as const, rotulo: "Meio a meio" },
@@ -27,17 +29,19 @@ export function Escolhas({ divisao, rotuloRenda, ano, mes, acertado, temValor }:
           valor={jeito}
           aoEscolher={(v) => {
             if (v === "combinado") return;
+            erroDoJeito.limpar();
             const antes = jeito;
             setJeito(v);
             startTransition(async () => {
               const r = await definirDivisaoAction(v).catch(() => ({ ok: false }));
               if (!r.ok) {
                 setJeito(antes);
-                showError("Não deu para mudar agora. Tente de novo.");
+                erroDoJeito.falhou("Não mudou. Toque de novo.");
               }
             });
           }}
         />
+        <ErroNoBotao erro={erroDoJeito.erro} />
       </section>
       {(temValor || feito) && (
         <button
@@ -46,12 +50,13 @@ export function Escolhas({ divisao, rotuloRenda, ano, mes, acertado, temValor }:
           data-marcar-acertado={feito ? "sim" : "nao"}
           onClick={() => {
             const novo = !feito;
+            erroDoAcerto.limpar();
             setFeito(novo);
             startTransition(async () => {
               const r = await marcarAcertadoAction(ano, mes, novo).catch(() => ({ ok: false }));
               if (!r.ok) {
                 setFeito(!novo);
-                showError("Não deu para marcar agora. Tente de novo.");
+                erroDoAcerto.falhou("Não marcou");
               }
             });
           }}
@@ -65,11 +70,14 @@ export function Escolhas({ divisao, rotuloRenda, ano, mes, acertado, temValor }:
             <>
               <Check size={18} strokeWidth={2} aria-hidden /> Acertado
             </>
+          ) : erroDoAcerto.erro ? (
+            "Tentar de novo"
           ) : (
             "Marcar como acertado"
           )}
         </button>
       )}
+      <ErroNoBotao erro={erroDoAcerto.erro} />
     </div>
   );
 }

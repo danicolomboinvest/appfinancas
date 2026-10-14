@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, Upload } from "lucide-react";
 import { Interruptor } from "@/components/ui/Interruptor";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useValoresOcultos } from "@/components/money/MoneyProvider";
 import { EVENTO_IMPORTAR } from "@/components/shell/registrar-eventos";
 import { trocarPerfilAction } from "@/app/(app)/perfis/actions";
@@ -15,7 +16,7 @@ import { SUPORTE_EMAIL } from "./suporte";
 export function DesligarOfertas({ desligadas }: { desligadas: boolean }) {
   const [v, setV] = useState(desligadas);
   const [, iniciar] = useTransition();
-  const { showToast, showError } = useToast();
+  const erro = useErroNoBotao();
   const router = useRouter();
   return (
     <>
@@ -25,18 +26,20 @@ export function DesligarOfertas({ desligadas }: { desligadas: boolean }) {
           titulo="Não quero ver ofertas da assessoria"
           sub="Some da Carteira, da estratégia e da Ajuda."
           aoMudar={(novo) => {
+            erro.limpar();
             setV(novo);
             iniciar(async () => {
               const r = await ofertasDaAssessoriaAction(novo);
               if (!r.ok) {
                 setV(!novo);
-                return showError("Não consegui salvar. Tente de novo.");
+                return erro.falhou("Não mudou. Toque de novo.");
               }
-              showToast(novo ? "Ofertas da assessoria desligadas" : "Ofertas da assessoria ligadas");
+              // Sem aviso: o interruptor e a linha de baixo já dizem.
               router.refresh();
             });
           }}
         />
+        <ErroNoBotao erro={erro.erro} className={erro.erro ? "pb-2" : ""} />
       </div>
       {v && (
         <p className="flex items-center gap-2 px-1 text-sm text-success">

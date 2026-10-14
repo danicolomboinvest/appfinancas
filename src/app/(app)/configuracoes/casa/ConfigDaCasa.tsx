@@ -8,6 +8,7 @@ import { abrirTutorialDoCasal } from "@/components/casa/TutorialDoCasalNoApp";
 import { Modal } from "@/components/ui/Modal";
 import { Segmentado } from "@/components/ui/Interruptor";
 import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { BOTAO_ESCURO, ParDeAvatares } from "@/components/casal-login/visual";
 import { removerParAction, sairDoCasalAction } from "@/app/(app)/divisao/nos-dois-actions";
 import { definirDivisaoAction } from "@/app/(app)/mensal/foco/acerto/actions";
@@ -22,7 +23,10 @@ const CARTAO = "flex flex-col gap-3 rounded-3xl border border-border bg-surface 
  */
 export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; outro: string; souTitular: boolean; divisao: "renda" | "meio" | "combinado" }) {
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
+  // Erro no lugar (14/10/2026): embaixo do que falhou, até a próxima tentativa.
+  const erroDosNomes = useErroNoBotao();
+  const erroDoJeito = useErroNoBotao();
   const [pendente, startTransition] = useTransition();
   const [nomes, setNomes] = useState({ eu, outro });
   const [jeito, setJeito] = useState(divisao);
@@ -61,19 +65,20 @@ export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; o
             type="button"
             disabled={pendente}
             className={BOTAO_ESCURO}
-            onClick={() =>
+            onClick={() => {
+              erroDosNomes.limpar();
               startTransition(async () => {
                 const r = await salvarNomesDaCasaAction(nomes.eu, nomes.outro).catch(() => ({ ok: false, mensagem: undefined }));
-                if (r.ok) {
-                  showToast("Nomes salvos");
-                  router.refresh();
-                } else showError(r.mensagem ?? "Não deu para salvar agora.");
-              })
-            }
+                // Salvou: o botão some e os nomes ficam. Sem aviso.
+                if (r.ok) router.refresh();
+                else erroDosNomes.falhou(r.mensagem ?? "Não salvou");
+              });
+            }}
           >
-            Salvar nomes
+            {erroDosNomes.erro ? TENTAR_DE_NOVO : "Salvar nomes"}
           </button>
         )}
+        {mudouNome && <ErroNoBotao erro={erroDosNomes.erro} />}
         <p className="text-[13px] text-ink-muted">A foto de cada um é a da conta, em Meus dados.</p>
       </section>
 
@@ -92,16 +97,18 @@ export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; o
           aoEscolher={(v) => {
             if (v === "combinado") return;
             const antes = jeito;
+            erroDoJeito.limpar();
             setJeito(v);
             startTransition(async () => {
               const r = await definirDivisaoAction(v).catch(() => ({ ok: false }));
               if (!r.ok) {
                 setJeito(antes);
-                showError("Não deu para mudar agora.");
+                erroDoJeito.falhou("Não mudou. Toque de novo.");
               }
             });
           }}
         />
+        <ErroNoBotao erro={erroDoJeito.erro} />
         <p className="text-[13px] text-ink-muted">Só o que é da casa entra no acerto.</p>
       </section>
 

@@ -43,8 +43,8 @@ export function Connections({ configured, connections }: { configured: boolean; 
               showError(res.error);
               return;
             }
+            // Sem aviso: o resultado da conexão aparece no lugar.
             setResult({ connectorName: res.connectorName, created: res.result.created, uncategorized: res.result.uncategorized });
-            showToast(t.cfgConexaoConectadoToast(res.connectorName));
           });
         },
         onError: (err: { message?: string }) => showError(err?.message ? t.cfgConexaoNaoDeu(err.message) : t.cfgConexaoNaoConcluida),
@@ -146,8 +146,8 @@ export function Connections({ configured, connections }: { configured: boolean; 
                   onClick={() => {
                     if (!window.confirm(t.cfgDesconectarConfirma(c.connectorName))) return;
                     startTransition(async () => {
+                      // Sem aviso: a conexão sai da lista.
                       await disconnectAction(c.id);
-                      showToast(t.cfgDesconectadoToast);
                     });
                   }}
                   className="flex-1 rounded-full border border-border-strong bg-surface-2 px-3 py-2 text-xs font-semibold text-danger disabled:opacity-50"

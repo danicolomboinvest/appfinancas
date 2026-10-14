@@ -14,7 +14,7 @@ type Status = "checking" | "unsupported" | "ios-not-installed" | "blocked" | "of
  * site instalado na tela de início que recebe a mensagem — no iPhone, só depois de instalar.
  */
 export function PushSettings({ publicKey, devices }: { publicKey: string | null; devices: number }) {
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const { titulos: t } = useProfileTheme().voz;
   const [status, setStatus] = useState<Status>("checking");
   const [busy, setBusy] = useState(false);
@@ -47,8 +47,8 @@ export function PushSettings({ publicKey, devices }: { publicKey: string | null;
     setBusy(true);
     try {
       const r = await ligarAvisos(publicKey);
+      // Sem aviso (14/10/2026): o próprio controle mostra que ligou.
       setStatus(r);
-      if (r === "on") showToast(t.cfgPushLigadoToast);
     } catch (err) {
       console.error(err);
       showError(t.cfgPushFalhouToast);

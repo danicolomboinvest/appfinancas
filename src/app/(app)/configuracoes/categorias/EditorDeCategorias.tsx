@@ -34,7 +34,7 @@ type Propria = { id: string; name: string; icon: string };
 export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
   const { categorias } = useProfileTheme();
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [aberta, setAberta] = useState<string | null>(null);
   const [corDe, setCorDe] = useState<string | null>(null);
   const [nova, setNova] = useState(false);
@@ -144,9 +144,9 @@ export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
         {nova && (
           <NovaCategoria
             existentes={[...proprias.map((c) => c.name), ...PARENT_CATEGORIES.map((k) => categoryLabel(categorias, k))]}
-            onCriada={(c) => {
+            onCriada={() => {
+              // Sem aviso (14/10/2026): a folha fecha e a categoria nova entra na lista.
               setNova(false);
-              showToast(`${c.name} criada`);
               router.refresh();
             }}
           />
@@ -254,7 +254,7 @@ const CAMPO = "min-h-11 w-full rounded-xl border border-border-strong bg-surface
 
 export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFechar: () => void }) {
   const { categorias } = useProfileTheme();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const pref = categorias.prefs[chave] ?? {};
   const [nome, setNome] = useState(pref.nome ?? "");
   const [icone, setIcone] = useState<string | null>(pref.icone ?? null);
@@ -268,7 +268,6 @@ export function EditarPadrao({ chave, onFechar }: { chave: ParentCategory; onFec
     iniciar(async () => {
       const r = await salvarCategoriaPadraoAction({ key: chave, ...valores });
       if (r.error) return showError(r.error);
-      showToast("Categoria salva.");
       onFechar();
     });
   }
@@ -331,7 +330,6 @@ export function EditarPropria({ categoria, onFechar, outras = [] }: { categoria:
     iniciar(async () => {
       const r = await editarCategoriaPropriaAction({ id: categoria.id, nome, icone: icone ?? "tag", cor, emoji: emoji || null, essencial });
       if (r.error) return showError(r.error);
-      showToast("Categoria salva.");
       onFechar();
     });
   }
@@ -342,11 +340,12 @@ export function EditarPropria({ categoria, onFechar, outras = [] }: { categoria:
       iniciar(async () => setQuantos(await lancamentosDaCategoriaAction(categoria.id)));
       return;
     }
-    if (quantos && !destino) return showError("Escolha para qual categoria vão os lançamentos.");
+    if (quantos && !destino) return showError("Escolha o destino");
     iniciar(async () => {
       const r = await apagarCategoriaPropriaAction(categoria.id, destino);
       if (r.error) return showError(r.error);
-      showToast(quantos ? "Categoria apagada. Os lançamentos foram para a outra categoria." : "Categoria apagada.");
+      // Apagar fica com a pílula, curta: o destino dos lançamentos já foi escolhido na pergunta.
+      showToast("Categoria apagada");
       onFechar();
     });
   }

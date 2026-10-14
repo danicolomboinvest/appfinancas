@@ -53,7 +53,7 @@ export function AjustesRapidos({
   const [moedaAtual, setMoedaAtual] = useState(moeda);
   const [modoAtual, setModoAtual] = useState<"light" | "dark" | "auto">(modo === "dark" || modo === "auto" ? modo : "light");
   const [pendente, iniciar] = useTransition();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
 
   return (
     <>
@@ -81,7 +81,7 @@ export function AjustesRapidos({
               }
               iniciar(async () => {
                 const r = await setThemeAction(v);
-                if (!r.ok) showError("Não consegui salvar. Tente de novo.");
+                if (!r.ok) showError("Não salvou. Tente de novo.");
               });
             }}
           />
@@ -104,9 +104,9 @@ export function AjustesRapidos({
               const r = await trocarMoedaAction(v);
               if (!r.ok) {
                 setMoedaAtual(antes);
-                return showError(r.error ?? "Não consegui salvar. Tente de novo.");
+                return showError(r.error ?? "Não salvou. Tente de novo.");
               }
-              showToast("Moeda trocada. Os valores não mudam, só o símbolo.");
+              // Sem aviso: os valores já trocam de símbolo na tela.
             });
           }}
         />

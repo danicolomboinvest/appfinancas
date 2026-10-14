@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { useToast } from "@/components/ui/toast-context";
+import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { AvatarDaConta } from "@/components/shell/PerfilSheet";
 import { useAppNativo } from "@/components/ui/useAppNativo";
 import { FOTO_SO_NO_NAVEGADOR } from "@/lib/apple/app-nativo";
@@ -41,7 +41,8 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76, anel 
   const arrasto = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [salvando, iniciar] = useTransition();
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  // Erro no lugar (14/10/2026): embaixo do "Usar esta foto", até a próxima tentativa.
+  const erro = useErroNoBotao();
 
   const fechar = () => {
     setAberto(false);
@@ -120,26 +121,28 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76, anel 
               <button
                 type="button"
                 disabled={salvando}
-                onClick={() =>
+                onClick={() => {
+                  erro.limpar();
                   iniciar(async () => {
                     try {
                       const blob = await recortar(cortando, zoom, pos.x, pos.y);
                       const fd = new FormData();
                       fd.append("foto", new File([blob], "foto.jpg", { type: "image/jpeg" }));
                       const r = await salvarFotoAction(fd);
-                      if (!r.ok) return showError(r.erro ?? "Não consegui salvar a foto.");
-                      showToast("Foto do perfil trocada");
+                      if (!r.ok) return erro.falhou(r.erro ?? "Não salvou a foto");
+                      // Sem aviso: a foto nova aparece no lugar.
                       fechar();
                       router.refresh();
                     } catch {
-                      showError("Não consegui ler essa foto. Tente outra.");
+                      erro.falhou("Tente outra foto");
                     }
-                  })
-                }
-                className="min-h-12 rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] text-[15px] font-medium disabled:opacity-60"
+                  });
+                }}
+                className={`min-h-12 rounded-full [background:var(--botao-fundo,var(--color-ink))] [color:var(--botao-tinta,var(--color-canvas))] text-[15px] font-medium disabled:opacity-60 ${erro.classe}`}
               >
-                Usar esta foto
+                {erro.erro ? TENTAR_DE_NOVO : "Usar esta foto"}
               </button>
+              <ErroNoBotao erro={erro.erro} />
               <button type="button" onClick={() => setCortando(null)} className="min-h-12 rounded-full bg-surface-2 text-[15px] text-ink">
                 Cancelar
               </button>
@@ -163,7 +166,6 @@ export function FotoDoPerfil({ nome, foto, comBotao = false, tamanho = 76, anel 
                 onClick={() =>
                   iniciar(async () => {
                     await removerFotoAction();
-                    showToast("Foto removida");
                     fechar();
                     router.refresh();
                   })
