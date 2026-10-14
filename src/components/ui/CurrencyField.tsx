@@ -3,14 +3,12 @@
 import { Explica } from "@/components/ui/Explica";
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
+import { centavosDoTexto } from "@/lib/dinheiro/digitado";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
 import { useCurrency } from "@/components/money/MoneyProvider";
 
-function parseDigitsToCents(text: string): number | null {
-  const digits = text.replace(/\D/g, "");
-  if (digits === "") return null;
-  return Number(digits);
-}
+// A regra única de dinheiro digitado (dígitos como centavos) mora em lib/dinheiro/digitado.
+const parseDigitsToCents = centavosDoTexto;
 
 /**
  * Input monetário com máscara em tempo real (ex.: "R$ 1.234,56"), que carrega internamente

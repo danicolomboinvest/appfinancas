@@ -2,14 +2,12 @@
 
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
+import { centavosDoTexto } from "@/lib/dinheiro/digitado";
 import { formatMoney } from "@/lib/money";
 import { useCurrency } from "@/components/money/MoneyProvider";
 
-function parseDigitsToCents(text: string): number | null {
-  const digits = text.replace(/\D/g, "");
-  if (digits === "") return null;
-  return Number(digits);
-}
+// A regra única de dinheiro digitado (dígitos como centavos) mora em lib/dinheiro/digitado.
+const parseDigitsToCents = centavosDoTexto;
 
 function valueToCents(value: unknown): number | null {
   const num = typeof value === "number" ? value : Number(value);

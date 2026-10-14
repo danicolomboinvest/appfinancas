@@ -1,0 +1,70 @@
+import { describe, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
+
+vi.mock("@/components/money/MoneyProvider", () => ({ useCurrency: () => "BRL" }));
+
+import { CampoDeDinheiro } from "../CampoDeDinheiro";
+
+type PropsDoInput = { value: string; inputMode: string; type: string; onChange: (e: { target: { value: string } }) => void };
+
+/** Renderiza o campo (sem DOM: é uma função) e devolve as props do <input>. */
+function campo(valor: number | null, onValor: (v: number | null) => void, extra: Record<string, unknown> = {}) {
+  return (CampoDeDinheiro({ valor, onValor, ...extra }) as ReactElement<PropsDoInput>).props;
+}
+
+/** Digita tecla por tecla como no celular: o texto novo é o que o campo mostra + a tecla. */
+function digitar(teclas: string, inicial: number | null = null, extra: Record<string, unknown> = {}) {
+  let valor = inicial;
+  for (const tecla of teclas) {
+    const p = campo(valor, (v) => (valor = v), extra);
+    p.onChange({ target: { value: tecla === "⌫" ? p.value.slice(0, -1) : p.value + tecla } });
+  }
+  return valor;
+}
+
+describe("CampoDeDinheiro", () => {
+  it("abre o teclado com vírgula (decimal) e é texto, não number", () => {
+    const p = campo(null, () => {});
+    expect(p.inputMode).toBe("decimal");
+    expect(p.type).toBe("text");
+  });
+
+  it("mostra o valor com centavos", () => {
+    expect(campo(1234.56, () => {}).value).toBe("1.234,56");
+    expect(campo(0.99, () => {}).value).toBe("0,99");
+    expect(campo(null, () => {}).value).toBe("");
+    expect(campo(1234.56, () => {}, { comSimbolo: true }).value).toMatch(/^R\$\s1\.234,56$/);
+  });
+
+  it("digitar 1234,56 salva 1234,56 (antes salvava 123456)", () => {
+    expect(digitar("1234,56")).toBe(1234.56);
+  });
+
+  it("digitar 0,99 salva 0,99", () => {
+    expect(digitar("0,99")).toBe(0.99);
+  });
+
+  it("digitar só dígitos: os dois últimos são os centavos", () => {
+    expect(digitar("123456")).toBe(1234.56);
+  });
+
+  it("apagar tira o último dígito, e apagar tudo esvazia", () => {
+    expect(digitar("123456⌫")).toBe(123.45);
+    // "0,12" → "0,1" (R$ 0,01) → "0,0" (zero): o campo fica vazio.
+    const zerado = digitar("12⌫⌫");
+    expect(zerado ?? 0).toBe(0);
+    expect(campo(zerado, () => {}).value).toBe("");
+  });
+
+  it("colar 1.234,56 ou 1234.56 dá o mesmo valor", () => {
+    let v: number | null = null;
+    campo(null, (x) => (v = x)).onChange({ target: { value: "1.234,56" } });
+    expect(v).toBe(1234.56);
+    campo(null, (x) => (v = x)).onChange({ target: { value: "1234.56" } });
+    expect(v).toBe(1234.56);
+  });
+
+  it("respeita o teto", () => {
+    expect(digitar("99999999", null, { max: 1000 })).toBe(1000);
+  });
+});
