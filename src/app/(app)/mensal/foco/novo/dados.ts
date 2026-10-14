@@ -18,6 +18,7 @@ import { carregarFoco, MESES } from "../dados";
 import { chaveDaSemana } from "../ritmo";
 import { ondeMostrarFechamento } from "../fechamento/quando-mostrar";
 import { listarDispensasDeSugestao } from "./dispensas";
+import { parcelasProjetadas } from "@/lib/import/total-do-lote";
 import {
   categoriaQueCaiu,
   categoriaQueSubiu,
@@ -31,6 +32,8 @@ import {
   limiteProposto,
   mesAnterior,
   porcentagemQueFicou,
+  semAsProjetadas,
+  type ParcelaProjetada,
   type CasoDoTopo,
   type Comparacao,
   type GastoDoDia,
@@ -201,21 +204,43 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     arquivosPorMes.set(k, a);
   }
   const valorDe = (m: Mes) => valores.find((v) => v.ano === m.ano && v.mes === m.mes) ?? { entrou: 0, gastou: 0, guardou: 0 };
+  // Para escolher o caso do topo, as parcelas que a fatura projetou nos meses seguintes não contam
+  // como dado daquele mês (ver semAsProjetadas): a fatura de setembro não vira "dia a dia de outubro".
+  const idsDasFaturas = lotes.filter((l) => l.docType === "fatura").map((l) => l.id);
+  const dasFaturas = idsDasFaturas.length > 0
+    ? await prisma.monthlyEntry.findMany({ where: { userId: ctx.userId, importBatchId: { in: idsDasFaturas } }, select: { importBatchId: true, year: true, month: true, amount: true, category: true, description: true } })
+    : [];
+  const projetadas: ParcelaProjetada[] = idsDasFaturas.flatMap((id) => {
+    const doLote = dasFaturas.filter((e) => e.importBatchId === id).map((e) => ({ amount: Number(e.amount), category: e.category, year: e.year, month: e.month, description: e.description ?? "" }));
+    const fora = parcelasProjetadas(doLote);
+    return doLote.flatMap((e, i) => (fora.has(i) && e.category === "EXPENSE" ? [{ ano: e.year, mes: e.month, valor: e.amount, loteId: id }] : []));
+  });
+  const paraOCaso = semAsProjetadas(valores, porLote, projetadas);
+  const arquivosParaOCaso = new Map<string, { extrato: boolean; fatura: boolean }>();
+  for (const l of paraOCaso.porLote) {
+    const k = `${l.year}-${l.month}`;
+    const a = arquivosParaOCaso.get(k) ?? { extrato: false, fatura: false };
+    const tipo = tipoDoLote.get(l.importBatchId ?? "");
+    if (tipo === "fatura") a.fatura = true;
+    else if (tipo) a.extrato = true;
+    arquivosParaOCaso.set(k, a);
+  }
+  const valorParaOCaso = (m: Mes) => paraOCaso.valores.find((v) => v.ano === m.ano && v.mes === m.mes) ?? { entrou: 0, gastou: 0, guardou: 0 };
   const digitadosDe = (m: Mes) => digitadosPorMes.find((d) => d.year === m.ano && d.month === m.mes)?._count._all ?? 0;
   const sinal = (m: Mes): SinalDoMes => {
-    const v = valorDe(m);
-    const a = arquivosPorMes.get(chaveMes(m)) ?? { extrato: false, fatura: false };
+    const v = valorParaOCaso(m);
+    const a = arquivosParaOCaso.get(chaveMes(m)) ?? { extrato: false, fatura: false };
     return { gastos: v.gastou, entradas: v.entrou, extrato: a.extrato, fatura: a.fatura, digitados: digitadosDe(m) };
   };
   const comDado = (v: { entrou: number; gastou: number; guardou: number }) => v.entrou !== 0 || v.gastou !== 0 || v.guardou !== 0;
-  const mesesComDado = doze.filter((m) => comDado(valorDe(m))).length;
-  const comArquivo = [...doze].reverse().find((m) => arquivosPorMes.has(chaveMes(m)));
+  const mesesComDado = doze.filter((m) => comDado(valorParaOCaso(m))).length;
+  const comArquivo = [...doze].reverse().find((m) => arquivosParaOCaso.has(chaveMes(m)));
   const caso = escolherCaso({
     dia,
     atual: sinal(mes),
     passado: sinal(passado),
     mesesComDado,
-    ultimoArquivo: comArquivo ? { mes: comArquivo, ...arquivosPorMes.get(chaveMes(comArquivo))! } : null,
+    ultimoArquivo: comArquivo ? { mes: comArquivo, ...arquivosParaOCaso.get(chaveMes(comArquivo))! } : null,
   });
 
   // ---------------------------------------------------------------- comparação até o mesmo dia
