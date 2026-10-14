@@ -121,7 +121,15 @@ export type ReviewItem = {
   } | null;
   /** Já está no app: um lançamento à mão quase certamente igual (lib/import/parecido-manual). Não
    * entra de novo; na gravação, o lançamento à mão fica com o dia e o valor do arquivo. */
-  jaNoApp?: { descricao: string; data: string | null; id: string; valor: number; faturaAberta?: boolean } | null;
+  jaNoApp?: {
+    descricao: string;
+    data: string | null;
+    id: string;
+    valor: number;
+    faturaAberta?: boolean;
+    /** Veio de outro arquivo, com o mesmo dia, valor e nome: a gravação pula sozinha (é o mesmo arquivo de novo). */
+    importado?: boolean;
+  } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
   /** Por que o app tratou a linha diferente ("Aplicação: entra como guardado"). */
@@ -185,6 +193,17 @@ function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string |
   return conf.status === "fechou" ? `${MARCA_CONFERIDO} bateu com o total do arquivo (${reais(conf.esperado)})` : MARCA_CONFERIDO;
 }
 
+/** A falha em texto curto para o diagnóstico, venha como Error, texto ou objeto. */
+function descreverFalha(err: unknown): string {
+  if (err instanceof Error) return `${err.name}: ${err.message}`.slice(0, 160);
+  if (typeof err === "string") return err.slice(0, 160) || "texto vazio";
+  try {
+    return (JSON.stringify(err) ?? String(err)).slice(0, 160);
+  } catch {
+    return String(err).slice(0, 160);
+  }
+}
+
 /** O que a tela diz quando um print não deu: o mesmo para ilegível, cortado e sem nenhum valor. */
 const MSG_PRINT_ILEGIVEL = "Não consegui ler este print. Tente com a tela mais clara ou sem zoom.";
 
@@ -216,7 +235,9 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
     return { ok: true, print, banco: bancoDoPrint(segmentos.map((x) => x.texto)) };
   } catch (err) {
     console.error("lerPrintDaFaturaAction: OCR falhou", err);
-    return await falhou(`exceção: ${err instanceof Error ? err.message.slice(0, 160) : "erro"}`);
+    // O leitor de imagem às vezes rejeita com texto ou objeto, não com Error: o diagnóstico guardava
+    // só "exceção: erro" (18 vezes em 14/10/2026) e não dava para saber o que tinha quebrado.
+    return await falhou(`exceção: ${descreverFalha(err)}`);
   }
 }
 
@@ -333,7 +354,11 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   } else try {
     ({ text, source } = await extractUploadFromForm(formData));
   } catch (err) {
-    if (err instanceof PasswordRequiredError) return { ok: false, error: err.message, needsPassword: true };
+    if (err instanceof PasswordRequiredError) {
+      // A senha errada continua no diagnóstico (é como se vê quem tenta 20 vezes e desiste).
+      if (err.senhaErrada) await falha(err.message);
+      return { ok: false, error: err.message, needsPassword: true };
+    }
     if (err instanceof UploadReadError) {
       // A pessoa vê a frase limpa; o diagnóstico guarda também a causa técnica.
       await falha(err.detail ? `${err.message} [${err.detail}]` : err.message);
@@ -638,7 +663,16 @@ export type ConfirmedItem = {
 export type CardPaymentCandidate = { id: string; description: string; amount: number; date: string | null };
 
 export type ImportResult =
-  | { ok: true; created: number; skipped: number; cardPaymentCandidates: CardPaymentCandidate[] }
+  | {
+      ok: true;
+      /** Tudo que entrou, inclusive as parcelas seguintes que a fatura projetou. */
+      created: number;
+      skipped: number;
+      cardPaymentCandidates: CardPaymentCandidate[];
+      /** Quantas das `created` são parcelas dos próximos meses (14/10/2026): a tela dizia "7 compras"
+       * na conferência e "8 lançamentos importados" no fim, e a diferença era a parcela 3/3 projetada. */
+      parcelasFuturas?: number;
+    }
   | { ok: false; error: string };
 
 /** (ano, mês) do mês anterior/seguinte, sem depender de Date pra virada de ano (mês 1 → mês 12
@@ -960,12 +994,24 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
     existentes.set(k, [...(existentes.get(k) ?? []), { descricao: nomesDoBanco.get(e.id) ?? e.description, mostrar: e.description }]);
   }
   const chaves = items.map((it) =>
-    it.amount > 0 && !it.installment && yearMonthFromISO(it.date) ? chaveSoltaDe(it.date, it.estorno && it.category === "EXPENSE" ? -it.amount : it.amount, it.category) : null,
+    // Com o sinal que vai para o banco: estorno e resgate são gravados negativos (o resgate subido de
+    // novo não casava e a conferência prometia "anotar 1" que a gravação pulava).
+    it.amount > 0 && !it.installment && yearMonthFromISO(it.date)
+      ? chaveSoltaDe(it.date, (it.estorno && it.category === "EXPENSE") || (it.resgate && it.category === "INVESTMENT_CONTRIBUTION") ? -it.amount : it.amount, it.category)
+      : null,
   );
   const casados = casarPorDataEValor(chaves, items.map((it) => it.description), existentes, { perguntar: true });
   for (const [i, c] of casados) {
+    if (items[i].possivelDuplicata || items[i].jaNoApp || items[i].ignorar) continue;
+    // Mesmo dia, valor e nome de uma linha que já veio de outro arquivo (14/10/2026): a gravação
+    // pula sozinha, e a tela dizia "Pronto, anotar 10" para depois dizer "Nada novo". Agora a
+    // conferência já mostra "10 já estavam no app" e conta só o que é novo.
+    if (c.tipo === "mesmo") {
+      items[i].jaNoApp = { descricao: items[i].description, data: items[i].date, id: "", valor: items[i].amount, importado: true };
+      continue;
+    }
     // A pergunta do lançamento à mão já cobre a linha: uma pergunta por linha.
-    if (c.tipo !== "parecido" || items[i].possivelDuplicata || items[i].jaNoApp) continue;
+    if (c.tipo !== "parecido") continue;
     items[i].possivelDuplicata = { descricao: c.descricao ?? "(sem descrição)", data: items[i].date, importado: true };
   }
 }
@@ -1009,6 +1055,7 @@ export async function importTransactionsAction(
   // Fatura: os meses em que esta importação gravou compra (não as parcelas projetadas).
   const mesesDasComprasCriadas = new Map<string, { year: number; month: number }>();
   let created = 0;
+  let parcelasFuturas = 0;
   let skipped = 0;
 
   // Todo upload vira um "lote": é o que dá o histórico de importações e permite desfazer o
@@ -1418,6 +1465,7 @@ export async function importTransactionsAction(
         pessoa: pessoaPara(profileId),
       });
       created += 1;
+      parcelasFuturas += 1;
       touchedMonths.add(`${d.getFullYear()}/${d.getMonth() + 1}`);
     }
   };
@@ -1540,7 +1588,8 @@ export async function importTransactionsAction(
   // vencimento lido, o último mês das compras.
   const mesDoPagamento = faturaTarget ?? mesDaData(datasDaFatura.vencimento) ?? contextoFatura?.limite ?? null;
   const cardPaymentCandidates =
-    ehFatura && mesDoPagamento && created > 0 ? await findCardPaymentCandidates(ctx, mesDoPagamento.year, mesDoPagamento.month) : [];
+    // A fatura ABERTA (prints) ainda não foi paga: o pagamento que aparecia era o da fatura anterior.
+    ehFatura && !aberta && mesDoPagamento && created > 0 ? await findCardPaymentCandidates(ctx, mesDoPagamento.year, mesDoPagamento.month) : [];
 
   for (const key of touchedMonths) {
     const [year, month] = key.split("/");
@@ -1569,7 +1618,7 @@ export async function importTransactionsAction(
     created,
     skipped,
   });
-  return { ok: true, created, skipped, cardPaymentCandidates };
+  return { ok: true, created, skipped, cardPaymentCandidates, parcelasFuturas };
 }
 
 /**

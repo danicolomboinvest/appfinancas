@@ -347,3 +347,12 @@ describe("mais de um banco", () => {
     expect(posicaoDaRenda(900000)).toBe(1000);
   });
 });
+
+describe("rotuloDaLeitura", () => {
+  it("fatura (e prints) diz fatura; antes de ler não chuta o tipo", async () => {
+    const { rotuloDaLeitura } = await import("../comeco");
+    expect(rotuloDaLeitura(true, "fatura")).toBe("Fatura lida");
+    expect(rotuloDaLeitura(true, "extrato")).toBe("Extrato lido");
+    expect(rotuloDaLeitura(false, "extrato")).toBe("Lendo o seu arquivo");
+  });
+});

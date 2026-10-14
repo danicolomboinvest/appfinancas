@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import type { AuthContext } from "@/lib/auth/session";
-import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
+import { contextoDaConta } from "@/lib/auth/session";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
-import { lerPreferenciasDeCategoria } from "@/lib/categories";
-import { chaveDoTema, preferenciaDeModo } from "@/lib/profiles/themes";
+import { preferenciaDeModo } from "@/lib/profiles/themes";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { carregarFoco } from "@/app/(app)/mensal/foco/dados";
 import { chaveDoCabecalho, donoDaChave } from "@/lib/widget/token";
@@ -29,15 +27,8 @@ export async function GET(request: Request) {
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, currency: true, theme: true } });
   if (!user) return NextResponse.json({ erro: "chave-invalida" }, { status: 401, headers: SEM_CACHE });
-  const perfil = await getOrCreateActiveProfile(user.id);
-  const ctx: AuthContext = {
-    userId: user.id,
-    role: user.role,
-    profileId: perfil.id,
-    profileTheme: chaveDoTema(perfil.theme),
-    profileKind: perfil.kind,
-    categorias: { kind: perfil.kind, prefs: lerPreferenciasDeCategoria(perfil.categorias) },
-  };
+  // O mesmo contexto do app (o casal e o par inclusos): o widget nunca diz outra coisa.
+  const ctx = await contextoDaConta(user);
 
   try {
     const [d, metas] = await Promise.all([carregarFoco(ctx), listGoalsWithProgress(ctx)]);

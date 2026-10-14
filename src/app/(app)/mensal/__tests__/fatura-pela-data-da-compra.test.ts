@@ -304,6 +304,18 @@ describe("pagamento da fatura no extrato", () => {
     expect(r.cardPaymentCandidates.map((c) => c.description)).toEqual(["Pagamento de fatura"]);
   });
 
+  it("prints da fatura ABERTA não oferecem tirar o pagamento: ela ainda não foi paga (14/10/2026)", async () => {
+    const { items } = await ler("extrato", extrato);
+    await importTransactionsAction(
+      items.filter((i) => !i.ignorar).map((i) => ({ ...i, learn: false, parentCategory: i.parentCategory ?? "OUTROS" })),
+      "extrato",
+    );
+    const r = await importTransactionsAction(FATURA_SETEMBRO, "fatura", undefined, undefined, "2 prints da fatura aberta", null, null, SET, true);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.created).toBeGreaterThan(0);
+    expect(r.cardPaymentCandidates).toEqual([]);
+  });
+
   it("só a fatura de agosto no app: o pagamento de setembro não some", async () => {
     await importarFatura([compra("2026-07-20", "MERCADO", 100), compra("2026-08-02", "POSTO", 50)], { vencimento: "2026-08-12", fechamento: "2026-08-05" });
     const { items } = await ler("extrato", extrato);

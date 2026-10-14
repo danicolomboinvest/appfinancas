@@ -35,6 +35,7 @@ import { casaNaTela } from "@/lib/casa/regras";
 import { DuasBolinhas } from "@/components/casa/Pessoas";
 import { CartaoAcerto } from "./CartaoAcerto";
 import { ResumoNovo } from "./novo/ResumoNovo";
+import { ResumoDoMesPassado } from "./novo/ResumoDoMesPassado";
 import type { CorDoHeroi } from "./novo/Heroi";
 import { ehFuturo } from "@/lib/visao-geral/periodo";
 import { carregarMesesPrevistos } from "@/lib/repositories/previsao.repo";
@@ -69,8 +70,10 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   // O Resumo novo (proposta de 14/10/2026) vale para todos desde 15/10 (a Dani escolheu a cor A,
   // a de hoje). ?resumo=antigo ainda abre o de antes, por um tempo, para comparar.
   // ?cor=a|b|c troca só a cor do bloco principal.
+  const cor: CorDoHeroi = um(busca.cor) === "b" ? "b" : um(busca.cor) === "c" ? "c" : "a";
+  // Mês que já passou (14/10/2026, pedido da Dani): como foi o fechamento dele, não a semana de agora.
+  if (um(busca.resumo) !== "antigo" && outroMes) return <ResumoDoMesPassado ctx={ctx} mes={outroMes} agora={mesDeAgora(agora)} cor={cor} />;
   if (um(busca.resumo) !== "antigo" && !outroMes) {
-    const cor: CorDoHeroi = um(busca.cor) === "b" ? "b" : um(busca.cor) === "c" ? "c" : "a";
     // Para a foto dos dias 1 a 7 no banco local: ?hoje=AAAA-MM-DD só vale com a variável ligada.
     const hojeTexto = um(busca.hoje);
     const hojeDeTeste = process.env.RESUMO_NOVO_HOJE_DE_TESTE === "1" && hojeTexto && /^\d{4}-\d{2}-\d{2}$/.test(hojeTexto) ? new Date(`${hojeTexto}T12:00:00`) : null;

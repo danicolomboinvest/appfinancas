@@ -112,6 +112,37 @@ export async function getRequiredSession(): Promise<AuthContext> {
 }
 
 /**
+ * O mesmo contexto do getRequiredSession, a partir só do id da conta (o widget do iPhone, que entra
+ * com a chave dele e não tem sessão). Sem isto o widget do casal somava só os gastos de quem
+ * olha e lia o orçamento errado: o Resumo dizia uma coisa e o widget outra.
+ */
+export async function contextoDaConta(user: { id: string; role: AuthContext["role"] }): Promise<AuthContext> {
+  const doPar = await perfilDoPar(user.id);
+  if (doPar) {
+    return {
+      userId: user.id,
+      role: user.role,
+      profileId: doPar.perfil.id,
+      profileTheme: chaveDoTema(doPar.perfil.theme),
+      profileKind: doPar.perfil.kind,
+      categorias: { kind: doPar.perfil.kind, prefs: lerPreferenciasDeCategoria(doPar.perfil.categorias) },
+      par: doPar.par,
+      donoId: doPar.par.donoId,
+    };
+  }
+  const [perfil, casa] = await Promise.all([getOrCreateActiveProfile(user.id), casaDoUsuario(user.id)]);
+  return {
+    userId: user.id,
+    role: user.role,
+    profileId: perfil.id,
+    profileTheme: chaveDoTema(perfil.theme),
+    profileKind: perfil.kind,
+    categorias: { kind: perfil.kind, prefs: lerPreferenciasDeCategoria(perfil.categorias) },
+    casa: casa && casa.eu.profileId === perfil.id ? casa : null,
+  };
+}
+
+/**
  * O filtro de dono de um registro com escopo de perfil.
  *
  * Existe pra dar um nome ao que antes era `{ userId: ctx.userId }` espalhado: agora o par

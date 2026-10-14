@@ -718,3 +718,12 @@ export function montarFunilDoComeco(contagem: Partial<Record<string, number>>): 
     { rotulo: "Pediu ajuda do banco", pessoas: n("comeco_banco") },
   ];
 }
+
+/**
+ * A linha de cima enquanto o arquivo é lido e depois (14/10/2026): dizia "Extrato lido" também
+ * para a fatura e para os prints. Antes de ler, o app ainda não sabe o tipo: "Lendo o seu arquivo".
+ */
+export function rotuloDaLeitura(lido: boolean, tipo: "extrato" | "fatura" | null | undefined): string {
+  if (!lido) return "Lendo o seu arquivo";
+  return tipo === "fatura" ? "Fatura lida" : "Extrato lido";
+}

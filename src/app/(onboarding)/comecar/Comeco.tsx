@@ -32,6 +32,7 @@ import {
   EVENTOS_DO_COMECO,
   faseDoPasso,
   passoAnterior,
+  rotuloDaLeitura,
   teclarValor,
   type BancoDoComeco,
   type Comeco as DadosDoComeco,
@@ -699,7 +700,7 @@ function Lendo({ money, onTerminar, onOutroArquivo, onAjuda }: { money: Money; o
         <>
           <p className="flex items-center gap-2 text-[13.5px] font-medium text-ink-muted" aria-live="polite">
             <FileText size={16} aria-hidden />
-            <span className="min-w-0 flex-1">{lido ? "Extrato lido" : "Lendo o seu extrato"}</span>
+            <span className="min-w-0 flex-1">{rotuloDaLeitura(lido, estado?.tipo)}</span>
             {lido && estado ? (
               <b className="text-[12.5px] font-semibold text-success">
                 {estado.linhas} de {estado.linhas}

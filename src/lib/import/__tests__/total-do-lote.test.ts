@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { totalDoLote } from "../total-do-lote";
+import { parcelasProjetadas, totalDoLote } from "../total-do-lote";
 
 const l = (amount: number, category: string, month = 9, year = 2026) => ({ amount, category, year, month });
 
@@ -20,5 +20,26 @@ describe("totalDoLote", () => {
   it("fatura: estorno desconta; lote vazio dá zero", () => {
     expect(totalDoLote("fatura", [l(300, "EXPENSE"), l(-50, "EXPENSE")])).toBe(250);
     expect(totalDoLote("fatura", [])).toBe(0);
+  });
+});
+
+describe("totalDoLote com as descrições (cada compra no mês dela, 14/10/2026)", () => {
+  const d = (amount: number, description: string, month: number, category = "EXPENSE") => ({ amount, category, year: 2026, month, description });
+
+  it("fatura que fecha no dia 5 grava em dois meses: o total soma os dois", () => {
+    // Compras de 10/09 a 04/10: setembro e outubro. Antes só setembro entrava (R$ 300 em vez de 500).
+    expect(totalDoLote("fatura", [d(100, "Mercado", 9), d(200, "Posto", 9), d(200, "Farmácia", 10)])).toBe(500);
+  });
+
+  it("as parcelas projetadas ficam de fora; a parcela que veio na fatura entra", () => {
+    const lote = [d(80, "Netflix", 9), d(150, "Loja Casa Nova - Parcela 2/3", 9), d(150, "Loja Casa Nova - Parcela 3/3", 10), d(-30, "Estorno Loja", 9)];
+    expect(totalDoLote("fatura", lote)).toBe(200);
+    expect([...parcelasProjetadas(lote)]).toEqual([2]);
+  });
+
+  it("duas compras parceladas diferentes na mesma fatura entram as duas", () => {
+    const lote = [d(50, "Loja A PARC 01/02", 9), d(70, "Loja B PARC 03/05", 9), d(50, "Loja A PARC 02/02", 10), d(70, "Loja B PARC 04/05", 10), d(70, "Loja B PARC 05/05", 11)];
+    expect(totalDoLote("fatura", lote)).toBe(120);
+    expect(parcelasProjetadas(lote).size).toBe(3);
   });
 });
