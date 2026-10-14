@@ -27,6 +27,8 @@ type Linha = {
 
 const banco: Linha[] = [];
 let proximoId = 0;
+/** O tipo de cada lote criado ("extrato"/"fatura"): o `importBatch: { is: { docType } }` do where. */
+const tipoDoLote = new Map<string, string>();
 /** O que `prisma.importBatch.count` responde: quantas faturas ela importou nos últimos 120 dias. */
 let faturasRecentes = 0;
 
@@ -34,6 +36,13 @@ let faturasRecentes = 0;
 function bate(e: Record<string, unknown>, where: Record<string, unknown>): boolean {
   return Object.entries(where).every(([campo, cond]) => {
     if (campo === "OR") return (cond as Record<string, unknown>[]).some((w) => bate(e, w));
+    // Só o tipo do lote; o resto do `importBatch` (profileId, faturaAberta) passa, como antes.
+    if (campo === "importBatch" && (cond as { is: Record<string, unknown> }).is.docType !== undefined) {
+      const tipo = tipoDoLote.get((e.importBatchId as string | null) ?? "");
+      if (tipo === undefined) return false;
+      const doc = (cond as { is: { docType: unknown } }).is.docType;
+      return doc && typeof doc === "object" ? tipo !== (doc as { not: string }).not : tipo === doc;
+    }
     const valor = e[campo];
     if (cond === null) return valor === null || valor === undefined;
     if (cond && typeof cond === "object" && !(cond instanceof Date)) {
@@ -88,7 +97,11 @@ vi.mock("@/lib/repositories/monthly-entry.repo", () => ({
 }));
 let lote = 0;
 vi.mock("@/lib/repositories/import-batch.repo", () => ({
-  createImportBatch: vi.fn(async () => ({ id: `lote-${++lote}` })),
+  createImportBatch: vi.fn(async (_ctx: unknown, { docType }: { docType: string }) => {
+    const id = `lote-${++lote}`;
+    tipoDoLote.set(id, docType);
+    return { id };
+  }),
   deleteEmptyImportBatch: vi.fn(async () => {}),
   deleteImportBatchWithEntries: vi.fn(async () => 0),
 }));
@@ -109,7 +122,7 @@ vi.mock("@/lib/repositories/import-diagnostic.repo", () => ({
 }));
 vi.mock("@/lib/repositories/import-file.repo", () => ({ storeFailedImportFile: vi.fn(async () => {}) }));
 
-const { importTransactionsAction, parseStatementAction, removeCardPaymentCandidateAction } = await import("../import-actions");
+const { importTransactionsAction, parseStatementAction } = await import("../import-actions");
 const customCategoryRepo = await import("@/lib/repositories/custom-category.repo");
 type ReviewItem = Extract<Awaited<ReturnType<typeof parseStatementAction>>, { ok: true }>["items"][number];
 
@@ -184,6 +197,7 @@ const desfazer = (loteId: string) => {
 
 beforeEach(() => {
   banco.length = 0;
+  tipoDoLote.clear();
   faturasRecentes = 0;
 });
 
@@ -197,16 +211,16 @@ describe("extrato e fatura do mesmo mês: o pagamento da fatura não conta duas 
   ];
   const faturaSetembro = ["20/08/2026;MERCADO EXTRA;1500,00", "02/09/2026;FARMACIA PAGUE MENOS;800,00", "05/09/2026;POSTO SHELL;500,00"];
 
-  it("extrato ANTES da fatura: a fatura oferece o pagamento do extrato pra remover, e remover deixa o mês certo", async () => {
+  // 14/10/2026: a fatura só OFERECIA tirar o pagamento, e a oferta se perdia no /comecar e no lote
+  // de vários arquivos (o mês contava a fatura duas vezes). Agora sai sozinho, pela mesma regra de
+  // quando a fatura vem antes.
+  it("extrato ANTES da fatura: o pagamento do extrato sai sozinho quando a fatura chega", async () => {
     await importar("extrato", extratoSetembro);
     expect(gastouNoMes(2026, 9)).toBe(2818.5); // sem fatura ainda, o pagamento é o gasto do cartão
     const r = await importar("fatura", faturaSetembro, "2026-09");
     if (!r.ok) throw new Error(r.error);
-    expect(r.cardPaymentCandidates).toHaveLength(1);
-    expect(r.cardPaymentCandidates[0]).toMatchObject({ description: "Pagamento de fatura", amount: 2800, date: "2026-09-08" });
-    // Antes de remover: fatura e pagamento contando juntos (a tela pergunta justamente isso).
-    expect(gastouNoMes(2026, 9)).toBe(5618.5);
-    await removeCardPaymentCandidateAction(r.cardPaymentCandidates[0].id);
+    expect(r.pagamentosTirados).toEqual([expect.objectContaining({ description: "Pagamento de fatura", amount: 2800, date: "2026-09-08" })]);
+    expect(r.cardPaymentCandidates).toEqual([]);
     expect(gastouNoMes(2026, 9)).toBe(2818.5); // 2.800 de compras + 18,50 da padaria
   });
 
@@ -250,22 +264,23 @@ describe("extrato e fatura do mesmo mês: o pagamento da fatura não conta duas 
     expect(items.find((i) => i.description.startsWith("Pagto cart"))?.ignorar).toBe(true);
   });
 
-  it("extrato do BB antes da fatura: o 'Pagto cartão crédito' aparece pra remover", async () => {
+  it("extrato do BB antes da fatura: o 'Pagto cartão crédito' sai sozinho", async () => {
     await importar("extrato", ["05/09/2026;Salário;5000,00", "08/09/2026;Pagto cartão crédito VISA;-2800,00"]);
     const r = await importar("fatura", faturaSetembro, "2026-09");
     if (!r.ok) throw new Error(r.error);
-    expect(r.cardPaymentCandidates).toHaveLength(1);
+    expect(r.pagamentosTirados).toHaveLength(1);
+    expect(gastouNoMes(2026, 9)).toBe(2800);
   });
 
   // ERA DEFEITO (corrigido em set/2026): as duas regras de "pagamento de fatura" do import não concordam. "PGTO FATURA" e
   // "PAGTO FATURA" passam em `parecePagamentoDeFatura` (dinheiro-proprio.ts:37, que aceita
   // pgto/pag) mas não em `looksLikeCardPayment` (import-actions.ts:382, que só aceita
   // "pagament" ou "cartão"): com o extrato subido antes, a fatura não oferece remover.
-  it("extrato com 'PGTO FATURA' subido antes da fatura: aparece pra remover", async () => {
+  it("extrato com 'PGTO FATURA' subido antes da fatura: sai sozinho", async () => {
     await importar("extrato", ["05/09/2026;Salário;5000,00", "08/09/2026;PGTO FATURA NUBANK;-2800,00"]);
     const r = await importar("fatura", faturaSetembro, "2026-09");
     if (!r.ok) throw new Error(r.error);
-    expect(r.cardPaymentCandidates.map((c) => c.description)).toEqual(["PGTO FATURA NUBANK"]);
+    expect(r.pagamentosTirados?.map((c) => c.description)).toEqual(["PGTO FATURA NUBANK"]);
   });
 
   // ERA DEFEITO (corrigido em set/2026): "Pagamento de fatura CLARO" é a conta do celular, não o cartão. Com uma fatura de
@@ -292,6 +307,52 @@ describe("extrato e fatura do mesmo mês: o pagamento da fatura não conta duas 
     const r = await importar("fatura", faturaSetembro, "2026-09");
     if (!r.ok) throw new Error(r.error);
     expect(r.cardPaymentCandidates.map((c) => c.id)).toEqual(["mao"]);
+  });
+});
+
+// ---------------------------------------------------------------- fatura pela data da compra (14/10/2026)
+
+describe("pagamento da fatura com a fatura pela data da compra (conta-exemplo de 14/10/2026)", () => {
+  // O ciclo de setembro (compras de 1 a 26/09) pago em 08/10, como o OFX do Nubank.
+  const faturaSetembro = ["01/09/2026;IFOOD;640,00", "12/09/2026;UBER;500,00", "26/09/2026;RENNER;740,47"];
+  const extratoOutubro = ["05/10/2026;Salário;4380,00", "08/10/2026;PAGAMENTO DE FATURA - NUBANK;-1880,47", "09/10/2026;Padaria;-29,68"];
+
+  it("vários arquivos: os dois lidos antes, a fatura gravada primeiro e o extrato depois, o pagamento não entra", async () => {
+    const fatura = await ler("fatura", faturaSetembro);
+    const extrato = await ler("extrato", extratoOutubro);
+    // Na leitura a fatura ainda não estava no app: o pagamento veio como gasto do cartão.
+    expect(extrato.find((i) => i.description.startsWith("PAGAMENTO"))).toMatchObject({ subcategory: "Cartão de crédito" });
+    await importTransactionsAction(confirmar(fatura), "fatura");
+    const r = await importTransactionsAction(confirmar(extrato), "extrato");
+    if (!r.ok) throw new Error(r.error);
+    expect(gastouNoMes(2026, 10)).toBe(29.68);
+  });
+
+  it("vários arquivos: o extrato gravado primeiro e a fatura depois, o pagamento sai sozinho", async () => {
+    const extrato = await ler("extrato", extratoOutubro);
+    const fatura = await ler("fatura", faturaSetembro);
+    await importTransactionsAction(confirmar(extrato), "extrato");
+    expect(gastouNoMes(2026, 10)).toBe(1910.15);
+    const r = await importTransactionsAction(confirmar(fatura), "fatura");
+    if (!r.ok) throw new Error(r.error);
+    expect(r.pagamentosTirados?.map((p) => p.amount)).toEqual([1880.47]);
+    expect(gastouNoMes(2026, 10)).toBe(29.68);
+    expect(gastouNoMes(2026, 9)).toBe(1880.47);
+  });
+
+  it("a fatura do MESMO mês do pagamento não leva o pagamento da fatura anterior", async () => {
+    // Fatura de agosto (1 a 28/08) no app; o pagamento de 08/08 é da fatura de JULHO, que não está.
+    await importar("fatura", ["01/08/2026;IFOOD;600,00", "15/08/2026;UBER;400,00", "28/08/2026;RENNER;815,80"]);
+    const extrato = await ler("extrato", ["05/08/2026;Salário;4380,00", "08/08/2026;PAGAMENTO DE FATURA - NUBANK;-1815,80"]);
+    expect(extrato.find((i) => i.description.startsWith("PAGAMENTO"))?.ignorar).toBeFalsy();
+  });
+
+  it("dois cartões pagos no mesmo mês e só uma fatura no app: sai só o pagamento de valor mais perto", async () => {
+    await importar("extrato", ["05/10/2026;Salário;4380,00", "08/10/2026;PAGAMENTO DE FATURA - NUBANK;-1880,47", "10/10/2026;PAGTO FATURA ITAUCARD;-3200,00"]);
+    const r = await importar("fatura", faturaSetembro);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.pagamentosTirados?.map((p) => p.description)).toEqual(["PAGAMENTO DE FATURA - NUBANK"]);
+    expect(r.cardPaymentCandidates.map((c) => c.description)).toEqual(["PAGTO FATURA ITAUCARD"]);
   });
 });
 

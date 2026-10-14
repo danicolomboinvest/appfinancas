@@ -59,6 +59,8 @@ import {
   mesesDaMesmaFaturaAntiga,
   mesesDasCompras,
   pagamentoDoCartao,
+  pagamentosDaFatura,
+  pagamentoTemFatura,
   somarMeses,
   type ContextoDaFatura,
   type Destino,
@@ -669,6 +671,8 @@ export type ImportResult =
       created: number;
       skipped: number;
       cardPaymentCandidates: CardPaymentCandidate[];
+      /** Pagamentos da fatura que o extrato tinha gravado como gasto e saíram sozinhos com ela. */
+      pagamentosTirados?: CardPaymentCandidate[];
       /** Quantas das `created` são parcelas dos próximos meses (14/10/2026): a tela dizia "7 compras"
        * na conferência e "8 lançamentos importados" no fim, e a diferença era a parcela 3/3 projetada. */
       parcelasFuturas?: number;
@@ -803,43 +807,101 @@ const DIA_MS = 86_400_000;
 
 
 /**
+ * A fatura que cada pagamento paga já está no app? As compras de fatura dos meses em volta das
+ * datas dos pagamentos (ver pagamentoTemFatura): antes era "importou alguma fatura nos últimos
+ * 120 dias", e o pagamento de um cartão que ela nunca importou sumia do mês.
+ */
+async function comprasDeFaturaEmVolta(ctx: AuthContext, datasDosPagamentos: string[]) {
+  const meses = new Map<string, { year: number; month: number }>();
+  for (const data of datasDosPagamentos) {
+    const m = mesDaData(data);
+    if (!m) continue;
+    for (const d of [-1, 0, 1]) {
+      const v = somarMeses(m, d);
+      meses.set(chaveDoMes(v), v);
+    }
+  }
+  if (meses.size === 0) return [];
+  const compras = await prisma.monthlyEntry.findMany({
+    where: {
+      userId: ctx.userId, profileId: ctx.profileId,
+      category: "EXPENSE",
+      importBatch: { is: { docType: "fatura" } },
+      OR: [...meses.values()],
+    },
+    select: { year: true, month: true, entryDate: true, description: true, amount: true },
+  });
+  return compras.map((e) => ({
+    year: e.year,
+    month: e.month,
+    entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
+    descricao: e.description,
+    valor: Number(e.amount),
+  }));
+}
+
+/**
+ * Extrato gravado com a fatura JÁ no app: o pagamento dela fica de fora, como na leitura. A
+ * leitura decide (separarDinheiroProprio), mas no lote de vários arquivos o extrato é lido antes
+ * de a fatura do mesmo lote ser gravada, e o pagamento entrava como gasto (14/10/2026).
+ */
+async function pagamentosComFaturaNoApp(ctx: AuthContext, items: ConfirmedItem[]): Promise<Set<ConfirmedItem>> {
+  const pagamentos = items.filter(
+    (item) => !item.estorno && item.category === "EXPENSE" && (!item.profileId || item.profileId === ctx.profileId) && parecePagamentoDeFatura(item.description),
+  );
+  if (pagamentos.length === 0) return new Set();
+  const lancamentosDeFatura = await comprasDeFaturaEmVolta(ctx, pagamentos.map((p) => p.date));
+  return new Set(pagamentos.filter((p) => pagamentoTemFatura(p.date, lancamentosDeFatura)));
+}
+
+/**
+ * Fatura gravada DEPOIS do extrato: o pagamento dela que o extrato gravou como gasto sai, pela
+ * mesma regra (ver pagamentosDaFatura). Só o que veio de extrato: o lançado à mão continua sendo
+ * oferecido para ela tirar (findCardPaymentCandidates).
+ */
+async function tirarPagamentosDaFatura(ctx: AuthContext, mesesDasCompras: { year: number; month: number }[]): Promise<CardPaymentCandidate[]> {
+  // O pagamento vem no mês da compra ou no seguinte (até 30 dias depois dela).
+  const meses = new Map<string, { year: number; month: number }>();
+  for (const m of mesesDasCompras) {
+    for (const d of [0, 1]) {
+      const v = somarMeses(m, d);
+      meses.set(chaveDoMes(v), v);
+    }
+  }
+  if (meses.size === 0) return [];
+  const doExtrato = (
+    await prisma.monthlyEntry.findMany({
+      where: {
+        userId: ctx.userId, profileId: ctx.profileId,
+        category: "EXPENSE",
+        importBatch: { is: { docType: { not: "fatura" } } },
+        entryDate: { not: null },
+        OR: [...meses.values()],
+      },
+      select: { id: true, description: true, amount: true, entryDate: true },
+    })
+  ).filter((e) => Number(e.amount) > 0 && parecePagamentoDeFatura(e.description));
+  if (doExtrato.length === 0) return [];
+  const pagamentos = doExtrato.map((e) => ({ id: e.id, data: e.entryDate!.toISOString().slice(0, 10), valor: Number(e.amount) }));
+  const daFatura = pagamentosDaFatura(pagamentos, await comprasDeFaturaEmVolta(ctx, pagamentos.map((p) => p.data)));
+  if (daFatura.size === 0) return [];
+  await prisma.monthlyEntry.deleteMany({ where: { id: { in: [...daFatura] }, userId: ctx.userId, profileId: ctx.profileId } });
+  return pagamentos
+    .filter((p) => daFatura.has(p.id))
+    .map((p) => ({ id: p.id, description: doExtrato.find((e) => e.id === p.id)?.description ?? "Pagamento de fatura", amount: p.valor, date: p.data }));
+}
+
+/**
  * Extrato: separa o dinheiro dela indo pra ela mesma (ver lib/import/dinheiro-proprio). Aplicação
  * vira aporte sozinha e o resgate entra sozinho como resgate; pagamento de fatura fica de fora pra
  * quem importa a fatura; transferência pra conta própria vira pergunta na revisão.
  */
 async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
-  // A fatura que cada pagamento paga já está no app? Busca as compras de fatura dos meses em
-  // volta dos pagamentos (ver pagamentoTemFatura): antes era "importou alguma fatura nos últimos
-  // 120 dias", e o pagamento de um cartão que ela nunca importou sumia do mês.
-  const mesesDosPagamentos = new Map<string, { year: number; month: number }>();
-  for (const item of items) {
-    const m = mesDaData(item.date);
-    if (!m || item.estorno || item.category !== "EXPENSE" || !parecePagamentoDeFatura(item.description)) continue;
-    for (const d of [-1, 0, 1]) {
-      const v = somarMeses(m, d);
-      mesesDosPagamentos.set(chaveDoMes(v), v);
-    }
-  }
-  const [usuario, comprasDeFatura] = await Promise.all([
+  const pagamentos = items.filter((item) => !item.estorno && item.category === "EXPENSE" && parecePagamentoDeFatura(item.description)).map((item) => item.date);
+  const [usuario, lancamentosDeFatura] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
-    mesesDosPagamentos.size === 0
-      ? Promise.resolve([])
-      : prisma.monthlyEntry.findMany({
-          where: {
-            userId: ctx.userId, profileId: ctx.profileId,
-            category: "EXPENSE",
-            importBatch: { is: { docType: "fatura" } },
-            OR: [...mesesDosPagamentos.values()],
-          },
-          select: { year: true, month: true, entryDate: true, description: true },
-        }),
+    comprasDeFaturaEmVolta(ctx, pagamentos),
   ]);
-  const lancamentosDeFatura = comprasDeFatura.map((e) => ({
-    year: e.year,
-    month: e.month,
-    entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
-    descricao: e.description,
-  }));
   for (const item of items) {
     if (item.estorno) continue;
     if (item.category === "EXPENSE") {
@@ -1050,13 +1112,16 @@ export async function importTransactionsAction(
   // sem perfil próprio iam pro ATIVO na hora do toque: trocar de perfil noutro aparelho no meio
   // da revisão punha o extrato inteiro da Empresa no Pessoal, com o lote no histórico errado.
   if (trocouDePerfil(perfilDaTela, ctx.profileId)) return { ok: false, error: MSG_TROCOU_DE_PERFIL };
+  // Extrato com a fatura do pagamento já no app (gravada depois da leitura, no mesmo lote).
+  const pagamentosCobertos = docType === "extrato" ? await pagamentosComFaturaNoApp(ctx, items) : new Set<ConfirmedItem>();
+  if (pagamentosCobertos.size > 0) items = items.filter((item) => !pagamentosCobertos.has(item));
   const now = new Date();
   const touchedMonths = new Set<string>();
   // Fatura: os meses em que esta importação gravou compra (não as parcelas projetadas).
   const mesesDasComprasCriadas = new Map<string, { year: number; month: number }>();
   let created = 0;
   let parcelasFuturas = 0;
-  let skipped = 0;
+  let skipped = pagamentosCobertos.size;
 
   // Todo upload vira um "lote": é o que dá o histórico de importações e permite desfazer o
   // arquivo inteiro depois (upload errado/duplicado). Se nada for criado, o lote é removido.
@@ -1587,6 +1652,9 @@ export async function importTransactionsAction(
   // O pagamento sai perto do vencimento: é em volta dele que o extrato tem a linha. Sem o
   // vencimento lido, o último mês das compras.
   const mesDoPagamento = faturaTarget ?? mesDaData(datasDaFatura.vencimento) ?? contextoFatura?.limite ?? null;
+  // O pagamento que é desta fatura sai sozinho (antes de listar o que ela ainda pode tirar).
+  const pagamentosTirados = ehFatura && !aberta && created > 0 ? await tirarPagamentosDaFatura(ctx, [...mesesDasComprasCriadas.values()]) : [];
+  for (const p of pagamentosTirados) if (p.date) touchedMonths.add(`${Number(p.date.slice(0, 4))}/${Number(p.date.slice(5, 7))}`);
   const cardPaymentCandidates =
     // A fatura ABERTA (prints) ainda não foi paga: o pagamento que aparecia era o da fatura anterior.
     ehFatura && !aberta && mesDoPagamento && created > 0 ? await findCardPaymentCandidates(ctx, mesDoPagamento.year, mesDoPagamento.month) : [];
@@ -1618,7 +1686,7 @@ export async function importTransactionsAction(
     created,
     skipped,
   });
-  return { ok: true, created, skipped, cardPaymentCandidates, parcelasFuturas };
+  return { ok: true, created, skipped, cardPaymentCandidates, pagamentosTirados, parcelasFuturas };
 }
 
 /**

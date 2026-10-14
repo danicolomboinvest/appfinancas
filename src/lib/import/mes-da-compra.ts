@@ -269,12 +269,19 @@ export function mesesDaMesmaFaturaAntiga(itens: { valor: number; descricao: stri
 
 export type LancamentoDeFatura = { year: number; month: number; entryDate: string | null; descricao: string | null };
 
+/** Compra com dia entre 30 e 8 dias antes do pagamento: é do ciclo que ele paga (ver pagamentoTemFatura). */
+const CICLO_PAGO = { de: 30 * DIA_MS, ate: 8 * DIA_MS };
+
 /**
  * A fatura que este pagamento paga já está no app? Só compra à vista conta (a parcela projetada
  * por uma fatura antiga cai em todos os meses seguintes e não diz nada). Compra com dia (modelo
- * novo): alguma nos 30 dias antes do pagamento, que é o ciclo da fatura paga ali (a anterior
- * fechou mais de um mês antes). Sem dia (modelo antigo, tudo no mês do vencimento): o mês do
- * pagamento, ou o vizinho quando ele foi pago na virada (até 7 dias da troca de mês).
+ * novo): alguma entre 30 e 8 dias antes do pagamento, que é o ciclo da fatura paga ali (a anterior
+ * fechou mais de um mês antes). A última semana antes do pagamento fica de fora: a fatura fecha
+ * uns 7 dias antes do vencimento, e a compra desses dias já é da fatura SEGUINTE (14/10/2026: com
+ * a fatura de agosto no app, o pagamento de 08/08, que é da fatura de julho, sumia por causa das
+ * compras de 1 a 8/08, e agosto ficava R$ 1.815 mais barato do que foi). Sem dia (modelo antigo, tudo no mês do
+ * vencimento): o mês do pagamento, ou o vizinho quando ele foi pago na virada (até 7 dias da troca
+ * de mês).
  */
 export function pagamentoTemFatura(dataPagamento: string, lancamentos: LancamentoDeFatura[]): boolean {
   const pago = mesDaData(dataPagamento);
@@ -287,8 +294,8 @@ export function pagamentoTemFatura(dataPagamento: string, lancamentos: Lancament
   return lancamentos.some((l) => {
     if (parseInstallment(l.descricao)?.confident) return false;
     if (l.entryDate) {
-      const e = instante(l.entryDate);
-      return e <= t && t - e <= 30 * DIA_MS;
+      const antes = t - instante(l.entryDate);
+      return antes >= CICLO_PAGO.ate && antes <= CICLO_PAGO.de;
     }
     return meses.has(chaveDoMes({ year: l.year, month: l.month }));
   });
@@ -316,4 +323,37 @@ export function pagamentoDoCartao(
   return pagamentoTemFatura(dataPagamento, lancamentosDeFatura)
     ? { ignorar: true, nota: NOTA_PAGAMENTO_COM_FATURA }
     : { parentCategory: "OUTROS", customCategoryId: null, subcategory: "Cartão de crédito", autoClassified: true, nota: NOTA_PAGAMENTO_SEM_FATURA };
+}
+
+export type PagamentoNoApp = { id: string; data: string; valor: number };
+
+/**
+ * A fatura chegou DEPOIS do extrato (ou no mesmo lote, ou pelo /comecar): quais pagamentos que o
+ * extrato já gravou como gasto são desta fatura e saem sozinhos, pela mesma regra que deixa o
+ * pagamento de fora quando a fatura vem antes (pagamentoTemFatura). Antes só a tela de importação
+ * oferecia "tirar", e o /comecar e o lote de vários arquivos perdiam a oferta: o mês contava a
+ * fatura duas vezes ("R$ 4.856 saíram" com R$ 2.976 de verdade, 14/10/2026).
+ *
+ * No máximo UM por mês de pagamento, o de valor mais perto das compras do ciclo que ele paga: com
+ * dois cartões e só uma fatura no app, o pagamento do outro cartão continua sendo gasto (e a tela
+ * ainda oferece tirar, quando aparece).
+ */
+export function pagamentosDaFatura(pagamentos: PagamentoNoApp[], lancamentos: (LancamentoDeFatura & { valor: number })[]): Set<string> {
+  const porMes = new Map<string, { id: string; distancia: number }>();
+  for (const p of pagamentos) {
+    const mes = mesDaData(p.data);
+    if (!mes || !pagamentoTemFatura(p.data, lancamentos)) continue;
+    const t = instante(p.data);
+    const doCiclo = lancamentos.filter((l) => {
+      if (parseInstallment(l.descricao)?.confident) return false;
+      if (!l.entryDate) return l.year === mes.year && l.month === mes.month;
+      const antes = t - instante(l.entryDate);
+      return antes >= CICLO_PAGO.ate && antes <= CICLO_PAGO.de;
+    });
+    const distancia = Math.abs(doCiclo.reduce((s, l) => s + l.valor, 0) - p.valor);
+    const k = chaveDoMes(mes);
+    const atual = porMes.get(k);
+    if (!atual || distancia < atual.distancia) porMes.set(k, { id: p.id, distancia });
+  }
+  return new Set([...porMes.values()].map((v) => v.id));
 }

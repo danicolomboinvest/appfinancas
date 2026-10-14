@@ -10,6 +10,7 @@ import {
   mesesDasCompras,
   pagamentoDoCartao,
   pagamentoTemFatura,
+  pagamentosDaFatura,
   somarMeses,
   type ContextoDaFatura,
 } from "../mes-da-compra";
@@ -188,5 +189,20 @@ describe("pagamento da fatura no extrato", () => {
   });
   it("parcela projetada por fatura antiga não conta como 'a fatura está no app'", () => {
     expect(pagamentoTemFatura("2026-09-12", [{ year: 2026, month: 9, entryDate: null, descricao: "SOFA PARC 05/10" }])).toBe(false);
+  });
+  it("compra da última semana antes do pagamento é da fatura SEGUINTE (pago 08/08 com só a fatura de agosto no app)", () => {
+    expect(pagamentoTemFatura("2026-08-08", [compraNova("2026-08-01"), compraNova("2026-08-05"), compraNova("2026-08-28")])).toBe(false);
+    expect(pagamentoTemFatura("2026-10-08", [compraNova("2026-09-01"), compraNova("2026-09-26")])).toBe(true);
+  });
+  it("pagamentosDaFatura: um por mês, o de valor mais perto das compras do ciclo", () => {
+    const com = (entryDate: string, valor: number) => ({ ...compraNova(entryDate), valor });
+    const compras = [com("2026-09-01", 640), com("2026-09-12", 500), com("2026-09-26", 740.47)];
+    const pagamentos = [
+      { id: "nubank", data: "2026-10-08", valor: 1880.47 },
+      { id: "itau", data: "2026-10-10", valor: 3200 },
+      { id: "agosto", data: "2026-08-08", valor: 1815.8 },
+    ];
+    expect([...pagamentosDaFatura(pagamentos, compras)]).toEqual(["nubank"]);
+    expect(pagamentosDaFatura([], compras).size).toBe(0);
   });
 });
