@@ -48,7 +48,7 @@ export function SeuPlano({ itens, meses = 1 }: { itens: Item[]; /** Período de 
               </button>
             ))}
           </div>
-          <Explica>Plano é como você dividiu o mês. Feito é o que já saiu de cada categoria; o anel é quanto do plano dela já foi.</Explica>
+          <Explica>Plano é como você dividiu o mês. Feito é o que já saiu. O anel mostra quanto do plano já foi.</Explica>
         </div>
       </div>
       <p className="text-sm text-ink-muted">

@@ -66,7 +66,7 @@ export default async function FechamentoPage() {
     gastou: resumo.totalExpense,
     guardou: resumo.totalInvestment,
     sobrou: sobrouDoResumo(resumo),
-    metas: metas.map((m) => ({ id: m.id, nome: m.name, guardado: porMeta.get(m.id) ?? 0 })),
+    metas: metas.map((m) => ({ id: m.id, nome: m.name, guardado: porMeta.get(m.id) ?? 0, porMes: d.metas.find((x) => x.id === m.id)?.porMes ?? 0 })),
     hrefTransacoes: `/mensal/${year}/${month}`,
     ano: year,
     mesNumero: month,

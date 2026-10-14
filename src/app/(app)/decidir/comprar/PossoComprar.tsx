@@ -37,14 +37,15 @@ const SINCERIDADE: { k: Sinceridade; titulo: string; sub: string }[] = [
   { k: "impulso", titulo: "Impulso", sub: "Vi agora e quis" },
 ];
 
-const PALAVRA: Record<Veredito, string> = { ok: "Cabe", custo: "Cabe se…", nao: "Melhor esperar" };
+// "Cabe se…" não dizia o quê (15/10/2026): agora "Cabe, mas" e logo abaixo o custo concreto.
+const PALAVRA: Record<Veredito, string> = { ok: "Cabe", custo: "Cabe, mas", nao: "Melhor esperar" };
 
 type Passo = 1 | 2 | 3 | 4 | 5 | "resposta" | "meta";
 
 /**
  * "Posso comprar algo?" do protótipo aprovado, até o fim: o que é, quanto custa, como pagar (à
  * vista ou de 2 a 48 vezes), com sinceridade, a confirmação do livre do mês e a resposta (Cabe,
- * Cabe se…, Melhor esperar), com o aviso de plano apertado, "Como cheguei nisso" e "Virar meta".
+ * Cabe, mas…, Melhor esperar), com o aviso de plano apertado, "Como cheguei nisso" e "Virar meta".
  * A conta é a de sempre (`posso-comprar.ts` e `compra-guiada.ts`).
  */
 export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; hoje: { ano: number; mes: number }; parcelasNoMes: number }) {
@@ -400,7 +401,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
           <div className={caixa}>
             <small className="text-caption text-ink-muted">Próximo passo</small>
             <p className="text-[15px] text-ink">
-              {v === "ok" ? "Pode comprar sem culpa. O app acompanha o mês por você." : v === "custo" ? (ok.sugestao ?? "Dá, desde que você aceite o custo de cima. Se quiser, junte antes.") : "Juntar antes e comprar à vista, sem dívida."}
+              {v === "ok" ? "Pode comprar sem culpa. O app acompanha o mês por você." : v === "custo" ? (ok.sugestao ?? `${ok.explicacao} Se preferir, junte antes.`) : "Juntar antes e comprar à vista, sem dívida."}
             </p>
           </div>
           {mudar ? (

@@ -102,3 +102,19 @@ describe("o dia da parcela", () => {
     expect(r.itens.find((i) => i.nome === "Amazon Marketplace Cc")?.dia).toBeNull();
   });
 });
+
+describe("Conta parcelada nos Próximos meses: a parcela anda com o mês", () => {
+  const sofa = { id: "s", nome: "Sofá", valor: 300, parcelas: 10, parcelaAtual: 9, categoria: "OUTROS", diaDoMes: 10, vencimento: "2026-10-10" };
+  it("outubro é a 9 de 10, novembro a 10 (acaba lá), dezembro já não tem", () => {
+    const out = parcelasDoMes([], { year: 2026, month: 10 }, [sofa]).itens;
+    const nov = parcelasDoMes([], { year: 2026, month: 11 }, [sofa]).itens;
+    const dez = parcelasDoMes([], { year: 2026, month: 12 }, [sofa]).itens;
+    expect(out.map((p) => p.atual)).toEqual([9]);
+    expect(nov.map((p) => [p.atual, p.acabaEm])).toEqual([[10, { year: 2026, month: 11 }]]);
+    expect(dez).toEqual([]);
+  });
+  it("sem vencimento, como antes: a parcela de agora", () => {
+    const semData = { ...sofa, vencimento: null };
+    expect(parcelasDoMes([], { year: 2026, month: 12 }, [semData]).itens.map((p) => p.atual)).toEqual([9]);
+  });
+});

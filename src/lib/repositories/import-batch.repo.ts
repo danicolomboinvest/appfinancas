@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { totalDoLote } from "@/lib/import/total-do-lote";
+import { parcelasProjetadas, totalDoLote } from "@/lib/import/total-do-lote";
 import { contaEstaEscondida } from "@/lib/repositories/casa.repo";
 
 /**
@@ -15,7 +15,10 @@ export type ImportBatchSummary = {
   docType: string;
   fileName: string | null;
   createdAt: Date;
+  /** O que o arquivo trouxe (fatura: sem as parcelas projetadas para os meses seguintes). */
   entryCount: number;
+  /** Fatura: as parcelas dos próximos meses que ela lançou (o Desfazer apaga elas também). */
+  parcelasFuturas: number;
   /** Fatura: o total da fatura (sem as parcelas projetadas). Extrato: o saldo com sinal. Ver totalDoLote. */
   totalAmount: number;
   /** Meses (ano/mês) onde os lançamentos deste lote caíram, ex.: ["2026/7"]. */
@@ -40,17 +43,20 @@ export async function listImportBatches(ctx: AuthContext, limit = 20): Promise<I
     where: { userId: ctx.userId, profileId: ctx.profileId },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { entries: { select: { amount: true, category: true, year: true, month: true } } },
+    include: { entries: { select: { amount: true, category: true, year: true, month: true, description: true } } },
   });
   return batches.map((b) => {
     const months = [...new Set(b.entries.map((e) => `${e.year}/${e.month}`))].sort();
+    const lancamentos = b.entries.map((e) => ({ amount: Number(e.amount), category: e.category, year: e.year, month: e.month, description: e.description ?? "" }));
+    const futuras = b.docType === "fatura" ? parcelasProjetadas(lancamentos).size : 0;
     return {
       id: b.id,
       docType: b.docType,
       fileName: b.fileName,
       createdAt: b.createdAt,
-      entryCount: b.entries.length,
-      totalAmount: totalDoLote(b.docType, b.entries.map((e) => ({ amount: Number(e.amount), category: e.category, year: e.year, month: e.month }))),
+      entryCount: b.entries.length - futuras,
+      parcelasFuturas: futuras,
+      totalAmount: totalDoLote(b.docType, lancamentos),
       months,
     };
   });

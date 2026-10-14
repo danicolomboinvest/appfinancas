@@ -66,7 +66,8 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
   const pontual =
     (quando: "mes" | "semana" = "mes", mensagem = t.avisoAnotado) =>
     () =>
-      fazer(() => dispensarAvisoAction(item.id, quando), mensagem);
+      // No aviso de categoria que passou, guarda quanto passava: só volta se passar bem mais.
+      fazer(() => dispensarAvisoAction(item.id, quando, d?.tipo === "estouro" ? d.gasto - d.planejado : undefined), mensagem);
 
   let corpo: React.ReactNode = null;
   if (d?.tipo === "estouro" && remanejo) {
@@ -108,7 +109,12 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
               disabled={salvando}
               titulo={t.avisoPlanoBaixoT}
               sub={t.avisoPlanoBaixoSub(d.label, m(planoNovo))}
-              onClick={() => fazer(() => ajustarOrcamentoAction(d.categoria, planoNovo), t.avisoPlanoBaixoFeito(d.label, m(planoNovo)))}
+              onClick={() =>
+                fazer(async () => {
+                  await ajustarOrcamentoAction(d.categoria, planoNovo);
+                  await dispensarAvisoAction(item.id, "mes", d.gasto - d.planejado);
+                }, t.avisoPlanoBaixoFeito(d.label, m(planoNovo)))
+              }
             />
           )}
           <Botao icone={Check} disabled={salvando} titulo={t.avisoPontualT} sub={t.avisoPontualSub} onClick={pontual()} />

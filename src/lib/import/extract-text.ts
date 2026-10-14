@@ -38,7 +38,14 @@ function causa(err: unknown): string {
 }
 
 /** O arquivo Excel está protegido por senha: o cliente pede a senha e reenvia o mesmo arquivo. */
-export class PasswordRequiredError extends Error {}
+export class PasswordRequiredError extends Error {
+  /** A senha veio e não abriu (a tela pede de novo, com "Senha incorreta"). */
+  readonly senhaErrada: boolean;
+  constructor(message: string, senhaErrada = false) {
+    super(message);
+    this.senhaErrada = senhaErrada;
+  }
+}
 
 /**
  * Muitos bancos exportam o extrato em Excel PROTEGIDO POR SENHA (arquivo criptografado, não é um
@@ -71,7 +78,10 @@ async function decryptIfProtected(buffer: Buffer, password: string | undefined):
   try {
     return await office.decrypt(buffer, { password });
   } catch {
-    throw new UploadReadError("Senha incorreta. Confira a senha do arquivo e tente de novo.");
+    // Pede a senha de novo, como o PDF (14/10/2026). Como erro de leitura, o Excel da lista de
+    // vários arquivos saía da espera da senha e virava "erro": a caixa da senha sumia e não
+    // tinha como tentar outra sem mandar os arquivos de novo.
+    throw new PasswordRequiredError("Senha incorreta. Confira a senha do arquivo e tente de novo.", true);
   }
 }
 
@@ -92,6 +102,8 @@ async function xlsxToCsv(buffer: Buffer, password: string | undefined): Promise<
   const workbook = XLSX.read(decrypted, { type: "buffer", dateNF: "dd/mm/yyyy" });
   return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: ";" })).join("\n");
 }
+
+const PDF_ESTRAGADO = "Esse PDF não abriu: parece que o download veio incompleto. Baixe de novo no app do banco e envie outra vez.";
 
 const PDF_INDISPONIVEL =
   "Não consegui ler PDF neste servidor. Envie o extrato em CSV ou Excel (a maioria dos bancos exporta nesses formatos).";
@@ -189,7 +201,14 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
         ehSenhaErrada(err)
           ? "Senha incorreta. Confira a senha do arquivo e tente de novo."
           : "Este arquivo está protegido por senha.",
+        ehSenhaErrada(err),
       );
+    }
+    // Arquivo que não é PDF por dentro (download cortado, ou outro arquivo com o nome .pdf): o
+    // problema é o arquivo, não o servidor. "Não consegui ler PDF neste servidor" mandava a
+    // pessoa procurar CSV quando bastava baixar de novo (14/10/2026).
+    if (err instanceof Error && err.name === "InvalidPDFException") {
+      throw new UploadReadError(PDF_ESTRAGADO, `PDF inválido · ${causa(err)}`);
     }
     // O pdfjs abre o PDF num "worker" que é um arquivo à parte (pdf.worker.mjs). Quando esse
     // arquivo não vem junto no servidor, a falha aparece só aqui, na hora de ler — e não no

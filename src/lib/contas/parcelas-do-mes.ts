@@ -34,7 +34,18 @@ export type LancamentoParcelavel = {
   meu?: boolean;
 };
 
-export type ContaParcelada = { id: string; nome: string; valor: number | null; parcelas: number | null; parcelaAtual: number | null; categoria: string | null; diaDoMes: number | null };
+export type ContaParcelada = {
+  id: string;
+  nome: string;
+  valor: number | null;
+  parcelas: number | null;
+  parcelaAtual: number | null;
+  categoria: string | null;
+  diaDoMes: number | null;
+  /** O próximo vencimento ("AAAA-MM-DD"), o mês da `parcelaAtual`. Com ele, um mês depois anda a
+   * parcela (os Próximos meses); sem ele, a parcela é a de agora. */
+  vencimento?: string | null;
+};
 
 export type ParcelaDoMes = {
   chave: string;
@@ -259,7 +270,13 @@ export function parcelasDoMes(lancamentos: LancamentoParcelavel[], mes: Mes, con
     const v = c.valor ?? 0;
     if (!(v > 0) || !((c.parcelas ?? 0) > 1)) continue;
     if (itens.some((i) => contaEhAMesma(c, i))) continue;
-    const atual = Math.min(c.parcelas ?? 1, Math.max(1, c.parcelaAtual ?? 1));
+    // Mês depois do vencimento (Próximos meses): a parcela anda junto. Antes o sofá 10/10 aparecia
+    // em novembro, dezembro e janeiro, sempre "acaba neste mês", e o "sobram R$ X" nunca vinha.
+    const mesDoVencimento = c.vencimento ? Number(c.vencimento.slice(0, 4)) * 12 + Number(c.vencimento.slice(5, 7)) - 1 : null;
+    const andou = mesDoVencimento !== null && alvo > mesDoVencimento ? alvo - mesDoVencimento : 0;
+    const daConta = Math.max(1, c.parcelaAtual ?? 1) + andou;
+    if (daConta > (c.parcelas ?? 1)) continue;
+    const atual = Math.min(c.parcelas ?? 1, daConta);
     itens.push({
       chave: `conta:${c.id}`,
       nome: c.nome,

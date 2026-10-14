@@ -118,7 +118,11 @@ export async function getAnnualPlannedVsActual(ctx: AuthContext, year: number): 
     getFirstEntryMonth(ctx, year),
   ]);
 
-  const categoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
+  // Casal simples: o gasto do outro numa categoria criada por ele (e o plano da titular numa dela)
+  // também entra, senão o Orçamento somava menos que o Resumo.
+  const minhas = customCategories.map((c) => c.id);
+  const deOutros = [...new Set([...customSpent.map((s) => s.customCategoryId), ...budgets.map((b) => b.customCategoryId).filter((x): x is string => Boolean(x))])].filter((id) => !minhas.includes(id));
+  const categoryKeys: string[] = [...PARENT_CATEGORIES, ...minhas, ...deOutros];
   const monthsElapsed = monthsElapsedInYear(year);
 
   const budgetsByMonth = new Map<number, { categoryKey: string; plannedAmount: number }[]>();

@@ -19,7 +19,15 @@ export function listaDeMesesCurta(meses: string[]): string {
 }
 
 type StatsMinimas = { banco?: string | null; vencimento?: string | null; compras?: number; mesesDasCompras?: string[]; faturaAberta?: boolean };
-type LinhaMinima = { date: string; category: string; ignorar?: boolean };
+type LinhaMinima = { date: string; category: string; ignorar?: boolean; estorno?: boolean };
+
+/**
+ * Quantas COMPRAS a fatura tem: gasto que entra, sem o estorno (14/10/2026). A lista dos arquivos
+ * dizia "12 compras até hoje" (sem o estorno) e a conferência do mesmo arquivo, "13 compras".
+ */
+export function comprasDaFatura(linhas: { category: string; estorno?: boolean; ignorar?: boolean }[]): number {
+  return linhas.filter((l) => !l.ignorar && l.category === "EXPENSE" && !l.estorno).length;
+}
 
 /** "Fatura Nubank" + "vence 17/07", "64 compras", "junho e julho". */
 export function resumoDoArquivo(docType: "extrato" | "fatura", stats: StatsMinimas | null | undefined, linhas: LinhaMinima[]): { titulo: string; chips: string[] } {
@@ -28,12 +36,12 @@ export function resumoDoArquivo(docType: "extrato" | "fatura", stats: StatsMinim
   const valendo = linhas.filter((l) => !l.ignorar);
   // Prints da fatura aberta: só quantas compras até hoje (ainda não tem vencimento nem fecha o mês).
   if (stats?.faturaAberta) {
-    const n = stats.compras ?? valendo.filter((l) => l.category === "EXPENSE").length;
+    const n = stats.compras ?? comprasDaFatura(valendo);
     return { titulo, chips: [`${n} ${n === 1 ? "compra" : "compras"} até hoje`] };
   }
   const chips: string[] = [];
   if (docType === "fatura" && stats?.vencimento) chips.push(`vence ${stats.vencimento.slice(8, 10)}/${stats.vencimento.slice(5, 7)}`);
-  const n = docType === "fatura" ? (stats?.compras ?? valendo.filter((l) => l.category === "EXPENSE").length) : valendo.length;
+  const n = docType === "fatura" ? (stats?.compras ?? comprasDaFatura(valendo)) : valendo.length;
   chips.push(docType === "fatura" ? `${n} ${n === 1 ? "compra" : "compras"}` : `${n} ${n === 1 ? "lançamento" : "lançamentos"}`);
   const meses = docType === "fatura" && stats?.mesesDasCompras?.length ? stats.mesesDasCompras : valendo.map((l) => l.date.slice(0, 7));
   const textoMeses = listaDeMesesCurta(meses);

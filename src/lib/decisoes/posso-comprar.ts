@@ -596,14 +596,14 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     };
   }
   if (atrasoReserva > 0) {
-    return { veredito: "custo", titulo: "Cabe, mas atrasa sua reserva", explicacao: `A reserva é a sua segurança e passaria a chegar ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"} depois.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, quadro, pagavel, precisa: { valor: doGuardado, porMes: true } };
+    return { veredito: "custo", titulo: `a reserva atrasa ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"}`, explicacao: `A reserva é a sua segurança e passaria a chegar ${atrasoReserva} ${atrasoReserva > 1 ? "meses" : "mês"} depois.`, linhas, sugestao: doGuardado > 0 ? `Comprando, saem ${money(doGuardado)} por mês do que você guarda para a reserva. Se preferir, junte antes.` : null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, quadro, pagavel, precisa: { valor: doGuardado, porMes: true } };
   }
   if (maiorAtraso && maiorAtraso.meses > 1) {
-    return { veredito: "custo", titulo: "Cabe, mas tem um custo", explicacao: `${maiorAtraso.nome} atrasa ${maiorAtraso.meses} meses. A reserva continua no prazo, porque ela é a última a ser mexida.`, linhas, sugestao: null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, quadro, pagavel, precisa: { valor: doGuardado, porMes: true } };
+    return { veredito: "custo", titulo: `${maiorAtraso.nome} atrasa ${maiorAtraso.meses} meses`, explicacao: `${maiorAtraso.nome} atrasa ${maiorAtraso.meses} meses. A reserva continua no prazo, porque ela é a última a ser mexida.`, linhas, sugestao: doGuardado > 0 ? `Comprando, saem ${money(doGuardado)} por mês do que você guarda, e ${maiorAtraso.nome} fica ${maiorAtraso.meses} meses mais longe. Se preferir, junte antes.` : null, comparacao, custoJuros, alertaJuros, comprometimento: comprometimento(comprometido + parcela), conta, quadro, pagavel, precisa: { valor: doGuardado, porMes: true } };
   }
   return {
     veredito: jurosAltos ? "custo" : "ok",
-    titulo: jurosAltos ? "Cabe no seu limite, mas olha os juros" : doGuardado <= 0 && semDestino > 0 ? "Cabe no dinheiro que ainda não tem destino" : "Cabe sem atrasar o que importa",
+    titulo: jurosAltos ? "os juros são altos" : doGuardado <= 0 && semDestino > 0 ? "Cabe no dinheiro que ainda não tem destino" : "Cabe sem atrasar o que importa",
     explicacao: maiorAtraso
       ? `${maiorAtraso.nome} atrasa só 1 mês.`
       : temMetas

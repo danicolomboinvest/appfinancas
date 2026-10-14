@@ -25,7 +25,7 @@ export function CartaoAReceber({ aReceber }: { aReceber: { pessoa: string; valor
         </b>
         <span className="text-[13px] text-ink-muted">{aReceber.length > 1 ? `+ ${aReceber.length - 1} ${aReceber.length > 2 ? "pessoas" : "pessoa"} · A receber` : "A receber"}</span>
       </div>
-      <Explica>Quando alguém te deve uma parte, ela fica em A receber até o Pix chegar. O Pix abate o gasto e não conta como renda.</Explica>
+      <Explica>Fica em A receber até o Pix chegar. O Pix abate o gasto, não é renda.</Explica>
       <button
         type="button"
         disabled={pendente || recebeu === primeira.pessoa}

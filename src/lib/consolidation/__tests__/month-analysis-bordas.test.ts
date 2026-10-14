@@ -47,6 +47,13 @@ beforeEach(() => {
 });
 
 describe("getDailyFlow", () => {
+  it("salário de 30/08 contado em setembro entra no dia 1 da curva de setembro, não some", async () => {
+    banco.lancamentos = [{ category: "INCOME", amount: 5000, entryDate: dia(2026, 8, 30) }];
+    const r = await getDailyFlow(ctx, 2026, 9);
+    expect(r.points[0].income).toBe(5000);
+    expect(r.points[r.points.length - 1].income).toBe(5000);
+  });
+
   it("mês sem lançamentos: curva de zeros até o fim, sem NaN", async () => {
     const r = await getDailyFlow(ctx, 2026, 8);
     expect(r.daysInMonth).toBe(31);
