@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { conferirLeitura } from "../conferencia";
 import { isBancoDoBrasilStatement, parseBancoDoBrasilStatement } from "../bb-pdf";
 import { profileDocument } from "../profile";
-import { parseStatement } from "../statement-parser";
+import { parseStatement, parseStatementComLeitor } from "../statement-parser";
 
 /**
  * Extrato FICTÍCIO com a mesma estrutura do PDF de conta corrente do Banco do Brasil: sinal
@@ -92,5 +92,30 @@ describe("conferência pelo saldo do Banco do Brasil", () => {
     const t = txt("25/09/2026 100,00 (+)\t1 2 Pix - Recebido\n25/09/2026 1.370,95 (-)\t1 2 Pix - Enviado");
     const r = conferirLeitura(t, "extrato", [{ date: "2026-09-25", description: "Pix - Recebido", amount: 100 }]);
     expect(r.status).toBe("nao-fechou");
+  });
+});
+
+describe("extrato do Banco do Brasil de um período sem movimento", () => {
+  const VAZIO = [
+    "Extrato de Conta Corrente",
+    "Cliente: PESSOA DE EXEMPLO",
+    "Agência: 0000-0 Conta: 000000-0\tPeríodo: 01 a 14/10/2026",
+    "Lançamentos",
+    "Dia Documento Valor\tLote Histórico",
+    "Sem lançamentos no período",
+    "Informações Adicionais",
+    "15,90 (-)\tSaldo Aprovisionado no Dia",
+    "0,00\tJuros *",
+    "03/11/2026\tData de Debito de Juros",
+    "0,00\tIOF *",
+    "03/11/2026\tData de Debito de IOF",
+    "74.890,78 (+)\tCREDITO BB-MELHOR OFERTA*",
+    "Lançamentos Futuros",
+    "Dia Histórico Valor",
+    "15,90 (-)\t14/10/2026 Tarifas Pendentes",
+  ].join("\n");
+
+  it("não lê limite de crédito nem tarifa futura como lançamento", () => {
+    expect(parseStatementComLeitor(VAZIO, "pdf", 2026).txns).toEqual([]);
   });
 });

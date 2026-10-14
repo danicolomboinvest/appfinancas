@@ -911,6 +911,12 @@ export function parseStatementComLeitor(
     return { txns: [], leitor: null };
   }
   if (source === "pdf") {
+    // Extrato do Banco do Brasil de um período em que a conta não se mexeu: o quadro "Informações
+    // Adicionais" traz limite, juros e "Lançamentos Futuros", e o leitor genérico os lia como
+    // lançamentos (um "crédito BB-Melhor Oferta" de R$ 74.890,78 entrou como RECEITA no app).
+    if (/Extrato de Conta Corrente/i.test(content) && /Sem\s+lan[çc]amentos\s+no\s+per[ií]odo/i.test(content)) {
+      return { txns: [], leitor: "bb-sem-lancamentos" };
+    }
     let proprio: { txns: ParsedTransaction[]; leitor: string } | null = null;
     for (const leitor of LEITORES_PDF) {
       if (!leitor.reconhece(content)) continue;
