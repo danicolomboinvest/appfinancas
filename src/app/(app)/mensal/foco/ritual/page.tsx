@@ -64,9 +64,9 @@ export default async function RitualPage() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <Link href="/mensal/foco" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-        <ChevronLeft size={16} /> {d.t.focoTitulo}
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
+      <Link href="/mensal/foco" className="flex min-h-11 w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
+        <ChevronLeft size={16} aria-hidden /> Resumo
       </Link>
       <PageHeader title={d.t.ritTitulo} />
       {d.ritualFeito ? <p className="text-sm text-ink-muted">{d.t.focoRitualFeito}</p> : <Ritual d={dados} />}

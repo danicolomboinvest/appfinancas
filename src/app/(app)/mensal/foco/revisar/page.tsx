@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronLeft, CreditCard, PiggyBank, Undo2, type LucideIcon } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { serverMoney } from "@/lib/money-server";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
 import type { TipoRevisao } from "@/lib/decisoes/revisao-antigos";
 import { resolverLancamentoAntigoAction } from "../actions";
 import { carregarRevisaoAntigos } from "./dados";
@@ -57,6 +56,16 @@ const PERGUNTA: Record<TipoRevisao, { texto: string; opcoes: { acao: "guardado" 
   },
 };
 
+/** O desenho de cada tipo (versão nova, 13/10/2026). */
+const ICONE: Record<TipoRevisao, LucideIcon> = {
+  aplicacao: PiggyBank,
+  fatura: CreditCard,
+  conta_propria_saida: ArrowLeftRight,
+  conta_propria_entrada: ArrowLeftRight,
+  resgate: PiggyBank,
+  estorno: Undo2,
+};
+
 /**
  * Revisão dos lançamentos antigos: o que entrou antes de a importação separar aplicação, fatura,
  * conta própria e estorno. Um por um, a pessoa decide; nada muda sozinho.
@@ -66,36 +75,57 @@ export default async function RevisarAntigosPage() {
   const money = await serverMoney();
   const itens = await carregarRevisaoAntigos(ctx);
   return (
-    <div className="flex flex-col gap-5">
-      <Link href="/mensal/foco" className="flex w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
-        <ChevronLeft size={16} /> Foco
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
+      <Link href="/mensal/foco" className="flex min-h-11 w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
+        <ChevronLeft size={16} aria-hidden /> Resumo
       </Link>
-      <PageHeader title="Revisar lançamentos antigos" />
+      <PageHeader title="Revisar lançamentos" />
       {itens.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nada para revisar. Tudo certo por aqui.</p>
+        <div className="flex flex-col items-center gap-3 rounded-3xl bg-surface px-5 py-8 text-center shadow-[inset_0_0_0_1px_var(--color-border)]">
+          <span className="flex size-14 items-center justify-center rounded-full bg-success-soft text-success">
+            <Check size={26} strokeWidth={2.4} aria-hidden />
+          </span>
+          <p className="text-[17px] font-semibold text-ink">Tudo revisado</p>
+          <Link href="/mensal/foco" className="botao-principal inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold">
+            Voltar ao Resumo
+          </Link>
+        </div>
       ) : (
-        itens.map((it) => (
-          <Card key={it.id} className="flex flex-col gap-2 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 text-sm font-semibold text-ink">{it.descricao}</p>
-              <p className="shrink-0 text-sm tabular-nums text-ink">{money(it.valor)}</p>
-            </div>
-            <p className="text-caption text-ink-faint">{it.data ? `${it.data.slice(8, 10)}/${it.data.slice(5, 7)}/${it.data.slice(0, 4)}` : `${MESES[it.mes - 1]}/${it.ano}`}</p>
-            <p className="text-sm text-ink-muted">{PERGUNTA[it.tipo].texto}</p>
-            <div className="flex flex-wrap gap-2">
-              {PERGUNTA[it.tipo].opcoes.map((o, i) => (
-                <form key={o.acao} action={resolverLancamentoAntigoAction.bind(null, it.id, o.acao)}>
-                  <button
-                    type="submit"
-                    className={i === 0 ? "rounded-xl bg-pill px-3 py-1.5 text-caption font-semibold text-on-pill" : "rounded-xl border border-border px-3 py-1.5 text-caption font-semibold text-ink-muted"}
-                  >
-                    {o.rotulo}
-                  </button>
-                </form>
-              ))}
-            </div>
-          </Card>
-        ))
+        <>
+          <p className="-mt-2 text-[15px] text-ink-muted">{itens.length === 1 ? "1 lançamento" : `${itens.length} lançamentos`}. Nada muda sem você.</p>
+          {itens.map((it) => {
+            const Icone = ICONE[it.tipo];
+            return (
+              <section key={it.id} className="flex flex-col gap-3 rounded-3xl bg-surface p-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-strong" aria-hidden>
+                    <Icone size={19} strokeWidth={1.9} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <b className="block break-words text-[15px] font-semibold leading-snug text-ink">{it.descricao}</b>
+                    <small className="text-[13px] text-ink-muted">{it.data ? `${it.data.slice(8, 10)}/${it.data.slice(5, 7)}/${it.data.slice(0, 4)}` : `${MESES[it.mes - 1]}/${it.ano}`}</small>
+                  </span>
+                  <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">{money(it.valor)}</span>
+                </div>
+                <p className="rounded-xl bg-surface-2 px-3 py-2 text-[14px] leading-snug text-ink">{PERGUNTA[it.tipo].texto}</p>
+                <div className="flex flex-col gap-2">
+                  {PERGUNTA[it.tipo].opcoes.map((o, i) => (
+                    <form key={o.acao} action={resolverLancamentoAntigoAction.bind(null, it.id, o.acao)}>
+                      <button
+                        type="submit"
+                        className={`min-h-11 w-full rounded-full px-4 py-2 text-[14.5px] font-semibold leading-tight active:scale-[0.98] ${
+                          i === 0 ? "botao-principal" : "text-ink shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]"
+                        }`}
+                      >
+                        {o.rotulo}
+                      </button>
+                    </form>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </>
       )}
     </div>
   );

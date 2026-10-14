@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, CalendarHeart, ListChecks, type LucideIcon } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { carregarFoco, MESES } from "./dados";
@@ -124,23 +124,38 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   // agora, os 6 meses e, em "Para hoje", só o "Fechar <mês>" quando é hora. Saíram daqui as contas
   // da semana (moram em Recorrentes), o Money Reset (fica fora até a dona reformular), o "Mais N
   // coisinhas", o selo "indo bem", o plano apertado e a linha do ritmo.
-  const fecharMes =
-    ondeFechar === "destaque" || ondeFechar === "discreto" ? (
-      <Link href="/mensal/foco/fechamento">
-        <Card className={`${cartaoAcao} p-3.5`}>
-          <span className="flex min-w-0 items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-accent-strong" aria-hidden>
-              <CalendarCheck size={18} />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[15px] font-semibold leading-snug text-ink">{t.focoFechT(d.mesAnterior.label)}</span>
-              <span className="mt-0.5 block text-caption text-ink-muted">{t.focoFechEy}</span>
-            </span>
+  const cartaoParaHoje = (chave: string, href: string, Icone: LucideIcon, titulo: string, sub: string, botao: string) => (
+    <Link key={chave} href={href} data-para-hoje={chave}>
+      <Card className={`${cartaoAcao} p-3.5`}>
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-accent-strong" aria-hidden>
+            <Icone size={18} />
           </span>
-          <span className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-pill px-4 text-sm font-semibold text-on-pill">{t.focoComecar}</span>
-        </Card>
-      </Link>
-    ) : null;
+          <span className="min-w-0">
+            <span className="block text-[15px] font-semibold leading-snug text-ink">{titulo}</span>
+            <span className="mt-0.5 block text-caption text-ink-muted">{sub}</span>
+          </span>
+        </span>
+        <span className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-pill px-4 text-sm font-semibold text-on-pill">{botao}</span>
+      </Card>
+    </Link>
+  );
+  const fecharMes =
+    ondeFechar === "destaque" || ondeFechar === "discreto"
+      ? cartaoParaHoje("fechamento", "/mensal/foco/fechamento", CalendarCheck, t.focoFechT(d.mesAnterior.label), t.focoFechEy, t.focoComecar)
+      : null;
+  // De volta ao "Para hoje" (13/10/2026): a versão nova tirou o caminho para a revisão dos
+  // lançamentos antigos (205 usos na semana anterior, zero depois) e para o ritual da semana.
+  // A revisão aparece enquanto houver o que revisar; o ritual, na segunda e na terça, até ser
+  // feito, para quem não escolheu acompanhar por mês.
+  const n = d.lancamentosParaRevisar;
+  const revisar = n > 0 ? cartaoParaHoje("revisar", "/mensal/foco/revisar", ListChecks, n === 1 ? "Revisar 1 lançamento" : `Revisar ${n} lançamentos`, n === 1 ? "Parece aplicação, fatura ou estorno" : "Parecem aplicação, fatura ou estorno", "Revisar") : null;
+  const diaDaSemanaHoje = d.now.getDay();
+  const ritual =
+    ritmo !== "mensal" && !d.ritualFeito && (diaDaSemanaHoje === 1 || diaDaSemanaHoje === 2)
+      ? cartaoParaHoje("ritual", "/mensal/foco/ritual", CalendarHeart, t.focoRitualT, t.focoRitualEy, t.focoComecar)
+      : null;
+  const paraHoje = [fecharMes, ritual, revisar].filter(Boolean);
   const redondo = (v: number) => moneyR(v, { round: true });
   const nomeOutro = outroMes ? MESES[outroMes.mes - 1].charAt(0).toUpperCase() + MESES[outroMes.mes - 1].slice(1) + (outroMes.ano === agora.getFullYear() ? "" : ` de ${outroMes.ano}`) : "";
   const mesAteAgora =
@@ -245,10 +260,10 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
             {/* Money Reset, só para quem comprou: logo abaixo do "Outubro até agora" (12/10/2026). */}
             <CartaoMoneyReset ctx={ctx} />
             <GraficoSeisMeses meses12={meses12} />
-            {fecharMes && !outroMes && (
+            {paraHoje.length > 0 && !outroMes && (
               <section className="flex flex-col gap-2.5">
                 <h2 className="px-1 text-base font-semibold text-ink">{t.focoParaHoje}</h2>
-                {fecharMes}
+                {paraHoje}
               </section>
             )}
           </>
