@@ -35,7 +35,7 @@ export function LiberdadeGuiada({
   const money = useMoney();
   const simbolo = useSimbolo();
   const sair = useIrParaCalculadoras();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const [v, setV] = useState<ValoresDaLiberdade>(inicial);
   const [passo, setPasso] = useState(jaSalva ? 6 : 1);
   const [mexendo, setMexendo] = useState(false);
@@ -117,8 +117,8 @@ export function LiberdadeGuiada({
     iniciar(async () => {
       const res = await salvarLiberdadeComoMetaAction(v);
       if (!res.ok) return showError(res.erro);
+      // Sem aviso (14/10/2026): o botão vira o atalho para a meta.
       setSalvaComo(res.id);
-      showToast(res.criada ? "Meta Liberdade financeira criada" : "Meta Liberdade financeira atualizada");
     });
 
   return (

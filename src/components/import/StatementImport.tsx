@@ -200,7 +200,7 @@ export function StatementImport({
   otherProfiles?: { id: string; name: string; kind?: string }[];
 }) {
   const money = useMoney();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
   // Tudo que a pessoa lê aqui (instruções, botões, avisos) vem da voz do tema; a lógica de
   // leitura do arquivo não sabe de tema nenhum.
   // `kind` porque os chips de categoria têm o nome do perfil (Empresa: "Estrutura", não "Moradia").
@@ -419,7 +419,7 @@ export function StatementImport({
         setError(lido.r.error);
         return;
       }
-      if (lido.falhos > 0) showToast(lido.falhos === 1 ? "1 print não deu para ler. Os outros entraram." : `${lido.falhos} prints não deram para ler. Os outros entraram.`);
+      if (lido.falhos > 0) showError(lido.falhos === 1 ? "1 print ficou de fora" : `${lido.falhos} prints ficaram de fora`);
       setDocType("fatura");
       carregarLeitura(lido.r.stats, lido.r.items, lido.r.customCategories);
     });
@@ -820,17 +820,15 @@ export function StatementImport({
       // segue para o próximo arquivo. As repetidas entre eles o servidor já pula ao gravar.
       if (fila && filaAtual !== null) {
         let lista = fila.map((a) => (a.id === filaAtual ? { ...a, status: "anotado" as const, criados: result.created, items: undefined } : a));
-        let levadas = 0;
         lista = lista.map((a) => {
           if (a.status !== "ok" || !a.items) return a;
-          const r = levarRespostas(items, a.items);
-          levadas += r.levadas;
-          return { ...a, items: r.linhas };
+          return { ...a, items: levarRespostas(items, a.items).linhas };
         });
         const proximo = lista.find((a) => a.status === "ok");
         const total = lista.reduce((soma, a) => soma + (a.criados ?? 0), 0);
         if (proximo) {
-          showToast(levadas > 0 ? `${t.impToastImportados(result.created)}. Levei ${levadas} ${levadas === 1 ? "resposta" : "respostas"} para o próximo arquivo.` : `${t.impToastImportados(result.created)}.`);
+          // Este arquivo sai da tela e o próximo abre: pílula curta com quantos entraram.
+          showToast(t.impToastImportados(result.created));
           setFilaAtual(null);
           abrirDaFila(proximo.id, lista);
           return;
@@ -840,8 +838,8 @@ export function StatementImport({
         setSkippedCount(result.skipped);
         setCardPaymentCandidates(result.cardPaymentCandidates);
         setRevelacao({ mes: null, dados: null, carregando: false });
+        // Sem aviso (14/10/2026): a tela de pronto já mostra quantos entraram.
         setPhase("done");
-        showToast(`${t.impToastImportados(total)}.`);
         return;
       }
       setCreatedCount(result.created);
@@ -869,10 +867,8 @@ export function StatementImport({
             setRevelacao({ mes, dados: null, carregando: false });
           });
       }
+      // Sem aviso: a tela de pronto já mostra quantos entraram e quantos já existiam.
       setPhase("done");
-      const parts = [t.impToastImportados(result.created)];
-      if (result.skipped > 0) parts.push(t.impToastJaExistiam(result.skipped));
-      showToast(parts.join(", ") + ".");
     });
   }
 
@@ -2077,11 +2073,11 @@ export function StatementImport({
                           await removeCardPaymentCandidateAction(c.id);
                         } catch (err) {
                           console.error("removeCardPaymentCandidateAction falhou", err);
-                          showToast(t.impErroSalvar);
+                          showError(t.impErroSalvar);
                           return;
                         }
+                        // Sem aviso: some da lista.
                         dismissCandidate(c.id);
-                        showToast(t.impRemovidoExtrato);
                       });
                     }}
                     className="inline-flex min-h-11 items-center rounded-full border border-danger/40 px-4 text-sm font-medium text-danger hover:bg-danger-soft disabled:opacity-40"

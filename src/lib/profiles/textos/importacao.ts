@@ -331,7 +331,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   // Compartilhado
   impLendoArquivo: "Lendo arquivo...",
   impErroEnvio: "Não consegui enviar o arquivo. Confira a internet e tente de novo.",
-  impErroSalvar: "Não consegui salvar. Confira a internet e tente de novo.",
+  impErroSalvar: "Não salvou. Tente de novo.",
   impProtegido: "Este arquivo está protegido por senha",
   impSenhaPlaceholder: "Senha do arquivo",
   impAbrindo: "Abrindo...",
@@ -412,7 +412,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impImportarN: (n) => `Importar ${n} lançamento${s(n)}`,
   // Extrato/fatura: pronto
   impImportadosSucesso: (n) => `${n === 1 ? "1 lançamento importado" : `${n} lançamentos importados`} com sucesso.`,
-  impToastImportados: (n) => `${n} lançamentos importados`,
+  impToastImportados: (n) => `${n} importados`,
   impToastJaExistiam: (n) => `${n} já existiam (ignorados)`,
   impPagamentoFatura: (n) => `${n === 1 ? "Este parece" : "Estes parecem"} o pagamento desta fatura. Remover para não contar duas vezes?`,
   impSemData: "sem data",
@@ -532,7 +532,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   // Revisão da importação (set/2026)
   impNaoSeiAgora: "Não sei agora",
   impNaoSeiAgoraDica: "Escolha uma vez e da próxima eu já sei. Na dúvida, toque em “Não sei agora”.",
-  impAplicadoAosIguais: (n) => `Pus a mesma categoria em mais ${n === 1 ? "1 lançamento igual" : `${n} lançamentos iguais`}.`,
+  impAplicadoAosIguais: (n) => (n === 1 ? "Mais 1 igual também" : `Mais ${n} iguais também`),
   impJaSeparei: (n) => (n === 1 ? "Eu já separei 1 gasto." : `Eu já separei ${n} gastos.`),
   impRevisarSeparados: "Revisar",
   impFecharRevisao: "Fechar",

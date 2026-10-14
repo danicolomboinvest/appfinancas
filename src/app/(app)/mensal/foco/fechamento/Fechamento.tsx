@@ -286,8 +286,9 @@ export function MesFechado({ d }: { d: DadosFechamento }) {
               onClick={() =>
                 iniciar(async () => {
                   const r = await reabrirMesAction(d.chave);
-                  if (!r.ok) return showError("Não consegui reabrir agora. Tente de novo.");
-                  showToast(`${maiuscula(d.mes)} aberto de novo`);
+                  if (!r.ok) return showError("Não reabriu. Tente de novo.");
+                  // Vai para outra tela: pílula curta.
+                  showToast(`${maiuscula(d.mes)} reaberto`);
                   router.push("/mensal/foco");
                 })
               }

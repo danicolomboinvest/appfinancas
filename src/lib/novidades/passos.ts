@@ -106,7 +106,7 @@ const PADRAO: TextosDasNovidades = {
     { titulo: "O seu estilo", texto: "Escolha o estilo do app. Dá para trocar quando quiser." },
   ],
   fim: { titulo: "Pronto. Tudo no lugar.", texto: "Quer ver com calma? Os vídeos ficam em Como funciona.", comecar: "Começar", comoFunciona: "Ver o Como funciona" },
-  aoPular: "Combinado. Está em Configurações › Ajuda, se quiser ver depois.",
+  aoPular: "Ver depois em Ajuda",
   pontinhos: true,
 };
 

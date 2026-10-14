@@ -64,7 +64,7 @@ export function TelaDasCalculadoras({ salvas }: { salvas: SalvaNaLista[] }) {
   const apagar = (s: SalvaNaLista) => {
     setEscondidas((e) => new Set(e).add(s.id));
     let desfeito = false;
-    showToast(`"${s.nome}" apagada`, {
+    showToast("Simulação apagada", {
       label: "Desfazer",
       onClick: () => {
         desfeito = true;

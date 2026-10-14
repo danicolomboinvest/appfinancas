@@ -36,8 +36,8 @@ export function DetalheDoPerfil({ perfil, emUso, podeApagar }: { perfil: Profile
             onClick={() =>
               iniciar(async () => {
                 const r = await editarPerfilAction(perfil.id, { name: nome.trim() });
-                if (!r.ok) return showError(r.error ?? "Não consegui salvar.");
-                showToast("Nome salvo");
+                if (!r.ok) return showError(r.error ?? "Não salvou. Tente de novo.");
+                // Sem aviso: o botão some e o nome novo fica.
                 router.refresh();
               })
             }
@@ -57,7 +57,8 @@ export function DetalheDoPerfil({ perfil, emUso, podeApagar }: { perfil: Profile
           onClick={() =>
             iniciar(async () => {
               const r = await trocarPerfilAction(perfil.id);
-              if (!r.ok) return showError(r.error ?? "Não consegui trocar.");
+              if (!r.ok) return showError(r.error ?? "Não trocou. Tente de novo.");
+              // A troca de perfil muda a tela inteira: pílula curta.
               showToast(`Agora em ${perfil.name}`);
               router.push("/mensal/foco");
             })
@@ -81,8 +82,8 @@ export function DetalheDoPerfil({ perfil, emUso, podeApagar }: { perfil: Profile
           onConfirmar={() =>
             iniciar(async () => {
               const r = await excluirPerfilAction(perfil.id);
-              if (!r.ok) return showError(r.error ?? "Não consegui apagar.");
-              showToast(`${perfil.name} apagado`);
+              if (!r.ok) return showError(r.error ?? "Não apagou. Tente de novo.");
+              // Sem aviso: a lista de perfis abre sem ele.
               router.push("/configuracoes/perfis");
             })
           }

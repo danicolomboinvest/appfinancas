@@ -13,7 +13,7 @@ export function NovoPerfilNoLugar({ kind, nome, rotulo }: { kind: ProfileKind; n
   const [aberto, setAberto] = useState(false);
   const [pendente, iniciar] = useTransition();
   const router = useRouter();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   return (
     <>
       <button type="button" onClick={() => setAberto(true)} className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left text-[15px] text-ink hover:bg-surface-hover">
@@ -31,8 +31,8 @@ export function NovoPerfilNoLugar({ kind, nome, rotulo }: { kind: ProfileKind; n
           onSalvar={(dados) =>
             iniciar(async () => {
               const r = await criarPerfilAction(dados);
-              if (!r.ok) return showError(r.error ?? "Não consegui criar o perfil.");
-              showToast(`${dados.name} criado`);
+              if (!r.ok) return showError(r.error ?? "Não criou. Tente de novo.");
+              // Sem aviso: o perfil novo aparece no lugar.
               setAberto(false);
               router.refresh();
             })

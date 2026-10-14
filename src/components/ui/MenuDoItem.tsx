@@ -117,7 +117,7 @@ export function useMenuDoItem({ nome, onEditar, apagar, outras = [] }: { nome: s
               onClick: async () => {
                 const v = await apagar.desfazer(recibo);
                 if (!v.ok) return showError(v.erro);
-                showToast("Desfeito");
+                // O item volta para o lugar; isso basta (14/10/2026).
                 router.refresh();
               },
             }

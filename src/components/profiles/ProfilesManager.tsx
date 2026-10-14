@@ -29,10 +29,11 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
   const [criando, setCriando] = useState(false);
   const [excluindo, setExcluindo] = useState<ProfileRow | null>(null);
 
-  function executar(fn: () => Promise<{ ok: boolean; error?: string }>, sucesso: string, aoFim?: () => void) {
+  /** `sucesso` só quando o resultado não fica na tela (trocar de perfil); null não avisa (14/10/2026). */
+  function executar(fn: () => Promise<{ ok: boolean; error?: string }>, sucesso: string | null, aoFim?: () => void) {
     iniciar(async () => {
       const r = await fn();
-      if (r.ok) showToast(sucesso);
+      if (r.ok && sucesso) showToast(sucesso);
       else showError(r.error ?? t.cfgPerfisFalhou);
       if (r.ok) aoFim?.();
     });
@@ -100,7 +101,7 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
           onSalvar={(dados) =>
             executar(
               () => (editando ? editarPerfilAction(editando.id, dados) : criarPerfilAction(dados)),
-              editando ? t.cfgPerfisAtualizadoToast : t.cfgPerfisCriadoToast(dados.name),
+              editando ? null : t.cfgPerfisCriadoToast(dados.name),
               () => {
                 setCriando(false);
                 setEditando(null);
@@ -116,7 +117,7 @@ export function ProfilesManager({ perfis, ativoId }: { perfis: ProfileRow[]; ati
           pendente={pendente}
           onFechar={() => setExcluindo(null)}
           onConfirmar={() =>
-            executar(() => excluirPerfilAction(excluindo.id), t.cfgPerfisExcluidoToast(excluindo.name), () => setExcluindo(null))
+            executar(() => excluirPerfilAction(excluindo.id), null, () => setExcluindo(null))
           }
         />
       )}

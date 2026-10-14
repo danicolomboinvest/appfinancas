@@ -478,7 +478,7 @@ export type MetaSugerida = { nome: string; alvo: number; foto: string; icone: "C
 export function BotaoVirarMeta({ titulo, sub, meta }: { titulo: string; sub: string; meta: MetaSugerida }) {
   const [criada, setCriada] = useState<{ id: string; chave: string } | null>(null);
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const router = useRouter();
   const chave = JSON.stringify(meta);
   const feita = criada?.chave === chave;
@@ -491,8 +491,8 @@ export function BotaoVirarMeta({ titulo, sub, meta }: { titulo: string; sub: str
         start(async () => {
           const r = await virarMetaAction({ nome: meta.nome, alvo: meta.alvo, icone: meta.icone });
           if (!r.ok) return showError(r.error);
+          // Sem aviso: o próprio botão vira "Ver minha meta".
           setCriada({ id: r.id, chave });
-          showToast("Meta criada");
         });
       }}
       className="glass flex w-full items-center gap-3 rounded-2xl p-2.5 pr-4 text-left disabled:opacity-60"
@@ -516,7 +516,7 @@ export function useSalvar(tipo: TipoDeSimulacao, values: ValoresDaCalculadora, r
   const [abrindo, setAbrindo] = useState(false);
   const [nome, setNome] = useState("");
   const [pendente, start] = useTransition();
-  const { showToast, showError } = useToast();
+  const { showError } = useToast();
   const foto = JSON.stringify(values);
   const salva = salvoComo === foto;
   const salvar = () =>
@@ -525,8 +525,8 @@ export function useSalvar(tipo: TipoDeSimulacao, values: ValoresDaCalculadora, r
       if (r.error) return showError(r.error);
       setSalvoComo(foto);
       setAbrindo(false);
+      // Sem aviso: o botão fica "Salva" até mexer nos números.
       setNome("");
-      showToast("Simulação salva");
     });
   return { salva, abrindo, abrir: () => setAbrindo(true), nome, setNome, salvar, pendente, marcarComoSalva: () => setSalvoComo(foto) };
 }
