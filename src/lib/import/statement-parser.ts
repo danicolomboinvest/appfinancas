@@ -6,6 +6,7 @@
  * Convenção de sinal em `amount`: negativo = saída (vira EXPENSE), positivo = entrada (INCOME).
  */
 
+import { ehMovimentoEntrePessoas, separarHorarioECategoria } from "./comerciante";
 import { dataArgentinaNoInicio } from "./argentina";
 import { isArgentinaCuenta, parseArgentinaCuenta } from "./argentina-cuenta-pdf";
 import { isArgentinaTarjeta, parseArgentinaTarjeta } from "./argentina-tarjeta-pdf";
@@ -569,6 +570,18 @@ function temPalavraDeEntrada(text: string): boolean {
 const MONTH_ABBR: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
 /** Linhas que são saldo/total, não movimento. */
 const BALANCE_LINE_RE = /\b(saldo|total\s+(da|desta|de|a\s+pagar)|subtotal|limite|hist[óo]rico\s+de\s+faturas)\b/i;
+/**
+ * "Saldo" ou "limite" no MEIO de uma linha com cara de cobrança não é linha de saldo: "Juros limite
+ * cheque especial", "IOF limite da conta" e "Seguro saldo devedor" são gasto de verdade (o IOF de
+ * R$ 1,75 do extrato do BTG sumia sem aviso). Linha que COMEÇA por saldo/limite ("Saldo anterior",
+ * "Limite disponível") continua sendo saldo.
+ */
+const COBRANCA_NA_LINHA_RE = /\b(iof|juros|tarifas?|seguro|encargos?|multa|tributos?|anuidade|mora)\b/i;
+function ehLinhaDeSaldo(texto: string): boolean {
+  if (!BALANCE_LINE_RE.test(texto)) return false;
+  if (/^\W*(saldo|limite|total|subtotal|hist[óo]rico)\b/i.test(separarHorarioECategoria(texto).descricao)) return true;
+  return !COBRANCA_NA_LINHA_RE.test(texto);
+}
 
 /**
  * Data no COMEÇO de uma linha de PDF: "12/08/2026", "12/08", "12 AGO", "12 ago 2026",
@@ -642,7 +655,7 @@ function leadingDateCore(t: string, refYear: number): { iso: string; length: num
 type ValorNaLinha = { magnitude: number; menos: boolean; tracoSolto: boolean; mais: boolean; marca: "C" | "D" | null };
 
 /** Um lançamento lido do texto, antes de decidir o sinal: a decisão olha o arquivo inteiro. */
-type RegistroDeTexto = { date: string; text: string; valores: ValorNaLinha[]; linhaDeSaldo: boolean };
+type RegistroDeTexto = { date: string; text: string; valores: ValorNaLinha[]; linhaDeSaldo: boolean; categoriaDoBanco?: string };
 
 // O número começa numa borda (nada de dígito, ponto ou vírgula colado à esquerda) e aceita
 // valor sem ponto de milhar: em "1500,00" o regex antigo pegava só "500,00" e o "1" ia pra
@@ -813,7 +826,20 @@ export function parseTextLines(content: string, refYear: number = new Date().get
     }
     // "Lançamentos: R$ 10.290,88" no topo de cada página (extrato do BTG) é o total, não um
     // lançamento: entrava uma vez por página, com a data do cabeçalho.
-    registros.push({ date: open.date, text, valores, linhaDeSaldo: BALANCE_LINE_RE.test(text) || /\blan[çc]amentos:\s*$/i.test(text) });
+    const linhaDeSaldo = ehLinhaDeSaldo(text) || /\blan[çc]amentos:\s*$/i.test(text);
+    // Extrato do BTG ("10h51 Investimentos Transferência enviada Fulana"): o horário sai do nome e o
+    // rótulo de categoria do banco vira sinal para o motor. Pix, transferência e boleto ficam sem
+    // o rótulo: lá o BTG chuta (um Pix para uma pessoa vinha como "Seguro").
+    const limpo = linhaDeSaldo ? null : separarHorarioECategoria(text);
+    if (limpo && limpo.descricao !== text) {
+      registros.push({
+        date: open.date,
+        text: limpo.descricao,
+        valores,
+        linhaDeSaldo,
+        ...(limpo.categoria && !ehMovimentoEntrePessoas(limpo.descricao) ? { categoriaDoBanco: limpo.categoria } : {}),
+      });
+    } else registros.push({ date: open.date, text, valores, linhaDeSaldo });
     open = null;
   };
 
@@ -876,7 +902,12 @@ export function parseTextLines(content: string, refYear: number = new Date().get
     if (!(v.magnitude > 0)) continue;
     sinal ??= sinalPelaLinha(v, r.text, semSinalEEntrada);
     if (!temDoisNumeros(r) && saldoAnterior !== null) saldoAnterior += sinal * v.magnitude;
-    transactions.push({ date: r.date, description: r.text || "Lançamento", amount: sinal * v.magnitude });
+    transactions.push({
+      date: r.date,
+      description: r.text || "Lançamento",
+      amount: sinal * v.magnitude,
+      ...(r.categoriaDoBanco ? { categoriaDoBanco: r.categoriaDoBanco } : {}),
+    });
   }
   return transactions;
 }

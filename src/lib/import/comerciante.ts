@@ -44,10 +44,36 @@ const CATEGORIAS_DO_BANCO = [
   "lazer e entretenimento", "cuidados pessoais", "outra categoria", "outras categorias", "alimentacao", "transferencia",
   "transferencias", "contas", "compras", "doacoes", "seguro", "seguros", "tarifas", "saude", "transporte", "educacao",
   "moradia", "viagem", "viagens", "servicos", "investimentos", "mercado", "restaurantes", "casa", "pets", "vestuario",
-  "impostos", "assinaturas", "beleza", "bares e restaurantes", "supermercado",
+  "impostos e tributos", "impostos", "assinaturas", "beleza", "bares e restaurantes", "supermercado",
 ].sort((a, b) => b.length - a.length);
 const HORARIO_E_CATEGORIA = new RegExp(`^\\d{1,2}h\\d{2}\\s+(?:(?:${CATEGORIAS_DO_BANCO.join("|")})\\s+)?`);
 const SO_A_CATEGORIA = new RegExp(`^\\d{1,2}h\\d{2}\\s+(${CATEGORIAS_DO_BANCO.join("|")})\\s+`);
+
+/**
+ * "10h51 Investimentos Transferência enviada Daniela Colombo" (extrato do BTG): separa o horário e o
+ * rótulo de categoria do banco do resto. `descricao` é o que sobra, com maiúsculas e acentos como
+ * vieram; `categoria` é o rótulo normalizado ("alimentacao"), ou null quando não há. Sem horário
+ * no começo, devolve a descrição como veio. O rótulo só vale como ramo em compra (ver
+ * categoriaNaFrenteDaDescricao); no Pix e na transferência o BTG chuta, e o chute não pode virar
+ * categoria nem entrar no que o dicionário lê.
+ */
+export function separarHorarioECategoria(descricao: string): { descricao: string; categoria: string | null } {
+  const m = descricao.trim().match(/^\d{1,2}h\d{2}\s+([\s\S]*)$/);
+  if (!m) return { descricao, categoria: null };
+  const palavras = m[1].split(/\s+/);
+  for (const cat of CATEGORIAS_DO_BANCO) {
+    const n = cat.split(" ").length;
+    if (palavras.length > n && semAcentoNemPontuacao(palavras.slice(0, n).join(" ")) === cat) {
+      return { descricao: palavras.slice(n).join(" "), categoria: cat };
+    }
+  }
+  return { descricao: m[1].trim(), categoria: null };
+}
+
+/** O jeito de pagar que o BTG não deixa a categoria dele valer: Pix, TED/DOC, transferência e boleto. */
+export function ehMovimentoEntrePessoas(descricao: string): boolean {
+  return /\b(pix|ted|doc|transferencia|boleto)\b/.test(semAcentoNemPontuacao(descricao));
+}
 
 /**
  * A categoria que o banco escreveu NA PRÓPRIA descrição, logo depois do horário (extrato do BTG:

@@ -201,6 +201,11 @@ function detectInstitution(text: string): string | null {
   return best?.name ?? null;
 }
 
+/** "Relatório de Performance" (BTG): título + patrimônio + rentabilidade. O PDF quebra o título em duas linhas. */
+export function isRelatorioDePerformance(text: string): boolean {
+  return /relat[óo]rio\s+de\s+performance/i.test(text) && /patrim[ôo]nio/i.test(text) && /rentabilidade/i.test(text);
+}
+
 export function profileDocument(text: string, fileName?: string | null): DocProfile {
   const lines = text.split(/\r?\n/);
   const hasTickerHeader = TICKER_HEADER_RE.test(text);
@@ -319,6 +324,17 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
     kind = "position";
     reason = "relatório mensal de investimentos";
     if (!contents.includes("position")) contents.push("position");
+  }
+
+  // Relatório de Performance do BTG: patrimônio, rentabilidade e carteira, sem entrada nem saída.
+  // Nenhum leitor próprio o reconhece, e as linhas de ativo (FIIs, CRIs, "Total: R$ 735.500,56")
+  // entravam como R$ 1,47 milhão de gastos de uma "fatura".
+  if (isRelatorioDePerformance(text)) {
+    kind = "position";
+    reason = "relatório de performance dos investimentos";
+    if (!contents.includes("position")) contents.push("position");
+    const i = contents.indexOf("movements");
+    if (i !== -1) contents.splice(i, 1);
   }
 
   // Posição da B3: "Vencimento" em toda linha de renda fixa fazia o perfil chamar de FATURA, e a

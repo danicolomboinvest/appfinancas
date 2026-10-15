@@ -1,3 +1,4 @@
+import { separarHorarioECategoria } from "@/lib/import/comerciante";
 import type { EntryCategory, ParentCategory } from "@prisma/client";
 
 export type RecurrenceEntry = {
@@ -162,7 +163,10 @@ export function installmentCanonical(description: string): string {
  * parcela foi escrito (ver installmentCanonical). É a chave com que a importação reconhece uma
  * parcela que já está no mês. */
 export function descricaoComparavel(description: string | null): string {
-  return installmentCanonical(description ?? "").trim().toLowerCase();
+  // O extrato do BTG era gravado com o horário e o rótulo de categoria do banco na frente
+  // ("10h51 Investimentos Transferência enviada X"); agora entra sem eles. Tirando dos dois lados,
+  // o que já está no app não vira "novo" ao subir o mesmo extrato de novo.
+  return installmentCanonical(separarHorarioECategoria(description ?? "").descricao).trim().toLowerCase();
 }
 
 /** A mesma compra parcelada pode vir com centavos diferentes de um mês pro outro: a 1ª parcela
