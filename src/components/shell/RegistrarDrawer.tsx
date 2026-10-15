@@ -223,6 +223,7 @@ function inicialDaVoz(parsed: ParsedVoiceEntry, kind: ProfileKind) {
       subcategoria: parsed.customCategoryId ? undefined : (parsed.subcategory ?? undefined),
       descricao: parsed.description || undefined,
       chaveDaFala: parsed.chaveDaFala ?? undefined,
+      casal: parsed.casal ?? undefined,
     };
   }
   const tipoLivre = voiceSubcategory(parsed, kind);

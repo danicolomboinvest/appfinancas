@@ -2,6 +2,7 @@ import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { categoriaDaFala, type ContextoDaFala } from "./categoria-da-fala";
 import { chaveParaAprender } from "./vocabulario-falado";
+import { casalDaFala, type CasalFalado } from "./casal-da-fala";
 
 export type VoiceEntryCategory = "INCOME" | "EXPENSE" | "INVESTMENT_CONTRIBUTION";
 
@@ -23,6 +24,8 @@ export type ParsedVoiceEntry = {
   chaveDaFala?: string | null;
   /** "ontem" ou "anteontem" dito na frase (14/10/2026); null = hoje. */
   quando?: "ontem" | "anteontem" | null;
+  /** Casal simples (15/10/2026): de quem é, quem pagou e como divide, quando a frase disse. */
+  casal?: CasalFalado | null;
 };
 
 /**
@@ -398,11 +401,14 @@ function noventaENoveEhOApp(text: string): string {
  * `contexto`: as regras que ELA ensinou e as categorias que ela criou (quem chama no servidor
  * passa; sem contexto, só o dicionário, a base comunitária e as palavras faladas).
  */
-export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}): ParsedVoiceEntry {
+export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}, casa: { nomeDoPar?: string | null } = {}): ParsedVoiceEntry {
   const text = noventaENoveEhOApp(falado);
   const normalized = normalize(text);
   const category = extractEntryCategory(normalized);
-  const limpa = descricaoDaFala(text);
+  // Casal simples: "Lucas pagou", "metade cada", "da casa" preenchem as perguntas do casal e saem
+  // da descrição (só no gasto e só dentro de uma casa).
+  const doCasal = category === "EXPENSE" && casa.nomeDoPar ? casalDaFala(text, casa.nomeDoPar) : { casal: null, texto: text };
+  const limpa = descricaoDaFala(doCasal.texto);
   // "Gastei 45 no mercado ontem" era gravado com a data de hoje (14/10/2026).
   const quando = /\banteontem\b/.test(normalized) ? ("anteontem" as const) : /\bontem\b/.test(normalized) ? ("ontem" as const) : null;
   const base = { category, amount: extractAmount(normalized), currency: extractCurrency(normalized), quando };
@@ -418,6 +424,7 @@ export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}): 
       customCategoryId: achada?.customCategoryId ?? null,
       description: limpa,
       chaveDaFala: limpa ? chaveParaAprender(limpa) : null,
+      ...(doCasal.casal ? { casal: doCasal.casal } : {}),
     };
   }
 
