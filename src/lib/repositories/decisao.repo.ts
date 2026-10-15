@@ -236,16 +236,3 @@ export async function listarCancelamentosPraConfirmar(ctx: AuthContext, inicioDo
     .filter((c) => c.chave && !respondidas.has(`${c.chave}|sim`) && !respondidas.has(`${c.chave}|nao|${anoMes}`))
     .map((c) => ({ chave: c.chave as string, nome: c.descricao ?? c.chave ?? "", anual: Number(c.valor ?? 0) }));
 }
-
-/**
- * Os avisos do Foco dispensados neste mês ("2026-09|…") ou nesta semana ("2026-W40|…"), com o
- * quanto a categoria passava na hora da resposta (só o aviso de categoria que passou guarda; ver
- * resposta-ao-aviso.ts).
- */
-export async function listarAvisosDispensados(ctx: AuthContext, anoMes: string, semana: string): Promise<{ id: string; passou: number | null }[]> {
-  const rows = await prisma.decisao.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "aviso_dispensado", OR: [{ chave: { startsWith: `${anoMes}|` } }, { chave: { startsWith: `${semana}|` } }] },
-    select: { chave: true, valor: true },
-  });
-  return rows.map((r) => ({ id: (r.chave ?? "").split("|").slice(1).join("|"), passou: r.valor === null ? null : Number(r.valor) }));
-}
