@@ -28,6 +28,7 @@ import { regraDaCorrecaoDaVoz } from "@/lib/entries/aprender-da-voz";
 import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { cartaoDoPerfil } from "@/lib/repositories/cartao.repo";
+import { mesDoGastoNoCartao } from "@/lib/cartao/fatura";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { serverMoney } from "@/lib/money-server";
 import type { z } from "zod";
@@ -56,16 +57,59 @@ async function depoisDoGasto(ctx: Sessao, entry: MonthlyEntryInput): Promise<str
 
 /**
  * Cartão cadastrado escolhido no Digitar (15/10/2026, CartaoNoDigitar): só gasto, e só um cartão
- * dela no perfil aberto. Com cartão, o gasto é "no cartão" (o limite já conta). O mês do
- * orçamento continua o da compra; a fatura sai da data (lib/cartao/fatura.ts).
+ * dela no perfil aberto. Com cartão, o gasto é "no cartão" (o limite já conta) e conta no mês da
+ * fatura, o do vencimento (decisão da Dani, 15/10/2026, igual à fatura importada): year/month
+ * viram o da fatura e entryDate continua a data da compra. Devolve o cartão, para a despesa fixa
+ * calcular o mês de cada cópia.
  */
 async function ligarAoCartao(ctx: Sessao, formData: FormData, entry: MonthlyEntryInput) {
   const id = formData.get("cartaoId");
-  if (entry.category !== "EXPENSE" || typeof id !== "string" || !id) return;
+  if (entry.category !== "EXPENSE" || typeof id !== "string" || !id) return null;
   const cartao = await cartaoDoPerfil(ctx, id);
-  if (!cartao) return;
+  if (!cartao) return null;
   entry.cartaoId = cartao.id;
   entry.noCartao = true;
+  const conta = mesDoGastoNoCartao(entry.entryDate, cartao);
+  if (conta) Object.assign(entry, conta);
+  return cartao;
+}
+
+/** "AAAA-MM-DD" de uma data do formulário (meio-dia local) ou do banco (@db.Date, meia-noite UTC). */
+const diaDoForm = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * Edição de um gasto (15/10/2026): o cartão vem do formulário quando a folha mostra a escolha
+ * ("" tira o cartão); sem o campo, fica o que estava. Mudou a data ou o cartão: o mês vira o da
+ * fatura. Nada mudou nos dois: o mês que estava gravado fica, para a edição de outra coisa (a
+ * categoria) não mover o gasto de mês, nem nos lançamentos de antes desta regra.
+ */
+async function cartaoNaEdicao(ctx: Sessao, formData: FormData, entryId: string, entry: MonthlyEntryInput) {
+  const atual = await prisma.monthlyEntry.findFirst({
+    where: { id: entryId, userId: ctx.userId, profileId: ctx.profileId },
+    select: { cartaoId: true, entryDate: true, year: true, month: true, category: true },
+  });
+  if (!atual) return;
+  let cartaoId = atual.cartaoId;
+  const doForm = formData.get("cartaoId");
+  if (typeof doForm === "string") cartaoId = doForm ? ((await cartaoDoPerfil(ctx, doForm))?.id ?? null) : null;
+  if (entry.category !== "EXPENSE") {
+    if (atual.cartaoId) entry.cartaoId = null;
+    return;
+  }
+  if (typeof doForm === "string") {
+    entry.cartaoId = cartaoId;
+    if (cartaoId) entry.noCartao = true;
+  }
+  if (!cartaoId) return;
+  const mudouData = (atual.entryDate ? atual.entryDate.toISOString().slice(0, 10) : null) !== (entry.entryDate ? diaDoForm(entry.entryDate) : null);
+  if (mudouData || cartaoId !== atual.cartaoId || atual.category !== "EXPENSE") {
+    const cartao = await cartaoDoPerfil(ctx, cartaoId);
+    const conta = cartao ? mesDoGastoNoCartao(entry.entryDate, cartao) : null;
+    if (conta) Object.assign(entry, conta);
+  } else {
+    entry.year = atual.year;
+    entry.month = atual.month;
+  }
 }
 
 /**
@@ -195,10 +239,12 @@ export async function createMonthlyEntryAction(
     return entry;
   }
   aplicarEscolhasDoCasal(ctx, parsed.data, entry);
-  await ligarAoCartao(ctx, formData, entry);
+  // A despesa fixa no cartão: cada cópia nasce no mês da compra dela e conta no da fatura.
+  const mesDaCompra = { year: entry.year, month: entry.month };
+  const cartao = await ligarAoCartao(ctx, formData, entry);
   try {
     if (parsed.data.repeatMonthly) {
-      await createRecurringMonthlyEntries(ctx, entry);
+      await createRecurringMonthlyEntries(ctx, cartao ? { ...entry, ...mesDaCompra } : entry, cartao ? (d) => mesDoGastoNoCartao(d, cartao) : undefined);
     } else {
       await createMonthlyEntry(ctx, entry);
     }
@@ -210,6 +256,10 @@ export async function createMonthlyEntryAction(
   await aprenderDaVoz(ctx, formData, entry);
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
+  if (entry.year !== parsed.data.year || entry.month !== parsed.data.month) {
+    revalidatePath(`/mensal/${entry.year}`);
+    revalidatePath(`/mensal/${entry.year}/${entry.month}`);
+  }
   const aviso = await depoisDoGasto(ctx, entry);
   return aviso ? { aviso } : {};
 }
@@ -263,6 +313,7 @@ export async function updateMonthlyEntryAction(
   const entry = await toEntryInput(parsed.data);
   if ("error" in entry) return entry;
   aplicarEscolhasDoCasal(ctx, parsed.data, entry);
+  await cartaoNaEdicao(ctx, formData, entryId, entry);
   // Empresa: o cliente da venda (só vem quando a folha mostra o campo; vazio limpa).
   const cliente = formData.get("cliente");
   if (typeof cliente === "string" && entry.category === "INCOME") entry.cliente = cliente.trim().slice(0, 80) || null;
@@ -289,6 +340,7 @@ export async function updateMonthlyEntryAction(
   if (serie) revalidatePath("/mensal", "layout");
   revalidatePath(`/mensal/${parsed.data.year}`);
   revalidatePath(`/mensal/${parsed.data.year}/${parsed.data.month}`);
+  revalidatePath(`/mensal/${entry.year}/${entry.month}`);
   if (Number.isInteger(mesDaTela.year) && Number.isInteger(mesDaTela.month)) revalidatePath(`/mensal/${mesDaTela.year}/${mesDaTela.month}`);
   const aviso = await depoisDoGasto(ctx, entry);
   return aviso ? { aviso } : {};

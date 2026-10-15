@@ -162,6 +162,9 @@ export async function createRecurringMonthlyEntries(
     noCartao?: boolean | null;
     cartaoId?: string | null;
   },
+  /** Gasto num cartão cadastrado (15/10/2026): o mês que cada cópia conta, o da fatura da data
+   * dela (lib/cartao/fatura.ts, mesDoGastoNoCartao). `input.month` é então o mês da COMPRA. */
+  mesQueConta?: (entryDate: Date) => { year: number; month: number } | null,
 ) {
   const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
   // Todas as cópias levam o mesmo id: é o que deixa editar ou apagar "este e os próximos".
@@ -171,17 +174,22 @@ export async function createRecurringMonthlyEntries(
     months.push(m);
   }
   return prisma.monthlyEntry.createMany({
-    data: months.map((month) => ({
-      ...input,
-      customCategoryId: refs.customCategoryId,
-      // A meta vinha no ...input direto do formulário, sem passar pela checagem de dono/perfil.
-      // Cada cópia leva a meta, mas só conta nela quando o mês dela chegar (goal.repo).
-      goalId: refs.goalId ?? null,
-      month,
-      entryDate: input.entryDate ? sameDayInMonth(input.entryDate, input.year, month) : null,
-      recurrenceId,
-      userId: ctx.userId, profileId: ctx.profileId,
-    })),
+    data: months.map((month) => {
+      const entryDate = input.entryDate ? sameDayInMonth(input.entryDate, input.year, month) : null;
+      const conta = entryDate && mesQueConta ? mesQueConta(entryDate) : null;
+      return {
+        ...input,
+        customCategoryId: refs.customCategoryId,
+        // A meta vinha no ...input direto do formulário, sem passar pela checagem de dono/perfil.
+        // Cada cópia leva a meta, mas só conta nela quando o mês dela chegar (goal.repo).
+        goalId: refs.goalId ?? null,
+        year: conta?.year ?? input.year,
+        month: conta?.month ?? month,
+        entryDate,
+        recurrenceId,
+        userId: ctx.userId, profileId: ctx.profileId,
+      };
+    }),
   });
 }
 
@@ -222,7 +230,13 @@ export async function updateSeriesFrom(ctx: AuthContext, id: string, input: Mont
           customCategoryId: refs.customCategoryId ?? null,
           subcategory: semNulo(input.subcategory) ?? null,
           description: semNulo(input.description) ?? null,
-          entryDate: input.entryDate ? sameDayInMonth(input.entryDate, e.year, e.month) : null,
+          // Gasto no cartão (15/10/2026): a cópia conta no mês da fatura e a data é a da compra, de
+          // outro mês; o dia muda dentro do mês da data dela, não do mês em que conta.
+          entryDate: input.entryDate
+            ? e.cartaoId && e.entryDate
+              ? sameDayInMonth(input.entryDate, e.entryDate.getUTCFullYear(), e.entryDate.getUTCMonth() + 1)
+              : sameDayInMonth(input.entryDate, e.year, e.month)
+            : null,
           goalId: refs.goalId ?? null,
           originalAmount: input.originalAmount ?? null,
           originalCurrency: input.originalCurrency ?? null,

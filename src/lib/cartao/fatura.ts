@@ -163,3 +163,23 @@ export function faturaDoLancamento(
   }
   return { chave: chaveDoMes(e.year, e.month), ano: e.year, mes: e.month };
 }
+
+/**
+ * O mês em que o gasto lançado à mão num cartão cadastrado conta no orçamento (decisão da Dani,
+ * 15/10/2026): o mês da fatura, que é o do vencimento, como a fatura importada desde então. A
+ * compra de 15/10 num cartão que fecha dia 15 e vence dia 22 conta em novembro. O lançamento
+ * guarda a data da compra (entryDate) e o mês da fatura (year/month), como a entrada "para o mês
+ * seguinte". Sem os dias do cartão ou sem a data: null (fica o mês da compra).
+ *
+ * `data` é a data do formulário (meio-dia local, ver monthly-entry.schema) ou "AAAA-MM-DD".
+ */
+export function mesDoGastoNoCartao(
+  data: Date | string | null | undefined,
+  c: { diaFechamento: number | null; diaVencimento: number | null },
+): { year: number; month: number } | null {
+  if (!data || !diasValidos(c)) return null;
+  const dia = typeof data === "string" ? diaDoIso(data) : { ano: data.getFullYear(), mes: data.getMonth() + 1, dia: data.getDate() };
+  if (!dia) return null;
+  const f = faturaDe(dia, c);
+  return { year: f.ano, month: f.mes };
+}
