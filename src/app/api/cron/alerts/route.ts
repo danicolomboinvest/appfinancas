@@ -7,7 +7,10 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { buildBudgetAlerts, buildGoalAlerts, chaveDaMetaAtingida, metasQueChegaramLa, type Alert, type MetaAtingida } from "@/lib/insights/alerts";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
-import { calcularLivreDoMes } from "@/lib/planning/livre-do-mes";
+import { carregarLivreDoMes } from "@/lib/repositories/livre-do-mes.repo";
+import { contextoDoPerfil } from "@/lib/auth/session";
+import { listBudgets, sumExpensesByCustomCategory, sumExpensesByParentCategory } from "@/lib/repositories/budget.repo";
+import { nomesDasPersonalizadas } from "@/lib/consolidation/escopo";
 import { sendPushToUser, isPushConfigured } from "@/lib/push/send";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { alertEmail, metaAtingidaEmail } from "@/lib/email/templates";
@@ -62,53 +65,53 @@ export async function GET(request: Request) {
     let chegaram: MetaAtingida[] = [];
 
     // O perfil ativo entra antes dos dois blocos: o aviso de orçamento precisa do TIPO dele
-    // (numa Empresa, MORADIA se chama "Estrutura") e o de metas, do id.
+    // (numa Empresa, MORADIA se chama "Estrutura") e o de metas, do id. O contexto é o mesmo que
+    // a sessão monta (contextoDoPerfil): no casal, o plano é o da casa e os gastos são os dos dois,
+    // como no Orçamento. Antes o par recebia "Alimentação passou" do plano dele, que não existe.
     const perfil = await getOrCreateActiveProfile(user.id);
+    const ctx = await contextoDoPerfil(user, perfil);
 
     if (user.notifyBudgetAlerts) {
       // Meia-noite do dia 1 em Brasília (03:00 UTC), a mesma fronteira de ritmoDoMes: o que foi
       // criado antes é conta marcada e não conta como ritmo no aviso de 80%.
       const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
-      const [budgets, spent, preCriado, planosProprios, gastosProprios, proprias, totalGasto] = await Promise.all([
-        // Só o perfil ativo: somar Pessoal + Casal + Empresa mandava "Alimentação passou" com
-        // um número que não aparece em nenhuma tela.
-        prisma.budget.findMany({ where: { userId: user.id, profileId: perfil.id, year, month, parentCategory: { not: null } }, select: { parentCategory: true, plannedAmount: true } }),
-        prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where: { userId: user.id, profileId: perfil.id, year, month, category: "EXPENSE", parentCategory: { not: null } }, _sum: { amount: true } }),
-        prisma.monthlyEntry.groupBy({ by: ["parentCategory"], where: { userId: user.id, profileId: perfil.id, year, month, category: "EXPENSE", parentCategory: { not: null }, createdAt: { lt: inicioDoMes } }, _sum: { amount: true } }),
+      // As mesmas leituras do Orçamento (budget.repo) e o livre da fonte única (carregarLivreDoMes):
+      // só o perfil ativo, nunca Pessoal + Casal + Empresa somados.
+      const [planos, spent, preCriado, gastosProprios, proprias, livreDoMes] = await Promise.all([
+        listBudgets(ctx, year, month),
+        sumExpensesByParentCategory(ctx, year, month),
+        sumExpensesByParentCategory(ctx, year, month, inicioDoMes),
         // As categorias criadas por ela entram só como origem do "Tirar de" no e-mail (a Compras
-        // da Ana), e o total do mês dá o livre (plano − gastou), como na folha "O que fazer?".
-        prisma.budget.findMany({ where: { userId: user.id, profileId: perfil.id, year, month, customCategoryId: { not: null } }, select: { customCategoryId: true, plannedAmount: true } }),
-        prisma.monthlyEntry.groupBy({ by: ["customCategoryId"], where: { userId: user.id, profileId: perfil.id, year, month, category: "EXPENSE", customCategoryId: { not: null } }, _sum: { amount: true } }),
-        prisma.customCategory.findMany({ where: { userId: user.id, profileId: perfil.id }, select: { id: true, name: true } }),
-        prisma.monthlyEntry.aggregate({ where: { userId: user.id, profileId: perfil.id, year, month, category: "EXPENSE" }, _sum: { amount: true } }),
+        // da Ana).
+        sumExpensesByCustomCategory(ctx, year, month),
+        nomesDasPersonalizadas(ctx),
+        carregarLivreDoMes(ctx, { ano: year, mes: month }),
       ]);
+      const budgets = planos.filter((b) => b.parentCategory !== null);
+      const planosProprios = planos.filter((b) => b.customCategoryId !== null);
       const essenciais = categoriasEssenciais(lerPreferenciasDeCategoria(perfil.categorias));
-      const gastoProprio = new Map(gastosProprios.map((g) => [g.customCategoryId, Number(g._sum.amount ?? 0)]));
+      const gastoProprio = new Map(gastosProprios.map((g) => [g.customCategoryId, g.spent]));
       const nomeProprio = new Map(proprias.map((c) => [c.id, c.name]));
-      const planejadoTotal = [...budgets, ...planosProprios].reduce((t, b) => t + Number(b.plannedAmount), 0);
       alerts.push(
         ...buildBudgetAlerts({
           year,
           month,
           today: now,
           planned: budgets.filter((b) => b.parentCategory && PARENT_CATEGORIES.includes(b.parentCategory)).map((b) => ({ parentCategory: b.parentCategory!, planned: Number(b.plannedAmount) })),
-          spent: spent.filter((s) => s.parentCategory).map((s) => ({ parentCategory: s.parentCategory!, spent: Number(s._sum.amount ?? 0) })),
-          preCriado: preCriado.filter((s) => s.parentCategory).map((s) => ({ parentCategory: s.parentCategory!, spent: Number(s._sum.amount ?? 0) })),
+          spent,
+          preCriado,
           money: (v) => money(v, { round: true }),
           kind: perfil.kind,
           outras: planosProprios
             .filter((p) => p.customCategoryId && nomeProprio.has(p.customCategoryId))
-            .map((p) => ({ key: p.customCategoryId!, label: nomeProprio.get(p.customCategoryId!)!, planejado: Number(p.plannedAmount), gasto: gastoProprio.get(p.customCategoryId) ?? 0, essencial: essenciais.has(p.customCategoryId!) })),
-          // O livre do mês pela regra única (lib/planning/livre-do-mes): o mesmo número das telas.
-          livre: (() => {
-            const l = calcularLivreDoMes({ ano: year, mes: month, planejado: planejadoTotal, gasto: Number(totalGasto._sum.amount ?? 0) });
-            return l.tipo === "plano" ? l.valor : null;
-          })(),
+            .map((p) => ({ key: p.customCategoryId!, label: nomeProprio.get(p.customCategoryId!)!, planejado: Number(p.plannedAmount), gasto: gastoProprio.get(p.customCategoryId!) ?? 0, essencial: essenciais.has(p.customCategoryId!) })),
+          // O livre do mês pela fonte única (lib/repositories/livre-do-mes.repo): o mesmo número das telas.
+          livre: livreDoMes.tipo === "plano" ? livreDoMes.valor : null,
         }),
       );
     }
     if (user.notifyLateGoals) {
-      const goals = await listGoalsWithProgress({ userId: user.id, role: user.role, profileId: perfil.id, profileTheme: perfil.theme, profileKind: perfil.kind });
+      const goals = await listGoalsWithProgress(ctx);
       alerts.push(
         ...buildGoalAlerts({
           year,
@@ -143,8 +146,9 @@ export async function GET(request: Request) {
     if (novos.length === 0) continue;
     // O que ela já respondeu na tela ("Foi pontual", cobriu, "Deixar assim", "Agora não", teto)
     // não sai por push nem e-mail: a mesma regra das telas (lib/avisos). Sem gravar no log, para
-    // sair se piorar bem depois. Só o perfil dela (nada da casa aqui).
-    const respostas = await carregarRespostasDoMes({ userId: user.id, profileId: perfil.id }, { ano: year, mes: month }, now);
+    // sair se piorar bem depois. Com o contexto da sessão: no casal, "cobri Lazer" de um vale
+    // para o outro, como nas telas.
+    const respostas = await carregarRespostasDoMes(ctx, { ano: year, mes: month }, now);
     const fresh = novos.filter((a) => !alertaResolvido(respostas, a.key));
     if (fresh.length === 0) continue;
     preview.push({ email: user.email, alerts: fresh.map((a) => a.title) });

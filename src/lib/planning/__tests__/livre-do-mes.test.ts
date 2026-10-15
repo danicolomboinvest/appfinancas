@@ -128,7 +128,8 @@ describe("livre do mês: nenhuma tela refaz a conta", () => {
     "src/app/(app)/decidir/comprar/page.tsx": /foco\.livreDoMes/,
     "src/app/(app)/decidir/pergunta/[slug]/page.tsx": /livreDoMes/,
     "src/app/api/widget/route.ts": /livreDoMes: d\.livreDoMes/,
-    "src/app/api/cron/alerts/route.ts": /calcularLivreDoMes\(/,
+    // O aviso do dia lê o livre pela carga da fonte única, com o contexto da casa (15/10/2026).
+    "src/app/api/cron/alerts/route.ts": /carregarLivreDoMes\(ctx/,
     "src/lib/import/revelacao.ts": /valorDoLivre\(/,
   };
   it.each(Object.entries(telas))("%s usa a fonte única", (arquivo, padrao) => {

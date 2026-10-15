@@ -131,6 +131,25 @@ export async function contextoDaConta(user: { id: string; role: AuthContext["rol
     };
   }
   const [perfil, casa] = await Promise.all([getOrCreateActiveProfile(user.id), casaDoUsuario(user.id)]);
+  return montarContexto(user, perfil, casa);
+}
+
+/**
+ * O contexto de uma conta num perfil escolhido, fora de uma requisição (os crons): o mesmo que a
+ * sessão monta, com a casa quando o perfil é o Pessoal dela na casa. Sem isto o e-mail do resumo
+ * e os avisos do dia somavam só quem recebe e liam o plano errado: para o par, o plano que vale é
+ * o da casa (donoDoOrcamento), e os totais são os dos dois, como no Resumo.
+ */
+export async function contextoDoPerfil(
+  user: { id: string; role: AuthContext["role"] },
+  perfil: PerfilDoContexto,
+): Promise<AuthContext> {
+  return montarContexto(user, perfil, await casaDoUsuario(user.id));
+}
+
+type PerfilDoContexto = { id: string; theme: string; kind: ProfileKind; categorias?: unknown };
+
+function montarContexto(user: { id: string; role: AuthContext["role"] }, perfil: PerfilDoContexto, casa: CasaNaSessao | null): AuthContext {
   return {
     userId: user.id,
     role: user.role,
@@ -138,6 +157,7 @@ export async function contextoDaConta(user: { id: string; role: AuthContext["rol
     profileTheme: chaveDoTema(perfil.theme),
     profileKind: perfil.kind,
     categorias: { kind: perfil.kind, prefs: lerPreferenciasDeCategoria(perfil.categorias) },
+    // A casa vale só no Pessoal que faz parte dela (na Empresa, a Empresa é só dela).
     casa: casa && casa.eu.profileId === perfil.id ? casa : null,
   };
 }

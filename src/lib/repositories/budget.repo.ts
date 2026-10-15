@@ -30,11 +30,15 @@ export async function upsertBudget(
   return prisma.budget.create({ data: { ...input, ...donoDoOrcamento(ctx) } });
 }
 
-/** Soma de gastos (EXPENSE) do mês, agrupada por categoria-mãe. */
-export async function sumExpensesByParentCategory(ctx: AuthContext, year: number, month: number) {
+/**
+ * Soma de gastos (EXPENSE) do mês, agrupada por categoria-mãe. `criadosAntes`: só o que já estava
+ * lançado antes dessa hora (a conta marcada antes do mês começar, que o aviso de 80% não conta
+ * como ritmo), no mesmo escopo dos totais.
+ */
+export async function sumExpensesByParentCategory(ctx: AuthContext, year: number, month: number, criadosAntes?: Date) {
   const grouped = await prisma.monthlyEntry.groupBy({
     by: ["parentCategory"],
-    where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE", parentCategory: { not: null } }),
+    where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE", parentCategory: { not: null }, ...(criadosAntes ? { createdAt: { lt: criadosAntes } } : {}) }),
     _sum: { amount: true },
   });
   return grouped.map((g) => ({

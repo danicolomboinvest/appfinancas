@@ -14,6 +14,10 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { toCurrencyCode } from "@/lib/money";
 import { categoryLabel, isParentCategoryKey } from "@/lib/categories";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
+import { contextoDoPerfil } from "@/lib/auth/session";
+import { filtroDosTotais, nomesDasPersonalizadas, somarPorMesETipo } from "@/lib/consolidation/escopo";
+import { resumoDasSomas } from "@/lib/consolidation/monthly";
+import { listBudgets } from "@/lib/repositories/budget.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { maiorCategoriaDoMes, nomeDoMes } from "@/lib/recap/monthly";
 import { ajustarResumoPorEmail, botaoDoResumo, categoriasDoResumo, mesesDoGrafico, serieDoGrafico } from "@/lib/recap/email-do-resumo";
@@ -182,7 +186,7 @@ export async function GET(request: Request) {
         perfilDoResumoId && perfilDoResumoId !== ativo?.id
           ? await prisma.financialProfile.findFirstOrThrow({
               where: { id: perfilDoResumoId, userId: user.id },
-              select: { id: true, name: true, theme: true, kind: true },
+              select: { id: true, name: true, theme: true, kind: true, categorias: true },
             })
           : (ativo ?? (await getOrCreateActiveProfile(user.id)));
       const t = vozDoTema(perfilDoEmail.theme, perfilDoEmail.kind).titulos;
@@ -218,57 +222,46 @@ export async function GET(request: Request) {
         continue;
       }
 
+      // O contexto do perfil do resumo, o mesmo que a sessão monta (contextoDoPerfil): no casal, os
+      // números do e-mail são os do Resumo (os dois, sem o escondido do outro) e o plano é o da
+      // casa. Antes o e-mail somava só quem recebe e dizia um Gastou que nenhuma tela mostrava.
+      const ctx = await contextoDoPerfil(user, perfilDoEmail);
       // Os 6 meses do gráfico Entrou x Gastou (terminando no do resumo), numa consulta só.
       const mesesDoResumo = mesesDoGrafico(year, month);
-      const [grouped, byCategory, personalizadas, porMes, planos, metas, fechado] = await Promise.all([
-        prisma.monthlyEntry.groupBy({
-          by: ["category"],
-          // Um perfil só (o do resumo): o e-mail leva pra /mensal, que mostra um perfil só. Somar
-          // Pessoal + Empresa dava um resultado que não aparece em tela nenhuma.
-          where: { userId: user.id, profileId: perfilDoEmail.id, year, month },
-          _sum: { amount: true },
-        }),
+      const previous = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+      const [somas, byCategory, personalizadas, planos, metas, fechado] = await Promise.all([
+        // A carga única (lib/consolidation/escopo): o mês do resumo, o anterior (só para a frase de
+        // comparação, ele é o penúltimo do gráfico) e os do gráfico saem da mesma soma do Resumo. Um perfil só (o do resumo): o
+        // e-mail leva para /mensal, que mostra um perfil só.
+        somarPorMesETipo(ctx, { OR: mesesDoResumo.map((m) => ({ year: m.year, month: m.month })) }),
         // Por categoria-mãe E personalizada: só pela mãe, o "Pet" que foi o maior gasto do mês
         // ficava de fora e o e-mail apontava a segunda categoria como a maior (a tela do mês,
         // que o link abre, mostra Pet em 1º).
         prisma.monthlyEntry.groupBy({
           by: ["parentCategory", "customCategoryId"],
-          where: { userId: user.id, profileId: perfilDoEmail.id, year, month, category: "EXPENSE" },
+          where: filtroDosTotais(ctx, { year, month, category: "EXPENSE" }),
           _sum: { amount: true },
         }),
-        prisma.customCategory.findMany({ where: { userId: user.id, profileId: perfilDoEmail.id }, select: { id: true, name: true } }),
-        prisma.monthlyEntry.groupBy({
-          by: ["year", "month", "category"],
-          where: { userId: user.id, profileId: perfilDoEmail.id, category: { in: ["INCOME", "EXPENSE"] }, OR: mesesDoResumo.map((m) => ({ year: m.year, month: m.month })) },
-          _sum: { amount: true },
-        }),
+        nomesDasPersonalizadas(ctx),
         // O plano de cada categoria no mês do resumo, para "passou" ou "sobrou" em cada linha.
-        prisma.budget.findMany({ where: { userId: user.id, profileId: perfilDoEmail.id, year, month }, select: { parentCategory: true, customCategoryId: true, plannedAmount: true } }),
+        listBudgets(ctx, year, month),
         // As metas, com o progresso da mesma conta da tela de Metas.
-        listGoalsWithProgress({ userId: user.id, role: user.role, profileId: perfilDoEmail.id, profileTheme: perfilDoEmail.theme, profileKind: perfilDoEmail.kind }),
+        listGoalsWithProgress(ctx),
         // Já fechou o mês do resumo (o mesmo critério do convite no app): sem "Fechar setembro".
         mesJaFechado({ userId: user.id, profileId: perfilDoEmail.id }, year, month),
       ]);
 
-      const totalOf = (category: string) =>
-        Number(grouped.find((g) => g.category === category)?._sum.amount ?? 0);
-      const income = totalOf("INCOME");
-      const expense = totalOf("EXPENSE");
-      const investment = totalOf("INVESTMENT_CONTRIBUTION");
+      const resumoDe = (m: { year: number; month: number }) => resumoDasSomas(somas.filter((g) => g.year === m.year && g.month === m.month));
+      const doMes = resumoDe({ year, month });
+      const income = doMes.totalIncome;
+      const expense = doMes.totalExpense;
+      const investment = doMes.totalInvestment;
       // O valor grande é o sobrou da regra única (entrou − gastou − guardou), e o botão leva pro
       // fechamento do mês e diz isso. Ver ajustarResumoPorEmail.
       const ajuste = ajustarResumoPorEmail(t, { income, expense, investment }, nomeDoMes(year, month), ehEmpresa(perfilDoEmail.kind), fechado);
 
       // Gasto do mês anterior ao recapeado, só pra frase de comparação.
-      const previous = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
-      const previousExpense = Number(
-        (
-          await prisma.monthlyEntry.aggregate({
-            where: { userId: user.id, profileId: perfilDoEmail.id, year: previous.year, month: previous.month, category: "EXPENSE" },
-            _sum: { amount: true },
-          })
-        )._sum.amount ?? 0,
-      );
+      const previousExpense = resumoDe(previous).totalExpense;
 
       // O nome da maior categoria é o do perfil do resumo (numa Empresa, "Estrutura", não "Moradia");
       // a personalizada vai pelo nome que ela deu. Gasto sem categoria não entra no ranking.
@@ -284,10 +277,7 @@ export async function GET(request: Request) {
         planos.map((p) => ({ parentCategory: p.parentCategory, customCategoryId: p.customCategoryId, planned: Number(p.plannedAmount) })),
         rotuloDaCategoria,
       );
-      const meses = serieDoGrafico(
-        mesesDoResumo,
-        porMes.map((g) => ({ year: g.year, month: g.month, category: g.category, total: Number(g._sum.amount ?? 0) })),
-      );
+      const meses = serieDoGrafico(mesesDoResumo, somas);
       // Até duas metas ainda a caminho (a concluída tem o e-mail dela), na ordem da tela.
       const metasDoEmail = metas
         .filter((g) => Number(g.targetAmount) > 0 && g.computedCurrentAmount < Number(g.targetAmount))
