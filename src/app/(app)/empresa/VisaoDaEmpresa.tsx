@@ -10,7 +10,7 @@ import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { BotaoRegistrar } from "@/components/shell/BotaoRegistrar";
 import { NOME_DA_FORMA, paraO, type Forma } from "@/lib/empresa/config";
 import { chaveDoMes, ehMaquininha, ehVenda, nomeDaSaida, tipoDaSaida, type LancamentoDaEmpresa, type Mes, type Recibo } from "@/lib/empresa/regras";
-import { MESES, MESES_CURTOS, contasDoMes, diaCurto, diaDaSemanaDe, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
+import { MESES, MESES_CURTOS, contasDoMes, diaCurto, guiaDoMeiDaEmpresa, diaDaSemanaDe, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
 import { hrefDaLista, lancamentosDoPeriodo, noPeriodoTexto, resumoDoPeriodo, umMesSo, type PeriodoDaEmpresa } from "@/lib/empresa/periodo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { Cartao, Iniciais, LinhaDoRecibo, LogoDaForma, Picote, BOTAO_PRINCIPAL } from "./partes";
@@ -162,7 +162,10 @@ function AbaResumo({ dados, R, mes, periodo, recibo, atual, m0, money, children 
         <IconeTingido icon={FileText} cor="var(--color-accent-strong)" />
         <span className="min-w-0 flex-1">
           <b className="block text-[15px] font-medium text-ink">Guia do MEI</b>
-          <small className="text-xs text-ink-muted">{R.guia.diasAte < 0 ? `venceu dia ${Number(R.guia.vence.slice(8))}` : `vence ${diaDaSemanaDe(R.guia.vence)}`}</small>
+          <small className="text-xs text-ink-muted">
+            {R.guia.diasAte < 0 ? `venceu dia ${Number(R.guia.vence.slice(8))}` : `vence ${diaDaSemanaDe(R.guia.vence)}`}
+            {R.guia.origem === "estimada" ? ", estimado pelo app" : ""}
+          </small>
         </span>
         <b className="shrink-0 text-[15px] font-medium tabular-nums text-accent-strong">{money(R.guia.valor)}</b>
       </Link>,
@@ -365,6 +368,7 @@ function AbaDespesas({ doPeriodo, periodo, quando, recibo, m0 }: { doPeriodo: La
 
 function AbaContas({ dados, money, m0 }: { dados: DadosDaEmpresa; money: (v: number) => string; m0: Fmt }) {
   const contas = contasDoMes(dados);
+  const estimada = guiaDoMeiDaEmpresa(dados)?.origem === "estimada";
   const total = contas.reduce((s, c) => s + (c.valor ?? 0), 0);
   const pago = contas.filter((c) => c.paga).reduce((s, c) => s + (c.valor ?? 0), 0);
   const nPagas = contas.filter((c) => c.paga).length;
@@ -424,6 +428,7 @@ function AbaContas({ dados, money, m0 }: { dados: DadosDaEmpresa; money: (v: num
                 <b className="block truncate text-[15px] font-medium text-ink">{c.nome}</b>
                 <small className="text-xs text-ink-muted">
                   {c.paga ? `paga em ${Number(c.pagaEm!.slice(8))}/${MESES_CURTOS[Number(c.pagaEm!.slice(5, 7)) - 1]}` : diasAte !== null && diasAte < 0 ? `venceu dia ${Number(c.dia!.slice(8))}` : `dia ${Number(c.dia!.slice(8))}`}
+                  {!c.paga && estimada && c.nome === "Guia do MEI" ? ", estimado pelo app" : ""}
                   {!c.paga && diasAte !== null && diasAte >= 0 && diasAte <= 15 && (
                     <em className="ml-2 rounded-md bg-[var(--color-atencao-fundo)] px-1.5 py-0.5 text-xs font-medium uppercase not-italic text-[var(--color-atencao)]">{diasAte === 0 ? "hoje" : `em ${diasAte} ${diasAte === 1 ? "dia" : "dias"}`}</em>
                   )}

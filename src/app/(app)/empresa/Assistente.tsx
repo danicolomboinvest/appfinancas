@@ -13,8 +13,8 @@ import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { PRAZOS_DO_CREDITO, RAMOS, ramoDe, type Forma, type Ramo, type TipoDeEmpresa } from "@/lib/empresa/config";
 import { ehGuiaDoMei, ehVenda, mesAntes, salarioSeguro, lucrosParaOSalario } from "@/lib/empresa/regras";
-import { textoDaGuia } from "@/lib/empresa/legal";
-import { MESES_CURTOS, MESES } from "@/lib/empresa/resumo";
+import { origemDaGuia, textoDaGuia } from "@/lib/empresa/legal";
+import { guiaDoMeiDaEmpresa, MESES_CURTOS, MESES } from "@/lib/empresa/resumo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { abrirNegocioAction } from "./actions";
 import { BOTAO_PRINCIPAL, BOTAO_SECUNDARIO, CARTAO } from "./partes";
@@ -80,8 +80,10 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
 
   // A guia achada no extrato (a mais recente) ou a da tabela legal.
   const guiaAchada = dados.lancamentos.find((l) => ehGuiaDoMei(l)) ?? null;
-  const valorDaGuia = guiaAchada?.amount ?? dados.legal.das?.valor ?? null;
-  const ajudaDaGuia = textoDaGuia(dados.legal, guiaAchada?.amount ?? null);
+  // A mesma fonte única do resto da Empresa (o que ela digitou, a última paga ou a estimativa).
+  const guiaUsada = guiaDoMeiDaEmpresa({ config: { tipo: "MEI", atividadeMei: atual?.atividadeMei ?? "servico", dasDigitado: atual?.dasDigitado ?? null }, legal: dados.legal, lancamentos: dados.lancamentos });
+  const valorDaGuia = guiaUsada?.valor ?? null;
+  const ajudaDaGuia = textoDaGuia(dados.legal, atual?.atividadeMei ?? "servico", guiaUsada);
 
   // O salário: o lucro do último mês fechado e o seguro (média do lucro de 12 meses, menos 10%).
   const { lucros } = lucrosParaOSalario(dados.lancamentos, dados.mesAtual);
@@ -175,7 +177,11 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
                 <LogoDoLancamento descricao={null} icon={FileText} size={40} />
                 <span className="min-w-0 flex-1">
                   <b className="block text-[15px] font-medium text-ink">Guia do MEI</b>
-                  {guiaAchada?.entryDate && <small className="text-xs text-ink-muted">paga em {Number(guiaAchada.entryDate.slice(8))} de {MESES[Number(guiaAchada.entryDate.slice(5, 7)) - 1]}</small>}
+                  {guiaUsada?.origem === "paga" && guiaAchada?.entryDate ? (
+                    <small className="text-xs text-ink-muted">paga em {Number(guiaAchada.entryDate.slice(8))} de {MESES[Number(guiaAchada.entryDate.slice(5, 7)) - 1]}</small>
+                  ) : guiaUsada ? (
+                    <small className="text-xs text-ink-muted">{origemDaGuia(guiaUsada)}</small>
+                  ) : null}
                 </span>
                 {ajudaDaGuia && <Explica rotulo="De onde vem esse valor?">{ajudaDaGuia}</Explica>}
               </div>

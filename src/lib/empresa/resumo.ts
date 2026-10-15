@@ -1,4 +1,4 @@
-import type { ParametrosDoMei } from "./legal";
+import { diaDaGuiaPaga, valorDaGuia, type ParametrosDoMei, type ValorDaGuia } from "./legal";
 import type { ConfigEmpresa } from "./config";
 import {
   caixaEmDias,
@@ -37,7 +37,7 @@ export type EntradaDoResumo = {
   caixa: number;
 };
 
-export type Guia = { valor: number; vence: string; paga: boolean; diasAte: number };
+export type Guia = { valor: number; vence: string; paga: boolean; diasAte: number; origem: ValorDaGuia["origem"] };
 
 export type ResumoDaEmpresa = {
   ehMei: boolean;
@@ -72,6 +72,18 @@ export function faturamentoMedio(lancamentos: LancamentoDaEmpresa[], mesAtual: M
   return { ritmo: Math.round((vendas.reduce((s, v) => s + v, 0) / vendas.length) * 100) / 100, meses: vendas.length };
 }
 
+/** A guia do MEI que vale para esta empresa (ver valorDaGuia em legal.ts). Null fora do MEI. */
+export function guiaDoMeiDaEmpresa(e: { config: Pick<ConfigEmpresa, "tipo" | "atividadeMei" | "dasDigitado"> | null; legal: ParametrosDoMei; lancamentos: LancamentoDaEmpresa[] }): ValorDaGuia | null {
+  if (e.config?.tipo !== "MEI") return null;
+  const ultima = e.lancamentos.find((l) => ehGuiaDoMei(l)) ?? null;
+  return valorDaGuia({
+    legal: e.legal,
+    atividade: e.config.atividadeMei ?? "servico",
+    digitada: e.config.dasDigitado ?? null,
+    ultimaPaga: ultima ? { valor: ultima.amount, dia: diaDaGuiaPaga(ultima) } : null,
+  });
+}
+
 export function resumoDaEmpresa(e: EntradaDoResumo): ResumoDaEmpresa {
   const ehMei = e.config?.tipo === "MEI";
   const { meses: fechados, lucros } = lucrosParaOSalario(e.lancamentos, e.mesAtual);
@@ -82,15 +94,16 @@ export function resumoDaEmpresa(e: EntradaDoResumo): ResumoDaEmpresa {
   const reciboAtual = reciboDoMes(e.lancamentos, e.mesAtual);
   const pe = pontoDeEquilibrio(reciboFechado, salario);
 
-  // A guia: o valor da última que ela pagou (o extrato manda); sem nenhuma, o da tabela legal.
+  // A guia: a fonte única (valorDaGuia). O valor que ela digitou ganha da estimativa; a guia paga
+  // mais recente ganha do digitado antigo; sem nenhum, a estimativa pela atividade do MEI.
   let guia: Guia | null = null;
   if (ehMei && e.legal.diaDoDas) {
-    const ultima = e.lancamentos.find((l) => ehGuiaDoMei(l));
-    const valor = ultima ? ultima.amount : e.legal.das?.valor ?? null;
-    if (valor !== null) {
+    const usada = guiaDoMeiDaEmpresa(e);
+    const valor = usada?.valor ?? null;
+    if (usada && valor !== null) {
       const vence = vencimentoDaGuia(e.mesAtual, e.legal.diaDoDas.valor);
       const paga = e.lancamentos.some((l) => l.year === e.mesAtual.ano && l.month === e.mesAtual.mes && ehGuiaDoMei(l));
-      guia = { valor, vence, paga, diasAte: Math.round((Date.parse(vence) - Date.parse(e.hoje)) / 86_400_000) };
+      guia = { valor, vence, paga, diasAte: Math.round((Date.parse(vence) - Date.parse(e.hoje)) / 86_400_000), origem: usada.origem };
     }
   }
 
