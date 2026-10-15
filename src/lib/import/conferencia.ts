@@ -1,6 +1,7 @@
 import { totalDoMesEmPesos } from "./argentina-tarjeta-pdf";
 import { detectInvoiceTotal } from "./detect";
-import { comprasDaFaturaSaoPositivas } from "./fatura-lines";
+import { lerExtratoPeloSaldo } from "./extrato-pelo-saldo";
+import { comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "./fatura-lines";
 import type { ParsedTransaction } from "./statement-parser";
 
 /**
@@ -21,11 +22,12 @@ export type Conferencia =
   | { status: "nao-fechou"; lido: number; esperado: number }
   | { status: "sem-referencia" };
 
-const VALOR = String.raw`(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})`;
+// O (?!\d) impede ler "R$ 30,178.46" (planilha com vírgula de milhar) como R$ 30,17.
+const VALOR = String.raw`(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)`;
 
 const TOTAL_EM_REAL = new RegExp(String.raw`total\s+da\s+fatura\s+em\s+real[\s.]*${VALOR}`, "i");
 
-const TOTAL_DE_COMPRAS_NUBANK = new RegExp(String.raw`total\s+de\s+compras[^\n]*?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})`, "i");
+const TOTAL_DE_COMPRAS_NUBANK = new RegExp(String.raw`total\s+de\s+compras[^\n]*?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)`, "i");
 
 /** Totais de COMPRAS que as faturas imprimem, além do total a pagar (que mistura saldo anterior e pagamento). */
 const TOTAIS_DE_COMPRAS: RegExp[] = [
@@ -100,7 +102,8 @@ const RESUMO_EM_COLUNA = new RegExp(
 const RESUMO_MENSAL_C6 = /Entradas:\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*•\s*Sa[íi]das:\s*R\$\s*-?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
 
 const MERCADO_PAGO_ENTRADAS = new RegExp(String.raw`\bEntradas:\s*${VALOR}`);
-const MERCADO_PAGO_SAIDAS = new RegExp(String.raw`\bSa[íi]das:\s*(?:R\$\s*)?-?(\d{1,3}(?:\.\d{3})*,\d{2})`);
+// "Saídas: -R$ 6.330,82" (RecargaPay) põe o sinal antes do R$.
+const MERCADO_PAGO_SAIDAS = new RegExp(String.raw`\bSa[íi]das:\s*-?\s*(?:R\$\s*)?-?(\d{1,3}(?:\.\d{3})*,\d{2})`);
 
 function numero(m: RegExpMatchArray | null): number | null {
   if (!m) return null;
@@ -127,7 +130,11 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
   if (docType === "fatura") {
     const positivas = comprasDaFaturaSaoPositivas(txns);
     const compras = txns.filter((t) => (positivas ? t.amount > 0 : t.amount < 0)).reduce((s, t) => s + Math.abs(t.amount), 0);
-    const creditos = txns.filter((t) => (positivas ? t.amount < 0 : t.amount > 0)).reduce((s, t) => s + Math.abs(t.amount), 0);
+    // O crédito que fala em pagamento ("PAGAMENTO PIX" no Itaú) a revisão já deixa de fora como
+    // pagamento da fatura anterior; somado aqui, a fatura certa no centavo caía em "não fechou".
+    const creditos = txns
+      .filter((t) => (positivas ? t.amount < 0 : t.amount > 0) && !pareceCreditoDePagamento(t.description))
+      .reduce((s, t) => s + Math.abs(t.amount), 0);
     const total = detectInvoiceTotal(texto);
     const referencias = [total, ...TOTAIS_DE_COMPRAS.map((re) => numero(texto.match(re)))].filter(
       (n): n is number => n !== null,
@@ -195,11 +202,14 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
   const colunas = [...texto.matchAll(new RegExp(RESUMO_EM_COLUNA.source, "gi"))];
   const somaColuna = (i: 1 | 2) => colunas.reduce((s, m) => s + (numero([m[0], m[i]]) ?? 0), 0) || null;
   // Mercado Pago: "Entradas: R$ 10.635,42" e "Saidas: R$ -10.625,71" no topo.
-  const entradas = colunas.length > 0 ? somaColuna(1) : numero(texto.match(TOTAL_ENTRADAS) ?? texto.match(MERCADO_PAGO_ENTRADAS));
-  const saidas = colunas.length > 0 ? somaColuna(2) : numero(texto.match(TOTAL_SAIDAS) ?? texto.match(MERCADO_PAGO_SAIDAS));
-  if (entradas === null || saidas === null) return { status: "sem-referencia" };
+  // "Saidas: R$ 0,00" (conta que só rendeu no período, Mercado Pago) é total de verdade: sem ele a
+  // leitura certa ficava sem conferência e caía no alarme "tudo entrou como entrada".
+  const totalOuZero = (m: RegExpMatchArray | null) => numero(m) ?? (zerado(m) ? 0 : null);
+  const entradas = colunas.length > 0 ? somaColuna(1) : totalOuZero(texto.match(TOTAL_ENTRADAS) ?? texto.match(MERCADO_PAGO_ENTRADAS));
+  const saidas = colunas.length > 0 ? somaColuna(2) : totalOuZero(texto.match(TOTAL_SAIDAS) ?? texto.match(MERCADO_PAGO_SAIDAS));
   const lidoEntradas = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const lidoSaidas = txns.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);
+  if (entradas === null || saidas === null) return conferirPeloSaldoDaLinha(texto, lidoEntradas, lidoSaidas);
   const status = bate(lidoEntradas, entradas) && bate(lidoSaidas, saidas) ? "fechou" : "nao-fechou";
   return { status, lido: lidoEntradas + lidoSaidas, esperado: entradas + saidas };
 }
@@ -237,4 +247,22 @@ function conferirPorSaldoBB(texto: string, txns: ParsedTransaction[]): Conferenc
   const esperado = Math.round((final - inicial) * 100) / 100;
   const lido = Math.round(soma * 100) / 100;
   return Math.abs(lido - esperado) <= 0.05 ? { status: "fechou", lido, esperado } : { status: "nao-fechou", lido, esperado };
+}
+
+/**
+ * Extrato sem total impresso, mas com o saldo depois de cada lançamento (XP, Inter "saldo por
+ * transação", Rico): se a leitura pela conta do saldo (extrato-pelo-saldo.ts, que só aceita quando
+ * fecha no centavo linha a linha) chega às mesmas entradas e saídas, a leitura do leitor está
+ * conferida. Só confirma, nunca acusa: o leitor pelo saldo pula linha sem saldo, e uma diferença
+ * aqui não prova que faltou dinheiro. Sem isso, conta que só recebe rendimento ou só paga Pix
+ * ganhava o alarme de "sinal perdido" com a leitura certa.
+ */
+function conferirPeloSaldoDaLinha(texto: string, lidoEntradas: number, lidoSaidas: number): Conferencia {
+  const peloSaldo = lerExtratoPeloSaldo(texto);
+  if (!peloSaldo || peloSaldo.length === 0) return { status: "sem-referencia" };
+  const entradas = peloSaldo.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const saidas = peloSaldo.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);
+  const igual = (a: number, b: number) => Math.abs(a - b) < 0.01;
+  if (!igual(lidoEntradas, entradas) || !igual(lidoSaidas, saidas)) return { status: "sem-referencia" };
+  return { status: "fechou", lido: lidoEntradas + lidoSaidas, esperado: entradas + saidas };
 }

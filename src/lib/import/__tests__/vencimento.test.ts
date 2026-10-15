@@ -43,6 +43,11 @@ describe("detectarVencimento: quando a fatura não escreve a data completa", () 
     expect(detectarVencimento(texto)).toBe("2026-06-17");
   });
 
+  it("planilha da fatura BTG: 'Vencimento;;17/06' com o ano do 'Junho/2026' do topo", () => {
+    const csv = ["Fatura Cartão de Crédito;;;;;Junho/2026;", ";;;;;;", "Fatura Atual;;;;Resumo;;", "Período de Compras;;13/05 até 13/06;;Lançamentos Nacionais;;R$ 1,000.00 ", "Vencimento;;17/06;;Lançamentos Internacionais;;R$ 0.00 "].join("\n");
+    expect(detectarVencimento(csv, "fatura jul.xlsx")).toBe("2026-06-17");
+  });
+
   it("fatura de dezembro que vence em janeiro fica no ano seguinte", () => {
     expect(detectarVencimento("fatura de Dezembro de 2026\nVencimento: 10/01")).toBe("2027-01-10");
   });

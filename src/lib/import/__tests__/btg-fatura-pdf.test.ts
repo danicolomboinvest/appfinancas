@@ -74,3 +74,156 @@ describe("fatura do cartão BTG Pactual / EQI (PDF)", () => {
     expect(conferirLeitura(BTG, "fatura", linhas)).toMatchObject({ status: "fechou" });
   });
 });
+
+describe("fatura BTG: moeda estrangeira com a conversão fora do lugar", () => {
+  // Layout de quando a página vira: a conversão da compra em dólar vai para o topo da página
+  // seguinte, depois de outras compras em dólar. E o subtotal do cartão aparece antes da cotação.
+  const VIRADA = [
+    "Fulana Exemplo | fatura de Agosto de 2026 | cartão final 0000",
+    "Vencimento: 17/08",
+    "Lançamentos do cartão virtual | Fulana Exemplo | Final 1111 Total do cartão: R$ 1.000,00",
+    "Total de créditos recebidos",
+    "EUR 10,00\tLocadora Exemplo\t01 Ago",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 6,20",
+    "-R$ 62,00",
+    "-R$ 62,00",
+    "Total de compras e despesas",
+    "R$ 100,00\tLoja Exemplo (12/12)\t18 Ago",
+    "US$ 20,00\tServiço Exemplo A\t01 Ago",
+    "R$ 300,00",
+    "US$ 100,00\tServiço Exemplo B\t30 Jul",
+    "R$ 50,00\tMercado Exemplo\t01 Ago",
+    "US$ 5,00\tServiço Exemplo C\t06 Ago",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,50",
+    "R$ 27,50",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,40",
+    "R$ 108,00",
+    "-- 3 of 4 --",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,48",
+    "R$ 548,00",
+    "BTG Pactual S.A",
+  ].join("\n");
+
+  it("cada compra fica com a conversão cuja conta fecha, e o subtotal não vira cotação", () => {
+    const txns = parseBtgInvoice(VIRADA, 2026);
+    const porNome = Object.fromEntries(txns.map((t) => [t.description, t.amount]));
+    expect(porNome["Serviço Exemplo A"]).toBe(108);
+    expect(porNome["Serviço Exemplo B"]).toBe(548);
+    expect(porNome["Serviço Exemplo C"]).toBe(27.5);
+  });
+
+  it("estorno em outra moeda sai negativo mesmo com o '-' só no valor em real", () => {
+    const txns = parseBtgInvoice(VIRADA, 2026);
+    expect(txns.find((t) => t.description === "Locadora Exemplo")?.amount).toBe(-62);
+  });
+
+  it("parcela com data depois do vencimento é do ano anterior", () => {
+    const txns = parseBtgInvoice(VIRADA, 2026);
+    expect(txns.find((t) => t.description === "Loja Exemplo (12/12)")?.date).toBe("2025-08-18");
+    expect(txns.find((t) => t.description === "Mercado Exemplo")?.date).toBe("2026-08-01");
+  });
+});
+
+describe("fatura BTG/EQI: conversão em outra moeda fora do lugar", () => {
+  // Layout da quebra de página: a compra em dólar fica numa página e o bloco "Cotação / Conversão"
+  // dela desce para depois do cabeçalho da página seguinte, DEPOIS da conversão de outra compra.
+  const QUEBRA = [
+    "Olá, Fulana! Esta é a fatura do seu cartão EQI de",
+    "Julho no valor a pagar de R$ 1.000,00",
+    "Fulana Exemplo | fatura de Julho de 2026 | cartão final 0000",
+    "Total a pagar R$ 1.000,00",
+    "BTG Pactual S.A",
+    "Lançamentos do cartão virtual | Fulana Exemplo | Final 0000 Total do cartão: R$ 1.000,00",
+    "Total de compras e despesas",
+    "US$ 100,00\tServico Exemplo\t30 Jun",
+    "R$ 200,00\tLoja Exemplo\t01 Jul",
+    "US$ 10,00\tApp Exemplo\t06 Jul",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,00",
+    "R$ 50,00",
+    "R$ 1.000,00",
+    "-- 3 of 4 --",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,50",
+    "R$ 550,00",
+  ].join("\n");
+
+  it("acha o par cotação × valor pela conta, não pela ordem", () => {
+    const txns = parseBtgInvoice(QUEBRA, 2026);
+    expect(txns.map((t) => [t.description, t.amount])).toEqual([
+      ["Servico Exemplo", 550],
+      ["Loja Exemplo", 200],
+      ["App Exemplo", 50],
+    ]);
+  });
+
+  it("crédito em moeda estrangeira leva o sinal do valor em real", () => {
+    const texto = [
+      "Fulana Exemplo | fatura de Agosto de 2026 | cartão final 0000",
+      "BTG Pactual S.A",
+      "Lançamentos do cartão físico | Fulana Exemplo | Final 0000 Total do cartão: R$ 90,00",
+      "Total de créditos recebidos",
+      "EUR 10,00\tEstorno Exemplo\t01 Ago",
+      "Cotação da moeda -",
+      "Conversão para Real -",
+      "R$ 6,00",
+      "-R$ 60,00",
+      "Total de compras e despesas",
+      "R$ 150,00\tLoja Exemplo\t02 Ago",
+      "R$ 90,00",
+    ].join("\n");
+    expect(parseBtgInvoice(texto, 2026).map((t) => t.amount)).toEqual([-60, 150]);
+  });
+});
+
+describe("fatura BTG/EQI: compras iguais em dólar não trocam o valor em real", () => {
+  // Três compras de US$ 10,00: duas em 08 Out (cotação 5,29) e uma em 19 Set (cotação 5,46). A
+  // cotação do 19 Set desceu para depois da quebra de página. Qualquer par fecha a conta de US$ 10.
+  const TEXTO = [
+    "Fulana Exemplo | fatura de Outubro de 2026 | cartão final 0000",
+    "BTG Pactual S.A",
+    "Lançamentos do cartão físico | Fulana Exemplo | Final 0000 Total do cartão: R$ 160,00",
+    "Total de compras e despesas",
+    "US$ 10,00\tApp Exemplo\t18 Set",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,46",
+    "R$ 54,60",
+    "US$ 10,00\tApp Exemplo\t19 Set",
+    "US$ 10,00\tApp Exemplo\t08 Out",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,29",
+    "R$ 52,90",
+    "US$ 10,00\tApp Exemplo\t08 Out",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,29",
+    "R$ 52,90",
+    "-- 2 of 3 --",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,47",
+    "R$ 54,70",
+  ].join("\n");
+
+  it("cada compra fica com a cotação do dia mais perto da sua data", () => {
+    const txns = parseBtgInvoice(TEXTO, 2026);
+    expect(txns.map((t) => [t.date, t.amount])).toEqual([
+      ["2026-09-18", 54.6],
+      ["2026-09-19", 54.7],
+      ["2026-10-08", 52.9],
+      ["2026-10-08", 52.9],
+    ]);
+  });
+});

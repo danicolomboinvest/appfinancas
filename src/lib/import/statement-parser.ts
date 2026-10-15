@@ -6,6 +6,7 @@
  * Convenção de sinal em `amount`: negativo = saída (vira EXPENSE), positivo = entrada (INCOME).
  */
 
+import { ehMovimentoEntrePessoas, separarHorarioECategoria } from "./comerciante";
 import { dataArgentinaNoInicio } from "./argentina";
 import { isArgentinaCuenta, parseArgentinaCuenta } from "./argentina-cuenta-pdf";
 import { isArgentinaTarjeta, parseArgentinaTarjeta } from "./argentina-tarjeta-pdf";
@@ -16,6 +17,7 @@ import { isPicPayInvoice, parsePicPayInvoice } from "./picpay-fatura-pdf";
 import { isSicrediInvoice, parseSicrediInvoice } from "./sicredi-fatura-pdf";
 import { isSicoobInvoice, parseSicoobInvoice } from "./sicoob-fatura-pdf";
 import { isBtgInvoice, parseBtgInvoice } from "./btg-fatura-pdf";
+import { isBtgExtratoContaPdf, parseBtgExtratoContaPdf } from "./btg-extrato-pdf";
 import { isBtgExtratoApp, parseBtgExtratoApp } from "./btg-extrato-app-pdf";
 import { lerExtratoPeloSaldo } from "./extrato-pelo-saldo";
 import { isCaixaInvoice, parseCaixaInvoice } from "./caixa-fatura-pdf";
@@ -55,6 +57,9 @@ import { isC6Invoice, parseC6Invoice } from "./c6-fatura-pdf";
 import { isSantanderInvoice, parseSantanderInvoice } from "./santander-fatura-pdf";
 import { isNubankInvoice, parseNubankInvoice } from "./nubank-fatura-pdf";
 import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
+import { isRecargaPayStatement, parseRecargaPayStatement } from "./recargapay-pdf";
+import { isSofisaStatement, parseSofisaStatement } from "./sofisa-pdf";
+import { isBtgContaInvestimento, parseBtgContaInvestimento } from "./btg-conta-investimento-pdf";
 
 export type ParsedTransaction = {
   /** ISO (YYYY-MM-DD) quando possível; string original caso não dê pra normalizar. */
@@ -285,6 +290,10 @@ const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$|gasto$|aporte$)/i;
 const CATEGORY_HEADERS = ["categoria", "category", "ramo", "segmento", "mcc"];
 /** Célula que é SÓ o sinal (nada de "Pix enviado"): essa não enriquece a descrição. */
 const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-]|gasto|renda|aporte|resgate)$/i;
+/** A coluna "Tipo de compra" da planilha da fatura (BTG): diz COMO foi pago, não o quê. Grudada
+ * na frente ("Parcela sem juros · Loja (2/6)") o nome deixava de bater com as regras dela e com a
+ * mesma compra vinda do PDF: a fatura em planilha virava quase uma pergunta por compra e quase nada "já no app". */
+const CELULA_TIPO_DE_COMPRA_RE = /^(?:compra (?:[àa] vista|parcelada|internacional|nacional|online)|parcela (?:sem|com) juros|parcelad[ao]|[àa] vista)$/i;
 /** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
 /** Célula que é SÓ uma data: no Inter a coluna "TRANSACAO" traz a data, não o tipo. */
@@ -443,7 +452,7 @@ function readTransactionLine(line: string, layout: CsvLayout, refYear: number): 
   // Data repetida na coluna de "Transação" não enriquece nada: virava "1/07/26 · PAGAMENTO…".
   const transRaw = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
   // A coluna "Tipo" que só traz D/C/Saída/Entrada já deu o sinal: não vira "D · Mercado".
-  const trans = CELL_IS_DATE_RE.test(transRaw) || CELULA_SO_SINAL_RE.test(transRaw) ? "" : transRaw;
+  const trans = CELL_IS_DATE_RE.test(transRaw) || CELULA_SO_SINAL_RE.test(transRaw) || CELULA_TIPO_DE_COMPRA_RE.test(transRaw) ? "" : transRaw;
   // Pula saldos/totais, são fotografias do saldo, não transações.
   if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) return null;
 
@@ -566,6 +575,18 @@ function temPalavraDeEntrada(text: string): boolean {
 const MONTH_ABBR: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
 /** Linhas que são saldo/total, não movimento. */
 const BALANCE_LINE_RE = /\b(saldo|total\s+(da|desta|de|a\s+pagar)|subtotal|limite|hist[óo]rico\s+de\s+faturas)\b/i;
+/**
+ * "Saldo" ou "limite" no MEIO de uma linha com cara de cobrança não é linha de saldo: "Juros limite
+ * cheque especial", "IOF limite da conta" e "Seguro saldo devedor" são gasto de verdade (o IOF de
+ * R$ 1,75 do extrato do BTG sumia sem aviso). Linha que COMEÇA por saldo/limite ("Saldo anterior",
+ * "Limite disponível") continua sendo saldo.
+ */
+const COBRANCA_NA_LINHA_RE = /\b(iof|juros|tarifas?|seguro|encargos?|multa|tributos?|anuidade|mora)\b/i;
+function ehLinhaDeSaldo(texto: string): boolean {
+  if (!BALANCE_LINE_RE.test(texto)) return false;
+  if (/^\W*(saldo|limite|total|subtotal|hist[óo]rico)\b/i.test(separarHorarioECategoria(texto).descricao)) return true;
+  return !COBRANCA_NA_LINHA_RE.test(texto);
+}
 
 /**
  * Data no COMEÇO de uma linha de PDF: "12/08/2026", "12/08", "12 AGO", "12 ago 2026",
@@ -639,7 +660,7 @@ function leadingDateCore(t: string, refYear: number): { iso: string; length: num
 type ValorNaLinha = { magnitude: number; menos: boolean; tracoSolto: boolean; mais: boolean; marca: "C" | "D" | null };
 
 /** Um lançamento lido do texto, antes de decidir o sinal: a decisão olha o arquivo inteiro. */
-type RegistroDeTexto = { date: string; text: string; valores: ValorNaLinha[]; linhaDeSaldo: boolean };
+type RegistroDeTexto = { date: string; text: string; valores: ValorNaLinha[]; linhaDeSaldo: boolean; categoriaDoBanco?: string };
 
 // O número começa numa borda (nada de dígito, ponto ou vírgula colado à esquerda) e aceita
 // valor sem ponto de milhar: em "1500,00" o regex antigo pegava só "500,00" e o "1" ia pra
@@ -810,7 +831,20 @@ export function parseTextLines(content: string, refYear: number = new Date().get
     }
     // "Lançamentos: R$ 10.290,88" no topo de cada página (extrato do BTG) é o total, não um
     // lançamento: entrava uma vez por página, com a data do cabeçalho.
-    registros.push({ date: open.date, text, valores, linhaDeSaldo: BALANCE_LINE_RE.test(text) || /\blan[çc]amentos:\s*$/i.test(text) });
+    const linhaDeSaldo = ehLinhaDeSaldo(text) || /\blan[çc]amentos:\s*$/i.test(text);
+    // Extrato do BTG ("10h51 Investimentos Transferência enviada Fulana"): o horário sai do nome e o
+    // rótulo de categoria do banco vira sinal para o motor. Pix, transferência e boleto ficam sem
+    // o rótulo: lá o BTG chuta (um Pix para uma pessoa vinha como "Seguro").
+    const limpo = linhaDeSaldo ? null : separarHorarioECategoria(text);
+    if (limpo && limpo.descricao !== text) {
+      registros.push({
+        date: open.date,
+        text: limpo.descricao,
+        valores,
+        linhaDeSaldo,
+        ...(limpo.categoria && !ehMovimentoEntrePessoas(limpo.descricao) ? { categoriaDoBanco: limpo.categoria } : {}),
+      });
+    } else registros.push({ date: open.date, text, valores, linhaDeSaldo });
     open = null;
   };
 
@@ -873,7 +907,12 @@ export function parseTextLines(content: string, refYear: number = new Date().get
     if (!(v.magnitude > 0)) continue;
     sinal ??= sinalPelaLinha(v, r.text, semSinalEEntrada);
     if (!temDoisNumeros(r) && saldoAnterior !== null) saldoAnterior += sinal * v.magnitude;
-    transactions.push({ date: r.date, description: r.text || "Lançamento", amount: sinal * v.magnitude });
+    transactions.push({
+      date: r.date,
+      description: r.text || "Lançamento",
+      amount: sinal * v.magnitude,
+      ...(r.categoriaDoBanco ? { categoriaDoBanco: r.categoriaDoBanco } : {}),
+    });
   }
   return transactions;
 }
@@ -919,6 +958,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "sicoob-fatura", reconhece: isSicoobInvoice, le: (t, ano) => parseSicoobInvoice(t, ano) },
   { nome: "btg-fatura", reconhece: isBtgInvoice, le: (t, ano) => parseBtgInvoice(t, ano) },
   { nome: "btg-extrato-app", reconhece: isBtgExtratoApp, le: (t, ano) => parseBtgExtratoApp(t, ano) },
+  { nome: "btg-extrato", reconhece: isBtgExtratoContaPdf, le: (t) => parseBtgExtratoContaPdf(t) },
   { nome: "mercado-pago-fatura", reconhece: isMercadoPagoInvoice, le: (t, ano) => parseMercadoPagoInvoice(t, ano) },
   { nome: "banrisul-fatura", reconhece: isBanrisulInvoice, le: (t, ano) => parseBanrisulInvoice(t, ano) },
   { nome: "bradesco-cartoes-app", reconhece: isBradescoCartoesApp, le: (t, ano) => parseBradescoCartoesApp(t, ano) },
@@ -926,6 +966,9 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "porto-fatura", reconhece: isPortoInvoice, le: (t, ano) => parsePortoInvoice(t, ano) },
   { nome: "unicred", reconhece: isUnicredStatement, le: (t) => parseUnicredStatement(t) },
   { nome: "wise", reconhece: isWiseStatement, le: (t) => parseWiseStatement(t) },
+  { nome: "recargapay", reconhece: isRecargaPayStatement, le: (t) => parseRecargaPayStatement(t) },
+  { nome: "sofisa", reconhece: isSofisaStatement, le: (t) => parseSofisaStatement(t) },
+  { nome: "btg-conta-investimento", reconhece: isBtgContaInvestimento, le: (t) => parseBtgContaInvestimento(t) },
 ];
 
 /** Texto de OCR: só leitores que conferem o que leram pelos saldos/totais do próprio extrato. */

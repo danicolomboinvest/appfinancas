@@ -83,16 +83,19 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
           const res = await cobrirCategoriaAction({ de: o.key, para: c.categoria ?? "", valor: o.valor });
           if (res.error) throw new Error(res.error);
         }
+        // Cobrir é resposta: a regra única (lib/avisos) tira o aviso do Resumo e do Orçamento também.
+        await dispensarAvisoAction(c.id, "mes", origens.reduce((s, o) => s + o.valor, 0) || undefined, "cobrir").catch(() => undefined);
         return {
           texto: "Resolvida",
           desfazer: async () => {
             for (const o of origens) await cobrirCategoriaAction({ de: c.categoria ?? "", para: o.key, valor: o.valor });
+            await desfazerDispensaAction(c.id, "mes");
           },
         };
       }
       case "livre":
       case "deixar":
-        await dispensarAvisoAction(c.id, "mes");
+        await dispensarAvisoAction(c.id, "mes", undefined, r.id === "livre" ? "livre" : "deixar");
         return { texto: r.id === "livre" ? "Coberta pelo livre" : "Fica como está", desfazer: () => desfazerDispensaAction(c.id, "mes") };
       case "guardar_mais": {
         const antes = await guardarMaisNaMetaAction(c.metaId ?? "", a.porMes ?? 0);

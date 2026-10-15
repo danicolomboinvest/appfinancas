@@ -1,5 +1,6 @@
 "use client";
 
+import { quantoPassou } from "@/lib/planning/remanejo";
 import { useState } from "react";
 import { Tag, TriangleAlert } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
@@ -48,7 +49,7 @@ export function AlertaDoOrcamento({
         <TriangleAlert size={18} strokeWidth={1.6} />
       </span>
       <p className="min-w-0 flex-1 text-[15px] leading-snug text-danger">
-        {passou.label} passou {m(Math.abs(passou.sobra))}
+        {passou.label} passou {m(quantoPassou({ planejado: passou.planejado, gasto: passou.gasto + passou.aVencer }))}
         {outras > 0 && <span className="block text-xs text-ink-muted">e mais {outras}</span>}
       </p>
       <button type="button" onClick={() => setAberto(true)} className="min-h-10 shrink-0 rounded-full bg-ink px-4 text-sm font-medium text-canvas">

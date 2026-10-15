@@ -16,6 +16,7 @@ import {
   type EntradaDoTopo,
   type SinalDoMes,
   type Sugestao,
+  soPeloGuardado,
 } from "../regras";
 
 const SEM: SinalDoMes = { gastos: 0, entradas: 0, extrato: false, fatura: false, digitados: 0 };
@@ -261,5 +262,15 @@ describe("a parcela projetada não vira dado do mês seguinte (14/10/2026)", () 
     expect(caso).toBe("fatura");
     // Antes: as duas contavam, e a conta nova caía no "dia a dia" de outubro.
     expect(escolherCaso({ dia: 14, atual: { ...vazio, gastos: 150, fatura: true }, passado: { ...vazio, gastos: 482.65, fatura: true }, mesesComDado: 2, ultimoArquivo: { mes: { ano: 2026, mes: 10 }, extrato: false, fatura: true } })).toBe("dia-a-dia");
+  });
+});
+
+describe("soPeloGuardado: o mês que 'faltou' só porque ela guardou", () => {
+  it("entrou 5.000, gastou 3.000, guardou 4.000: não é 'saiu a mais do que entrou'", () => {
+    expect(soPeloGuardado(5000 - 3000 - 4000, 4000)).toBe(true);
+  });
+  it("gastou mais do que entrou: aí sim saiu a mais", () => {
+    expect(soPeloGuardado(1000 - 1500 - 200, 200)).toBe(false);
+    expect(soPeloGuardado(-300, 0)).toBe(false);
   });
 });

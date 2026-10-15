@@ -1,5 +1,6 @@
 "use server";
 
+import { MSG_CONTA_DE_CONSUMO, pareceContaDeConsumo } from "@/lib/import/conta-de-consumo";
 import { ehCasal } from "@/lib/profiles/casal";
 import { ehPessoa } from "@/lib/casal/acerto";
 import { revalidatePath } from "next/cache";
@@ -8,7 +9,7 @@ import { agendarContasDoHistorico } from "@/lib/contas/agendar-contas";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { descricaoComparavel, installmentDescription, mesmaParcela, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
-import { profileDocument } from "@/lib/import/profile";
+import { MOTIVO_MOVIMENTACAO_B3, profileDocument } from "@/lib/import/profile";
 import { veioDeImagem } from "@/lib/import/ocr-marca";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
@@ -44,7 +45,8 @@ import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceRes
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
 import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
 import { lidasEmDobro } from "@/lib/import/repetidos";
-import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, type CompraDoPrint, type PrintLido } from "@/lib/import/print-fatura";
+import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
+import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
 import { casarComFaturaAberta } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
@@ -93,6 +95,8 @@ export type ReviewItem = {
   /** Sempre positivo aqui; o sinal virou `category`. */
   amount: number;
   category: EntryType;
+  /** A categoria que o banco escreveu na linha ("Investimentos" no extrato do BTG), quando há. */
+  categoriaDoBanco?: string;
   parentCategory: ParentCategory | null;
   /** Categoria personalizada escolhida/criada na revisão (alternativa às 7 categorias-mãe fixas). */
   customCategoryId: string | null;
@@ -131,6 +135,9 @@ export type ReviewItem = {
     faturaAberta?: boolean;
     /** Veio de outro arquivo, com o mesmo dia, valor e nome: a gravação pula sozinha (é o mesmo arquivo de novo). */
     importado?: boolean;
+    /** Parcela que já está no mês (ver marcarParcelasJaNoApp). Vai junto para a gravação, que a
+     * reconhece e confirma a projeção da fatura anterior, mas não conta como compra nova. */
+    parcela?: boolean;
   } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
@@ -176,6 +183,8 @@ export type ParseStats = {
   compras: number;
   /** Veio de prints da fatura ABERTA: parcial, "N compras até hoje" (ver lib/import/print-fatura). */
   faturaAberta?: boolean;
+  /** Prints: compra em moeda estrangeira (US$ 19,00) que a tela não mostra em real. Só entra quando ela digita o valor em real na revisão. */
+  semValorEmReal?: CompraParaPreencher[];
 };
 
 export type ParseStatementResult =
@@ -244,7 +253,7 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
 }
 
 /** Os prints que a tela juntou (JSON no formulário), conferidos: só o formato esperado passa. */
-function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; banco: string | null } | null {
+function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; banco: string | null; semReal: CompraSemValorEmReal[]; total: number | null } | null {
   try {
     const envio = String(formData.get("envio") ?? "");
     const brutos = JSON.parse(String(formData.get("prints") ?? "null")) as unknown;
@@ -253,10 +262,17 @@ function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; ban
       const linhas = Array.isArray(p?.linhas) ? p.linhas : [];
       return {
         cabecalhoNoFim: typeof p?.cabecalhoNoFim === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.cabecalhoNoFim) ? p.cabecalhoNoFim : null,
+        totalDaFatura: Number.isFinite(Number(p?.totalDaFatura)) && Number(p?.totalDaFatura) > 0 && Number(p?.totalDaFatura) < 1e8 ? Math.round(Number(p.totalDaFatura) * 100) / 100 : null,
         linhas: linhas.slice(0, 200).flatMap((l: Record<string, unknown>) => {
           const valor = Number(l?.valor);
           const nome = typeof l?.nome === "string" ? l.nome.slice(0, 120).trim() : "";
-          if (!nome || !Number.isFinite(valor) || valor <= 0 || valor > 1e7) return [];
+          // Compra em dólar sem o real na tela chega com valor 0 e o valor de fora em `estrangeira`.
+          const est = l?.estrangeira as { moeda?: unknown; valor?: unknown } | null | undefined;
+          const valorDeFora = Number(est?.valor);
+          const estrangeira = est && Number.isFinite(valorDeFora) && valorDeFora > 0 && valorDeFora < 1e7
+            ? { moeda: est.moeda === "USD" || est.moeda === "EUR" || est.moeda === "GBP" ? est.moeda : null, valor: Math.round(valorDeFora * 100) / 100 }
+            : null;
+          if (!nome || !Number.isFinite(valor) || valor < 0 || valor > 1e7 || (valor === 0 && !estrangeira)) return [];
           const parcela = l?.parcela as { atual?: unknown; total?: unknown } | null;
           const atual = Number(parcela?.atual);
           const total = Number(parcela?.total);
@@ -268,13 +284,17 @@ function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; ban
             credito: l?.credito === true,
             parcela: Number.isInteger(atual) && Number.isInteger(total) && atual >= 1 && atual <= total && total <= 48 ? { atual, total } : null,
             categoriaDoBanco: typeof l?.categoriaDoBanco === "string" && l.categoriaDoBanco.length <= 40 ? l.categoriaDoBanco : null,
+            estrangeira,
           }];
         }),
       };
     });
-    const compras = comprasDosPrints(juntarPrints(prints), envio);
+    const juntas = juntarPrints(prints);
+    const compras = comprasDosPrints(juntas, envio);
+    const semReal = semValorEmReal(juntas, envio);
+    const total = prints.find((p) => p.totalDaFatura)?.totalDaFatura ?? null;
     const banco = typeof formData.get("banco") === "string" && String(formData.get("banco")).length <= 40 ? String(formData.get("banco")) || null : null;
-    return compras.length > 0 ? { compras, banco } : null;
+    return compras.length > 0 || semReal.length > 0 ? { compras, banco, semReal, total } : null;
   } catch {
     return null;
   }
@@ -349,6 +369,11 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       await falha(`${MSG_PRINT_ILEGIVEL} [prints sem compra]`, { kind: "print" });
       return { ok: false, error: MSG_PRINT_ILEGIVEL };
     }
+    if (dosPrints.compras.length === 0) {
+      const msg = "As compras desse print são em dólar e a tela não mostra o valor em real, então não gravei nada. Lance pelo PDF da fatura quando ela fechar, ou à mão com o valor em real.";
+      await falha(`${msg} [só compra em moeda de fora]`, { kind: "print" });
+      return { ok: false, error: msg };
+    }
     // Um texto no formato de sempre (data, descrição, valor), só para o diagnóstico e as contas de
     // conferência; as compras em si vêm prontas dos prints.
     text = dosPrints.compras.map((c) => `${c.date.split("-").reverse().join("/")} ${c.description} ${c.amount.toFixed(2).replace(".", ",")}`).join("\n");
@@ -392,6 +417,12 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     return { ok: false, error: msg };
   }
 
+  // Conta de luz, telefone ou água no lugar do extrato: virava linhas inventadas (lib/import/conta-de-consumo).
+  if (!dosPrints && pareceContaDeConsumo(text)) {
+    await falha(MSG_CONTA_DE_CONSUMO, { kind: "conta-de-consumo" });
+    return { ok: false, error: MSG_CONTA_DE_CONSUMO };
+  }
+
   // Lê o arquivo INTEIRO e monta o perfil (banco, período, o que tem dentro) antes de decidir.
   const fileMeta = formData.get("file");
   const fileName = fileMeta instanceof File ? fileMeta.name : null;
@@ -409,8 +440,12 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       }
     : profileDocument(text, fileName);
   if (profile.kind === "position" && !profile.contents.includes("movements")) {
-    const msg = /extrato de cust[óo]dia/i.test(profile.reason)
+    const msg = /extrato das caixinhas/i.test(profile.reason)
+      ? `Li o arquivo inteiro: esse é o extrato das caixinhas, só aplicações, resgates e rendimentos dentro do banco. Ele não mostra o que entrou e saiu da conta, então não serve aqui. Para lançar o dia a dia, baixe o extrato da conta no app do banco.`
+      : /extrato de cust[óo]dia/i.test(profile.reason)
       ? `Li o arquivo inteiro: esse é o extrato de custódia, o saldo de cada caixinha e fundo. Ele não traz entradas e saídas, então não serve aqui. Para lançar o dia a dia, baixe o extrato da conta (Conta › Extrato) no app do banco.`
+      : profile.reason === MOTIVO_MOVIMENTACAO_B3
+      ? `Li o arquivo inteiro: esse é o extrato de movimentação da B3, com as compras, vendas e rendimentos dos investimentos. Ele não traz as entradas e saídas da conta, então não serve aqui. Para lançar o dia a dia, baixe o extrato da conta no app do banco.`
       : `Li o arquivo inteiro: ${profile.summary}. É a posição dos investimentos, não entradas e saídas: suba em Carteira › Importar.`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
     return { ok: false, error: msg };
@@ -515,6 +550,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       key: index,
       date: txn.date,
       description: txn.description,
+      ...(txn.categoriaDoBanco ? { categoriaDoBanco: txn.categoriaDoBanco } : {}),
       amount: Math.abs(txn.amount),
       category: isExpense || estorno ? "EXPENSE" : "INCOME",
       // Estorno sem categoria reconhecida vai pra Outros: sem categoria ele seria pulado e a
@@ -562,7 +598,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     summary: profile.summary,
     moneyLines,
     parsed: items.length,
-    invoiceTotal: docType === "fatura" ? detectInvoiceTotal(text) : null,
+    // Prints: o "Compras e despesas, Total" que o resumo da fatura mostra na tela (se estiver num dos prints).
+    invoiceTotal: docType === "fatura" ? (dosPrints?.total ?? detectInvoiceTotal(text)) : null,
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + (i.estorno ? -i.amount : i.amount), 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
     suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType, conferencia.status === "fechou"),
@@ -576,10 +613,19 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     mesesDasCompras: [],
     compras: 0,
     faturaAberta: doPrint,
+    // A categoria sugerida pela mesma regra das outras linhas (a regra dela, a base, o dicionário).
+    ...(dosPrints && dosPrints.semReal.length > 0
+      ? {
+          semValorEmReal: dosPrints.semReal.map((c): CompraParaPreencher => {
+            const sugerida = categoriaDaLinha({ descricao: c.nome, regras: learned, profileKind: ctx.profileKind, gasto: true, estorno: false, personalizadas }).categoria;
+            return { ...c, parentCategory: sugerida?.customCategoryId ? null : (sugerida?.parentCategory ?? null), customCategoryId: sugerida?.customCategoryId ?? null, subcategory: sugerida?.subcategory ?? null };
+          }),
+        }
+      : {}),
   };
   if (docType === "fatura" || detectedKind === "fatura") {
     // A fatura só traz dia/mês: a compra de dezembro na fatura que vence em janeiro volta um ano.
-    if (docType === "fatura") for (const item of items) item.date = ajustarAnoDaCompra(item.date, datasDaFatura.vencimento);
+    if (docType === "fatura") for (const item of items) item.date = ajustarAnoDaCompra(item.date, datasDaFatura.vencimento, datasDaFatura.fechamento);
     const linhas = docType === "fatura" ? items.filter((i) => i.category === "EXPENSE" && !i.estorno && !i.ignorar) : parsed.filter((t) => !isFaturaSummaryLine(t));
     const contexto = contextoDaFatura(datasDaFatura, parsed.map((t) => t.date));
     Object.assign(stats, {
@@ -597,9 +643,12 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   // Fatura com a data da compra também tem a chave solta (dia + valor): a mesma compra que já
   // veio de outro arquivo pergunta "é o mesmo?". Parcela fica de fora: a data dela é a da compra
   // original, não a do mês em que conta.
-  await marcarParecidosDeOutraImportacao(ctx, items);
-  // "Sempre mandar para a Empresa": a compra do comerciante que ela já moveu chega marcada.
+  // "Sempre mandar para a Empresa": a compra do comerciante que ela já moveu chega marcada. Antes
+  // da busca de repetidos, que olha no perfil de destino (a compra que já estava na Empresa
+  // aparecia como compra nova, e a tela dizia "anotar 3" para gravar 2).
   await marcarDestinoPelaRegra(ctx, items);
+  await marcarParecidosDeOutraImportacao(ctx, items);
+  if (docType === "fatura") await marcarParcelasJaNoApp(ctx, items, contextoDaFatura(datasDaFatura, parsed.map((t) => t.date)));
   const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
     target: docType,
@@ -657,6 +706,9 @@ export type ConfirmedItem = {
   /** A compra que já entrou pelo print da fatura aberta (jaNoApp.faturaAberta): em vez de criar,
    * ela passa para este lote com o valor, o dia e o nome desta linha. Conferido de novo aqui. */
   adotar?: string | null;
+  /** Compra em dólar/euro/libra do print da fatura: o valor de fora, guardado nos campos de outra
+   * moeda do lançamento. `amount` é o valor em real que ela digitou. */
+  moedaDeFora?: { moeda: MoedaDeFora; valor: number } | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -904,8 +956,13 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
   ]);
   for (const item of items) {
     if (item.estorno) continue;
+    // A categoria que o banco escreveu conta como parte do texto: o extrato do BTG põe
+    // "Investimentos" numa coluna à parte, e "Transferência enviada · Fulana" sozinha virava a
+    // pergunta "só mudei de conta?" em vez de aplicação (e o mesmo aporte, já no app, voltava).
+    const bancoDizInvestimento = !!item.categoriaDoBanco && /invest/i.test(item.categoriaDoBanco);
+    const texto = bancoDizInvestimento ? `Investimentos ${item.description}` : item.description;
     if (item.category === "EXPENSE") {
-      if (pareceAplicacao(item.description)) {
+      if (pareceAplicacao(texto)) {
         Object.assign(item, { category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, subcategory: null, motivo: "investimento", confianca: "alta", nota: "Aplicação: entra como guardado, não como gasto." });
       } else if (parecePagamentoDeFatura(item.description)) {
         // Com a fatura no app, o pagamento é dinheiro mudando de conta: as compras já contam uma
@@ -916,7 +973,7 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
       }
     } else if (item.category === "INCOME") {
       // Resgate (12/10/2026): entra sozinho como "só mudei de conta" (o guardado diminui), sem perguntar.
-      if (pareceResgate(item.description)) Object.assign(item, { category: "INVESTMENT_CONTRIBUTION", resgate: true, parentCategory: null, customCategoryId: null, subcategory: null, nota: "Resgate: desconta do que você guardou. Depois, na Carteira, diga de qual investimento saiu." });
+      if (pareceResgate(texto)) Object.assign(item, { category: "INVESTMENT_CONTRIBUTION", resgate: true, parentCategory: null, customCategoryId: null, subcategory: null, nota: "Resgate: desconta do que você guardou. Depois, na Carteira, diga de qual investimento saiu." });
       else if (pareceContaPropria(item.description, usuario?.name)) item.duvida = "conta_propria";
     }
   }
@@ -1041,17 +1098,18 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
     month: Number(ym.slice(5, 7)),
   }));
   if (meses.length === 0) return;
+  const perfis = [...new Set(items.map((it) => it.profileId ?? ctx.profileId))];
   const [importados, nomesDoBanco] = await Promise.all([
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, importBatchId: { not: null }, entryDate: { not: null }, OR: meses },
-      select: { id: true, entryDate: true, amount: true, description: true, category: true },
+      where: { userId: ctx.userId, profileId: { in: perfis }, importBatchId: { not: null }, entryDate: { not: null }, OR: meses },
+      select: { id: true, entryDate: true, amount: true, description: true, category: true, profileId: true },
     }),
-    descricoesOriginais(ctx, [ctx.profileId]),
+    descricoesOriginais(ctx, perfis),
   ]);
   const existentes = new Map<string, ExistenteSolto[]>();
   for (const e of importados) {
     if (!e.entryDate) continue;
-    const k = chaveSoltaDe(e.entryDate.toISOString().slice(0, 10), Number(e.amount), e.category);
+    const k = `${e.profileId ?? ctx.profileId}|${chaveSoltaDe(e.entryDate.toISOString().slice(0, 10), Number(e.amount), e.category)}`;
     // Compara pelo nome do banco (o mesmo da confirmação) e mostra o nome que ela deu.
     existentes.set(k, [...(existentes.get(k) ?? []), { descricao: nomesDoBanco.get(e.id) ?? e.description, mostrar: e.description }]);
   }
@@ -1059,7 +1117,7 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
     // Com o sinal que vai para o banco: estorno e resgate são gravados negativos (o resgate subido de
     // novo não casava e a conferência prometia "anotar 1" que a gravação pulava).
     it.amount > 0 && !it.installment && yearMonthFromISO(it.date)
-      ? chaveSoltaDe(it.date, (it.estorno && it.category === "EXPENSE") || (it.resgate && it.category === "INVESTMENT_CONTRIBUTION") ? -it.amount : it.amount, it.category)
+      ? `${it.profileId ?? ctx.profileId}|` + chaveSoltaDe(it.date, (it.estorno && it.category === "EXPENSE") || (it.resgate && it.category === "INVESTMENT_CONTRIBUTION") ? -it.amount : it.amount, it.category)
       : null,
   );
   const casados = casarPorDataEValor(chaves, items.map((it) => it.description), existentes, { perguntar: true });
@@ -1075,6 +1133,39 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
     // A pergunta do lançamento à mão já cobre a linha: uma pergunta por linha.
     if (c.tipo !== "parecido") continue;
     items[i].possivelDuplicata = { descricao: c.descricao ?? "(sem descrição)", data: items[i].date, importado: true };
+  }
+}
+
+/**
+ * Fatura e prints da fatura aberta: a parcela que já está no app (a fatura anterior projetou a
+ * 2/8 em outubro, ou é a mesma fatura subida de novo) aparece na revisão como "já estava no app",
+ * e não como compra nova nem como pergunta de categoria. A gravação já pulava (ver
+ * `parcelaJaLancada`), mas a tela dizia "anotar 10" e fazia perguntas que não mudavam nada.
+ */
+async function marcarParcelasJaNoApp(ctx: AuthContext, items: ReviewItem[], contexto: ContextoDaFatura) {
+  const alvos = items.flatMap((item) => {
+    if (item.ignorar || item.jaNoApp || item.possivelDuplicata || item.estorno || !item.installment?.confident) return [];
+    const destino = mesDaCompra({ date: item.date, description: item.description, installment: item.installment }, contexto);
+    return [{ item, mes: destino.mes }];
+  });
+  if (alvos.length === 0) return;
+  const meses = [...new Map(alvos.map((a) => [`${a.mes.year}-${a.mes.month}`, a.mes])).values()];
+  // No perfil para onde a compra vai (a regra "sempre mandar para a Empresa" já rodou).
+  const perfis = [...new Set(alvos.map((a) => a.item.profileId ?? ctx.profileId))];
+  const existentes = await prisma.monthlyEntry.findMany({
+    where: { userId: ctx.userId, profileId: { in: perfis }, category: "EXPENSE", OR: meses.map((m) => ({ year: m.year, month: m.month })) },
+    select: { id: true, description: true, amount: true, year: true, month: true, entryDate: true, profileId: true },
+  });
+  const usados = new Set<string>();
+  for (const { item, mes } of alvos) {
+    const chave = descricaoComparavel(item.description);
+    const perfil = item.profileId ?? ctx.profileId;
+    const achado = existentes.find(
+      (e) => !usados.has(e.id) && (e.profileId ?? ctx.profileId) === perfil && e.year === mes.year && e.month === mes.month && descricaoComparavel(e.description) === chave && mesmaParcela(Number(e.amount), item.amount, item.installment!.total),
+    );
+    if (!achado) continue;
+    usados.add(achado.id);
+    item.jaNoApp = { descricao: achado.description ?? item.description, data: achado.entryDate ? achado.entryDate.toISOString().slice(0, 10) : item.date, id: "", valor: Number(achado.amount), importado: true, parcela: true };
   }
 }
 
@@ -1594,6 +1685,7 @@ export async function importTransactionsAction(
       subcategory: item.subcategory ?? undefined,
       description: item.description,
       amount: valorGravado(item),
+      ...(item.moedaDeFora && moedaDeForaValida(item.moedaDeFora.moeda) ? conversaoDaCompra(item.moedaDeFora, valorGravado(item)) : {}),
       // Extrato e compra à vista da fatura: o dia da transação. Parcela e fatura pelo mês
       // escolhido: sem dia.
       entryDate: dia ? new Date(`${dia}T12:00:00`) : undefined,

@@ -206,3 +206,44 @@ describe("pagamento da fatura no extrato", () => {
     expect(pagamentosDaFatura([], compras).size).toBe(0);
   });
 });
+
+describe("fatura BTG: período de compras e a parcela 2 de uma compra do começo do mês anterior", () => {
+  const BTG = "Fulana | fatura de Março de 2026 | cartão final 0000\nPeríodo de compras: 13/02 até 13/03\nVencimento: 17/03";
+
+  it("o fechamento sai do 'Período de compras' (PDF e planilha)", () => {
+    expect(lerDatasDaFatura(BTG)).toEqual({ vencimento: "2026-03-17", fechamento: "2026-03-13" });
+    expect(lerDatasDaFatura("Fatura Cartão de Crédito;;;;;Junho/2026;\nPeríodo de Compras;;13/05 até 13/06;;Lançamentos Nacionais;;R$ 1,00\nVencimento;;17/06;;").fechamento).toBe("2026-06-13");
+  });
+
+  it("a parcela 2/3 de uma compra de 12/02 conta em março, não em fevereiro", () => {
+    const ctx = contextoDaFatura(lerDatasDaFatura(BTG), ["2026-02-12", "2026-03-10"]);
+    const d = mesDaCompra({ date: "2026-02-12", description: "Clínica Exemplo (2/3)", installment: { current: 2, total: 3, confident: true } }, ctx);
+    expect(d.mes).toEqual({ year: 2026, month: 3 });
+    const vista = mesDaCompra({ date: "2026-02-14", description: "Padaria Exemplo" }, ctx);
+    expect(vista.mes).toEqual({ year: 2026, month: 2 });
+  });
+});
+
+describe("prints da fatura aberta (sem vencimento nem fechamento): parcela 2 ou mais", () => {
+  const ctx = contextoDaFatura({ vencimento: null, fechamento: null }, ["2026-10-13", "2026-10-10", "2026-09-14", "2026-07-21"]);
+
+  it("a 2/8 de uma compra de 14/09 conta em outubro (mês da parcela), não em setembro", () => {
+    const d = mesDaCompra({ date: "2026-09-14", description: "Clínica Exemplo - Parcela 2/8", installment: { current: 2, total: 8, confident: true } }, ctx);
+    expect(d.mes).toEqual({ year: 2026, month: 10 });
+    expect(d.dia).toBe("2026-10-14");
+  });
+
+  it("parcela com a data da cobrança (k - 1 meses à frente passaria da fatura) fica no mês da data", () => {
+    const d = mesDaCompra({ date: "2026-10-05", description: "Loja Exemplo - Parcela 3/10", installment: { current: 3, total: 10, confident: true } }, ctx);
+    expect(d.mes).toEqual({ year: 2026, month: 10 });
+  });
+});
+
+describe("ajustarAnoDaCompra com o fechamento", () => {
+  it("parcela com data depois do fechamento volta um ano; compra até o fechamento fica", () => {
+    expect(ajustarAnoDaCompra("2026-07-10", "2026-06-17", "2026-06-13")).toBe("2025-07-10");
+    expect(ajustarAnoDaCompra("2026-06-12", "2026-06-17", "2026-06-13")).toBe("2026-06-12");
+    // Sem o fechamento, a folga de antes continua.
+    expect(ajustarAnoDaCompra("2026-07-10", "2026-06-17")).toBe("2026-07-10");
+  });
+});

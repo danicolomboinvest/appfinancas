@@ -6,8 +6,7 @@
  * - A comparação com o mês passado ATÉ O MESMO DIA, pelo dia do último lançamento (a data do
  *   extrato), nunca pelo mês inteiro.
  * - As categorias que mais mudaram.
- * - A fila de sugestões: uma por vez, com a regra de dispensa ("Agora não" esconde até o próximo
- *   extrato; duas dispensas do mesmo tipo pausam o tipo por 30 dias).
+ * - A fila de sugestões: uma por vez (a regra de dispensa mora em lib/avisos).
  *
  * Nada aqui fala com o banco: o carregador (dados.ts) monta a entrada e a tela só desenha.
  */
@@ -16,8 +15,6 @@ export type Mes = { ano: number; mes: number };
 
 /** Um gasto, do jeito que a comparação precisa: o valor, o dia do mês (null = sem dia) e a categoria. */
 export type GastoDoDia = { valor: number; dia: number | null; categoria: string };
-
-const DIA_MS = 86_400_000;
 
 export const diasNoMes = (m: Mes) => new Date(m.ano, m.mes, 0).getDate();
 export const mesAnterior = (m: Mes): Mes => (m.mes === 1 ? { ano: m.ano - 1, mes: 12 } : { ano: m.ano, mes: m.mes - 1 });
@@ -173,6 +170,15 @@ export function escolherCaso(e: EntradaDoTopo): CasoDoTopo {
   return "nada";
 }
 
+/**
+ * O "faltou" que vem só do que ela GUARDOU (gastou menos do que entrou, mas aplicou mais do que
+ * sobrou, com dinheiro que já estava na conta). "Saiu a mais do que entrou" era falso: em
+ * mês com entrada de R$ 5.000, gastos de R$ 3.000 e R$ 4.000 guardados.
+ */
+export function soPeloGuardado(ficou: number, guardou: number | undefined): boolean {
+  return ficou < 0 && (guardou ?? 0) > 0 && ficou + (guardou ?? 0) >= 0;
+}
+
 /** "11%" do que entrou ficou com ela. Null sem entrada (não há porcentagem de zero). */
 export function porcentagemQueFicou(entrou: number, ficou: number): number | null {
   if (entrou <= 0) return null;
@@ -183,73 +189,21 @@ export function porcentagemQueFicou(entrou: number, ficou: number): number | nul
 
 /* ---------------------------------------------------------------- sugestões */
 
-/** Na ordem de prioridade da proposta. */
-export const TIPOS_DE_SUGESTAO = ["falta-dado", "dinheiro", "categoria", "parcela", "hora-do-mes", "indo-bem"] as const;
-export type TipoDeSugestao = (typeof TIPOS_DE_SUGESTAO)[number];
-
-export type Sugestao = {
-  tipo: TipoDeSugestao;
-  /** Identifica a sugestão dentro do tipo ("cartao", "LAZER", "fechar-2026-09"). */
-  id: string;
-  /** Uma frase com um número dela. */
-  texto: string;
-  /** O botão que faz a coisa. "Algo indo bem" não tem: só "Boa". */
-  botao: { rotulo: string; href: string } | null;
-  /** Fura a ordem dos tipos: "Fechar setembro" nos dias 1 a 7 vem logo depois do dado que falta. */
-  prioridade?: number;
-};
-
-/** Um "Agora não" (ou o "Boa" do indo bem) guardado. */
-export type Dispensa = {
-  tipo: TipoDeSugestao;
-  id: string;
-  /** A marca do extrato quando ela dispensou: a sugestão volta quando chega um extrato novo. */
-  marca: string;
-  em: Date;
-  /** "Boa" no indo bem: não conta para pausar o tipo. */
-  boa?: boolean;
-  /** A semana do "Boa" ("2026-W42"): o indo bem aparece no máximo uma vez por semana. */
-  semana?: string;
-};
-
-export const PAUSA_DO_TIPO_DIAS = 30;
-
-/**
- * Até quando o tipo está pausado. Cada duas dispensas do mesmo tipo pausam 30 dias, contadas da
- * segunda; o que ela dispensou durante a pausa não conta para a próxima.
+/*
+ * A fila de sugestões, a dispensa ("Agora não"), a pausa do tipo e o "já respondido" moram no
+ * módulo único de avisos (lib/avisos): nenhuma tela guarda regra própria. Daqui só se reexporta,
+ * para quem já importava deste arquivo.
  */
-export function tipoPausadoAte(dispensas: Dispensa[], tipo: TipoDeSugestao): Date | null {
-  const doTipo = dispensas.filter((d) => d.tipo === tipo && !d.boa).sort((a, b) => a.em.getTime() - b.em.getTime());
-  let pausa: Date | null = null;
-  let seguidas = 0;
-  for (const d of doTipo) {
-    if (pausa && d.em < pausa) continue;
-    seguidas += 1;
-    if (seguidas === 2) {
-      pausa = new Date(d.em.getTime() + PAUSA_DO_TIPO_DIAS * DIA_MS);
-      seguidas = 0;
-    }
-  }
-  return pausa;
-}
-
-/** A sugestão está escondida? (dispensada com o mesmo extrato, tipo pausado, ou "Boa" nesta semana) */
-export function escondida(s: Sugestao, dispensas: Dispensa[], ctx: { marca: string; agora: Date; semana: string }): boolean {
-  const pausa = tipoPausadoAte(dispensas, s.tipo);
-  if (pausa && ctx.agora < pausa) return true;
-  if (s.tipo === "indo-bem" && dispensas.some((d) => d.tipo === "indo-bem" && d.semana === ctx.semana)) return true;
-  // "Agora não": some e só volta com o próximo extrato. Mesmo extrato (mesma marca) = continua escondida.
-  return dispensas.some((d) => d.tipo === s.tipo && d.id === s.id && d.marca >= ctx.marca);
-}
-
-/**
- * Uma por vez: a primeira da fila (já na ordem de prioridade) que não está escondida. Sem nada,
- * o cartão não aparece: nunca uma frase genérica para encher espaço.
- */
-export function escolherSugestao(fila: Sugestao[], dispensas: Dispensa[], ctx: { marca: string; agora: Date; semana: string }): Sugestao | null {
-  const ordem = (s: Sugestao) => s.prioridade ?? TIPOS_DE_SUGESTAO.indexOf(s.tipo);
-  return [...fila].sort((a, b) => ordem(a) - ordem(b)).find((s) => !escondida(s, dispensas, ctx)) ?? null;
-}
+export {
+  TIPOS_DE_SUGESTAO,
+  PAUSA_DO_TIPO_DIAS,
+  tipoPausadoAte,
+  escondida,
+  escolherSugestao,
+  type TipoDeSugestao,
+  type Sugestao,
+  type Dispensa,
+} from "@/lib/avisos/sugestoes";
 
 /* ---------------------------------------------------------------- as regras de cada sugestão */
 

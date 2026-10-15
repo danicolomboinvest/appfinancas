@@ -120,7 +120,7 @@ export function AvisoFoco({ item, hrefMes, gastos = [], resumo, opcoes = [], rem
               onClick={() =>
                 fazer(async () => {
                   await ajustarOrcamentoAction(d.categoria, planoNovo);
-                  await dispensarAvisoAction(item.id, "mes", d.gasto - d.planejado);
+                  await dispensarAvisoAction(item.id, "mes", d.gasto - d.planejado, "lapis");
                 }, t.avisoPlanoBaixoFeito(d.label, m(planoNovo)))
               }
             />

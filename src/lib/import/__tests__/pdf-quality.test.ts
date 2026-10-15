@@ -11,4 +11,10 @@ describe("pdfTextQuality", () => {
     expect(pdfTextQuality("PETR4 Petrobras 100 3.500,00\nVALE3 Vale 50 2.900,00\nHGLG11 CSHG Log 10 1.600,00")).toBe("ok");
     expect(pdfTextQuality("\n\n  \n")).toBe("empty");
   });
+
+  it("PDF escaneado de várias páginas: a marca de página não conta como texto", () => {
+    const soMarcas = Array.from({ length: 9 }, (_, i) => `\n-- ${i + 1} of 9 --\n`).join("\n");
+    expect(pdfTextQuality(soMarcas)).toBe("empty");
+    expect(pdfTextQuality("-- 1 of 1 --\nExtrato 01/10 Mercado 12,30")).toBe("ok");
+  });
 });

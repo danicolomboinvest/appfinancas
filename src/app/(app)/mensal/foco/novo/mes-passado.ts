@@ -40,6 +40,7 @@ export function heroiDoMesPassado(mes: Mes, valorDe: (m: Mes) => ValoresDoMes): 
     mes,
     entrou: v.entrou,
     ficou,
+    guardou: v.guardou,
     pct: porcentagemQueFicou(v.entrou, ficou),
     pctAnterior: comDado(va) ? porcentagemQueFicou(va.entrou, sobrouDoMes(va)) : null,
     barras: seis.map((m) => ({ rotulo: NOMES[m.mes - 1].slice(0, 3), pct: comDado(valorDe(m)) ? porcentagemQueFicou(valorDe(m).entrou, sobrouDoMes(valorDe(m))) : null })),

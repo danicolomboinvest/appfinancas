@@ -6,7 +6,7 @@
  * Só para a tela: o que vai para o banco, para as regras e para a busca de repetidos continua sendo
  * a descrição original, inteira.
  */
-const SEP = String.raw`\s*(?:[-–:]\s*)?`;
+const SEP = String.raw`\s*(?:[-–:·]\s*)?`;
 const PREFIXOS: { re: RegExp; meio: string }[] = [
   { re: new RegExp(String.raw`^transfer[êe]ncia\s+(?:pix\s+)?enviad[ao]\s+(?:pelo\s+|via\s+)?(?:pix\s+)?(?:para\s+)?` + SEP, "i"), meio: "Pix enviado" },
   { re: new RegExp(String.raw`^transfer[êe]ncia\s+(?:pix\s+)?recebid[ao]\s+(?:pelo\s+|via\s+)?(?:pix\s+)?(?:de\s+)?` + SEP, "i"), meio: "Pix recebido" },
@@ -15,7 +15,8 @@ const PREFIXOS: { re: RegExp; meio: string }[] = [
   { re: new RegExp(String.raw`^(?:ted|doc)\s+(?:enviad[ao]|recebid[ao])\s+` + SEP, "i"), meio: "Transferência" },
   { re: new RegExp(String.raw`^compra\s+(?:no\s+)?d[ée]bito\s+` + SEP, "i"), meio: "Débito" },
   { re: new RegExp(String.raw`^compra\s+(?:no\s+)?cr[ée]dito\s+` + SEP, "i"), meio: "Crédito" },
-  { re: new RegExp(String.raw`^pagamento\s+de\s+boleto\s+` + SEP, "i"), meio: "Boleto" },
+  // "Pagamento de boleto efetuado DAS-SIMPLES" (Nubank PJ): sem o "efetuado", a tela mostrava "efetuado DAS-SIMPLES".
+  { re: new RegExp(String.raw`^pagamento\s+de\s+boleto\s+(?:efetuado\s+|devolvido\s+)?` + SEP, "i"), meio: "Boleto" },
   { re: new RegExp(String.raw`^d[ée]bito\s+autom[áa]tico\s+` + SEP, "i"), meio: "Débito automático" },
 ];
 // Os antigos, com o separador obrigatório: "Transferência enviada - X", "Compra no débito - X".

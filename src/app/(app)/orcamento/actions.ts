@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getRequiredSession } from "@/lib/auth/session";
+import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
+import { registrarPlanoSubiu } from "@/lib/avisos/respostas";
 import { definirPlanoDoMes, listBudgets, salvarPlanoDoAno } from "@/lib/repositories/budget.repo";
 import { createCustomCategory, deleteOwnCustomCategory, listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { annualBudgetSchema, annualBudgetForCustomCategorySchema } from "@/lib/validations/budget.schema";
@@ -135,9 +136,16 @@ export async function deleteCustomCategoryAction(id: string): Promise<void> {
   revalidatePath("/orcamento/comparativo");
 }
 
+/** O plano da categoria no mês de agora (0 sem plano). */
+async function planoDeAgora(ctx: AuthContext, key: string, agora: Date): Promise<number> {
+  const planos = await listBudgets(ctx, agora.getFullYear(), agora.getMonth() + 1);
+  return Number(planos.find((b) => (b.customCategoryId ?? b.parentCategory) === key)?.plannedAmount ?? 0);
+}
+
 function revalidarOrcamento() {
   revalidatePath("/orcamento", "layout");
   revalidatePath("/mensal", "layout");
+  revalidatePath("/decidir");
 }
 
 /**
@@ -168,9 +176,12 @@ export async function definirPlanoDaCategoriaAction(input: { key: string; valor:
   if (!(valor >= 0) || valor > 1e8) return { error: "Valor inválido." };
   const agora = nowInBrazil();
   const year = agora.getFullYear();
+  const antes = await planoDeAgora(ctx, input.key, agora);
   for (const month of mesesQueOSalvarGrava(year, agora)) {
     if (!(await definirPlanoDoMes(ctx, { key: input.key, year, month, plannedAmount: valor }))) return { error: "Categoria não encontrada." };
   }
+  // Subir o plano no lápis responde aos avisos da categoria em todas as telas (lib/avisos).
+  if (valor > antes) await registrarPlanoSubiu(ctx, input.key, agora);
   revalidarOrcamento();
   return {};
 }
@@ -190,9 +201,11 @@ export async function aplicarAjustesDoPadraoAction(itens: { key: string; valor: 
   for (const item of itens) {
     const valor = Math.round(Number(item.valor) * 100) / 100;
     if (typeof item.key !== "string" || !(valor >= 0) || valor > 1e8) return { error: "Valor inválido.", aplicados };
+    const antes = await planoDeAgora(ctx, item.key, agora);
     for (const month of meses) {
       if (!(await definirPlanoDoMes(ctx, { key: item.key, year, month, plannedAmount: valor }))) return { error: "Categoria não encontrada.", aplicados };
     }
+    if (valor > antes) await registrarPlanoSubiu(ctx, item.key, agora);
     aplicados++;
   }
   revalidarOrcamento();

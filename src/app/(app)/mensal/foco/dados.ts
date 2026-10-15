@@ -16,7 +16,7 @@ import { getOwnUser } from "@/lib/repositories/user.repo";
 import { prisma } from "@/lib/db/prisma";
 import { contarParaRevisar } from "./revisar/dados";
 import { lerFechamento } from "@/lib/repositories/fechamento.repo";
-import { existeDecisao, lerDecisao, listarAvisosDispensados, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
+import { existeDecisao, lerDecisao, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
@@ -31,7 +31,7 @@ import { ehDoCartao } from "@/lib/cartao/limite";
 import { doDono } from "@/lib/auth/session";
 import { acharRecorrentes } from "@/lib/decisoes/raio-x";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
-import { avisoRespondido, respostasDeEstouro } from "@/lib/decisoes/resposta-ao-aviso";
+import { carregarRespostasDoMes } from "@/lib/avisos/respostas";
 
 export const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const DIA_MS = 86_400_000;
@@ -86,7 +86,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
   const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
   // Meia-noite (Brasília) da segunda desta semana, ou do dia 1 se a semana começou no mês passado.
   const inicioDaSemana = new Date(Date.UTC(year, month - 1, Math.max(1, dia - diaDaSemana(now).indice), 3));
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, dispensados, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis, naoParcelas] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, respostasDoMes, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis, naoParcelas] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -111,7 +111,9 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       month <= 3 ? existeDecisao(ctx, "virada_ano", String(year)) : Promise.resolve(true),
       month <= 3 ? prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: year - 1 } }) : Promise.resolve(0),
       contarParaRevisar(ctx),
-      listarAvisosDispensados(ctx, chaveDoMes(year, month), semana),
+      // As respostas dela no mês, de todas as telas (lib/avisos): o que já foi respondido não
+      // volta como aviso aqui, no Decidir, no Ritual nem no Resumo novo.
+      carregarRespostasDoMes(ctx, { ano: year, mes: month }, now),
       // Cada gasto do mês: é o que a janela de um aviso mostra ("onde foi o dinheiro") e deixa
       // classificar ali mesmo.
       prisma.monthlyEntry.findMany({
@@ -349,7 +351,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
     reservaMinimaMeses: fund && fund.targetMonths > 0 ? fund.targetMonths : empresa ? 3 : 6,
     hrefMes,
     tetos: tetosDoFoco,
-    dispensados,
+    respostas: respostasDoMes.respostas,
     diaADia: { gastos: gastosDoDiaADia, contasLancadas, pendentes: contasPendentes, jaTinhaLancamento: lancamentoAntesDaSemana !== null },
     renda,
     rendaFonte: renda === null ? null : rendaSoOQueEntrou ? "entrou" : "plano",
@@ -419,12 +421,8 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
     hrefMes,
     categorias,
     tetos,
-    // As categorias que passaram e que ela já respondeu no "O que fazer?" (o aviso não aparece):
-    // o Resumo novo não sugere de novo "Saúde subiu" para a mesma categoria.
-    estourosRespondidos: (() => {
-      const respostas = respostasDeEstouro(dispensados, tetos);
-      return categorias.filter((c) => c.gasto - c.planejado >= 1 && avisoRespondido(respostas, c.key, c.gasto - c.planejado)).map((c) => c.key);
-    })(),
+    // As respostas dela no mês, de todas as telas: o Resumo novo pergunta a elas (lib/avisos).
+    respostasDoMes,
     summary,
     aportePlanejado,
     rendaSoOQueEntrou,

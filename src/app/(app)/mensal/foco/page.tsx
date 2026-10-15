@@ -40,6 +40,7 @@ import type { CorDoHeroi } from "./novo/Heroi";
 import { ehFuturo } from "@/lib/visao-geral/periodo";
 import { carregarMesesPrevistos } from "@/lib/repositories/previsao.repo";
 import { MesPrevistoNaTela } from "@/components/previsao/MesesPrevistos";
+import { sugestaoResolvida } from "@/lib/avisos/respostas";
 
 /**
  * A aba Foco: a primeira coisa que a pessoa vê ao abrir o app. Só o que importa agora — quanto
@@ -165,8 +166,11 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
       </Card>
     </Link>
   );
+  // O "Agora não" do Resumo novo vale aqui também (a regra única, lib/avisos): fechar o mês, o
+  // ritual, o revisar e o "falta o cartão" são as mesmas sugestões de lá.
+  const jaRespondida = (tipo: "falta-dado" | "hora-do-mes", id: string) => sugestaoResolvida(d.respostasDoMes, { tipo, id });
   const fecharMes =
-    ondeFechar === "destaque" || ondeFechar === "discreto"
+    (ondeFechar === "destaque" || ondeFechar === "discreto") && !jaRespondida("hora-do-mes", `fechar-${d.mesAnterior.year}-${d.mesAnterior.month}`)
       ? cartaoParaHoje("fechamento", "/mensal/foco/fechamento", CalendarCheck, t.focoFechT(d.mesAnterior.label), t.focoFechEy, t.focoComecar)
       : null;
   // De volta ao "Para hoje" (13/10/2026): a versão nova tirou o caminho para a revisão dos
@@ -176,10 +180,10 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   const n = d.lancamentosParaRevisar;
   // Os "A conferir" (o que ficou sem resposta no extrato) entram na mesma conta (14/10/2026).
   const subDoRevisar = d.lancamentosAConferir > 0 ? (n === 1 ? "Ficou para conferir depois" : "Ficaram para conferir depois") : n === 1 ? "Parece aplicação, fatura ou estorno" : "Parecem aplicação, fatura ou estorno";
-  const revisar = n > 0 ? cartaoParaHoje("revisar", "/mensal/foco/revisar", ListChecks, n === 1 ? "Revisar 1 lançamento" : `Revisar ${n} lançamentos`, subDoRevisar, "Revisar") : null;
+  const revisar = n > 0 && !jaRespondida("falta-dado", "revisar") ? cartaoParaHoje("revisar", "/mensal/foco/revisar", ListChecks, n === 1 ? "Revisar 1 lançamento" : `Revisar ${n} lançamentos`, subDoRevisar, "Revisar") : null;
   const diaDaSemanaHoje = d.now.getDay();
   const ritual =
-    ritmo !== "mensal" && !d.ritualFeito && (diaDaSemanaHoje === 1 || diaDaSemanaHoje === 2)
+    ritmo !== "mensal" && !d.ritualFeito && (diaDaSemanaHoje === 1 || diaDaSemanaHoje === 2) && !jaRespondida("hora-do-mes", `ritual-${d.semana}`)
       ? cartaoParaHoje("ritual", "/mensal/foco/ritual", CalendarHeart, t.focoRitualT, t.focoRitualEy, t.focoComecar)
       : null;
   const paraHoje = [fecharMes, ritual, revisar].filter(Boolean);
@@ -251,7 +255,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
                     <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">{t.focoDadosVelhos(livre.diasSemLancar)}</p>
                   ) : livre.tipo === "estimativa" || livre.semGastoComData ? (
                     <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink">{t.focoDadosNenhum}</p>
-                  ) : d.faltaOCartao ? (
+                  ) : d.faltaOCartao && !jaRespondida("falta-dado", "cartao") ? (
                     // Usa cartão e o último gasto dele é de mais de 7 dias: a fatura ainda não veio.
                     <p className="rounded-xl bg-surface/70 px-3 py-2 text-caption text-ink" data-falta-cartao>
                       Falta o cartão desde {d.faltaOCartao.mes === d.month ? `dia ${d.faltaOCartao.dia}` : `${d.faltaOCartao.dia}/${String(d.faltaOCartao.mes).padStart(2, "0")}`}. O número pode estar alto.

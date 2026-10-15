@@ -25,6 +25,8 @@ import type { ParentCategory } from "@prisma/client";
 import { chaveDaSemana, type Ritmo } from "./ritmo";
 import { ehPrimeiroFechamento } from "@/lib/repositories/conquista.repo";
 import { mudarFechamento } from "@/lib/repositories/fechamento.repo";
+import { categoriaDoId, type ComoResolveu } from "@/lib/avisos/regra";
+import { dadosDaRespostaDeCategoria } from "@/lib/avisos/respostas";
 
 /** Semanal ou mensal. Vale pra conta toda (é o jeito da PESSOA, não do perfil). */
 export async function escolherRitmoAction(ritmo: Ritmo) {
@@ -483,20 +485,25 @@ export async function resolverLancamentoAntigoAction(entryId: string, acao: "gua
 }
 
 /**
- * "Foi pontual, sigo o plano" / "Entendi" num aviso do Foco: ele some até o mês virar. O aviso de
- * guardar ("vou transferir essa semana") some só até a semana virar.
+ * A resposta a um aviso ("Foi pontual", "Entendi", "Deixar assim", "Usar o livre", cobrir): ele
+ * some até o mês virar (o de guardar, "vou transferir essa semana", até a semana virar), em todas
+ * as telas. No aviso de categoria, o servidor guarda o gasto da categoria agora e quanto passava do
+ * plano: a regra única (lib/avisos/regra.ts) traz o aviso de volta só se piorar bem.
+ * `passou`: quanto passava na tela na hora (antes de cobrir); sem ele, a conta é feita aqui.
  */
-/**
- * `passou`: no aviso de categoria que passou, quanto passava na hora da resposta. O aviso some no
- * mês e só volta se passar bem mais que isso (ver resposta-ao-aviso.ts).
- */
-export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "semana", passou?: number) {
+export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "semana", passou?: number, como?: ComoResolveu) {
   const id = z.string().regex(/^[a-z]+(-[A-Za-z0-9_]+)?$/).max(80).parse(itemId);
-  const valor = z.number().positive().max(100_000_000).optional().catch(undefined).parse(passou);
   const ctx = await getRequiredSession();
   const now = nowInBrazil();
   const periodo = escopo === "semana" ? chaveDaSemana(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}`, valor });
+  const jeito = z.enum(["pontual", "cobrir", "livre", "deixar", "lapis"]).catch("deixar").parse(como ?? "deixar");
+  // Quanto passava, como a tela mostrou (antes de cobrir, o plano ainda era o de antes).
+  const naTela = z.number().positive().max(100_000_000).optional().catch(undefined).parse(passou);
+  const daCategoria = categoriaDoId(id);
+  const estouro = daCategoria?.sobre === "estouro";
+  const dados = daCategoria ? await dadosDaRespostaDeCategoria(ctx, daCategoria.categoria, jeito, now, estouro ? naTela : 0) : null;
+  const valor = estouro ? (naTela ?? (dados && dados.passou > 0 ? dados.passou : undefined)) : naTela;
+  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo}|${id}`, valor, dados: dados ? { como: dados.como, gasto: dados.gasto, excesso: dados.excesso } : { como: jeito } });
   revalidatePath("/mensal/foco");
   // O mesmo aviso mora no Orçamento e no Decidir: some de lá também.
   revalidatePath("/orcamento", "layout");

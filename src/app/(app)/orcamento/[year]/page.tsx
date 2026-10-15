@@ -37,8 +37,7 @@ import { categoriasEssenciais } from "@/lib/categories";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { AlertaDoOrcamento } from "@/components/budget/AlertaDoOrcamento";
-import { listarAvisosDispensados, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
-import { avisoRespondido, respostasDeEstouro } from "@/lib/decisoes/resposta-ao-aviso";
+import { carregarRespostasDoMes, categoriaResolvida } from "@/lib/avisos/respostas";
 import { SeuPlano } from "@/components/budget/SeuPlano";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
@@ -138,12 +137,11 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     // conta como dado novo, senão uma tela dizia "atualizado" e a outra "dados velhos".
     currentMonthData && eMesDeAgora ? await getUltimoGastoAte(ctx, new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))) : null;
   // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
-  // As respostas do "O que fazer?" neste mês: a categoria que ela já respondeu sai do aviso (e só
-  // volta se passar bem mais, ver resposta-ao-aviso.ts).
-  const anoMesEscolhido = `${year}-${String(mesEscolhido).padStart(2, "0")}`;
-  const [detalhe, dispensadosDoMes, tetosDoMes] = currentMonthData
-    ? await Promise.all([carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now), listarAvisosDispensados(ctx, anoMesEscolhido, anoMesEscolhido), listarTetosDoMes(ctx, anoMesEscolhido)])
-    : [null, [], []];
+  // As respostas dela no mês, de qualquer tela (o "O que fazer?" daqui, o Decidir, o Resumo): a
+  // categoria que ela já respondeu sai do aviso, e só volta pela regra única (lib/avisos).
+  const [detalhe, respostasDoMes] = currentMonthData
+    ? await Promise.all([carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now), carregarRespostasDoMes(ctx, { ano: year, mes: mesEscolhido }, now)])
+    : [null, null];
   const aVencerNoMes = detalhe ? Object.values(detalhe.porCategoria).reduce((s, c) => s + c.aVencer, 0) : 0;
   // Gasto sem categoria (importado e ainda sem resposta): entra no Resumo e na semana, então entra
   // aqui também, numa linha própria. Antes o Orçamento dizia "Gastou R$ 4.432" e o Resumo R$ 8.000.
@@ -202,8 +200,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       })(),
     };
   });
-  const respostasDoMes = respostasDeEstouro(dispensadosDoMes, tetosDoMes);
-  const respondidas = linhasDoMes.filter((l) => l.estado === "passou" && avisoRespondido(respostasDoMes, l.key, Math.abs(l.sobra))).map((l) => l.key);
+  const respondidas = respostasDoMes ? linhasDoMes.filter((l) => l.estado === "passou" && categoriaResolvida(respostasDoMes, "estouro", l.key)).map((l) => l.key) : [];
   const essenciais = [...categoriasEssenciais(ctx.categorias?.prefs)];
   const livreDoMes = resumoMes ? resumoMes.restante : null;
   const diasRestantes = resumoMes ? Math.max(1, resumoMes.diasRestantes) : 1;

@@ -15,6 +15,7 @@ import { PARENT_CATEGORIES, categoriasEssenciais, lerPreferenciasDeCategoria } f
 import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 import { enviarAvisosAntesDeCancelar, lembrarEstenderNaHubla } from "@/lib/cancelar/avisos";
 import { desligarCanceladosVencidos } from "@/lib/assinatura/cancelamento";
+import { alertaResolvido, carregarRespostasDoMes } from "@/lib/avisos/respostas";
 
 export const maxDuration = 60;
 
@@ -133,7 +134,13 @@ export async function GET(request: Request) {
 
     const already = await prisma.notificationLog.findMany({ where: { userId: user.id, key: { in: alerts.map((a) => a.key) } }, select: { key: true } });
     const seen = new Set(already.map((a) => a.key));
-    const fresh = alerts.filter((a) => !seen.has(a.key));
+    const novos = alerts.filter((a) => !seen.has(a.key));
+    if (novos.length === 0) continue;
+    // O que ela já respondeu na tela ("Foi pontual", cobriu, "Deixar assim", "Agora não", teto)
+    // não sai por push nem e-mail: a mesma regra das telas (lib/avisos). Sem gravar no log, para
+    // sair se piorar bem depois. Só o perfil dela (nada da casa aqui).
+    const respostas = await carregarRespostasDoMes({ userId: user.id, profileId: perfil.id }, { ano: year, mes: month }, now);
+    const fresh = novos.filter((a) => !alertaResolvido(respostas, a.key));
     if (fresh.length === 0) continue;
     preview.push({ email: user.email, alerts: fresh.map((a) => a.title) });
     if (dryRun) continue;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { soPeloGuardado } from "./regras";
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
 import { NUMERO_DESTAQUE, ValorDestaque, separarPrefixo } from "@/components/ui/ValorDestaque";
@@ -120,7 +121,7 @@ export function HeroiDoDiaADia({ h, mes, passado, money, cor, tocavel }: { h: He
         <div className="grid grid-cols-2 gap-2">
           {fp &&
             quadrinho(
-              fp.valor >= 0 ? `Ficou com você em ${nome(passado)}` : `Em ${nome(passado)}, saiu a mais`,
+              fp.valor >= 0 ? `Ficou com você em ${nome(passado)}` : soPeloGuardado(fp.valor, fp.guardou) ? `Em ${nome(passado)}, guardou além do que sobrou` : `Em ${nome(passado)}, saiu a mais`,
               money(Math.abs(fp.valor)),
               fp.contraRetrasado === null || Math.abs(fp.contraRetrasado) < 1 ? (
                 " "
@@ -148,7 +149,7 @@ export function HeroiDoMesFechado({ h, money, cor }: { h: HeroiMesFechado; money
   const topo = Math.max(1, ...h.barras.map((b) => Math.max(0, b.pct ?? 0)));
   return (
     <CaixaDoHeroi cor={cor}>
-      <Rotulo>{faltou ? `Em ${nome(h.mes)}, saiu a mais do que entrou` : `Em ${nome(h.mes)}, ficou com você`}</Rotulo>
+      <Rotulo>{faltou ? (soPeloGuardado(h.ficou, h.guardou) ? `Em ${nome(h.mes)}, guardou além do que sobrou` : `Em ${nome(h.mes)}, saiu a mais do que entrou`) : `Em ${nome(h.mes)}, ficou com você`}</Rotulo>
       <Numero texto={money(Math.abs(h.ficou))} />
       {h.pct !== null && !faltou && (
         <Sub>
@@ -225,7 +226,7 @@ export function HeroiDaPrimeiraVez({ h, money, cor }: { h: HeroiPrimeiraVez; mon
   const faltou = h.ficou < 0;
   return (
     <CaixaDoHeroi cor={cor}>
-      <Rotulo>{faltou ? `Em ${nome(h.mes)}, saiu a mais do que entrou` : `Em ${nome(h.mes)}, ficou com você`}</Rotulo>
+      <Rotulo>{faltou ? (soPeloGuardado(h.ficou, h.entrou - h.saiu - h.ficou) ? `Em ${nome(h.mes)}, guardou além do que sobrou` : `Em ${nome(h.mes)}, saiu a mais do que entrou`) : `Em ${nome(h.mes)}, ficou com você`}</Rotulo>
       <Numero texto={money(Math.abs(h.ficou))} />
       {h.pct !== null && !faltou && (
         <Sub>
@@ -292,3 +293,4 @@ export function HeroiDoNada({ passado, cor, enviar, money }: { passado: Mes; cor
     </CaixaDoHeroi>
   );
 }
+

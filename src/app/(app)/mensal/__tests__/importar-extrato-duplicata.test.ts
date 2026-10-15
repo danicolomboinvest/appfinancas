@@ -34,7 +34,10 @@ vi.mock("@/lib/db/prisma", () => ({
     monthlyEntry: {
       findMany: vi.fn(async ({ where }: { where: Where }) => {
         return banco.filter((e) => {
-          if (e.userId !== where.userId || e.profileId !== where.profileId) return false;
+          // profileId direto ou { in: [...] } (a busca de repetidos olha também o perfil de destino).
+          const perfil = where.profileId as string | { in: string[] };
+          const perfilBate = typeof perfil === "object" && perfil !== null ? perfil.in.includes(e.profileId) : e.profileId === perfil;
+          if (e.userId !== where.userId || !perfilBate) return false;
           if (where.OR) return where.OR.some((m) => m.year === e.year && m.month === e.month) && loteBate(where.importBatchId, e.importBatchId);
           return e.year === where.year && e.month === where.month;
         });

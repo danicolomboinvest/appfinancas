@@ -40,7 +40,13 @@ export function mesmaDescricao(a: string | null, b: string | null): boolean {
   if (!na || !nb) return false;
   if (na === nb) return true;
   const [curta, longa] = na.length <= nb.length ? [na, nb] : [nb, na];
-  return curta.length >= 10 && longa.startsWith(curta) && padraoAprendivel(normalizeMerchant(curta));
+  if (curta.length >= 10 && longa.startsWith(curta) && padraoAprendivel(normalizeMerchant(curta))) return true;
+  // Extrato BTG em PDF lido antes de 14/10/2026: "10h50 Seguro Pix recebido Fulana" (hora e
+  // categoria do banco na frente). Hoje sai "Pix recebido · Fulana", como na planilha. Subir o
+  // mesmo PDF de novo não pode virar uma pergunta por linha.
+  const hora = /^\d{1,2}h\d{2} /;
+  if (hora.test(longa) && !hora.test(curta)) return curta.length >= 10 && longa.endsWith(` ${curta}`) && padraoAprendivel(normalizeMerchant(curta));
+  return false;
 }
 
 export type CasamentoSolto = { tipo: "mesmo" } | { tipo: "parecido"; descricao: string | null };

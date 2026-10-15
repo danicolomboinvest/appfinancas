@@ -23,3 +23,17 @@ describe("nome do lançamento na tela da importação", () => {
     expect(nomeNaTela("Pix enviado para JOÃO PEREIRA")).toEqual({ nome: "João Pereira", meio: "Pix enviado" });
   });
 });
+
+describe("nomeNaTela: planilha que junta transação e nome com ' · '", () => {
+  it("'Pix recebido · Fulana' mostra Fulana, sem o ponto na frente", () => {
+    expect(nomeNaTela("Pix recebido · Empresa Exemplo")).toEqual({ nome: "Empresa Exemplo", meio: "Pix recebido" });
+    expect(nomeNaTela("Pix enviado · Loja Exemplo S A").nome).toBe("Loja Exemplo S A");
+  });
+});
+
+describe("nomeNaTela: boleto 'efetuado' e 'devolvido'", () => {
+  it("o nome é o do boleto, sem 'efetuado' nem 'devolvido' na frente", () => {
+    expect(nomeNaTela("Pagamento de boleto efetuado DAS-SIMPLES NACIONAL")).toEqual({ nome: "Das-simples Nacional", meio: "Boleto" });
+    expect(nomeNaTela("Pagamento de boleto devolvido DAS-SIMPLES NACIONAL").nome).toBe("Das-simples Nacional");
+  });
+});

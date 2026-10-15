@@ -52,7 +52,8 @@ export function FileiraDeFotos({
             {/* eslint-disable-next-line @next/next/no-img-element -- foto da meta */}
             <img src={m.foto} alt="" loading="lazy" decoding="async" className="size-full rounded-full object-cover shadow-[0_0_0_2px_var(--color-canvas)]" />
           </span>
-          <b className="max-w-full truncate text-[13px] font-semibold leading-tight max-[360px]:text-xs">{m.curto}</b>
+          {/* Sem reticências (regra dela): nome comprido ("Apartamento") diminui um pouco e, se ainda não couber, quebra com hífen. */}
+          <b className={`max-w-full text-center font-semibold leading-tight hyphens-auto [overflow-wrap:anywhere] ${m.curto.length > 9 ? "text-[12px]" : "text-[13px] max-[360px]:text-xs"}`} lang="pt-BR">{m.curto}</b>
           <small className="text-xs font-medium leading-none text-ink-muted">{m.pct}%</small>
         </button>
       ))}

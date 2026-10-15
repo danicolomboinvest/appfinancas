@@ -79,14 +79,16 @@ export async function carregarDetalheDoOrcamento(ctx: AuthContext, ano: number, 
     const dia = diaDe(e.entryDate);
     const k = chave(e);
     const cat = (porCategoria[k] ??= { gasto: 0, aVencer: 0, maiores: [] });
+    const desc = (e.description ?? "Sem descrição").trim();
     if (dia > diaDeHoje) {
       cat.aVencer += valor;
-      continue;
+    } else {
+      cat.gasto += valor;
+      porDia[dia - 1] += valor;
+      if (valor > (maiorDoDia.get(dia)?.valor ?? 0)) maiorDoDia.set(dia, { descricao: desc, valor });
     }
-    cat.gasto += valor;
-    porDia[dia - 1] += valor;
-    const desc = (e.description ?? "Sem descrição").trim();
-    if (valor > (maiorDoDia.get(dia)?.valor ?? 0)) maiorDoDia.set(dia, { descricao: desc, valor });
+    // O que pesou inclui o que está a vencer (a parcela do dia 21): é ele que faz a categoria
+    // passar. Antes "Ver o que pesou" mostrava só a assinatura de um Lazer estourado por parcelas a vencer.
     const g = agrupado.get(k) ?? new Map();
     const atual = g.get(desc) ?? { valor: 0, vezes: 0 };
     g.set(desc, { valor: atual.valor + valor, vezes: atual.vezes + 1 });

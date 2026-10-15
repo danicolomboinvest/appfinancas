@@ -69,6 +69,8 @@ const INSTITUTIONS: [RegExp, string][] = [
   [/\bavenue\b/i, "Avenue"],
   [/\bnomad\b/i, "Nomad"],
   [/\beqi\b/i, "EQI"],
+  [/recargapay/i, "RecargaPay"],
+  [/banco sofisa|sofisadireto/i, "Sofisa"],
   [/\bb3\b|[aá]rea do investidor/i, "B3"],
 ];
 
@@ -155,6 +157,14 @@ function formatPeriod(period: NonNullable<DocProfile["period"]>): string {
   return `${fd}/${fm}/${fy} a ${td}/${tm}/${ty}`;
 }
 
+/** O motivo do perfil para a movimentação da B3: as telas de importação reconhecem por ele. */
+export const MOTIVO_MOVIMENTACAO_B3 = "extrato de movimentação da B3 (compras, vendas e rendimentos dos investimentos)";
+
+/** "Extrato de Movimentação" baixado da Área do Investidor (investidor.b3.com.br). */
+export function isB3Movimentacao(text: string): boolean {
+  return /Extrato de Movimenta[çc][ãa]o/i.test(text) && /investidor\.b3\.com\.br/i.test(text);
+}
+
 const KIND_LABEL: Record<DocProfileKind, string> = {
   position: "Posição da carteira",
   statement: "Extrato bancário",
@@ -166,6 +176,11 @@ const KIND_LABEL: Record<DocProfileKind, string> = {
 /** Banco que mais aparece, com peso extra pro começo do arquivo (cabeçalho): o extrato do
  * Nubank cita "BTG" numa transferência, mas é do Nubank. */
 function detectInstitution(text: string): string | null {
+  // A movimentação da B3 repete a corretora em toda linha ("BANCO BTG PACTUAL S/A."): é da B3.
+  if (isB3Movimentacao(text)) return "B3";
+  // CSV da conta do Nubank ("Data,Valor,Identificador,Descrição"): o nome do banco não aparece, e
+  // um Pix para o Bradesco na descrição fazia a tela dizer "extrato do Bradesco".
+  if (/^\uFEFF?data,valor,identificador,descri[çc][ãa]o\s*$/i.test(text.split(/\r?\n/, 1)[0] ?? "")) return "Nubank";
   // O extrato do Nubank em PDF nem sempre diz "Nubank" no alto da página, mas as transferências
   // dizem o banco do OUTRO lado do Pix. Foi assim que o extrato de uma cliente apareceu na tela
   // como "Sicredi" — banco que ela não tem. O molde do documento vale mais que as citações.
@@ -173,6 +188,11 @@ function detectInstitution(text: string): string | null {
   // O extrato do BB não diz "Banco do Brasil" em lugar nenhum, só "BB Rende Fácil"; um boleto
   // pago ao "BANCO C6 S.A." fazia a tela chamar o arquivo de C6.
   if (isBancoDoBrasilStatement(text)) return "Banco do Brasil";
+  // Arquivos que não escrevem o nome do banco: o molde diz. A planilha da fatura do BTG só cita
+  // bancos nas compras ("Mercado Pago (2/6)" fazia a tela dizer Mercado Pago), e o CSV do Noh
+  // (conta do casal) idem.
+  if (/^Fatura Cart[ãa]o de Cr[ée]dito;/i.test(text) && /C[óo]digo de autoriza[çc][ãa]o;Final Cart[ãa]o/i.test(text)) return "BTG Pactual";
+  if (/^Data,Iniciador,M[ée]todo,Descri[çc][ãa]o,Valor,Tipo\s*$/im.test(text.slice(0, 300))) return "Noh";
   const head = text.slice(0, 2500);
   let best: { name: string; score: number } | null = null;
   for (const [re, name] of INSTITUTIONS) {
@@ -184,6 +204,11 @@ function detectInstitution(text: string): string | null {
     if (!best || score > best.score) best = { name, score };
   }
   return best?.name ?? null;
+}
+
+/** "Relatório de Performance" (BTG): título + patrimônio + rentabilidade. O PDF quebra o título em duas linhas. */
+export function isRelatorioDePerformance(text: string): boolean {
+  return /relat[óo]rio\s+de\s+performance/i.test(text) && /patrim[ôo]nio/i.test(text) && /rentabilidade/i.test(text);
 }
 
 export function profileDocument(text: string, fileName?: string | null): DocProfile {
@@ -280,11 +305,32 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
     reason = known.reason;
   }
 
+  // Extrato de Movimentação da B3: compra, venda, rendimento e empréstimo de ativos, não a conta do
+  // banco. A corretora em toda linha fazia o perfil dizer "extrato bancário do BTG" e a pessoa
+  // ouvia que o formato era desconhecido (13/10/2026, duas pessoas, nas duas telas).
+  if (isB3Movimentacao(text)) {
+    kind = "position";
+    reason = MOTIVO_MOVIMENTACAO_B3;
+    const i = contents.indexOf("movements");
+    if (i !== -1) contents.splice(i, 1);
+    if (!contents.includes("position")) contents.push("position");
+  }
+
   // Extrato de custódia (Nubank): só o saldo de cada caixinha/fundo, sem entrada nem saída. Sem
   // código de ativo o perfil lia como "extrato bancário" e a cliente via "não achei transações".
   if (/extrato de cust[óo]dia/i.test(text) && /posi[çc][ãa]o consolidada/i.test(text)) {
     kind = "position";
     reason = "extrato de custódia (saldo dos investimentos)";
+  }
+
+  // Extrato das caixinhas do Nubank ("Extrato de Rendimentos", aplicação, resgate, rendimento):
+  // é o vaivém DENTRO do banco. Lido como extrato da conta, cada resgate virava gasto (dezenas de
+  // milhares de reais de "saídas" num trimestre).
+  if (/extrato de rendimentos/i.test(text) && /caixinhas/i.test(text) && /compra por\s+aplica[çc][ãa]o|resgate/i.test(text)) {
+    kind = "position";
+    reason = "extrato das caixinhas (aplicações e resgates)";
+    const i = contents.indexOf("movements");
+    if (i >= 0) contents.splice(i, 1);
   }
 
   // Relatório mensal do Safra: posição sem código de ativo, e "vencimento" em todo canto (do CDB,
@@ -293,6 +339,17 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
     kind = "position";
     reason = "relatório mensal de investimentos";
     if (!contents.includes("position")) contents.push("position");
+  }
+
+  // Relatório de Performance do BTG: patrimônio, rentabilidade e carteira, sem entrada nem saída.
+  // Nenhum leitor próprio o reconhece, e as linhas de ativo (FIIs, CRIs, "Total: R$ 735.500,56")
+  // entravam como R$ 1,47 milhão de gastos de uma "fatura".
+  if (isRelatorioDePerformance(text)) {
+    kind = "position";
+    reason = "relatório de performance dos investimentos";
+    if (!contents.includes("position")) contents.push("position");
+    const i = contents.indexOf("movements");
+    if (i !== -1) contents.splice(i, 1);
   }
 
   // Posição da B3: "Vencimento" em toda linha de renda fixa fazia o perfil chamar de FATURA, e a
