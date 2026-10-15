@@ -81,7 +81,9 @@ export function pilulaDaPergunta(k: ChaveDaPergunta, d: DadosDasPilulas): Pilula
   const m = d.money;
   switch (k) {
     case "compra":
-      return d.livreMes !== null ? { texto: `${m(Math.max(0, d.livreMes))} livres`, atencao: d.livreMes < 1 } : null;
+      // O livre do mês, o mesmo do Orçamento: passou do plano diz quanto, como lá.
+      if (d.livreMes === null) return null;
+      return d.livreMes <= -1 ? { texto: `${m(-d.livreMes)} acima do plano`, atencao: true } : { texto: `${m(Math.max(0, d.livreMes))} livres`, atencao: d.livreMes < 1 };
     case "guardar":
       return d.guardar && d.guardar.porMes >= 1 ? { texto: `${m(d.guardar.porMes)} por mês`, atencao: !d.guardar.cobre } : null;
     case "meta":

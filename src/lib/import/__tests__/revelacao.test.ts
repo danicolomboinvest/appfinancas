@@ -28,7 +28,7 @@ describe("montarRevelacao", () => {
     expect(r.maiores).toEqual([{ rotulo: "Lazer", valor: 100, fracao: 0.1 }]);
   });
 
-  it("livre com orçamento: o que sobra, sem passar do que o mês comporta", () => {
+  it("livre com orçamento: o plano menos tudo o que saiu", () => {
     const r = montarRevelacao(
       [gasto("Alimentação", 500), gasto("Lazer", 400), gasto(null, 300)],
       [
@@ -36,14 +36,14 @@ describe("montarRevelacao", () => {
         { chave: "Lazer", planejado: 300 },
       ],
     );
-    // Sobras: 500 (Alimentação) + 0 (Lazer estourou). O mês: 1300 − 1200 = 100. Vale o menor.
+    // O mês: 1300 − 1200 = 100 (o sem categoria também sai do livre).
     expect(r.planejado).toBe(1300);
     expect(r.livre).toBe(100);
   });
 
-  it("orçamento estourado: livre zero, nunca negativo", () => {
+  it("orçamento estourado: o livre fica negativo (acima do plano), como no Orçamento", () => {
     const r = montarRevelacao([gasto("Lazer", 900)], [{ chave: "Lazer", planejado: 500 }]);
-    expect(r.livre).toBe(0);
+    expect(r.livre).toBe(-400);
   });
 
   it("devolução maior que a compra não vira gasto negativo nas maiores", () => {

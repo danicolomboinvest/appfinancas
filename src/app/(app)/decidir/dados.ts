@@ -59,7 +59,8 @@ export async function carregarDecidir(ctx: AuthContext) {
     remanejo: {
       categorias: d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto })),
       essenciais: [...categoriasEssenciais(ctx.categorias?.prefs)],
-      livre: temLivre ? livre.restante : null,
+      // O livre do mês da fonte única: o mesmo número do Orçamento (lib/planning/livre-do-mes).
+      livre: d.livreDoMes.tipo === "plano" ? d.livreDoMes.valor : null,
       diasRestantes: temLivre ? livre.diasRestantes : 1,
       diasNoMes: d.diasNoMes,
     },
@@ -79,7 +80,9 @@ export async function carregarDecidir(ctx: AuthContext) {
     .filter((c) => c.planejado > 0 && c.gasto - c.planejado >= 1)
     .sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado))[0];
   const pilulas: Omit<DadosDasPilulas, "money" | "tema"> = {
-    livreMes: temLivre ? livre.restante : null,
+    // O livre do mês, o mesmo do Orçamento (15/10/2026): antes era a sobra do dia a dia cortada pela
+    // renda, e a pílula dizia R$ 3.056 com o Orçamento em R$ 3.241.
+    livreMes: d.livreDoMes.tipo === "plano" ? d.livreDoMes.valor : null,
     // O mesmo "por dia" da resposta "Quanto posso gastar na semana?" (a da semana até domingo).
     // Antes era o livre do MÊS por dia: a esfera dizia R$ 170 e a resposta, R$ 214 (14/10/2026).
     porDia: temLivre ? livre.semana.porDia : null,

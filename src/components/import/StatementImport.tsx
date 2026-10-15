@@ -26,6 +26,7 @@ import {
   type EntryType,
 } from "@/app/(app)/mensal/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { DolarDeHoje } from "./DolarDeHoje";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } from "@/lib/import/limites";
 import type { PrintLido } from "@/lib/import/print-fatura";
@@ -1787,6 +1788,7 @@ export function StatementImport({
                         value={reaisDoDolar[i]}
                         onChange={(v) => setReaisDoDolar((atual) => ({ ...atual, [i]: v }))}
                       />
+                      <DolarDeHoje moeda={c.moeda} valorDeFora={c.valorDeFora} valorAtual={reaisDoDolar[i]} usar={(v) => setReaisDoDolar((atual) => ({ ...atual, [i]: v }))} />
                     </div>
                   ))}
                 </div>
@@ -2138,8 +2140,8 @@ export function StatementImport({
               )}
               {dados.livre !== null && (
                 <div className="rounded-xl bg-accent-soft px-3 py-2">
-                  <p className="text-caption text-ink-muted">{t.impRevelaLivre}</p>
-                  <p className="text-lg font-semibold tabular-nums text-ink">{money(dados.livre)}</p>
+                  <p className="text-caption text-ink-muted">{dados.livre >= 0 ? t.impRevelaLivre : "Acima do plano no mês"}</p>
+                  <p className="text-lg font-semibold tabular-nums text-ink">{money(Math.abs(dados.livre), { round: true })}</p>
                   <p className="text-caption text-ink-muted">{t.impRevelaLivreSub(money(dados.planejado))}</p>
                 </div>
               )}

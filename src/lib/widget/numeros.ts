@@ -1,6 +1,7 @@
 import type { FocoLivre } from "@/lib/decisoes/foco";
 import { diaDaSemana, previsaoDoMes, ritmoDoMes } from "@/lib/decisoes/foco-semana";
 import type { Ritmo } from "@/lib/profiles/voice-base";
+import { monteOPlano, type LivreDoMes } from "@/lib/planning/livre-do-mes";
 
 /**
  * Os números do widget do iPhone (11/10/2026), a partir do MESMO livre que o Resumo mostra
@@ -36,6 +37,12 @@ export type NumerosDoWidget = {
      */
     semana?: { valor: number; gasto: number; passou: number; proxima: number | null };
   };
+  /**
+   * O livre do mês (lib/planning/livre-do-mes): o plano do mês menos o que já saiu, o MESMO número
+   * do Orçamento. Sempre positivo; o rótulo diz "livres no mês" ou "acima do plano". Nulo sem plano
+   * no mês (o rótulo convida a montar). Campo novo: o widget antigo ignora.
+   */
+  mes?: { valor: number | null; rotulo: string };
   fimDoMes: {
     /** Sempre positivo; a palavra diz se sobra ou falta. Nulo nos primeiros dias do mês. */
     valor: number | null;
@@ -47,6 +54,8 @@ export type NumerosDoWidget = {
 
 export function numerosDoWidget(e: {
   livre: FocoLivre;
+  /** O livre do mês da fonte única. Omitido (testes antigos): o widget não manda o `mes`. */
+  livreDoMes?: LivreDoMes;
   agora: Date;
   /** "Agora" de verdade (instante), para o atualizadoEm. */
   instante: Date;
@@ -64,7 +73,13 @@ export function numerosDoWidget(e: {
       return { id: g.id, nome: g.name, atual: Math.round(atual), alvo: Math.round(alvo), pct: alvo > 0 ? Math.min(100, Math.floor((atual / alvo) * 100)) : 0 };
     })
     .slice(0, 12);
-  const base = { versao: 1 as const, atualizadoEm: e.instante.toISOString(), moeda: e.moeda, tema: e.tema, modo: e.modo, metas };
+  const ld = e.livreDoMes;
+  const mes = ld
+    ? ld.tipo === "plano"
+      ? { valor: Math.abs(ld.valor), rotulo: ld.valor >= 0 ? "livres no mês" : "acima do plano" }
+      : { valor: null, rotulo: monteOPlano(ld) }
+    : undefined;
+  const base = { versao: 1 as const, atualizadoEm: e.instante.toISOString(), moeda: e.moeda, tema: e.tema, modo: e.modo, metas, ...(mes ? { mes } : {}) };
 
   if (l.tipo === "semOrcamento") {
     return {

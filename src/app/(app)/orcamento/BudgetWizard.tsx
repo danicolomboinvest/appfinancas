@@ -88,7 +88,11 @@ export function BudgetWizard({
   const t = voz.titulos;
   const [state, formAction, isPending] = useActionState(async (anterior: AnnualBudgetState, dados: FormData): Promise<AnnualBudgetState> => {
     try {
-      return await applyAllBudgetsAction(anterior, dados);
+      const r = await applyAllBudgetsAction(anterior, dados);
+      // Gravou: fecha a janela já. Esperar o fim da transição (a página de trás recarregando) deixava a
+      // folha em "Salvando..." para sempre em alguns navegadores, com o plano já gravado (15/10/2026).
+      if (!r.error) window.dispatchEvent(new Event(PLANO_SALVO));
+      return r;
     } catch {
       return { error: "Não deu para confirmar se salvou. Confira a internet e toque em Salvar de novo." };
     }

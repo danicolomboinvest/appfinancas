@@ -188,10 +188,13 @@ export async function lerDecidir(p: Page, caderno: Caderno): Promise<RetratoDoDe
   const zeroEl = p.locator(".dc-zero b");
   const zero = (await zeroEl.count()) ? (await zeroEl.first().innerText()).trim() : null;
   const pilulas = await p.locator(".ob-c").allInnerTexts();
-  const livres = pilulas.find((x) => /livres/.test(x));
+  // O livre do mês na pílula: "R$ X livres", ou "R$ X acima do plano" (negativo, como no Orçamento).
+  const acimaDoPlano = pilulas.find((x) => /acima do plano/.test(x));
+  const livresTexto = pilulas.find((x) => /livres/.test(x));
+  const livres = livresTexto ? reais(livresTexto) : acimaDoPlano ? -(reais(acimaDoPlano) ?? 0) : null;
   const porDia = pilulas.find((x) => /por dia/.test(x));
   const acima = pilulas.find((x) => /acima/.test(x)) ?? null;
-  return { cartoes, naPilha, esperam, zero, livres: reais(livres), porDia: reais(porDia), acima: acima ? acima.replace(/\n+/g, " ") : null };
+  return { cartoes, naPilha, esperam, zero, livres, porDia: reais(porDia), acima: acima ? acima.replace(/\n+/g, " ") : null };
 }
 
 // ------------------------------------------------------------------ Posso comprar
@@ -203,11 +206,13 @@ export async function lerPossoComprar(p: Page, caderno: Caderno): Promise<{ livr
   await p.getByRole("button", { name: /^Continuar/ }).first().click();
   await p.getByRole("button", { name: /Quero muito/ }).click();
   await p.getByRole("button", { name: "Continuar", exact: true }).click();
-  const h = p.getByRole("heading", { name: /Seu livre de/ });
+  // "Seu livre de outubro é R$ X", ou "Seu plano de outubro já passou R$ X" (negativo).
+  const h = p.getByRole("heading", { name: /Seu livre de|Seu plano de .* já passou/ });
   await h.waitFor();
   const frase = (await h.innerText()).replace(/\s+/g, " ");
   await conferirTextoELayout(p, caderno, "Posso comprar (passo 5)");
-  return { livreDoMes: reais(frase), frase };
+  const n = reais(frase);
+  return { livreDoMes: n === null ? null : /já passou/.test(frase) ? -n : n, frase };
 }
 
 // ------------------------------------------------------------------ Recorrentes
@@ -219,7 +224,8 @@ export async function lerRecorrentes(p: Page, caderno: Caderno) {
     return i >= 0 ? reais(ls[i + 1]) : null;
   };
   const faltam = ls.find((l) => /^Faltam/.test(l)) ?? null;
-  return { contas: depois("Contas"), parcelas: depois("Parcelas"), assinaturas: depois("Assinaturas"), livre: depois("Livre"), faltam, texto: ls.join(" | ") };
+  const acima = depois("Acima do plano");
+  return { contas: depois("Contas"), parcelas: depois("Parcelas"), assinaturas: depois("Assinaturas"), livre: depois("Livre") ?? (acima === null ? null : -acima), faltam, texto: ls.join(" | ") };
 }
 
 // ------------------------------------------------------------------ Metas
@@ -259,6 +265,8 @@ export async function lerWidget(p: Page, base: string, request?: APIRequestConte
   if (!r.ok()) return { erro: `HTTP ${r.status()}` } as const;
   return (await r.json()) as {
     livre: { valor: number | null; rotulo: string; porDia: number | null };
+    /** O livre do mês (a fonte única): valor sempre positivo, o rótulo diz "livres no mês" ou "acima do plano". */
+    mes?: { valor: number | null; rotulo: string };
     fimDoMes: { valor: number | null; palavra: string | null; rotulo: string };
     metas: { nome: string; atual: number; alvo: number }[];
   };

@@ -18,6 +18,7 @@ export function ComoChegamos({ livre, money, rendaSoOQueEntrou }: { livre: Livre
   const temRenda = livre.renda !== null;
   const base = Math.max(1, temRenda ? (livre.renda as number) : livre.planejado);
   const guardar = temRenda ? Math.max(0, livre.guardar ?? 0) : 0;
+  const guardarDoPlano = Math.max(0, livre.guardar ?? 0);
   type Passo = { rotulo: string; valor: number; tom: "base" | "guardar" | "contas" | "gasto" | "resto"; menos?: boolean; forte?: boolean };
   const passos: Passo[] = [
     { rotulo: temRenda ? (livre.rendaFonte === "entrou" ? "Renda que já entrou" : "Renda do mês") : "Orçamento do mês", valor: temRenda ? (livre.renda as number) : livre.planejado, tom: "base" },
@@ -25,7 +26,8 @@ export function ComoChegamos({ livre, money, rendaSoOQueEntrou }: { livre: Livre
     { rotulo: "Contas fixas e parcelas", valor: livre.contas.total, tom: "contas", menos: true },
     ...(s.semDestino >= 1 ? [{ rotulo: "Sem destino no orçamento", valor: s.semDestino, tom: "contas" as const, menos: true }] : []),
     { rotulo: livre.tipo === "estimativa" ? "Já gasto, pelo ritmo do plano" : "Já gasto no dia a dia", valor: s.gastoAntes, tom: "gasto", menos: true },
-    { rotulo: "Sobra do mês", valor: s.sobraNoInicio, tom: "resto", forte: true },
+    // "Sobra para o dia a dia", não "livre": o livre do mês é outro número (o do Orçamento).
+    { rotulo: "Sobra para o dia a dia", valor: s.sobraNoInicio, tom: "resto", forte: true },
   ];
   const COR: Record<Passo["tom"], string> = {
     base: "bg-[color-mix(in_srgb,var(--color-accent)_35%,transparent)]",
@@ -70,7 +72,12 @@ export function ComoChegamos({ livre, money, rendaSoOQueEntrou }: { livre: Livre
         </span>
         <b className="whitespace-nowrap text-2xl font-semibold tabular-nums text-accent-strong">{money(s.valor)}</b>
       </div>
-      {s.cortadoPelaRenda && <p className="rounded-xl bg-[var(--color-atencao-fundo)] px-3 py-2 text-[13px] text-ink">Seu orçamento passa da renda menos o guardar. Usamos o limite da renda.</p>}
+      {/* O "cabe na renda" é um aviso à parte, com o mesmo texto do Orçamento (lib/planning/livre-do-mes). */}
+      {s.cortadoPelaRenda && temRenda && (
+        <p className="rounded-xl bg-[var(--color-atencao-fundo)] px-3 py-2 text-[13px] text-ink">
+          Seu plano passa da sua renda em {money(Math.max(1, livre.planejado + guardarDoPlano - (livre.renda as number)))}. A semana usa o limite da renda.
+        </p>
+      )}
       {s.chegouDepois >= 1 && (
         <p className="text-[13px] text-ink-muted">
           {money(s.chegouDepois)} chegaram depois, com data de antes desta semana. Entram na conta da próxima.

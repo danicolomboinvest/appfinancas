@@ -1,5 +1,8 @@
 // Configuração única da jornada (e2e/jornada). Tudo local: Postgres na 54329 e o app na 3317.
-export const BANCO = "spi_jornada_teste";
+// JORNADA_BANCO: outro banco quando duas worktrees rodam a jornada ao mesmo tempo.
+export const BANCO = process.env.JORNADA_BANCO ?? "spi_jornada_teste";
+// O nome entra num DROP DATABASE: só nomes da jornada.
+if (!/^spi_jornada_[a-z0-9_]+$/.test(BANCO)) throw new Error(`JORNADA_BANCO inválido: ${BANCO}`);
 export const URL_ADMIN = "postgresql://spi:spi_local@localhost:54329/postgres";
 export const URL_DO_BANCO = `postgresql://spi:spi_local@localhost:54329/${BANCO}`;
 export const PORTA = Number(process.env.JORNADA_PORTA ?? 3317);

@@ -127,6 +127,11 @@ export type FocoEntrada = {
   renda?: number | null;
   /** De onde veio a renda: o plano do mês, ou só o que já entrou ("conto só o que já entrou"). */
   rendaFonte?: "plano" | "entrou" | null;
+  /**
+   * O livre do mês da fonte única (lib/planning/livre-do-mes), em reais inteiros: é o número que o
+   * aviso de gasto fora do orçamento cita. Omitido (testes antigos): a sobra do dia a dia.
+   */
+  livreDoMes?: number | null;
   money: (valor: number) => string;
   t: Titulos;
 };
@@ -429,7 +434,7 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
     // O livre que haveria sem o gasto fora do orçamento: só avisa quando ele de fato comeu o livre.
     const semFora = Math.max(0, livre.semana.sobraDoMes + fora);
     if (livre.restante < semFora - FOLGA_ESTOURO) {
-      itens.push({ id: "fora", nivel: 1, titulo: t.focoForaT(money(fora)), texto: t.focoForaP(money(livre.restante)), href: e.hrefMes, acao: t.focoAcao, detalhe: { tipo: "fora", valor: fora, livre: livre.restante } });
+      itens.push({ id: "fora", nivel: 1, titulo: t.focoForaT(money(fora)), texto: t.focoForaP(money(Math.max(0, e.livreDoMes ?? livre.restante))), href: e.hrefMes, acao: t.focoAcao, detalhe: { tipo: "fora", valor: fora, livre: Math.max(0, e.livreDoMes ?? livre.restante) } });
     }
   }
 

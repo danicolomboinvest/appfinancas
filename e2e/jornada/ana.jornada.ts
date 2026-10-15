@@ -241,9 +241,13 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       const { orc } = await conferirGastoPorCategoria(p, c, OUT, "lápis");
       if (!bate(orc.categorias.TRANSPORTE?.plano, 900)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis", telaErrada: "Orçamento", esperado: "Transporte de R$ 900", visto: orc.categorias.TRANSPORTE?.texto ?? "(sem linha)" });
       if (antes.plano != null && !bate(orc.plano, antes.plano + 100)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis", telaErrada: "Orçamento (plano do mês)", esperado: brl(antes.plano + 100), visto: brl(orc.plano) });
-      const { dec } = await conferirLivre(p, c, orc, "lápis");
-      // Subir o plano em R$ 100 sobe o livre em R$ 100 em todo lugar (o Orçamento e o Decidir).
-      if (decAntes.livres != null && dec.livres != null && !bate(dec.livres - decAntes.livres, 100)) await c.anotar(p, { tipo: "decisao", telaDeOrigem: "lápis (+R$ 100 em Transporte)", telaErrada: "Decidir (R$ X livres)", esperado: `${brl(decAntes.livres + 100)} livres (era ${brl(decAntes.livres)})`, visto: `${brl(dec.livres)} livres` });
+      const { dec, livreOrc, widgetMes } = await conferirLivre(p, c, orc, "lápis");
+      // Subir o plano em R$ 100 sobe o livre do mês em R$ 100 em todo lugar (15/10/2026: a renda
+      // não limita mais o livre; plano acima da renda vira aviso à parte).
+      const livreAntes = antes.livres ?? (antes.acimaDoPlano != null ? -antes.acimaDoPlano : null);
+      if (livreAntes != null && livreOrc != null && !bate(livreOrc - livreAntes, 100)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis (+R$ 100 em Transporte)", telaErrada: "Orçamento (R$ X livres)", esperado: `${brl(livreAntes + 100)} livres (era ${brl(livreAntes)})`, visto: brl(livreOrc) });
+      if (decAntes.livres != null && dec.livres != null && !bate(dec.livres - decAntes.livres, 100)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis (+R$ 100 em Transporte)", telaErrada: "Decidir (R$ X livres)", esperado: `${brl(decAntes.livres + 100)} livres (era ${brl(decAntes.livres)})`, visto: `${brl(dec.livres)} livres` });
+      if (livreAntes != null && widgetMes != null && !bate(widgetMes - livreAntes, 100)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis (+R$ 100 em Transporte)", telaErrada: "widget (livre do mês)", esperado: brl(livreAntes + 100), visto: brl(widgetMes) });
     });
 
     await passo(c, "apagar o Show e Desfazer", async () => {
@@ -331,7 +335,11 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       const { orc } = await conferirGastoPorCategoria(p, c, NOV, "virou o mês");
       if (!bate(orc.categorias.TRANSPORTE?.plano, 900)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis (19/10, \"de outubro em diante\")", telaErrada: "Orçamento de novembro", esperado: "Transporte R$ 900", visto: orc.categorias.TRANSPORTE?.texto ?? "(sem linha)" });
       await conferirMesPassado(p, c, OUT, "virou o mês");
-      await conferirLivre(p, c, orc, "virou o mês");
+      const nov = await conferirLivre(p, c, orc, "virou o mês");
+      // Dia 2 com o plano de novembro montado (o plano vale até dezembro): o livre é o plano menos o
+      // que saiu, nunca "R$ 0" por falta de dado, e o Posso comprar diz o mesmo número.
+      if (nov.livreOrc == null || nov.livreOrc < 1) await c.anotar(p, { tipo: "numero", telaDeOrigem: "virar o mês", telaErrada: "Orçamento de novembro", esperado: "o livre de novembro (plano menos o que saiu)", visto: nov.livreOrc == null ? "sem número" : brl(nov.livreOrc), chave: `${PERFIL}|livre-nov-orc` });
+      if (!nov.comprar || !/novembro/.test(nov.comprar.frase) || /R\$\s*0(?!\d)/.test(nov.comprar.frase)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "virar o mês", telaErrada: "Posso comprar", esperado: `Seu livre de novembro é ${nov.livreOrc == null ? "?" : brl(nov.livreOrc)}`, visto: nov.comprar?.frase ?? "(não abriu)", chave: `${PERFIL}|livre-nov-comprar` });
     });
 
     await passo(c, "fechar outubro", async () => {

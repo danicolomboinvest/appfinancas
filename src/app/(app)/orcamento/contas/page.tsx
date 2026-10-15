@@ -14,6 +14,7 @@ import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { textoDaMedia } from "@/lib/planning/renda-media";
 import { rendaDeReferencia } from "@/lib/simulators/worth-it";
 import { carregarRaioX } from "@/app/(app)/mensal/foco/dados";
+import { carregarLivreDoMes } from "@/lib/repositories/livre-do-mes.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
 import { ehEmpresa } from "@/lib/profiles/empresa";
@@ -73,6 +74,9 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const ano = agora.getFullYear();
   const mes = agora.getMonth() + 1;
   const empresa = ehEmpresa(ctx.profileKind);
+  // O livre do mês da fonte única (lib/planning/livre-do-mes), junto com as outras consultas.
+  const livreDoMesP = carregarLivreDoMes(ctx, { ano, mes });
+  livreDoMesP.catch(() => {}); // a falha aparece no await lá embaixo, não como rejeição solta
   // Quem já tinha extrato antes desta versão não precisa importar de novo para ver as contas.
   try {
     await sincronizarContasDoHistorico(ctx);
@@ -140,8 +144,9 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   );
   const rotulos = Object.fromEntries((["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS"] as ParentCategory[]).map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
-  const planejado = plano.reduce((s, b) => s + Number(b.plannedAmount), 0);
-  const livre = planejado > 0 ? planejado - resumo.totalExpense : null;
+  // O mesmo número do Orçamento (antes: plano − resumo.totalExpense, com outro arredondamento).
+  const livreDoMes = await livreDoMesP;
+  const livre = livreDoMes.tipo === "plano" && plano.length > 0 ? livreDoMes.valor : null;
   const comDono = peso.contas + parcelas.total + totalAssinaturas;
   const pct = renda > 0 ? Math.round((comDono / renda) * 100) : null;
   const largura = (v: number) => `${Math.min(100, (v / renda) * 100)}%`;
@@ -169,7 +174,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
               <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[var(--color-heroi-tinta)]" aria-hidden />Contas</dt><dd className="tabular-nums">{m(peso.contas)}</dd></div>
               <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_65%,transparent)]" aria-hidden />Parcelas</dt><dd className="tabular-nums">{m(parcelas.total)}</dd></div>
               <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-heroi-tinta)_40%,transparent)]" aria-hidden />Assinaturas</dt><dd className="tabular-nums">{m(totalAssinaturas)}</dd></div>
-              {livre !== null && <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)] shadow-[inset_0_0_0_1px_var(--color-heroi-tinta)]" aria-hidden />Livre</dt><dd className="tabular-nums">{m(livre)}</dd></div>}
+              {livre !== null && <div className="flex justify-between gap-2"><dt className="flex items-center gap-1.5 text-heroi-suave"><i className="size-2 rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)] shadow-[inset_0_0_0_1px_var(--color-heroi-tinta)]" aria-hidden />{livre >= 0 ? "Livre" : "Acima do plano"}</dt><dd className="tabular-nums">{m(Math.abs(livre))}</dd></div>}
             </dl>
             {(dividas.length > 0 || parcelas.total > 0) && <p className="text-[13px] text-heroi-suave">As parcelas já estão dentro do seu plano.</p>}
           </HeroiDoTema>

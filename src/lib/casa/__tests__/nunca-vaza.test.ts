@@ -22,6 +22,8 @@ const PODEM_LER_A_CASA = [
   "lib/repositories/monthly-entry.repo.ts",
   "lib/repositories/budget.repo.ts",
   "lib/repositories/orcamento-detalhe.repo.ts",
+  // O livre do mês (fonte única): os gastos dos dois que entram nos totais, como o Orçamento.
+  "lib/repositories/livre-do-mes.repo.ts",
   "lib/consolidation/monthly.ts",
   "lib/consolidation/seis-meses.ts",
   "app/(app)/mensal/foco/dados.ts",
