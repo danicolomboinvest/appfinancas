@@ -9,6 +9,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
 import { Bolinha, ParDeAvatares } from "@/components/casal-login/visual";
 import { Escolhas } from "./Escolhas";
+import { rotuloDaDivisao } from "@/lib/casa/escolhas";
 
 export const metadata = { title: "Acerto do mês · SPI Finance" };
 
@@ -34,8 +35,10 @@ export default async function AcertoPage(props: { searchParams: Promise<Record<s
   const seguinte = new Date(ano, mes, 1);
   const temSeguinte = seguinte.getFullYear() * 12 + seguinte.getMonth() <= agora.getFullYear() * 12 + agora.getMonth();
   const linkDoMes = (d: Date) => `/mensal/foco/acerto?mes=${d.getFullYear()}-${d.getMonth() + 1}`;
-  const pctEu = Math.round((acerto.eu.letra === "A" ? acerto.fracaoA : 1 - acerto.fracaoA) * 100);
-  const rotuloRenda = acerto.caiuParaMeio ? "Pela renda" : `Pela renda ${pctEu}% e ${100 - pctEu}%`;
+  // A proporção da renda mesmo quando a casa divide de outro jeito (o rótulo é da opção "Pela renda").
+  const pctEu = Math.round(acerto.divisao.pctEuRenda);
+  const pctCombinado = Math.round(acerto.divisao.pctEuCombinado);
+  const rotuloRenda = acerto.divisao.semRenda ? "Pela renda" : `Pela renda ${pctEu}% e ${100 - pctEu}%`;
   const pessoas = [acerto.eu, acerto.outro];
 
   return (
@@ -94,7 +97,7 @@ export default async function AcertoPage(props: { searchParams: Promise<Record<s
 
       {acerto.gastosDaCasa.length > 0 && (
         <section className="flex flex-col gap-2" data-gastos-da-casa>
-          <h2 className="px-1 text-[15px] font-medium text-ink">Gastos da casa</h2>
+          <h2 className="px-1 text-[15px] font-medium text-ink">No acerto</h2>
           <div className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-surface">
             {acerto.gastosDaCasa.map((g) => {
               const p = g.quem === "eu" ? acerto.eu : acerto.outro;
@@ -103,8 +106,9 @@ export default async function AcertoPage(props: { searchParams: Promise<Record<s
                   <Bolinha nome={p.nome} cor={p.papel} size={28} />
                   <span className="min-w-0 flex-1">
                     <b className="block break-words text-[15px] font-medium text-ink">{g.descricao}</b>
-                    <small className="text-[13px] text-ink-muted">
+                    <small className="text-[13px] text-ink-muted" data-gasto-do-acerto={g.deQuem}>
                       {g.quem === "eu" ? "Você pagou" : `${p.nome} pagou`}
+                      {g.deQuem === "casa" ? (g.pctEu !== null ? ` · ${rotuloDaDivisao(g.pctEu)}` : "") : g.deQuem === "eu" ? " · seu" : ` · de ${acerto.outro.nome}`}
                       {g.dia ? ` · ${g.dia.slice(8, 10)}/${g.dia.slice(5, 7)}` : ""}
                     </small>
                   </span>
@@ -116,9 +120,17 @@ export default async function AcertoPage(props: { searchParams: Promise<Record<s
         </section>
       )}
 
-      <Escolhas divisao={acerto.config.divisao} rotuloRenda={rotuloRenda} ano={ano} mes={mes} acertado={acerto.acertado} temValor={valor >= 1} />
+      <Escolhas
+        divisao={acerto.config.divisao}
+        rotuloRenda={rotuloRenda}
+        rotuloCombinado={typeof acerto.config.pctA === "number" ? `Combinado ${pctCombinado}% e ${100 - pctCombinado}%` : null}
+        ano={ano}
+        mes={mes}
+        acertado={acerto.acertado}
+        temValor={valor >= 1}
+      />
 
-      <p className="px-1 text-[13px] text-ink-muted">Entra só o que é da casa. Para trocar, abra o gasto e toque em Da casa ou Meu.</p>
+      <p className="px-1 text-[13px] text-ink-muted">Entra o que é da casa e o que um pagou pelo outro. Para trocar, abra o gasto.</p>
     </div>
   );
 }

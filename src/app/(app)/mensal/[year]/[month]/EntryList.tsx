@@ -6,7 +6,9 @@ import { Check, CheckSquare, ChevronDown, Lock, Pencil, PiggyBank, Receipt, Sear
 import { Bolinha } from "@/components/casal-login/visual";
 import { BolinhaDeQuemGastou } from "@/components/casa/Pessoas";
 import { SoMeu } from "@/components/casa/SoMeu";
-import { DaCasa } from "@/components/casa/DaCasa";
+import { EscolhasDoGasto } from "@/components/casa/EscolhasDoGasto";
+import { SelosDoCasal, selosDaLinha, type CasalDaLinha } from "@/components/casa/SelosDoCasal";
+import { DIVISAO_PADRAO, type DivisaoDaCasa } from "@/lib/casa/escolhas";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
@@ -72,6 +74,8 @@ export type ListEntry = {
   dono?: "eu" | "outro" | null;
   /** Casal simples: o gasto é da casa (entra no acerto) ou da pessoa. */
   daCasa?: boolean | null;
+  /** Casal simples (15/10/2026): do par, quem pagou e a divisão própria (lib/casa/escolhas.ts). */
+  casal?: CasalDaLinha | null;
   escondido?: boolean;
   soMeu?: boolean;
   /** Empresa: o cliente da venda (edita na folha; entra nos Maiores clientes). */
@@ -188,7 +192,10 @@ export function EntryList({
   goals,
   pessoasDaDivisao = [],
   perfisDestino = [],
+  divisaoDaCasa = null,
 }: {
+  /** Casal simples: a regra da casa no mês, vista por quem olha (os selinhos e as escolhas). */
+  divisaoDaCasa?: DivisaoDaCasa | null;
   /** Os outros perfis dela, para o "Enviar para" (vazio: um perfil só, ou o par do Casal). */
   perfisDestino?: PerfilParaEnviar[];
   /** Com quem ela já dividiu alguma conta (para o "Com quem?" do Dividir). */
@@ -207,6 +214,9 @@ export function EntryList({
   const { key: tema, voz, categorias: kind, nomesDoCasal, casa, empresa } = useProfileTheme();
   // Casal simples: o gasto do par aparece, mas só quem gastou edita ou apaga.
   const doOutro = (e: ListEntry) => Boolean(casa) && e.dono === "outro";
+  // Casal simples: os selinhos do gasto (Da casa, Ana pagou, 55/45), só no que entra no acerto.
+  const selos = (e: ListEntry): string[] =>
+    casa && e.dono && e.casal && e.category === "EXPENSE" && !e.soMeu ? selosDaLinha(casa, e.dono, e.casal, Boolean(e.daCasa), divisaoDaCasa ?? DIVISAO_PADRAO) : [];
   const t = voz.titulos;
   const money = useMoney();
   const { showToast, showError } = useToast();
@@ -427,6 +437,7 @@ export function EntryList({
                   {" · "}
                 </span>
               )}
+              <SelosDoCasal selos={selos(entry)} />
               {/* Conta lançada antes de pagar (03/10/2026): mostra que ainda vai vencer. */}
               {entry.divididoCom && (
                 <span className="mr-1 rounded-full bg-accent-soft px-1.5 py-px font-medium text-accent-strong">{entry.parteDeOutro ? `dividido com ${entry.divididoCom}` : `presente`}</span>
@@ -783,7 +794,12 @@ export function EntryList({
                   <Bolinha nome={casa.outro.nome} cor={casa.outro.papel} size={40} />
                   <span className="min-w-0 flex-1">
                     <b className="block text-[15px] font-medium text-ink">De {casa.outro.nome}</b>
-                    <small className="text-[13px] text-ink-muted">{open.category === "EXPENSE" ? (open.daCasa ? "Da casa · " : "Não entra no acerto · ") : ""}Só quem gastou edita ou apaga</small>
+                    <small className="text-[13px] text-ink-muted">{open.category === "EXPENSE" && selos(open).length === 0 ? "Não entra no acerto · " : ""}Só quem gastou edita ou apaga</small>
+                    {open.category === "EXPENSE" && selos(open).length > 0 && (
+                      <span className="mt-1 block">
+                        <SelosDoCasal selos={selos(open)} />
+                      </span>
+                    )}
                   </span>
                 </div>
               ) : undefined
@@ -791,9 +807,21 @@ export function EntryList({
             extra={
               casa && open.dono === "eu" ? (
                 <div className="flex flex-col gap-2.5">
-                  {/* Da casa ou Meu: só o da casa entra no acerto (o Só meu nem aparece para o par). */}
-                  {open.category === "EXPENSE" && !open.soMeu && <DaCasa key={`casa-${open.id}`} id={open.id} daCasa={Boolean(open.daCasa)} />}
-                  <SoMeu key={open.id} id={open.id} ligado={Boolean(open.soMeu)} nomeDoOutro={casa.outro.nome} />
+                  {/* De quem é, quem pagou e como divide (versão A, 15/10/2026). O Só meu nem aparece para o par. */}
+                  {open.category === "EXPENSE" && !open.soMeu && open.casal && (
+                    <EscolhasDoGasto
+                      key={`casa-${open.id}`}
+                      id={open.id}
+                      casa={casa}
+                      casal={open.casal}
+                      daCasa={Boolean(open.daCasa)}
+                      divisao={divisaoDaCasa ?? DIVISAO_PADRAO}
+                      valor={Math.abs(open.amount)}
+                      money={money}
+                    />
+                  )}
+                  {/* O que entra no acerto por quem pagou ("Do par", ou o par pagou) os dois precisam ver. */}
+                  {!(open.casal?.doPar || open.casal?.pagouOPar) && <SoMeu key={open.id} id={open.id} ligado={Boolean(open.soMeu)} nomeDoOutro={casa.outro.nome} />}
                 </div>
               ) : undefined
             }
