@@ -104,7 +104,7 @@ async function cartaoDeAssinaturas(ctx: AuthContext, r: Dados): Promise<CartaoNa
  * está juntando o histórico. O registro de hoje é gravado aqui, para todo mundo, para o histórico
  * já existir no dia em que a pessoa ligar o cartão.
  */
-async function carteiraDoResumo(ctx: AuthContext): Promise<{ total: number; ganho: number | null; rendimento: ReturnType<typeof rendimentoDoMes> } | null> {
+async function carteiraDoResumo(ctx: AuthContext): Promise<{ total: number; rendimento: ReturnType<typeof rendimentoDoMes> } | null> {
   const ativos = await listAssets(ctx);
   if (ativos.length === 0) return null;
   const resumo = resumirCarteira(
@@ -125,8 +125,9 @@ async function carteiraDoResumo(ctx: AuthContext): Promise<{ total: number; ganh
   const hoje = hojeEmBrasilia().toISOString().slice(0, 10);
   const comeco = new Date(Date.parse(`${hoje.slice(0, 7)}-01T12:00:00Z`) - 10 * 86_400_000).toISOString().slice(0, 10);
   const registros = await lerCarteiraDosDias(ctx, comeco);
-  after(() => registrarCarteiraDoDia(ctx, hoje, resumo.ganho, resumo.total).catch(() => {}));
-  return { total: resumo.total, ganho: resumo.ganho, rendimento: rendimentoDoMes(registros, hoje, { ganho: resumo.ganho, total: resumo.total }) };
+  const deHoje = ativos.map((a) => ({ id: a.id, atual: Number(a.currentValue), investido: a.investedValue !== null ? Number(a.investedValue) : null }));
+  after(() => registrarCarteiraDoDia(ctx, hoje, deHoje).catch(() => {}));
+  return { total: resumo.total, rendimento: rendimentoDoMes(registros, hoje, deHoje) };
 }
 
 export async function carregarCartoesNovos(ctx: AuthContext, r: Dados, opcoes: { assinaturas: boolean }): Promise<CartaoNaTela[]> {
@@ -244,7 +245,7 @@ export async function carregarCartoesNovos(ctx: AuthContext, r: Dados, opcoes: {
             ? "Guardando o histórico. O rendimento do mês aparece a partir de amanhã"
             : rend.valor === 0
               ? `Sem variação desde ${desde}`
-              : `${rend.valor > 0 ? "Rendeu" : "Perdeu"} ${m(Math.abs(rend.valor))}${pct} desde ${desde}`
+              : `${rend.valor > 0 ? "Rendeu" : "Perdeu"} ${m(Math.abs(rend.valor))}${pct} desde ${desde}${rend.deFora > 0 ? ", sem os ativos novos" : ""}`
         }
       />,
     );
