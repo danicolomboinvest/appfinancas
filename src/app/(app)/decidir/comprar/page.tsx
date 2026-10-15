@@ -136,11 +136,14 @@ export default async function PossoComprarPage() {
       planejado: Number(b.plannedAmount),
       gasto: b.parentCategory ? (gastoPorMae.get(b.parentCategory) ?? 0) : (gastoPorPersonalizada.get(b.customCategoryId ?? "") ?? 0),
     }));
-  const gastoPlanejado = categorias.reduce((s, c) => s + c.planejado, 0);
-  // O mesmo livre do Resumo: guardar, contas fixas e parcelas já saíram inteiros; o que sobra é o
-  // dia a dia do mês. Antes a conta era refeita aqui e podia discordar do Resumo.
+  // O livre do mês da fonte única (lib/planning/livre-do-mes, 15/10/2026): o plano do mês menos o
+  // que já saiu, o mesmo número do Orçamento. Antes era a sobra do dia a dia cortada pela renda, e
+  // no dia 2 de novembro, com o plano montado, a tela dizia "Seu livre de novembro é R$ 0".
+  const livreDoMes = foco.livreDoMes;
+  const gastoPlanejado = livreDoMes.tipo === "plano" ? livreDoMes.planejado : 0;
+  const sobraDoMes = livreDoMes.tipo === "plano" ? livreDoMes.valor : 0;
+  // A semana continua a do Resumo (regra A): é o "Livre nesta semana", outro número.
   const livre = foco.foco.livre;
-  const sobraDoMes = livre.tipo === "semOrcamento" ? 0 : livre.restante;
   const semanaRestante = livre.tipo === "semOrcamento" ? undefined : livre.semana.restante;
 
   // Renda: o plano do mês; sem plano, a MÉDIA dos últimos 12 meses fechados (pedido da Dani,
@@ -211,7 +214,8 @@ export default async function PossoComprarPage() {
     reservaComSaldo: Boolean(fund && Number(fund.currentAmount) > 0),
     // Média do que ela gastou de fato nos últimos meses fechados (inclui parcelas antigas).
     gastoReal: gastoTipico?.monthlyAverage ?? null,
-    gastoDoMesAtual: summary.totalExpense,
+    // O "Já saiu" do passo 5: o mesmo gasto do livre (planejado − já saiu = livre).
+    gastoDoMesAtual: livreDoMes.tipo === "plano" ? livreDoMes.gasto : summary.totalExpense,
     guardarPlanejado: plan?.plannedInvestment ?? null,
     fonteRenda,
     mesesDaRenda,

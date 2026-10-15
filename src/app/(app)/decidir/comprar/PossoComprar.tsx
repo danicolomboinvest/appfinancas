@@ -1,5 +1,6 @@
 "use client";
 
+import { monteOPlano } from "@/lib/planning/livre-do-mes";
 import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
@@ -92,10 +93,11 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   if (precisaDeDado === "renda" || precisaDeDado === "orcamento") {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-ink">{precisaDeDado === "renda" ? t.compraPrecisoRenda : t.compraPrecisoOrcamento}</p>
+        {/* Sem plano no mês (o dia 2 de novembro sem plano de novembro): nada de "R$ 0", só o convite. */}
+        <p className="text-sm font-semibold text-ink">{precisaDeDado === "renda" ? t.compraPrecisoRenda : monteOPlano({ mes: hoje.mes })}</p>
         <p className="mt-1 text-caption text-ink-muted">{t.compraSemChute}</p>
         <Link href="/orcamento" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-pill px-4 py-2 text-sm font-semibold text-on-pill">
-          {t.compraPreencher}
+          {precisaDeDado === "renda" ? t.compraPreencher : "Montar o plano"}
         </Link>
       </Card>
     );
@@ -334,20 +336,28 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
       {passo === 5 && (
         <>
           <h2 className={titulo}>
-            Seu livre de {mesNome} é <span className="whitespace-nowrap">{m(base.sobraDoMes)}</span>. Certo?
+            {base.sobraDoMes <= -1 ? (
+              <>
+                Seu plano de {mesNome} já passou <span className="whitespace-nowrap">{m(-base.sobraDoMes)}</span>. Certo?
+              </>
+            ) : (
+              <>
+                Seu livre de {mesNome} é <span className="whitespace-nowrap">{m(Math.max(0, base.sobraDoMes))}</span>. Certo?
+              </>
+            )}
           </h2>
           <div className={caixa}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-ink-muted">Livre no mês</span>
               <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent-strong">Do seu orçamento de {mesNome}</span>
             </div>
-            <ValorDestaque texto={m(base.sobraDoMes)} />
+            <ValorDestaque texto={m(Math.max(0, base.sobraDoMes))} />
             <small className="text-caption text-ink-muted">até dia {ultimoDia}</small>
             <div className="mt-2 grid grid-cols-3 gap-2 text-caption">
               {[
                 ["Plano de gastos", base.gastoPlanejado],
                 ["Já saiu", base.gastoDoMesAtual ?? 0],
-                ["Livre", base.sobraDoMes],
+                [base.sobraDoMes <= -1 ? "Acima do plano" : "Livre", Math.abs(base.sobraDoMes)],
               ].map(([k, x]) => (
                 <div key={k as string} className="min-w-0">
                   <small className="block text-ink-muted">{k}</small>

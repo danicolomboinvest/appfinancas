@@ -58,7 +58,10 @@ export type CompraBase = {
    * conjunta: essa "renda" é repasse, e gastar 100% dela é o combinado. Omitido = vale.
    */
   regra90?: boolean;
-  /** O que ainda sobra do orçamento do dia a dia no mês. */
+  /**
+   * O livre do mês (lib/planning/livre-do-mes): o plano do mês menos o que já saiu, o mesmo número
+   * do Orçamento. Pode vir negativo (passou do plano); a conta usa a parte positiva.
+   */
   sobraDoMes: number;
   /**
    * Compras que ela já decidiu fazer ("Vou comprar") e ainda não apareceram nos lançamentos: o
@@ -409,9 +412,9 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     const linhas: LinhaAntesDepois[] = [
       linhaComprometida(gastoMesDepois, comprometidoNoMes),
       { rotulo: "Livre nesta semana", ...daSemana(Math.min(Math.max(0, resto), sobra)) },
-      { rotulo: "Sobra do mês para o dia a dia", hoje: money(sobra), depois: falta > 0 ? `falta ${money(falta)}` : money(depois) },
+      { rotulo: "Livre no mês", hoje: money(sobra), depois: falta > 0 ? `falta ${money(falta)}` : money(depois) },
     ];
-    if (semDestino > 0) linhas.push({ rotulo: "Livre sem destino no mês", hoje: money(semDestino), depois: money(semDestino - doSemDestino) });
+    if (semDestino > 0) linhas.push({ rotulo: "Sobra depois de guardar", hoje: money(semDestino), depois: money(semDestino - doSemDestino) });
     if (temMetas) {
       const hoje = algumaAtrasada ? "com atraso" : "no prazo";
       linhas.push({ rotulo: "Suas metas", hoje, depois: falta > 0 ? "em risco" : hoje });
@@ -421,7 +424,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
       ...contaDecididas,
       { rotulo: compra.desconto > 0 ? `Valor com ${pct(compra.desconto)} de desconto` : "Valor", valor: money(custo) },
       ...(semDestino > 0 ? [{ rotulo: "Sai do dinheiro sem destino", valor: money(doSemDestino) }] : []),
-      { rotulo: "Sobra do orçamento no mês", valor: money(sobra) },
+      { rotulo: "Livre no mês", valor: money(sobra) },
       { rotulo: "Depois da compra", valor: falta > 0 ? `falta ${money(falta)}` : money(depois) },
     ];
     const cmp = comprometimento(gastoMesDepois, comprometidoNoMes);
@@ -497,7 +500,7 @@ function avaliarSemAvisos(base: CompraBase, compraBruta: Compra, fmt: Formatos):
     linhaComprometida(comprometido + parcela),
   ];
   if (guardadoHoje > 0) linhas.push({ rotulo: "Guardado por mês", hoje: money(guardadoHoje), depois: money(Math.max(0, guardadoHoje - doGuardado)) });
-  if (semDestino > 0) linhas.push({ rotulo: "Livre sem destino no mês", hoje: money(semDestino), depois: money(Math.max(0, semDestino - parcela)) });
+  if (semDestino > 0) linhas.push({ rotulo: "Sobra depois de guardar", hoje: money(semDestino), depois: money(Math.max(0, semDestino - parcela)) });
   let atrasoReserva = 0;
   let maiorAtraso: { nome: string; meses: number } | null = null;
   for (const m of base.metas) {
