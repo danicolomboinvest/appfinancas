@@ -10,6 +10,7 @@ import {
   sumExpensesByCustomCategoryForYear,
   sumExpensesByParentCategorySince,
   sumExpensesByCustomCategorySince,
+  sumExpensesSemCategoria,
 } from "@/lib/repositories/budget.repo";
 import { categoryLabel, type CategoriasDoPerfil } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
@@ -33,10 +34,11 @@ function toSlices(
     parent: { parentCategory: ParentCategory; spent: number }[];
     custom: { customCategoryId: string; spent: number }[];
   },
+  semCategoria?: { agora: number; antes: number },
 ): SpendingSlice[] {
   const prevParent = new Map(previous?.parent.map((s) => [s.parentCategory, s.spent]));
   const prevCustom = new Map(previous?.custom.map((s) => [s.customCategoryId, s.spent]));
-  return [
+  const comCategoria = [
     ...parent.map((s) => ({
       name: categoryLabel(kind, s.parentCategory),
       value: s.spent,
@@ -50,6 +52,10 @@ function toSlices(
       previousValue: previous ? (prevCustom.get(s.customCategoryId) ?? 0) : undefined,
     })),
   ];
+  // "Sem categoria" entra como no Orçamento: sem ele o total desta tela ficava menor.
+  return semCategoria && semCategoria.agora > 0
+    ? [...comCategoria, { name: "Sem categoria", value: semCategoria.agora, previousValue: previous ? semCategoria.antes : undefined }]
+    : comCategoria;
 }
 
 function firstOf(value: string | string[] | undefined) {
@@ -85,6 +91,9 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
     customWeek,
     parentPrev,
     customPrev,
+    semMes,
+    semMesAnterior,
+    semSemana,
   ] = await Promise.all([
     listCustomCategories(ctx),
     sumExpensesByParentCategory(ctx, year, month),
@@ -97,9 +106,14 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
     // vazio quando repetia "toque para ver os lançamentos" em todas as categorias.
     sumExpensesByParentCategory(ctx, prevMonth.getFullYear(), prevMonth.getMonth() + 1),
     sumExpensesByCustomCategory(ctx, prevMonth.getFullYear(), prevMonth.getMonth() + 1),
+    sumExpensesSemCategoria(ctx, { year, month }),
+    sumExpensesSemCategoria(ctx, { year: prevMonth.getFullYear(), month: prevMonth.getMonth() + 1 }),
+    sumExpensesSemCategoria(ctx, { desde: weekAgo }),
   ]);
 
   const customNameById = new Map(customCategories.map((c) => [c.id, c.name]));
+  // O ano só até o mês que já chegou, como as categorias logo abaixo.
+  const semAno = await sumExpensesSemCategoria(ctx, { year, ateMes: monthsElapsedInYear(year, now) });
 
   // As consultas anuais vêm por mês+categoria, somamos por categoria. Só os meses que já chegaram:
   // o aluguel "repetir até dezembro" contava novembro e dezembro como gasto do ano.
@@ -129,10 +143,10 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
       <SpendingByCategory
         selectedYear={year}
         selectedMonth={month}
-        week={toSlices(ctx.categorias ?? ctx.profileKind, parentWeek, customWeek, customNameById)}
-        month={toSlices(ctx.categorias ?? ctx.profileKind, parentMonth, customMonth, customNameById, { parent: parentPrev, custom: customPrev })}
+        week={toSlices(ctx.categorias ?? ctx.profileKind, parentWeek, customWeek, customNameById, undefined, { agora: semSemana, antes: 0 })}
+        month={toSlices(ctx.categorias ?? ctx.profileKind, parentMonth, customMonth, customNameById, { parent: parentPrev, custom: customPrev }, { agora: semMes, antes: semMesAnterior })}
         previousMonthLabel={MONTH_LABELS[prevMonth.getMonth()].toLowerCase()}
-        year={toSlices(ctx.categorias ?? ctx.profileKind, parentYear, customYear, customNameById)}
+        year={toSlices(ctx.categorias ?? ctx.profileKind, parentYear, customYear, customNameById, undefined, { agora: semAno, antes: 0 })}
         initialPeriod={initialPeriod}
         subtitle={{
           semana: "Últimos 7 dias",

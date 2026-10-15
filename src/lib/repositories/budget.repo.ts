@@ -342,3 +342,26 @@ export async function definirPlanoDoMes(ctx: AuthContext, input: { key: string; 
   else await prisma.budget.create({ data: { ...donoDoOrcamento(ctx), year: input.year, month: input.month, ...filtro, plannedAmount: input.plannedAmount } });
   return true;
 }
+
+/**
+ * O gasto SEM categoria (nem a padrão nem uma dela) no período. Gastos por categoria deixava ele
+ * de fora e o "Gastou" da tela ficava menor que o do Orçamento, que mostra a linha "Sem
+ * categoria" (jornada de 14/10/2026: R$ 150 da Loja Casa Nova, vindo do print da fatura).
+ * `periodo`: o mês, o ano até o mês `ateMes`, ou a semana desde `desde`.
+ */
+export async function sumExpensesSemCategoria(
+  ctx: AuthContext,
+  periodo: { year: number; month: number } | { year: number; ateMes: number } | { desde: Date },
+): Promise<number> {
+  const quando =
+    "desde" in periodo
+      ? filtroDaSemana(periodo.desde, nowInBrazil())
+      : "ateMes" in periodo
+        ? { year: periodo.year, month: { lte: periodo.ateMes } }
+        : { year: periodo.year, month: periodo.month };
+  const r = await prisma.monthlyEntry.aggregate({
+    where: comFiltro(lancamentosDosTotais(ctx), { category: "EXPENSE", parentCategory: null, customCategoryId: null, ...quando }),
+    _sum: { amount: true },
+  });
+  return Number(r._sum.amount ?? 0);
+}

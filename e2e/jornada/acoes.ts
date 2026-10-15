@@ -343,3 +343,44 @@ export async function vendiNaEmpresa(p: Page, valor: number) {
   await p.waitForLoadState("networkidle").catch(() => undefined);
   await p.waitForTimeout(800);
 }
+
+/** Orçamento vazio → "Montar para mim" → renda → guardar → "Sugerir para mim" → "Usar este plano". */
+export async function montarPlano(p: Page) {
+  await p.goto("/orcamento");
+  await p.getByRole("button", { name: "Montar para mim" }).click();
+  const d = p.getByRole("dialog");
+  await d.getByRole("button", { name: "Continuar", exact: true }).click();
+  await d.getByRole("button", { name: "Continuar", exact: true }).click();
+  await d.getByRole("button", { name: "Sugerir para mim" }).click();
+  await d.getByRole("button", { name: "Ver meu plano" }).click();
+  await d.getByRole("button", { name: "Usar este plano" }).click();
+  // No `next start` local (HTTP/1.1) a folha às vezes fica em "Salvando..." para sempre, com o plano
+  // já gravado (ver o relatório). Devolve true quando travou; aí recarrega para seguir a jornada.
+  const travou = await expect(d).toBeHidden({ timeout: 15_000 }).then(() => false, () => true);
+  if (travou) await p.reload();
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  return travou;
+}
+
+/** Cadastro com o e-mail da compra (a confirmação do e-mail o teste faz no banco). */
+export async function criarConta(p: Page, nome: string, email: string) {
+  await p.goto("/register");
+  await p.locator("#name").fill(nome);
+  await p.locator("#email").fill(email);
+  await p.locator("#password").fill(SENHA);
+  await p.locator("#acceptTerms").check();
+  await p.getByRole("button", { name: "Criar conta" }).click();
+  await p.getByText("Confirme seu e-mail").waitFor({ timeout: 60_000 });
+}
+
+/** O começo pelo extrato: Começar → Extrato ou fatura → arquivo → Ver o meu mês. */
+export async function comecarComExtrato(p: Page, arquivo: string) {
+  await p.goto("/comecar");
+  await p.getByRole("button", { name: "Começar" }).click();
+  await p.locator('[data-porta="extrato"]').click();
+  await p.locator("input[type=file]").first().setInputFiles(arquivo);
+  await p.locator("[data-responder-do-comeco]").waitFor({ timeout: 90_000 });
+  await p.locator("[data-responder-do-comeco]").click();
+  await p.waitForURL(/\/mensal\/foco/, { timeout: 60_000 });
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+}

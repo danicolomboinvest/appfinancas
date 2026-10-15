@@ -100,7 +100,7 @@ export async function lerTransacoes(p: Page, caderno: Caderno, m: Mes): Promise<
     const ls = linhas(await el.innerText());
     const valorTxt = ls.find((l) => /R\$/.test(l)) ?? "";
     const v = reais(valorTxt) ?? 0;
-    r.linhas.push({ descricao: ls[0] ?? "", categoria: ls[1] ?? "", valor: /^\+/.test(valorTxt) ? Math.abs(v) : v });
+    r.linhas.push({ descricao: ls[0] ?? "", categoria: (ls[1] ?? "").replace(/ · .*$/, ""), valor: /^\+/.test(valorTxt) ? Math.abs(v) : v });
   }
   return r;
 }

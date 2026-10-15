@@ -16,8 +16,10 @@ import type { Page } from "@playwright/test";
  *  - "sumiu": algo que estava e não devia sumir.
  *  - "decisao": duas telas usam regras diferentes de propósito (ex.: dois "livres"); vai para a
  *    Dani decidir e não derruba o teste.
+ *  - "confirmar": só aparece no servidor local e não deu para provar que acontece no ar; vai para
+ *    o relatório e não derruba o teste.
  */
-export type TipoDeAchado = "numero" | "texto" | "tela" | "aviso" | "sumiu" | "decisao";
+export type TipoDeAchado = "numero" | "texto" | "tela" | "aviso" | "sumiu" | "decisao" | "confirmar";
 
 export type Achado = {
   perfil: string;

@@ -129,7 +129,10 @@ export async function conferirAvisoDaCategoria(p: Page, c: Caderno, chave: strin
   const dec = await lerDecidir(p, c);
   const res = await lerResumo(p, c);
   const lugares: [string, boolean, string][] = [
-    ["Orçamento (aviso do topo)", !!orc.alerta && orc.alerta.startsWith(nome), orc.alerta ?? "(nenhum)"],
+    // Antes da resposta: o topo mostra um aviso por vez, então basta a linha da categoria dizer "passou".
+    deveAparecer
+      ? ["Orçamento (categoria)", (!!orc.alerta && orc.alerta.startsWith(nome)) || /passou R\$/.test(orc.categorias[chave]?.texto ?? ""), orc.categorias[chave]?.texto ?? "(sem linha)"]
+      : ["Orçamento (aviso do topo)", !!orc.alerta && orc.alerta.startsWith(nome), orc.alerta ?? "(nenhum)"],
     ["Decidir (pilha)", dec.cartoes.some((x) => x.id === `estouro-${chave}` || x.id === `ritmo-${chave}`), dec.cartoes.map((x) => x.id).join(", ") || "(nenhum)"],
     ["Decidir (pílula acima)", !!dec.acima && dec.acima.includes(nome), dec.acima ?? "(nenhuma)"],
     ["Resumo (sugestão)", !!res.sugestao && res.sugestao.texto.startsWith(nome), res.sugestao?.texto ?? "(nenhuma)"],
@@ -137,7 +140,8 @@ export async function conferirAvisoDaCategoria(p: Page, c: Caderno, chave: strin
   for (const [tela, aparece, visto] of lugares) {
     // Antes da resposta só exigimos o aviso onde ele é regra (Orçamento e Decidir); o Resumo
     // mostra uma sugestão por vez e pode estar mostrando outra.
-    if (deveAparecer && !aparece && !tela.startsWith("Orçamento") && !tela.startsWith("Decidir (pilha)")) continue;
+    // A pilha do Decidir também mostra um cartão por vez ("1 de 3").
+    if (deveAparecer && !aparece && !tela.startsWith("Orçamento")) continue;
     if (aparece !== deveAparecer) {
       await c.anotar(p, {
         tipo: "aviso",
