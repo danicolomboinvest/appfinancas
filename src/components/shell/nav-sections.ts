@@ -181,6 +181,7 @@ export const ADMIN_NAV_SECTION: NavSection = {
   children: [
     { href: "/admin/acessos", label: "Acessos" },
     { href: "/admin/usuarios", label: "Usuários" },
+    { href: "/admin/jornada", label: "Jornada" },
     { href: "/admin/relatorio", label: "Relatório" },
     { href: "/admin/resultados", label: "Resultados" },
     { href: "/admin/criterios", label: "Critérios" },

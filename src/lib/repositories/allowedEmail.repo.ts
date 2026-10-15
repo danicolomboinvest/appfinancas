@@ -449,7 +449,7 @@ const NOTA_DE_COMPRA_NA_HUBLA = [
   { note: { startsWith: "Compra Hubla", mode: "insensitive" as const } },
 ];
 
-export async function revokeFromHubla(email: string) {
+export async function revokeFromHubla(email: string, agora: Date = new Date()) {
   const normalized = normalizeEmail(email);
   return prisma.allowedEmail.updateMany({
     // Liberação MANUAL fica, a não ser que o Hubla tenha estendido o prazo dela (a pessoa comprou
@@ -462,6 +462,7 @@ export async function revokeFromHubla(email: string) {
       OR: [{ source: "HUBLA" }, { lastHublaInvoiceId: { not: null } }, ...NOTA_DE_COMPRA_NA_HUBLA],
       AND: [{ OR: [{ note: null }, { NOT: { note: { startsWith: NOTA_DO_CONVITE_VIP } } }] }],
     },
-    data: { active: false },
+    // A data do reembolso fica guardada para a Jornada saber quem pediu reembolso e quando.
+    data: { active: false, reembolsadoEm: agora },
   });
 }

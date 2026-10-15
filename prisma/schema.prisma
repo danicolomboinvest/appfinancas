@@ -1254,6 +1254,10 @@ model AllowedEmail {
   /// Quando a Hubla avisou que a pessoa saiu (customer.member_removed sem reembolso). O acesso
   /// continua até `expiresAt` e o cron desliga depois. Nulo = não cancelou (ou renovou depois).
   canceladoEm         DateTime?
+  /// Quando a Hubla avisou o reembolso (invoice.refunded), que desliga o acesso na hora. Existe
+  /// para a Jornada (16/10/2026) separar quem pediu reembolso de quem foi desligado por outro motivo;
+  /// antes disso o reembolso só virava `active = false`, sem data.
+  reembolsadoEm       DateTime?
   /// Id da assinatura na Hubla (vem nos eventos de pagamento), para o link direto do painel.
   hublaSubscriptionId String?
   /// Lembretes de "crie sua conta" (boas-vindas, 30/09/2026): quando saiu o do 1º e o do 4º dia.
