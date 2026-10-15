@@ -3,7 +3,7 @@ import { Caderno, testeDosAvisos, dia, exigirSemAchados, novaPagina, passo } fro
 import { abrirLancamento, entrar, lancarAMao, pilula, trocarPerfil } from "./acoes";
 import { conferirGastoPorCategoria, conferirLivre, definirMesAtual } from "./conferir";
 import { lerOrcamento, lerResumo, lerTransacoes } from "./telas";
-import { bate, brl } from "./dinheiro";
+import { bate, brl, reais } from "./dinheiro";
 import { BASE, SENHA } from "./config";
 
 /**
@@ -15,6 +15,23 @@ const PERFIL = "casal";
 
 async function gastoDe(p: Page, c: Caderno, chave: string) {
   return (await lerOrcamento(p, c, OUT)).categorias[chave]?.gasto ?? 0;
+}
+
+/** A tela do acerto: quanto eu mando (positivo) ou recebo (negativo), e a frase de cima. */
+async function lerAcerto(p: Page) {
+  await p.goto(`/mensal/foco/acerto?mes=${OUT.ano}-${OUT.mes}`);
+  const sec = p.locator("[data-acerto-valor]").first();
+  await sec.waitFor();
+  return { euMando: Number(await sec.getAttribute("data-acerto-valor")), texto: (await sec.innerText()).replace(/\s+/g, " ") };
+}
+
+/** O cartão "Acerto do mês" do Resumo: o valor da pílula (ou "Quites"). */
+async function lerAcertoNoResumo(p: Page) {
+  await p.goto("/mensal/foco");
+  const cartao = p.locator("[data-cartao-acerto]").first();
+  await cartao.waitFor();
+  const rotulo = (await cartao.getAttribute("aria-label")) ?? "";
+  return { rotulo, valor: /Quites/.test(rotulo) ? 0 : reais(rotulo) };
 }
 
 test("Casal: o par lança e a titular vê o mesmo em todas as telas", async ({ browser, page: bia }) => {
@@ -88,8 +105,8 @@ test("Casal: o par lança e a titular vê o mesmo em todas as telas", async ({ b
       await lancarAMao(caio, { valor: 90, categoria: "Lazer", descricao: "Presente da irmã" });
       await abrirLancamento(caio, OUT.ano, OUT.mes, "Presente da irmã");
       const d = caio.getByRole("dialog");
-      const soMeu = d.getByRole("switch", { name: /Só meu/ }).or(d.getByRole("button", { name: /^Meu$|Só meu/ }));
-      await soMeu.first().click();
+      // O interruptor "Só meu" (o "Meu" de "De quem é?" é outra coisa: fica no acerto se o par pagou).
+      await d.getByRole("switch", { name: /Só meu/ }).first().click();
       await pilula(caio, /./).waitFor({ timeout: 5_000 }).catch(() => undefined);
       await caio.keyboard.press("Escape");
       await caio.waitForTimeout(800);
@@ -99,6 +116,32 @@ test("Casal: o par lança e a titular vê o mesmo em todas as telas", async ({ b
       if (!bate(lazer, lazerAntes)) await c.anotar(bia, { tipo: "numero", telaDeOrigem: "Caio (Só meu)", telaErrada: "Orçamento da Bia", esperado: `Lazer ${brl(lazerAntes)} (sem o só meu)`, visto: brl(lazer) });
       await conferirGastoPorCategoria(bia, c, OUT, "só meu");
       await conferirGastoPorCategoria(caio, c, OUT, "só meu (telas do Caio)");
+    });
+
+    await passo(c, "Bia lança Feira R$ 300 da casa que o Caio pagou, 60/40", async () => {
+      const antes = await lerAcerto(bia);
+      await lancarAMao(bia, { valor: 300, categoria: "Alimentação", descricao: "Feira da semana", casal: { deQuem: "Da casa", pagou: "Caio", parte: 60 } });
+      // A Bia fica com 60% (R$ 180) de um gasto que o Caio pagou: ela passa a mandar R$ 180 a mais.
+      const daBia = await lerAcerto(bia);
+      const doCaio = await lerAcerto(caio);
+      const esperado = Math.round((antes.euMando + 180) * 100) / 100;
+      if (!bate(daBia.euMando, esperado, 0.01)) await c.anotar(bia, { tipo: "numero", telaDeOrigem: "Bia (Digitar)", telaErrada: "Acerto da Bia", esperado: `manda ${brl(esperado)}`, visto: `${brl(daBia.euMando)} (${daBia.texto})` });
+      if (!bate(doCaio.euMando, -daBia.euMando, 0.01)) await c.anotar(caio, { tipo: "numero", telaDeOrigem: "Bia (Digitar)", telaErrada: "Acerto do Caio", esperado: `o contrário da Bia: ${brl(-daBia.euMando)}`, visto: `${brl(doCaio.euMando)} (${doCaio.texto})` });
+      const lado = (v: number) => (Math.round(Math.abs(v)) < 1 ? "Quites" : v > 0 ? "manda" : "recebe");
+      if (lado(daBia.euMando) !== "Quites" && !/Você manda para Caio|Caio manda para você/.test(daBia.texto)) await c.anotar(bia, { tipo: "texto", telaDeOrigem: "Bia (Digitar)", telaErrada: "Acerto da Bia", esperado: "quem manda para quem", visto: daBia.texto });
+      // O Resumo dos dois mostra o mesmo número do acerto, arredondado.
+      for (const [p, quem, valor] of [[bia, "Bia", daBia.euMando], [caio, "Caio", doCaio.euMando]] as const) {
+        const r = await lerAcertoNoResumo(p);
+        const certo = Math.round(Math.abs(valor)) < 1 ? 0 : Math.round(Math.abs(valor));
+        if (!bate(r.valor, certo, 0.01)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Bia (Digitar)", telaErrada: `Resumo ${quem === "Bia" ? "da Bia" : "do Caio"}`, esperado: `Acerto do mês ${brl(certo)}`, visto: r.rotulo });
+      }
+      // Na lista dos dois, os selinhos: Da casa, Caio pagou, 60/40 (para o Caio, 40/60).
+      for (const [p, quem, divisao] of [[bia, "Bia", "60/40"], [caio, "Caio", "40/60"]] as const) {
+        await p.goto(`/mensal/${OUT.ano}/${OUT.mes}`);
+        const selos = await p.locator("[data-linha-transacao]").filter({ hasText: "Feira da semana" }).first().locator("[data-selos-do-casal]").getAttribute("data-selos-do-casal").catch(() => null);
+        if (selos !== `Da casa | Caio pagou | ${divisao}`) await c.anotar(p, { tipo: "texto", telaDeOrigem: "Bia (Digitar)", telaErrada: `Transações ${quem === "Bia" ? "da Bia" : "do Caio"}`, esperado: `Da casa | Caio pagou | ${divisao}`, visto: selos ?? "sem selos" });
+      }
+      test.info().annotations.push({ type: "Acerto depois da Feira", description: `Bia ${brl(daBia.euMando)} | Caio ${brl(doCaio.euMando)}` });
     });
   } finally {
     c.salvar();
