@@ -95,8 +95,8 @@ export default async function ContasECartoesPage() {
       <Link href="/orcamento/cartao" className="flex min-h-14 items-center gap-3 rounded-3xl border border-border bg-surface px-4">
         <CreditCard size={18} className="shrink-0 text-ink-muted" aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block text-[16px] text-ink">Limite do cartão</span>
-          <span className="block text-[13px] text-ink-muted">Quanto você combinou gastar no cartão por mês</span>
+          <span className="block text-[16px] text-ink">Seu cartão</span>
+          <span className="block text-[13px] text-ink-muted">Faturas, vencimento e limite de gasto</span>
         </span>
         <ChevronRight size={16} className="shrink-0 text-ink-faint" aria-hidden />
       </Link>

@@ -6,15 +6,22 @@ import { serverMoney } from "@/lib/money-server";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { CartaoDoLimite } from "@/components/cartao/CartaoDoLimite";
 import { FormDoLimite } from "./FormDoLimite";
+import { SeusCartoes } from "./SeusCartoes";
+import { cartoesComFaturas } from "@/lib/repositories/cartao.repo";
 
 /**
+ * Seu cartão (15/10/2026): os cartões cadastrados com as faturas (SeusCartoes) e, embaixo, o
+ * limite de gasto que já existia.
+ *
  * Limite do cartão (06/10/2026): quanto ela combinou gastar no cartão por mês, quanto falta e o que
  * já foi no cartão neste mês. Cliente autônoma, renda variável: o cartão é o ponto fraco.
  */
 export default async function LimiteDoCartaoPage() {
   const ctx = await getRequiredSession();
   const agora = nowInBrazil();
-  const [limite, gastos, money] = await Promise.all([
+  const hoje = { ano: agora.getFullYear(), mes: agora.getMonth() + 1, dia: agora.getDate() };
+  const [cartoes, limite, gastos, money] = await Promise.all([
+    cartoesComFaturas(ctx, hoje),
     lerLimiteDoCartao(ctx),
     listarGastosNoCartao(ctx, agora.getFullYear(), agora.getMonth() + 1),
     serverMoney(),
@@ -23,7 +30,11 @@ export default async function LimiteDoCartaoPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-h1 font-bold tracking-tight text-ink">{t.limTitulo}</h1>
+      <h1 className="text-h1 font-bold tracking-tight text-ink">Seu cartão</h1>
+
+      <SeusCartoes cartoes={cartoes} hoje={hoje} money={money} />
+
+      <h2 className="-mb-2 px-1 pt-2 text-base font-semibold text-ink">{t.limTitulo}</h2>
 
       <CartaoDoLimite ctx={ctx} comLink={false} />
       <FormDoLimite limite={limite} />
