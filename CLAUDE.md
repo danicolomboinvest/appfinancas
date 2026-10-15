@@ -11,8 +11,13 @@ coberto a 375 px, e tela velha (aberta pelo app logo depois da ação, sem recar
 
 - Tudo local: Postgres em `~/spi-local-pg` (porta 54329, `node start.mjs`) e o app em
   `next start -p 3317`. O script faz o build (~30 s), recria o banco `spi_jornada_teste` com as
-  migrations e as contas de teste (`e2e/jornada/semear.ts`: Ana, Ateliê da Ana, Clara e Bia) e
-  roda as três jornadas (Ana, conta nova da Clara, casal Bia + Caio). Leva uns 8 a 9 minutos.
+  migrations e as contas de teste (`e2e/jornada/semear.ts`: Ana, Ateliê da Ana, Clara, Bia e Duda) e
+  roda as quatro jornadas (Ana, conta nova da Clara, casal Bia + Caio e os números da Duda). Leva uns 14 minutos.
+- A jornada dos números (`numeros.jornada.ts`, `conferirMatriz` em `conferir.ts`) confere cada número que
+  aparece em mais de uma tela contra a soma da lista de Transações: gasto, entrou, guardado no mês e no ano,
+  ficou com você, parcelas, Próximos meses, carteira e o "Falta guardar". Passa por "Não é parcela", fatura
+  em CSV e em PDF (gerado na hora), fechar o mês e a virada de dezembro para janeiro. Só ela:
+  `npm run test:jornada -- numeros.jornada` (o filtro "numeros" sozinho pega o caminho da worktree).
 - Com um servidor já de pé na 3317 (com o relógio de teste), ele usa esse e pula o build:
   `JORNADA_MODO=dev sh e2e/jornada/servidor.sh` sobe um `next dev` com o relógio. Uma jornada só:
   `npm run test:jornada -- ana` (ou `clara`, `casal`).
