@@ -32,6 +32,7 @@ import { doDono } from "@/lib/auth/session";
 import { acharRecorrentes } from "@/lib/decisoes/raio-x";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
 import { carregarRespostasDoMes } from "@/lib/avisos/respostas";
+import { carregarLivreDoMes } from "@/lib/repositories/livre-do-mes.repo";
 
 export const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const DIA_MS = 86_400_000;
@@ -86,7 +87,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
   const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
   // Meia-noite (Brasília) da segunda desta semana, ou do dia 1 se a semana começou no mês passado.
   const inicioDaSemana = new Date(Date.UTC(year, month - 1, Math.max(1, dia - diaDaSemana(now).indice), 3));
-  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, respostasDoMes, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis, naoParcelas] =
+  const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, respostasDoMes, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis, naoParcelas, livreDoMes] =
     await Promise.all([
       getOwnUser(ctx),
       listBudgets(ctx, year, month),
@@ -166,6 +167,8 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       listarLancamentosParcelaveis(ctx, { year, month }),
       // "Não é parcela" e a compra apagada pelo menu "…" de Recorrentes.
       listarRecusasDeParcela(ctx),
+      // O livre do mês, a fonte única de todas as telas (lib/planning/livre-do-mes).
+      carregarLivreDoMes(ctx, { ano: year, mes: month }),
     ]);
   const fechamento = fechamentoDoMesAnterior;
   const ritmo = lerRitmo(user.ritmoAcompanhamento);
@@ -356,6 +359,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
     renda,
     rendaFonte: renda === null ? null : rendaSoOQueEntrou ? "entrou" : "plano",
     raiox: naoDecididos.length > 0 ? { n: naoDecididos.length, anual: naoDecididos.reduce((s, i) => s + i.anual, 0) } : null,
+    livreDoMes: livreDoMes.tipo === "plano" ? livreDoMes.valor : null,
     money: m,
     t,
   });
@@ -445,5 +449,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
     fechamentoFeito: fechamento.estado === "fechado",
     fechamento,
     foco,
+    /** O livre do mês: planejado menos o que saiu (lib/planning/livre-do-mes). O mesmo do Orçamento. */
+    livreDoMes,
   };
 }

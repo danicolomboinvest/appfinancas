@@ -129,7 +129,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   const remanejo = {
     categorias: d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto })),
     essenciais: [...categoriasEssenciais(ctx.categorias?.prefs)],
-    livre: livre.tipo === "semOrcamento" ? null : livre.restante,
+    livre: d.livreDoMes.tipo === "plano" ? d.livreDoMes.valor : null,
     diasRestantes: livre.tipo === "semOrcamento" ? 1 : livre.diasRestantes,
   };
   const avisoNo = (item: (typeof foco.atencao)[number]) => (

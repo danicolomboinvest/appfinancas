@@ -134,7 +134,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
         categoria={primeira.resolver}
         categorias={d.categorias.map((c) => ({ key: c.key, label: c.label, planejado: c.planejado, gasto: c.gasto }))}
         essenciais={[...categoriasEssenciais(ctx.categorias?.prefs)]}
-        livre={r.livre.tipo === "semOrcamento" ? null : r.livre.restante}
+        livre={r.d.livreDoMes.tipo === "plano" ? r.d.livreDoMes.valor : null}
         diasRestantes={r.livre.tipo === "semOrcamento" ? 1 : r.livre.diasRestantes}
         proximoMes={MESES[d.month % 12]}
         className={classeDoBotao}
