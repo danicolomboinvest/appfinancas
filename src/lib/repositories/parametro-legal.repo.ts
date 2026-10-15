@@ -19,5 +19,9 @@ export async function parametrosDoMei(data: string): Promise<ParametrosDoMei> {
     tolerancia: pega("mei_teto_tolerancia"),
     das: pega("mei_das_servico"),
     diaDoDas: pega("mei_das_dia_vencimento"),
+    salarioMinimo: pega("mei_salario_minimo"),
+    inssPercentual: pega("mei_inss_percentual"),
+    icms: pega("mei_das_icms"),
+    iss: pega("mei_das_iss"),
   };
 }

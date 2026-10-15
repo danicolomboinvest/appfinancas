@@ -49,35 +49,13 @@ export function Ritual({ d }: { d: DadosRitual }) {
       }
     });
 
-  const variacao = d.semanaPassada.media && d.semanaPassada.media > 0 ? (d.semanaPassada.total - d.semanaPassada.media) / d.semanaPassada.media : null;
-
   return (
     <div ref={topoRef} className="flex flex-col gap-4" data-guia="ritual">
       <Pontos total={4} atual={passo} />
 
       {passo === 0 && (
         <Passo rotulo={`1 de 4, ${t.ritSemanaPassada}`}>
-          {d.semanaPassada.total > 0 ? (
-            <>
-              <p className="text-ink"><ValorDestaque texto={m(d.semanaPassada.total)} /></p>
-              {variacao !== null && (
-                <p className="text-sm text-ink-muted">
-                  Sua média é {m(d.semanaPassada.media ?? 0)} por semana:{" "}
-                  <b className={variacao > 0.05 ? "text-accent-strong" : "text-success"}>
-                    {variacao > 0.05 ? `${Math.round(variacao * 100)}% acima` : variacao < -0.05 ? `${Math.round(-variacao * 100)}% abaixo` : "no ritmo"}
-                  </b>
-                  .
-                </p>
-              )}
-              {d.semanaPassada.maior && (
-                <p className="text-sm text-ink-muted">
-                  O que mais pesou: {d.semanaPassada.maior.label}, {m(d.semanaPassada.maior.valor)}.
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm text-ink-muted">Sem gasto com data na semana passada. Mande o extrato para eu ver.</p>
-          )}
+          <NumerosDaSemanaPassada semanaPassada={d.semanaPassada} />
           <Botao onClick={() => seguir()}>Próximo</Botao>
         </Passo>
       )}
@@ -186,6 +164,56 @@ export function Ritual({ d }: { d: DadosRitual }) {
           </Botao>
         </Passo>
       )}
+    </div>
+  );
+}
+
+/** Os números da semana que passou (o dia a dia, sem as contas fixas): o total, a média e o que mais pesou. */
+export function NumerosDaSemanaPassada({ semanaPassada }: { semanaPassada: DadosRitual["semanaPassada"] }) {
+  const money = useMoney();
+  const m = (v: number) => money(v, { round: true });
+  const variacao = semanaPassada.media && semanaPassada.media > 0 ? (semanaPassada.total - semanaPassada.media) / semanaPassada.media : null;
+  return (
+    <>
+      {semanaPassada.total > 0 ? (
+        <>
+          <p className="text-ink"><ValorDestaque texto={m(semanaPassada.total)} /></p>
+          {variacao !== null && (
+            <p className="text-sm text-ink-muted">
+              Sua média é {m(semanaPassada.media ?? 0)} por semana:{" "}
+              <b className={variacao > 0.05 ? "text-accent-strong" : "text-success"}>
+                {variacao > 0.05 ? `${Math.round(variacao * 100)}% acima` : variacao < -0.05 ? `${Math.round(-variacao * 100)}% abaixo` : "no ritmo"}
+              </b>
+              .
+            </p>
+          )}
+          {semanaPassada.maior && (
+            <p className="text-sm text-ink-muted">
+              O que mais pesou: {semanaPassada.maior.label}, {m(semanaPassada.maior.valor)}.
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-ink-muted">Sem gasto com data na semana passada. Mande o extrato para eu ver.</p>
+      )}
+    </>
+  );
+}
+
+/**
+ * Fora de segunda e terça (15/10/2026): o ritual abre pelo menu em qualquer dia e mostra a semana
+ * que passou. Quem ainda não fez o desta semana pode fazer na hora.
+ */
+export function SemanaQuePassou({ d, feito, textoFeito }: { d: DadosRitual; feito: boolean; textoFeito: string }) {
+  const { voz } = useProfileTheme();
+  const [fazer, setFazer] = useState(false);
+  if (fazer) return <Ritual d={d} />;
+  return (
+    <div className="flex flex-col gap-4" data-semana-que-passou>
+      <Passo rotulo={voz.titulos.ritSemanaPassada}>
+        <NumerosDaSemanaPassada semanaPassada={d.semanaPassada} />
+      </Passo>
+      {feito ? <p className="text-sm text-ink-muted">{textoFeito}</p> : <Botao secundario onClick={() => setFazer(true)}>Fazer o ritual agora</Botao>}
     </div>
   );
 }

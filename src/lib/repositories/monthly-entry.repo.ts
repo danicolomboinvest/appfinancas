@@ -53,6 +53,11 @@ export type MonthlyEntryInput = {
   doCasal?: boolean;
   /** Login do par: "só meu" no Casal (fora do acerto, invisível para o outro). */
   soMeu?: boolean;
+  /** Casal simples (15/10/2026, lib/casa/escolhas.ts): do par, quem pagou e a divisão própria. */
+  doPar?: boolean;
+  pagouOPar?: boolean;
+  divisaoPropria?: string | null;
+  parteDeQuemLancou?: number | null;
   /** Limite do cartão: true = no cartão de crédito, false = não, null = limpa (deixou de ser
    * gasto), undefined = não mexe. Ver lib/cartao/limite.ts. */
   noCartao?: boolean | null;
@@ -150,6 +155,10 @@ export async function createRecurringMonthlyEntries(
     goalId?: string;
     pessoa?: string;
     doCasal?: boolean;
+    doPar?: boolean;
+    pagouOPar?: boolean;
+    divisaoPropria?: string | null;
+    parteDeQuemLancou?: number | null;
     noCartao?: boolean | null;
     cartaoId?: string | null;
   },
@@ -221,6 +230,11 @@ export async function updateSeriesFrom(ctx: AuthContext, id: string, input: Mont
           // Perfil Casal: só muda quando o formulário mandou (fora do Casal fica como está).
           ...(input.pessoa !== undefined ? { pessoa: input.pessoa } : {}),
           ...(input.doCasal !== undefined ? { doCasal: input.doCasal } : {}),
+          // Casal simples: as escolhas do gasto, só quando o formulário mandou.
+          ...(input.doPar !== undefined ? { doPar: input.doPar } : {}),
+          ...(input.pagouOPar !== undefined ? { pagouOPar: input.pagouOPar } : {}),
+          ...(input.divisaoPropria !== undefined ? { divisaoPropria: input.divisaoPropria } : {}),
+          ...(input.parteDeQuemLancou !== undefined ? { parteDeQuemLancou: input.parteDeQuemLancou } : {}),
           ...(input.noCartao !== undefined ? { noCartao: input.noCartao } : {}),
         },
       }),

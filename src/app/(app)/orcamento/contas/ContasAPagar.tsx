@@ -32,7 +32,7 @@ function Valor({ c, riscado = false }: { c: ContaSerial; riscado?: boolean }) {
 }
 
 /** Uma conta do mês: logo ou ícone, nome, quando vence, o valor e o círculo do "paguei". */
-function LinhaDoMes({ c, hoje }: { c: ContaSerial; hoje: string }) {
+function LinhaDoMes({ c, hoje, selo }: { c: ContaSerial; hoje: string; selo?: string }) {
   const abrir = useAbrirConta();
   const router = useRouter();
   const { showToast, showError } = useToast();
@@ -69,6 +69,7 @@ function LinhaDoMes({ c, hoje }: { c: ContaSerial; hoje: string }) {
           <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
             <span className={`text-[13px] leading-snug ${atrasada ? "text-danger" : "text-ink-muted"}`}>{parcela ? `${parcela} · ${quando}` : quando}</span>
             {!paga && (c.aproximado || c.valor === null) && <Selo>varia</Selo>}
+            {!paga && selo && <Selo>{selo}</Selo>}
             {c.origem === "historico" && <span className="shrink-0 rounded-full bg-surface-2 px-2 py-px text-xs text-ink-muted">do extrato</span>}
           </span>
         </span>
@@ -96,7 +97,7 @@ function LinhaDoMes({ c, hoje }: { c: ContaSerial; hoje: string }) {
  * as que faltam com o dia da semana e o círculo para marcar como paga. As contas do ano moram na
  * seção delas.
  */
-export function ContasAPagar({ contas, pagas, hoje }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string }) {
+export function ContasAPagar({ contas, pagas, hoje, selos }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string; /** Um selo a mais por conta (id → texto): a guia do MEI "estimado pelo app". */ selos?: Record<string, string> }) {
   const money = useMoney();
   const abrir = useAbrirConta();
   const router = useRouter();
@@ -132,7 +133,7 @@ export function ContasAPagar({ contas, pagas, hoje }: { contas: ContaSerial[]; p
       ) : (
         <ul className="divide-y divide-border rounded-3xl border border-border bg-surface px-3">
           {ordem.map((c) => (
-            <LinhaDoMes key={c.id} c={c} hoje={hoje} />
+            <LinhaDoMes key={c.id} c={c} hoje={hoje} selo={selos?.[c.id]} />
           ))}
         </ul>
       )}

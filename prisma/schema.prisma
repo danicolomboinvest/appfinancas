@@ -736,6 +736,16 @@ model MonthlyEntry {
   /// acerto (é gravado com doCasal = false). O do par é gravado com o userId DELE, o da titular
   /// com o dela, então as consultas de sempre (userId + profileId) já não cruzam os dois.
   soMeu              Boolean                  @default(false)
+  /// Casal simples (15/10/2026, versão A do mockup): o gasto é do PAR de quem lançou ("Do Lucas").
+  /// Com isso ligado, doCasal fica false. Entra no acerto quando quem lançou pagou.
+  doPar              Boolean                  @default(false)
+  /// Casal simples: quem pagou foi o par de quem lançou (e não quem lançou, o padrão).
+  pagouOPar          Boolean                  @default(false)
+  /// Casal simples, gasto da casa: a divisão própria deste gasto ("renda", "meio" ou "outra").
+  /// Nulo = a regra da casa (Configurações › Casa).
+  divisaoPropria     String?                  @db.VarChar(6)
+  /// Com divisaoPropria "outra": a parte de quem lançou, em % (0 a 100).
+  parteDeQuemLancou  Decimal?                 @db.Decimal(5, 2)
   /// Perfil Empresa (11/10/2026), tudo opcional: de quem foi a venda ("Café Lume"), como pagou
   /// (pix, credito, debito, boleto, dinheiro), o dia em que o dinheiro cai e o dia em que ela
   /// marcou "Recebi". Nos outros perfis, sempre nulos.
@@ -1022,6 +1032,20 @@ model Asset {
   /// antes do prazo" lê este campo.
   taxaCompra             Decimal?                 @db.Decimal(10, 6)
   acquisitionDate        DateTime?
+  /// Rendimento da renda fixa e do Tesouro (15/10/2026, lib/portfolio/rendimento-renda-fixa.ts):
+  /// quando o app calculou o currentValue pela última vez. Nulo = nunca calculou (valor digitado).
+  rendimentoCalculadoEm  DateTime?
+  /// O último dia do índice usado no cálculo (o CDI de 14/10, o IPCA de setembro, o preço do título).
+  rendimentoReferenteA   DateTime?                @db.Date
+  /// Como foi calculado: "cdi", "ipca", "pre" ou "tesouro" (quantidade × preço do dia).
+  rendimentoComo         String?                  @db.VarChar(12)
+  /// true quando o cálculo usou um número que não é dela nem do índice publicado: sem taxa
+  /// (100% do CDI) ou o IPCA do mês ainda não divulgado (o último conhecido, pró-rata).
+  rendimentoEstimado     Boolean                  @default(false)
+  /// O valor que ELA informou (do app do banco) e quando: o cálculo parte daqui, não da compra,
+  /// para nunca trocar por uma estimativa um número que ela digitou. Nulo = parte da compra.
+  valorInformado         Decimal?                 @db.Decimal(18, 2)
+  valorInformadoEm       DateTime?
   notes                  String?
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
@@ -1048,6 +1072,24 @@ model DividendEvent {
   @@unique([ticker, kind, exDate, paymentDate, valuePerShare])
   @@index([ticker])
   @@index([paymentDate])
+}
+
+/// Séries históricas dos índices do Banco Central (15/10/2026) que o rendimento da renda fixa
+/// usa: o CDI de cada dia útil (SGS 12, em % ao dia) e o IPCA de cada mês (SGS 433, em % ao mês,
+/// datado no dia 1 do mês). Uma linha por índice por data. Carga inicial por
+/// scripts/carregar-series-indices.ts; o cron de indicadores traz os dias novos.
+model SerieIndice {
+  id        String   @id @default(cuid())
+  /// "cdi" ou "ipca".
+  indice    String   @db.VarChar(12)
+  data      DateTime @db.Date
+  /// Em %, como a fonte publica (0,055131 = 0,055131% ao dia; 0,82 = 0,82% no mês).
+  valor     Decimal  @db.Decimal(14, 8)
+  fonte     String   @db.VarChar(40)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([indice, data])
 }
 
 /// Preço de fechamento do dia de um TICKER da B3 (não de um usuário), gravado pelo cron de
@@ -1679,7 +1721,8 @@ model PedidoAntesDeCancelar {
 /// mostra o que estiver aqui; sem a linha, o número não aparece. Não é dado de perfil.
 model ParametroLegal {
   id           String   @id @default(cuid())
-  /// "mei_teto_anual", "mei_teto_tolerancia", "mei_das_servico", "mei_das_dia_vencimento".
+  /// "mei_teto_anual", "mei_teto_tolerancia", "mei_das_servico", "mei_das_dia_vencimento" e, desde
+  /// 15/10/2026, as partes da guia: "mei_salario_minimo", "mei_inss_percentual", "mei_das_icms", "mei_das_iss".
   chave        String   @db.VarChar(48)
   valor        Decimal  @db.Decimal(18, 2)
   /// Ano em que passa a valer (o teto de 2026 vale de 1º de janeiro de 2026 em diante).

@@ -11,6 +11,8 @@ import {
   entrar,
   fecharMes,
   importarArquivo,
+  importarRespondendo,
+  peloMenu,
   lancarAMao,
   lancarPorVoz,
   lapis,
@@ -32,7 +34,8 @@ import {
   conferirMetas,
   definirMesAtual,
 } from "./conferir";
-import { abrir, lerDecidir, lerLembreteNoRaioX, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
+import { CDB_DA_ANA, valorEsperadoDoCdb } from "./rendimento";
+import { abrir, lerAtivoDaCarteira, lerDecidir, lerLembreteNoRaioX, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
 import { bate, brl } from "./dinheiro";
 import { BASE } from "./config";
 import { textoVisivel } from "./texto";
@@ -59,6 +62,18 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
     const d = await gastoDe(chave);
     if (!bate(d - antes, delta)) await c.anotar(p, { tipo: "numero", telaDeOrigem: tela, telaErrada: "Orçamento", esperado: `${chave} ${brl(antes + delta)}`, visto: brl(d) });
   };
+  /**
+   * Renda fixa que rende sozinha (15/10/2026): o CDB de 110% do CDI, comprado em 15/04, vale o
+   * investido × (1 + CDI × 1,1) em cada dia útil até ontem, e a linha diz o CDI de qual dia.
+   */
+  const conferirCdb = async (hoje: string, cdiDe: string, origem: string) => {
+    const r = await lerAtivoDaCarteira(p, c, CDB_DA_ANA.naLista);
+    const esperado = valorEsperadoDoCdb(hoje);
+    if (!bate(r.valor, esperado, 0.01)) await c.anotar(p, { tipo: "numero", telaDeOrigem: origem, telaErrada: "Carteira (detalhe do CDB)", esperado: brl(esperado), visto: brl(r.valor) });
+    if (!r.linha?.includes(`Estimado pelo CDI de ${cdiDe}, antes do IR`)) await c.anotar(p, { tipo: "texto", telaDeOrigem: origem, telaErrada: "Carteira (detalhe do CDB)", esperado: `Estimado pelo CDI de ${cdiDe}, antes do IR`, visto: r.linha ?? "(sem a linha)" });
+    return r.valor ?? 0;
+  };
+  let cdbOntem = 0;
   try {
     // ------------------------------------------------------------------ quinta 15/10
     await dia(c, "2026-10-15 09:00", [p]);
@@ -70,6 +85,11 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirMetas(p, c, "partida");
       await conferirAvisoDaCategoria(p, c, "SAUDE", "Saúde", true, "partida");
       await conferirMesPassado(p, c, SET, "partida");
+    });
+
+    await passo(c, "Carteira: o CDB de 110% do CDI rende sozinho", async () => {
+      cdbOntem = await conferirCdb("2026-10-15", "14/10", "abrir a Carteira");
+      expect(cdbOntem).toBeGreaterThan(CDB_DA_ANA.investido);
     });
 
     // Assinaturas (15/10/2026, "a última resposta vale em todo lugar"): marcar num lugar e
@@ -133,6 +153,11 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
 
     // ------------------------------------------------------------------ sexta 16/10
     await dia(c, "2026-10-16 20:00", [p]);
+    await passo(c, "Carteira: o CDB rendeu mais um dia, sem ela fazer nada", async () => {
+      const hoje = await conferirCdb("2026-10-16", "15/10", "o dia virou");
+      expect(hoje).toBeGreaterThan(cdbOntem);
+      cdbOntem = hoje;
+    });
     await passo(c, "O que fazer? Saúde → cobrir com Outros e Desfazer", async () => {
       const antes = await lerOrcamento(p, c, OUT);
       await cobrirCom(p, OUT.ano, "SAUDE", "Outros", true);
@@ -290,6 +315,10 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
 
     // ------------------------------------------------------------------ terça 20/10
     await dia(c, "2026-10-20 12:30", [p]);
+    await passo(c, "Carteira: o CDB não rende no fim de semana, só sexta e segunda", async () => {
+      const hoje = await conferirCdb("2026-10-20", "19/10", "o fim de semana passou");
+      expect(hoje).toBeCloseTo(cdbOntem * Math.pow(1 + 0.00055131 * 1.1, 2), 1);
+    });
     await passo(c, "criar a meta Notebook e guardar R$ 300", async () => {
       const guardadoAntes = (await lerResumo(p, c)).heroi;
       await criarMeta(p, "Notebook", 4000);
@@ -319,6 +348,34 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirLivre(p, c, orc, "extrato outubro");
       const r = await lerResumo(p, c);
       test.info().annotations.push({ type: "Resumo depois do extrato", description: `${r.heroi} | ${r.sugestao?.texto}` });
+    });
+
+    // 15/10/2026 (feedback de uma cliente): o mesmo extrato de novo, agora com o Outback que ela já
+    // tinha lançado à mão sem a gorjeta. Tem de perguntar "parece já estar no app" e não duplicar.
+    await passo(c, "lança o Outback à mão e sobe o extrato de outubro de novo", async () => {
+      await lancarAMao(p, { valor: 100, categoria: "Alimentação", descricao: "Outback", ontem: true });
+      const antes = await lerTransacoes(p, c, OUT);
+      const titulo = await importarRespondendo(p, ARQ("ana-extrato-outubro-de-novo.csv"), "Não importar");
+      if (!titulo || !/parece|parecem já estar no app/i.test(titulo)) await c.anotar(p, { tipo: "tela", telaDeOrigem: "extrato de novo + Outback à mão", telaErrada: "Importação", esperado: "a pergunta \"Parece já estar no app\"", visto: titulo ?? "não perguntou" });
+      const depois = await lerTransacoes(p, c, OUT);
+      const outback = depois.linhas.filter((l) => /outback/i.test(l.descricao));
+      if (outback.length !== 1) await c.anotar(p, { tipo: "numero", telaDeOrigem: "extrato de novo + Outback à mão", telaErrada: "Transações", esperado: "o Outback uma vez só", visto: `${outback.length} vezes` });
+      // "Não importar" deixa o lançamento à mão com o valor do extrato (a gorjeta).
+      else if (!bate(Math.abs(outback[0].valor), 110, 0.01)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "extrato de novo + Outback à mão", telaErrada: "Transações", esperado: "Outback R$ 110,00 (o valor do extrato)", visto: brl(Math.abs(outback[0].valor)) });
+      for (const nome of [/IFOOD/i, /TICKETMASTER/i, /POSTO SHELL/i]) {
+        const n = (l: typeof depois) => l.linhas.filter((x) => nome.test(x.descricao)).length;
+        if (n(depois) !== n(antes)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "extrato de novo", telaErrada: "Transações", esperado: `${nome.source} ${n(antes)} vez(es)`, visto: `${n(depois)} vezes` });
+      }
+      const { orc } = await conferirGastoPorCategoria(p, c, OUT, "extrato de novo");
+      await conferirLivre(p, c, orc, "extrato de novo");
+    });
+
+    // Quarta-feira: o ritual abre pelo menu e mostra a semana que passou (15/10/2026).
+    await passo(c, "Ritual da semana pelo menu, numa quarta", async () => {
+      await p.goto("/mensal/foco");
+      await peloMenu(p, "Ritual da semana");
+      await p.waitForURL(/\/mensal\/foco\/ritual/, { timeout: 20_000 });
+      if (!(await p.locator("[data-semana-que-passou]").count())) await c.anotar(p, { tipo: "tela", telaDeOrigem: "menu (Ritual da semana)", telaErrada: "Ritual numa quarta", esperado: "a semana que passou", visto: (await textoVisivel(p)).slice(0, 120) });
     });
 
     await passo(c, "Empresa: vendeu R$ 300 no Ateliê", async () => {

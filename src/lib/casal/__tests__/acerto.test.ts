@@ -71,3 +71,60 @@ describe("lerConfigCasal", () => {
     expect(chaveDoMes(2026, 3)).toBe("2026-03");
   });
 });
+
+describe("calcularAcerto no Casal simples (15/10/2026): quem pagou e a divisão de cada gasto", () => {
+  // A = Ana, B = Lucas. `pessoa` é quem pagou; `deQuem`, de quem é o gasto que não é da casa.
+  const casa = (amount: number, pessoa: "A" | "B", extra: Partial<LancamentoDoAcerto> = {}): LancamentoDoAcerto => ({ category: "EXPENSE", amount, pessoa, doCasal: true, ...extra });
+  const deUm = (amount: number, pessoa: "A" | "B", deQuem: "A" | "B"): LancamentoDoAcerto => ({ category: "EXPENSE", amount, pessoa, doCasal: false, deQuem });
+
+  it("da casa que a Ana pagou, 60/40 próprio: o Lucas deve 40%", () => {
+    const a = calcularAcerto([casa(200, "A", { fracaoA: 0.6 })], "meio");
+    expect(a.saldoA).toBe(80);
+    expect(a.totalDaCasa).toBe(200);
+  });
+
+  it("da casa que o Lucas pagou, 60/40 próprio: a Ana deve 60%", () => {
+    const a = calcularAcerto([casa(200, "B", { fracaoA: 0.6 })], "meio");
+    expect(a.saldoA).toBe(-120);
+    expect(a.pagou).toEqual({ A: 0, B: 200 });
+    expect(a.parte).toEqual({ A: 120, B: 80 });
+  });
+
+  it("a divisão própria manda sobre o jeito geral e sobre a conta (até o um paga tudo)", () => {
+    expect(calcularAcerto([casa(100, "A", { fracaoA: 0.5, modo: "um_paga" })], "renda").saldoA).toBe(50);
+    expect(calcularAcerto([casa(100, "A", { modo: "meio" })], "combinado", { pctA: 70 }).saldoA).toBe(50);
+    expect(calcularAcerto([casa(100, "A")], "combinado", { pctA: 70 }).saldoA).toBe(30);
+  });
+
+  it("do Lucas pago pela Ana: o Lucas deve 100%", () => {
+    const a = calcularAcerto([deUm(90, "A", "B")], "renda");
+    expect(a.saldoA).toBe(90);
+    expect(a.totalDaCasa).toBe(0);
+    expect(a.entreVoces).toBe(90);
+  });
+
+  it("da Ana (Meu) pago pelo Lucas: a Ana deve 100%", () => {
+    const a = calcularAcerto([deUm(150, "B", "A")], "renda");
+    expect(a.saldoA).toBe(-150);
+    expect(a.parte).toEqual({ A: 150, B: 0 });
+  });
+
+  it("meu pago por mim e do par pago pelo par: fora do acerto", () => {
+    const a = calcularAcerto([deUm(150, "A", "A"), deUm(80, "B", "B")], "renda");
+    expect(a.saldoA).toBe(0);
+    expect(a.pagou).toEqual({ A: 0, B: 0 });
+    expect(a.entreVoces).toBe(0);
+  });
+
+  it("tudo junto soma: casa pela renda, casa própria e os de um só", () => {
+    const a = calcularAcerto(
+      [renda(5500, "A"), renda(4500, "B"), casa(1000, "A"), casa(200, "B", { fracaoA: 0.6 }), deUm(90, "A", "B"), deUm(150, "B", "A")],
+      "renda",
+    );
+    // Casa: Ana pagou 1000 (parte dela 550), Lucas pagou 200 (parte dela 120): +450 −120.
+    // De um só: Lucas deve 90; Ana deve 150. Total: 450 − 120 + 90 − 150 = 270.
+    expect(a.saldoA).toBe(270);
+    expect(a.totalDaCasa).toBe(1200);
+    expect(a.entreVoces).toBe(240);
+  });
+});

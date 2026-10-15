@@ -10,6 +10,8 @@ import { execFileSync } from "node:child_process";
 import bcrypt from "bcryptjs";
 import { PrismaClient, type ParentCategory } from "@prisma/client";
 import { SENHA } from "./config";
+import { dataDoDia, dia, ehDiaUtil } from "../../src/lib/portfolio/calendario-anbima";
+import { CDI_DE_TESTE, CDB_DA_ANA } from "./rendimento";
 
 const host = new URL(process.env.DATABASE_URL ?? "postgresql://x@nada/x").hostname;
 if (!["localhost", "127.0.0.1", "::1"].includes(host)) {
@@ -28,6 +30,7 @@ async function main() {
   await prisma.financialProfile.updateMany({ where: { userId: ana.id, kind: "PESSOAL" }, data: { isDefault: true } });
   // Ela já viu o tutorial da versão nova.
   await prisma.user.update({ where: { id: ana.id }, data: { novidadesVersaoNova: "pulou", novidadesVistasEm: new Date() } });
+  await semearRendimento(ana.id);
 
   // Clara: comprou hoje pela Hubla, ainda sem conta.
   await prisma.allowedEmail.upsert({ where: { email: "clara@exemplo.test" }, update: { active: true }, create: { email: "clara@exemplo.test", note: "jornada: conta nova", source: "HUBLA" } });
@@ -60,6 +63,34 @@ async function main() {
   await semearDuda();
   await semearEdu();
   console.log("Pronto: Ana (Pessoal + Ateliê), Clara (só a compra), Bia (Pessoal + Casal), Duda (números) e Edu (cartão).");
+}
+
+/**
+ * O rendimento da renda fixa (15/10/2026): as séries do Banco Central de mentira (só no banco
+ * local, CDI fixo em cada dia útil de 2026, para o valor andar todo dia da jornada) e o CDB de
+ * 110% do CDI que a Ana comprou há 6 meses.
+ */
+async function semearRendimento(anaId: string) {
+  const cdi = [];
+  for (let d = dia(2025, 12, 1); d < dia(2027, 1, 1); d++) if (ehDiaUtil(d)) cdi.push({ indice: "cdi", data: dataDoDia(d), valor: CDI_DE_TESTE * 100, fonte: "Banco Central" });
+  // O IPCA de 2026 como o Banco Central publicou (SGS 433), até setembro.
+  const ipca = [0.33, 0.7, 0.88, 0.67, 0.58, 0.16, 0.07, -0.32, 0.82].map((valor, i) => ({ indice: "ipca", data: dataDoDia(dia(2026, i + 1, 1)), valor, fonte: "Banco Central" }));
+  await prisma.serieIndice.createMany({ data: [...cdi, ...ipca] });
+  const pessoal = await prisma.financialProfile.findFirstOrThrow({ where: { userId: anaId, kind: "PESSOAL" } });
+  await prisma.asset.create({
+    data: {
+      userId: anaId,
+      profileId: pessoal.id,
+      name: CDB_DA_ANA.nome,
+      assetClass: "RENDA_FIXA",
+      fixedIncomeIndex: "POS_FIXADO",
+      taxaCompra: CDB_DA_ANA.percentual,
+      objective: "LIBERDADE_FINANCEIRA",
+      investedValue: CDB_DA_ANA.investido,
+      currentValue: CDB_DA_ANA.investido,
+      acquisitionDate: new Date(`${CDB_DA_ANA.compra}T00:00:00Z`),
+    },
+  });
 }
 
 /**

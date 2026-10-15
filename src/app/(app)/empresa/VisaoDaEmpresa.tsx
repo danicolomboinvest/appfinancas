@@ -17,7 +17,7 @@ import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { BotaoRegistrar } from "@/components/shell/BotaoRegistrar";
 import { NOME_DA_FORMA, type Forma } from "@/lib/empresa/config";
 import { chaveDoMes, mesAntes, reciboDoMes, type LancamentoDaEmpresa, type Mes, type Recibo } from "@/lib/empresa/regras";
-import { MESES, contasDoMes, diaDaSemanaDe, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
+import { MESES, contasDoMes, diaDaSemanaDe, guiaDoMeiDaEmpresa, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
 import { hrefDaLista, lancamentosDoPeriodo, noPeriodoTexto, resumoDoPeriodo, umMesSo, type PeriodoDaEmpresa, type ResumoDoPeriodo } from "@/lib/empresa/periodo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { Cartao, Iniciais, BOTAO_PRINCIPAL } from "./partes";
@@ -148,7 +148,10 @@ function AbaResumo({ dados, R, mes, periodo, recibo, atual, lancs, m0, money, ch
         <IconeTingido icon={FileText} cor="var(--color-accent-strong)" />
         <span className="min-w-0 flex-1">
           <b className="block text-[15px] font-medium text-ink">Guia do MEI</b>
-          <small className="text-xs text-ink-muted">{R.guia.diasAte < 0 ? `venceu dia ${Number(R.guia.vence.slice(8))}` : `vence ${diaDaSemanaDe(R.guia.vence)}`}</small>
+          <small className="text-xs text-ink-muted">
+            {R.guia.diasAte < 0 ? `venceu dia ${Number(R.guia.vence.slice(8))}` : `vence ${diaDaSemanaDe(R.guia.vence)}`}
+            {R.guia.origem === "estimada" ? ", estimado pelo app" : ""}
+          </small>
         </span>
         <b className="shrink-0 text-[15px] font-medium tabular-nums text-accent-strong">{money(R.guia.valor)}</b>
       </Link>,
@@ -433,6 +436,8 @@ function AbaContas({ dados, contas, m0 }: { dados: DadosDaEmpresa; contas: Conta
   const total = doMes.reduce((s, c) => s + (c.valor ?? 0), 0);
   const pago = doMes.filter((c) => c.paga).reduce((s, c) => s + (c.valor ?? 0), 0);
   const nPagas = doMes.filter((c) => c.paga).length;
+  // A guia do MEI ainda no valor da tabela: o selo "estimado pelo app" na conta dela.
+  const selos: Record<string, string> = guiaDoMeiDaEmpresa(dados)?.origem === "estimada" ? Object.fromEntries(contas.abertas.filter((c) => c.nome === "Guia do MEI").map((c) => [c.id, "estimado pelo app"])) : {};
   return (
     <FolhaDasContas hoje={contas.hoje} abrirNova={false}>
       {doMes.length > 0 && (
@@ -448,7 +453,7 @@ function AbaContas({ dados, contas, m0 }: { dados: DadosDaEmpresa; contas: Conta
         </HeroiDoTema>
       )}
       <SemanaDasContas contas={contas.vencimentos} hoje={contas.hoje} />
-      <ContasAPagar contas={contas.abertas} pagas={contas.pagas} hoje={contas.hoje} />
+      <ContasAPagar contas={contas.abertas} pagas={contas.pagas} hoje={contas.hoje} selos={selos} />
     </FolhaDasContas>
   );
 }

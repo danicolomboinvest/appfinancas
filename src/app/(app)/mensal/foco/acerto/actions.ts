@@ -8,10 +8,13 @@ function revalidar() {
   revalidatePath("/mensal/foco", "layout");
 }
 
-export async function definirDivisaoAction(divisao: "renda" | "meio"): Promise<{ ok: boolean }> {
+/** O jeito de dividir da casa. "Combinado" leva a parte de quem está logado, em % (de 20 a 80). */
+export async function definirDivisaoAction(divisao: "renda" | "meio" | "combinado", pctEu?: number): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
-  const ok = await definirDivisaoDaCasa(ctx, divisao === "meio" ? "meio" : "renda");
+  const jeito = divisao === "meio" ? "meio" : divisao === "combinado" ? "combinado" : "renda";
+  const ok = await definirDivisaoDaCasa(ctx, jeito, typeof pctEu === "number" ? pctEu : undefined);
   revalidar();
+  revalidatePath("/configuracoes/casa");
   return { ok };
 }
 

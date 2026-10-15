@@ -20,6 +20,7 @@ import {
   FileText,
   List,
   Sprout,
+  Coffee,
   type LucideIcon,
 } from "lucide-react";
 import { ROTAS_DA_VISAO_GERAL } from "./flow-tabs";
@@ -61,6 +62,9 @@ export type NavSection = {
   /** Rotas que pertencem à seção mas vivem fora do basePath (ex.: /perfis em Configurações).
    * Sem isso a seção não acende e o submenu fecha justo na tela que o usuário abriu. */
   alsoMatches?: string[];
+  /** Rotas dentro do basePath que são de OUTRO item do menu (o ritual mora em /mensal/foco/ritual,
+   * mas tem item próprio): a seção não acende nelas. */
+  exceto?: string[];
   children?: NavChild[];
   /** Seção que só faz sentido pra pessoa física (viagem, simuladores, análises): some na Empresa. */
   soPessoa?: boolean;
@@ -84,8 +88,9 @@ export function secoesVisiveis<T extends NavSection>(sections: T[], flags: { emp
 
 /** Uma rota pertence à seção se está sob o basePath ou sob alguma rota extra declarada.
  * Serve também pras abas da barra de baixo (`MobileTab`), que têm os mesmos dois campos. */
-export function sectionMatches(section: Pick<NavSection, "basePath" | "alsoMatches">, pathname: string): boolean {
+export function sectionMatches(section: Pick<NavSection, "basePath" | "alsoMatches" | "exceto">, pathname: string): boolean {
   const bate = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
+  if (section.exceto?.some(bate)) return false;
   return bate(section.basePath) || (section.alsoMatches?.some(bate) ?? false);
 }
 
@@ -109,7 +114,12 @@ export const NAV_SECTIONS: NavSection[] = [
     // As quatro abas (Resumo, Orçamento, Transações, Recorrentes) moram em duas pastas. A Visão
     // geral antiga por ano (/dashboard) saiu em 12/10/2026 e o link velho cai no Resumo.
     alsoMatches: ROTAS_DA_VISAO_GERAL.filter((r) => r !== "/mensal"),
+    exceto: ["/mensal/foco/ritual"],
   },
+  // O ritual da semana (15/10/2026, feedback de uma cliente): antes só aparecia como sugestão do
+  // Resumo às segundas e terças. Agora abre em qualquer dia; fora de segunda e terça mostra a
+  // semana que passou. Logo depois da Visão geral, de onde ele sai. A Empresa tem o menu dela.
+  { basePath: "/mensal/foco/ritual", href: "/mensal/foco/ritual", label: "Ritual da semana", icon: Coffee, soPessoa: true },
   {
     basePath: "/planejamento",
     href: "/planejamento/metas",

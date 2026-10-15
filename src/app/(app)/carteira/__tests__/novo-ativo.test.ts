@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * Novo ativo pela busca (14/10/2026): o que ela digita é o que fica salvo. Passa pelo
  * createAssetAction de verdade; só o banco e as fontes de cotação são de mentira.
  */
-const createAsset = vi.fn<(ctx: unknown, data: Record<string, unknown>) => Promise<void>>(async () => {});
+const createAsset = vi.fn<(ctx: unknown, data: Record<string, unknown>) => Promise<{ id: string }>>(async () => ({ id: "a1" }));
+const recalcularUmAtivo = vi.fn(async () => {});
 const fetchTickerPrice = vi.fn<(t: string) => Promise<number | null>>(async () => null);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
@@ -16,6 +17,7 @@ vi.mock("@/lib/repositories/dividend.repo", () => ({ refreshDividendsForTicker: 
 vi.mock("@/lib/analysis/price-scraper", () => ({ fetchTickerPrice: (t: string) => fetchTickerPrice(t) }));
 vi.mock("@/lib/analysis/us-price", () => ({ fetchUsPrice: vi.fn(async () => null) }));
 vi.mock("@/lib/fx/rates", () => ({ getExchangeRate: vi.fn(async () => ({ rate: 5 })) }));
+vi.mock("@/lib/portfolio/atualizar-renda-fixa", () => ({ recalcularUmAtivo: (...a: unknown[]) => recalcularUmAtivo(...(a as [])) }));
 
 import { createAssetAction } from "../actions";
 import { buscarLocal, formularioDoNovoAtivo, lerCotas, nomeDoFundo, type Achado } from "../novo-ativo-dados";
@@ -93,6 +95,16 @@ describe("Tesouro sem a lista do dia", () => {
     const x = buscarLocal("ipca", [])[0];
     await createAssetAction({}, formularioDoNovoAtivo({ ...base, x, investido: 1000, valorHoje: 1050.5, taxaTxt: "6,5", taxaNaoSei: false, quando: { ano: 2026, mes: 1 } }));
     expect(salvo()).toMatchObject({ name: "Tesouro IPCA+", assetClass: "TESOURO_DIRETO", fixedIncomeIndex: "IPCA", taxaCompra: 0.065, investedValue: 1000, currentValue: 1050.5 });
+  });
+
+  it("o dia da compra vai junto (sem o dia, dia 1) e a renda fixa recalcula na hora", async () => {
+    const x = buscarLocal("cdb", [])[0];
+    const r = { indexador: "cdi" as const, percentual: 110 };
+    await createAssetAction({}, formularioDoNovoAtivo({ ...base, x, investido: 1000, valorHoje: 1060, rendimento: r, quando: { ano: 2026, mes: 4, dia: 15 }, estimado: true }));
+    expect(salvo()).toMatchObject({ assetClass: "RENDA_FIXA", taxaCompra: 1.1, acquisitionDate: new Date("2026-04-15T00:00:00Z"), valorInformado: null, valorInformadoEm: null });
+    expect(recalcularUmAtivo).toHaveBeenCalled();
+    await createAssetAction({}, formularioDoNovoAtivo({ ...base, x, investido: 1000, valorHoje: 1061.37, rendimento: r, quando: { ano: 2026, mes: 4 } }));
+    expect(salvo()).toMatchObject({ acquisitionDate: new Date("2026-04-01T00:00:00Z"), valorInformado: 1061.37 });
   });
 });
 

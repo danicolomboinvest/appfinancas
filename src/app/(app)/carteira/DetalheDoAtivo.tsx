@@ -10,6 +10,7 @@ import { NOME_DO_TIPO, TIPOS, type Onde, type Tipo } from "@/lib/portfolio/class
 import { grupoDoAtivo } from "@/lib/portfolio/classificacao";
 import { AssetForm } from "./AssetForm";
 import { textoDaTaxaCompra } from "@/lib/portfolio/taxa-compra";
+import { linhaDoRendimento } from "@/lib/portfolio/rendimento-texto";
 import { ResgatarDoAtivo } from "./ResgatarDoAtivo";
 import { DeleteAssetButton } from "./DeleteAssetButton";
 import { LogoDoAtivo } from "@/components/ui/LogoDoAtivo";
@@ -84,6 +85,7 @@ export function DetalheDoAtivo({
             goalId: a.goalId ?? undefined,
             fixedIncomeIndex: a.fixedIncomeIndex ?? undefined,
             taxaCompra: a.taxaCompra,
+            acquisitionDate: a.acquisitionDate ?? undefined,
             ...(emDolar ? { currency: a.currency, currentValue: a.nativeCurrentValue ?? undefined, investedValue: a.nativeInvestedValue ?? undefined } : { currentValue: a.currentValue, investedValue: a.investedValue ?? undefined }),
           }}
         />
@@ -94,6 +96,9 @@ export function DetalheDoAtivo({
     );
 
   const precoMedio = a.quantity && a.quantity > 0 && a.investedValue ? a.investedValue / a.quantity : null;
+  // "Não sei a taxa": o app usa 100% do CDI e sugere completar (o Tesouro Selic não tem taxa a pedir).
+  const semTaxa = a.assetClass === "RENDA_FIXA" && a.taxaCompra === null && a.rendimento?.como === "cdi" && a.rendimento.estimado;
+  const linha = a.rendimento ? linhaDoRendimento({ como: a.rendimento.como, referenteA: a.rendimento.referenteA, estimado: a.rendimento.estimado, semTaxa }) : null;
   const maxCol = proventos ? Math.max(...proventos.colunas, 0.01) : 1;
   const hoje = new Date();
 
@@ -107,7 +112,7 @@ export function DetalheDoAtivo({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2" data-valor-do-ativo>
         {emDolar ? (
           <>
             <span className="text-[2.25rem] font-light leading-none tracking-[-0.03em] tabular-nums text-ink">{usd(a.nativeCurrentValue!)}</span>
@@ -155,7 +160,23 @@ export function DetalheDoAtivo({
         </div>
       )}
 
-      {!titulo && (a.assetClass === "RENDA_FIXA" || a.assetClass === "TESOURO_DIRETO") && a.fixedIncomeIndex !== "IPCA" && a.fixedIncomeIndex !== "PREFIXADO" && cdi && (
+      {/* Renda fixa que o app calcula sozinho (15/10/2026): o índice e a data, como o Tesouro mostra a fonte. */}
+      {linha && (
+        <div className="flex flex-col gap-1">
+          <p className="text-[12.5px] text-ink-muted">
+            {linha.texto}
+            {linha.fonte ? ` · ${linha.fonte}` : ""}
+          </p>
+          {linha.nota && <p className="text-[12.5px] text-ink-muted">{linha.nota}</p>}
+          {semTaxa && (
+            <button type="button" onClick={() => setModo("editar")} className="min-h-11 w-fit text-left text-[14px] font-medium text-ink underline underline-offset-[3px]">
+              Completar a taxa da compra
+            </button>
+          )}
+        </div>
+      )}
+
+      {!linha && !titulo && (a.assetClass === "RENDA_FIXA" || a.assetClass === "TESOURO_DIRETO") && a.fixedIncomeIndex !== "IPCA" && a.fixedIncomeIndex !== "PREFIXADO" && cdi && (
         <p className="text-[12.5px] text-ink-muted">
           CDI {cdi.valor} · {cdi.fonte} · {cdi.quando}
         </p>

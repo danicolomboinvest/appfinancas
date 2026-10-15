@@ -3,6 +3,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { calcularAcerto, chaveDaConta as chaveDaContaDoAcerto, chaveDoMes, lerConfigCasal, type Acerto, type ConfigCasal } from "@/lib/casal/acerto";
 import { primeiroNome } from "@/lib/casal-login/regras";
 import { comVisto } from "@/lib/casa/tutorial";
+import { ehDivisaoPropria, type DivisaoDaCasa } from "@/lib/casa/escolhas";
 import type { ParNaSessao } from "@/lib/repositories/casal-login.repo";
 import { casaAtiva, chaveDaConta, chaveDaRegraDaCasa, ehDaCasa, lancamentosDoAcertoDaCasa, letraDoDono, nomeDoArquivo, outraLetra, type CasaNaSessao, type LinhaDaCasa, type Letra } from "@/lib/casa/regras";
 
@@ -76,9 +77,25 @@ export type AcertoDaCasa = Acerto & {
   outro: { letra: Letra; nome: string; papel: "titular" | "par" };
   /** Positivo: eu mando isso para o outro. Negativo: eu recebo. Zero: quites. */
   euMando: number;
-  /** Os gastos da casa do mês, com quem pagou (o que a tela do acerto lista). */
-  gastosDaCasa: { id: string; descricao: string; valor: number; dia: string | null; quem: "eu" | "outro" }[];
+  /**
+   * O que entra no acerto do mês, com quem pagou (o que a tela do acerto lista): os gastos da
+   * casa e, desde 15/10/2026, o gasto de um só que o outro pagou. `deQuem`: "casa", ou de quem é
+   * (eu ou o outro). `pctEu`: a minha parte, em %, no gasto da casa.
+   */
+  gastosDaCasa: { id: string; descricao: string; valor: number; dia: string | null; quem: "eu" | "outro"; deQuem: "casa" | "eu" | "outro"; pctEu: number | null }[];
+  /** A regra da casa vista por quem olha (proporções dele), a mesma que o Digitar mostra. */
+  divisao: DivisaoDaCasa;
 };
+
+/** A regra da casa vista por uma pessoa, a partir do acerto calculado (a fração da A). */
+function divisaoVistaPor(letra: Letra, config: ConfigCasal, acerto: Pick<Acerto, "rendas" | "caiuParaMeio">): DivisaoDaCasa {
+  const { A, B } = acerto.rendas;
+  const semRenda = !(A > 0 && B > 0);
+  const fracaoRendaA = semRenda ? 0.5 : A / (A + B);
+  const fracaoCombinadoA = typeof config.pctA === "number" ? config.pctA / 100 : 0.5;
+  const minha = (fA: number) => Math.round((letra === "A" ? fA : 1 - fA) * 10000) / 100;
+  return { modo: config.divisao, pctEuRenda: minha(fracaoRendaA), semRenda, pctEuCombinado: minha(fracaoCombinadoA) };
+}
 
 /**
  * O que os dois aprenderam sobre "da casa", por pessoa (cada gasto segue as regras de quem
@@ -117,28 +134,68 @@ export async function acertoDaCasa(ctx: AuthContext, ano: number, mes: number): 
     prisma.financialProfile.findUnique({ where: { id: casa.casalProfileId }, select: { casal: true } }),
     prisma.monthlyEntry.findMany({
       where: { AND: [lancamentosDoAcertoDaCasa(casa), { year: ano, month: mes, category: { in: ["EXPENSE", "INCOME"] } }] },
-      select: { id: true, userId: true, category: true, amount: true, doCasal: true, soMeu: true, description: true, subcategory: true, parentCategory: true, entryDate: true },
+      select: {
+        id: true,
+        userId: true,
+        category: true,
+        amount: true,
+        doCasal: true,
+        soMeu: true,
+        doPar: true,
+        pagouOPar: true,
+        divisaoPropria: true,
+        parteDeQuemLancou: true,
+        description: true,
+        subcategory: true,
+        parentCategory: true,
+        entryDate: true,
+      },
       orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
     }),
     prisma.fechamentoCasal.findUnique({ where: { profileId_ano_mes: { profileId: casa.casalProfileId, ano, mes } }, select: { fechadoEm: true } }),
   ]);
   // Só o que é DA CASA entra no acerto (decisão de 13/10/2026): a roupa que ele deixou visível
   // aparece para ela, mas não é dividida. A renda continua entrando (é ela que dá a proporção).
+  // Desde 15/10/2026 (versão A): quem pagou é a escolha do lançamento (pagouOPar), o gasto de um
+  // só entra quando o outro pagou, e a divisão própria do gasto manda sobre a da casa.
   const aprendidas = await regrasDaCasaDosDois(casa);
   const daCasa = (l: (typeof linhas)[number]) => ehDaCasa(l, aprendidas.get(l.userId));
   const config = lerConfigCasal(perfilCasal?.casal ?? null);
   const regras = config.regras ?? {};
+  const doAcerto = linhas.map((l) => {
+    const dono = letraDoDono(casa, l.userId);
+    const pagador = dono && l.pagouOPar ? outraLetra(dono) : dono;
+    const ehCasa = l.category === "EXPENSE" && daCasa(l);
+    const propria = ehCasa && ehDivisaoPropria(l.divisaoPropria) ? l.divisaoPropria : null;
+    const parte = l.parteDeQuemLancou === null ? null : Number(l.parteDeQuemLancou);
+    return {
+      linha: l,
+      dono,
+      ehCasa,
+      lanc: {
+        category: l.category,
+        amount: Number(l.amount),
+        pessoa: pagador,
+        doCasal: l.category === "EXPENSE" ? ehCasa : null,
+        modo: propria === "renda" || propria === "meio" ? propria : regras[chaveDaContaDoAcerto(l.description || l.subcategory, l.parentCategory)],
+        ...(propria === "outra" && parte !== null && dono ? { fracaoA: dono === "A" ? parte / 100 : 1 - parte / 100 } : {}),
+        ...(l.category === "EXPENSE" && !ehCasa && dono ? { deQuem: l.doPar ? outraLetra(dono) : dono } : {}),
+      },
+    };
+  });
   const acerto = calcularAcerto(
-    linhas.map((l) => ({
-      category: l.category,
-      amount: Number(l.amount),
-      pessoa: letraDoDono(casa, l.userId),
-      doCasal: l.category === "EXPENSE" ? daCasa(l) : null,
-      modo: regras[chaveDaContaDoAcerto(l.description || l.subcategory, l.parentCategory)],
-    })),
+    doAcerto.map((x) => x.lanc),
     config.divisao,
     { pctA: config.pctA },
   );
+  const divisao = divisaoVistaPor(casa.eu.letra, config, acerto);
+  const fracaoRendaA = acerto.caiuParaMeio || !(acerto.rendas.A > 0 && acerto.rendas.B > 0) ? 0.5 : acerto.rendas.A / (acerto.rendas.A + acerto.rendas.B);
+  const fracaoDoGasto = (x: (typeof doAcerto)[number]): number => {
+    if (typeof x.lanc.fracaoA === "number") return x.lanc.fracaoA;
+    if (x.lanc.modo === "renda") return fracaoRendaA;
+    if (x.lanc.modo === "meio") return 0.5;
+    return acerto.fracaoA;
+  };
   const saldoDoEu = casa.eu.letra === "A" ? acerto.saldoA : -acerto.saldoA;
   const pessoa = (p: CasaNaSessao["eu"]) => ({ letra: p.letra, nome: p.nome, papel: p.papel });
   return {
@@ -151,33 +208,95 @@ export async function acertoDaCasa(ctx: AuthContext, ano: number, mes: number): 
     eu: pessoa(casa.eu),
     outro: pessoa(casa.outro),
     euMando: Math.round(-saldoDoEu * 100) / 100,
-    gastosDaCasa: linhas
-      .filter((l) => l.category === "EXPENSE" && daCasa(l))
-      .map((l) => ({
-        id: l.id,
-        descricao: l.description || l.subcategory || "Sem nome",
-        valor: Math.abs(Number(l.amount)),
-        dia: l.entryDate ? l.entryDate.toISOString().slice(0, 10) : null,
-        quem: l.userId === casa.eu.userId ? ("eu" as const) : ("outro" as const),
-      })),
+    gastosDaCasa: doAcerto
+      .filter((x) => {
+        if (x.linha.category !== "EXPENSE" || !x.dono) return false;
+        if (x.ehCasa) return true;
+        // De um só: entra quando quem pagou não é de quem é o gasto.
+        return x.lanc.deQuem !== undefined && x.lanc.pessoa !== x.lanc.deQuem;
+      })
+      .map((x) => {
+        const l = x.linha;
+        const fA = x.ehCasa ? fracaoDoGasto(x) : null;
+        return {
+          id: l.id,
+          descricao: l.description || l.subcategory || "Sem nome",
+          valor: Math.abs(Number(l.amount)),
+          dia: l.entryDate ? l.entryDate.toISOString().slice(0, 10) : null,
+          quem: x.lanc.pessoa === casa.eu.letra ? ("eu" as const) : ("outro" as const),
+          deQuem: x.ehCasa ? ("casa" as const) : x.lanc.deQuem === casa.eu.letra ? ("eu" as const) : ("outro" as const),
+          pctEu: fA === null ? null : Math.round((casa.eu.letra === "A" ? fA : 1 - fA) * 10000) / 100,
+        };
+      }),
+    divisao,
   };
 }
 
 /**
- * Um toque troca "Da casa" e "Meu" num gasto MEU, e o app aprende com o comerciante: os
- * próximos gastos dali (os que ainda não têm escolha própria) já chegam assim.
+ * A regra da casa no mês, vista por quem está logado (o Digitar mostra "Pela renda 55/45"): o
+ * jeito de dividir e as proporções. A renda é a mesma do acerto (o que os dois enxergam).
  */
-export async function marcarDaCasa(ctx: AuthContext, id: string, daCasa: boolean): Promise<{ year: number; month: number } | null> {
+export async function divisaoDaCasaNoMes(ctx: AuthContext, ano: number, mes: number): Promise<DivisaoDaCasa | null> {
+  const casa = casaAtiva(ctx);
+  if (!casa) return null;
+  const [perfilCasal, rendas] = await Promise.all([
+    prisma.financialProfile.findUnique({ where: { id: casa.casalProfileId }, select: { casal: true } }),
+    prisma.monthlyEntry.findMany({
+      where: { AND: [lancamentosDoAcertoDaCasa(casa), { year: ano, month: mes, category: "INCOME" }] },
+      select: { userId: true, amount: true },
+    }),
+  ]);
+  const config = lerConfigCasal(perfilCasal?.casal ?? null);
+  const acerto = calcularAcerto(
+    rendas.map((r) => ({ category: "INCOME", amount: Number(r.amount), pessoa: letraDoDono(casa, r.userId), doCasal: null })),
+    config.divisao,
+    { pctA: config.pctA },
+  );
+  return divisaoVistaPor(casa.eu.letra, config, acerto);
+}
+
+/** As regras de "Da casa" que quem está logado ensinou (para o Digitar marcar o padrão pela loja). */
+export async function regrasDaCasaDeQuemLanca(ctx: AuthContext): Promise<[string, boolean][]> {
+  if (!casaAtiva(ctx)) return [];
+  const regras = await prisma.regraDaCasa.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { pattern: true, daCasa: true }, take: 2000 });
+  return regras.map((r) => [r.pattern, r.daCasa]);
+}
+
+/**
+ * As três escolhas num gasto MEU já salvo (o lançamento aberto): de quem é, quem pagou e como
+ * divide. "Do par" e o gasto que o par pagou entram no acerto, então nunca ficam no "Só meu".
+ * Trocar entre Da casa e Meu ensina o app pela loja, como o toque de antes.
+ */
+export async function marcarEscolhasDoCasal(
+  ctx: AuthContext,
+  id: string,
+  e: { doCasal: boolean; doPar: boolean; pagouOPar: boolean; divisaoPropria: string | null; parteDeQuemLancou: number | null },
+): Promise<{ year: number; month: number } | null> {
   if (!casaAtiva(ctx)) return null;
-  const meu = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE" }, select: { year: true, month: true, description: true } });
+  const meu = await prisma.monthlyEntry.findFirst({
+    where: { id, userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE" },
+    select: { year: true, month: true, description: true, doCasal: true, doPar: true },
+  });
   if (!meu) return null;
-  await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { doCasal: daCasa } });
+  const entraNoAcerto = e.doPar || e.pagouOPar;
+  const trocouCasaOuMeu = !e.doPar && meu.doCasal !== e.doCasal;
+  await prisma.monthlyEntry.updateMany({
+    where: { id, userId: ctx.userId, profileId: ctx.profileId },
+    data: {
+      doCasal: e.doCasal,
+      doPar: e.doPar,
+      pagouOPar: e.pagouOPar,
+      divisaoPropria: e.doCasal ? e.divisaoPropria : null,
+      parteDeQuemLancou: e.doCasal && e.divisaoPropria === "outra" ? e.parteDeQuemLancou : null,
+      ...(entraNoAcerto ? { soMeu: false } : {}),
+    },
+  });
   const pattern = chaveDaRegraDaCasa(meu.description);
-  if (pattern) {
+  if (trocouCasaOuMeu && pattern) {
     await prisma.regraDaCasa.upsert({
       where: { userId_profileId_pattern: { userId: ctx.userId, profileId: ctx.profileId, pattern } },
-      create: { userId: ctx.userId, profileId: ctx.profileId, pattern, daCasa },
-      update: { daCasa },
+      create: { userId: ctx.userId, profileId: ctx.profileId, pattern, daCasa: e.doCasal },
+      update: { daCasa: e.doCasal },
     });
   }
   return { year: meu.year, month: meu.month };
@@ -193,8 +312,10 @@ export async function marcarDaCasa(ctx: AuthContext, id: string, daCasa: boolean
  */
 export async function marcarSoMeu(ctx: AuthContext, id: string, soMeu: boolean): Promise<{ year: number; month: number } | null> {
   if (!casaAtiva(ctx)) return null;
-  const meu = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, select: { year: true, month: true } });
+  const meu = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, select: { year: true, month: true, doPar: true, pagouOPar: true } });
   if (!meu) return null;
+  // O que entra no acerto ("Do par", ou o que o par pagou) os dois precisam ver: não esconde.
+  if (soMeu && (meu.doPar || meu.pagouOPar)) return null;
   await prisma.monthlyEntry.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { soMeu } });
   return meu;
 }
@@ -268,11 +389,22 @@ async function lerConfig(casalProfileId: string): Promise<ConfigCasal> {
   return lerConfigCasal(p?.casal ?? null);
 }
 
-export async function definirDivisaoDaCasa(ctx: AuthContext, divisao: "renda" | "meio"): Promise<boolean> {
+/**
+ * O jeito de dividir da casa. "Combinado" (liberado para todos em 15/10/2026) leva a parte de quem
+ * está logado, em %, de 20 a 80 (a mesma régua do Nós dois); guardada como a parte da pessoa A.
+ * Sem a parte, vale a que já estava guardada.
+ */
+export async function definirDivisaoDaCasa(ctx: AuthContext, divisao: "renda" | "meio" | "combinado", pctEu?: number): Promise<boolean> {
   const casa = casaAtiva(ctx);
   if (!casa) return false;
   const config = await lerConfig(casa.casalProfileId);
-  await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, divisao } } });
+  if (divisao !== "combinado") {
+    await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, divisao } } });
+    return true;
+  }
+  const pctA = typeof pctEu === "number" && Number.isFinite(pctEu) ? Math.round(casa.eu.letra === "A" ? pctEu : 100 - pctEu) : config.pctA;
+  if (typeof pctA !== "number" || pctA < 20 || pctA > 80) return false;
+  await prisma.financialProfile.update({ where: { id: casa.casalProfileId }, data: { casal: { ...config, divisao, pctA } } });
   return true;
 }
 

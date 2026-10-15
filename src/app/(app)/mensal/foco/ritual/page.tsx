@@ -6,7 +6,7 @@ import { categoryLabel } from "@/lib/categories";
 import { sumExpensesBetweenDates } from "@/lib/repositories/monthly-entry.repo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { carregarFoco } from "../dados";
-import { Ritual, type DadosRitual } from "./Ritual";
+import { Ritual, SemanaQuePassou, type DadosRitual } from "./Ritual";
 import { semanaPassadaDoDiaADia } from "./semana-passada";
 
 const DIA_MS = 86_400_000;
@@ -22,7 +22,8 @@ function semanasAnteriores(hoje: Date) {
   });
 }
 
-/** O ritual da semana: 4 cartões, uma decisão. É a rotina de segunda da aula, dentro do app. */
+/** O ritual da semana: 4 cartões, uma decisão. É a rotina de segunda da aula, dentro do app. Abre
+ * em qualquer dia pelo menu ("Ritual da semana"). */
 export default async function RitualPage() {
   const ctx = await getRequiredSession();
   const d = await carregarFoco(ctx);
@@ -63,13 +64,18 @@ export default async function RitualPage() {
     porCategoria: livre.tipo === "semOrcamento" ? [] : livre.porCategoria.filter((c) => c.restante >= 1).map((c) => ({ key: c.key, label: c.label, semana: porSemana(c.restante) })),
   };
 
+  // Segunda e terça, o ritual inteiro (como a sugestão do Resumo). Nos outros dias, ou com o desta
+  // semana já feito, a tela abre (pelo menu, 15/10/2026) na semana que passou.
+  const diaDaSemana = d.now.getDay();
+  const diaDoRitual = diaDaSemana === 1 || diaDaSemana === 2;
+
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
       <Link href="/mensal/foco" className="flex min-h-11 w-fit items-center gap-1 text-sm text-ink-muted hover:text-ink">
         <ChevronLeft size={16} aria-hidden /> Resumo
       </Link>
       <PageHeader title={d.t.ritTitulo} />
-      {d.ritualFeito ? <p className="text-sm text-ink-muted">{d.t.focoRitualFeito}</p> : <Ritual d={dados} />}
+      {diaDoRitual && !d.ritualFeito ? <Ritual d={dados} /> : <SemanaQuePassou d={dados} feito={d.ritualFeito} textoFeito={d.t.focoRitualFeito} />}
     </div>
   );
 }

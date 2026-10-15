@@ -8,6 +8,7 @@ import { listGoals } from "@/lib/repositories/goal.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
 import { listTransactionRules } from "@/lib/repositories/transaction-rule.repo";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
+import { casaAtiva } from "@/lib/casa/regras";
 
 export async function getRecentSubcategoriesAction(): Promise<Record<ParentCategory, string[]>> {
   const ctx = await getRequiredSession();
@@ -53,5 +54,5 @@ export async function entenderFalaAction(transcricao: string): Promise<ParsedVoi
       customCategoryId: r.customCategoryId ?? undefined,
     })),
     personalizadas: personalizadas.map((c) => ({ id: c.id, name: c.name })),
-  });
+  }, { nomeDoPar: casaAtiva(ctx)?.outro.nome ?? null });
 }

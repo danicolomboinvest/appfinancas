@@ -65,7 +65,15 @@ async function teclar(p: Page, valor: number) {
   for (const ch of centavos) await d.getByRole("button", { name: ch, exact: true }).click();
 }
 
-export type Lancamento = { valor: number; categoria: string; descricao?: string; entrada?: boolean; ontem?: boolean };
+export type Lancamento = {
+  valor: number;
+  categoria: string;
+  descricao?: string;
+  entrada?: boolean;
+  ontem?: boolean;
+  /** Casal simples (versão A): "De quem é?" ("Meu", "Da casa", "De Caio"), "Quem pagou?" ("Eu" ou o nome) e "Outra" com a minha parte em %. */
+  casal?: { deQuem?: string; pagou?: string; parte?: number };
+};
 
 /** "+" → Digitar → valor no teclado → categoria → (descrição) → Salvar. */
 export async function lancarAMao(p: Page, l: Lancamento) {
@@ -76,6 +84,12 @@ export async function lancarAMao(p: Page, l: Lancamento) {
   await teclar(p, l.valor);
   await d.getByRole("button", { name: l.categoria, exact: true }).click();
   if (l.ontem) await d.getByRole("button", { name: "Ontem", exact: true }).click();
+  if (l.casal?.deQuem) await d.getByRole("group", { name: "De quem é?" }).getByRole("button", { name: new RegExp(`^${l.casal.deQuem}`) }).click();
+  if (l.casal?.pagou) await d.getByRole("group", { name: "Quem pagou?" }).getByRole("button", { name: l.casal.pagou, exact: true }).click();
+  if (l.casal?.parte !== undefined) {
+    await d.getByRole("group", { name: "Como divide?" }).getByRole("button", { name: "Outra", exact: true }).click();
+    await d.getByLabel("Sua parte").fill(String(l.casal.parte));
+  }
   if (l.descricao) {
     await d.getByText("Mais opções", { exact: true }).click();
     await d.locator("#digitar-mais input").first().fill(l.descricao);
@@ -155,6 +169,48 @@ export async function importarArquivo(p: Page, caminho: string | string[]) {
   if (await agoraNao.count()) await agoraNao.first().click().catch(() => undefined);
   await p.keyboard.press("Escape").catch(() => undefined);
   await p.waitForLoadState("networkidle").catch(() => undefined);
+}
+
+/**
+ * O "+" → "Extrato ou fatura" → arquivo → "Responder": na pergunta "parece já estar no app"
+ * (agrupada) toca `resposta`; nas outras perguntas, "Não sei". Devolve o título da pergunta
+ * agrupada ("3 parecem já estar no app"), ou null se ela não apareceu.
+ */
+export async function importarRespondendo(p: Page, caminho: string, resposta: "Não importar" | "Importar mesmo assim"): Promise<string | null> {
+  await abrirRegistrar(p);
+  await p.getByRole("dialog").getByText("Extrato ou fatura", { exact: true }).click();
+  await p.locator("input[type=file]").first().setInputFiles(caminho);
+  await p.locator("[data-confirmacao-do-arquivo]").waitFor({ timeout: 90_000 });
+  let titulo: string | null = null;
+  const responder = p.locator("[data-responder]");
+  if (await responder.count()) {
+    await responder.click();
+    for (let i = 0; i < 40; i++) {
+      await p.waitForTimeout(300);
+      if (await p.locator("[data-confirmacao-do-arquivo]").count()) break;
+      const jaNoApp = p.locator("[data-pergunta-ja-no-app]");
+      if (await jaNoApp.count()) {
+        titulo = ((await jaNoApp.locator("p").first().textContent()) ?? "").trim();
+        await jaNoApp.getByRole("button", { name: resposta, exact: true }).click();
+        continue;
+      }
+      const naoSei = p.getByRole("button", { name: /^Não sei/ });
+      if (await naoSei.count()) {
+        await naoSei.first().click();
+        continue;
+      }
+    }
+  }
+  const pronto = p.getByRole("button", { name: /^Pronto/ });
+  const pular = p.getByRole("button", { name: /Pular e anotar/ });
+  if (await pronto.count()) await pronto.first().click();
+  else if (await pular.count()) await pular.first().click();
+  await p.waitForTimeout(1500);
+  const agoraNao = p.getByRole("button", { name: "Agora não" });
+  if (await agoraNao.count()) await agoraNao.first().click().catch(() => undefined);
+  await p.keyboard.press("Escape").catch(() => undefined);
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  return titulo;
 }
 
 /** Orçamento: abre a folha "O que fazer?" da categoria. */
@@ -380,10 +436,11 @@ export async function trocarPerfil(p: Page, nome: string) {
 export async function vendiNaEmpresa(p: Page, valor: number) {
   await p.goto("/empresa");
   await p.getByRole("button", { name: "Registrar" }).first().click();
-  await p.getByRole("button", { name: /^Vendi/ }).first().click();
+  // A main (15/10/2026) trocou "Vendi" por "Entrou" e "Registrar venda" por "Registrar entrada".
+  await p.getByRole("button", { name: /^(Entrou|Vendi)/ }).first().click();
   const campo = p.getByRole("dialog").locator("input").first();
   await campo.fill(digitado(valor));
-  await p.getByRole("button", { name: "Registrar venda" }).click();
+  await p.getByRole("button", { name: /^Registrar (entrada|venda)$/ }).click();
   await p.waitForLoadState("networkidle").catch(() => undefined);
   await p.waitForTimeout(800);
 }

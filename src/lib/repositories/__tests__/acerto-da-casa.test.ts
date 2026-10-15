@@ -24,6 +24,10 @@ type Linha = {
   importBatchId: string | null;
   importBatch: { ocultoDoPar: boolean } | null;
   entryDate: Date | null;
+  doPar?: boolean;
+  pagouOPar?: boolean;
+  divisaoPropria?: string | null;
+  parteDeQuemLancou?: number | null;
 };
 
 const db = vi.hoisted(() => ({ linhas: [] as Linha[], config: {} as unknown, regras: [] as { userId: string; profileId: string; pattern: string; daCasa: boolean }[] }));
@@ -64,7 +68,10 @@ vi.mock("@/lib/db/prisma", async () => {
   };
 });
 
-const { acertoDaCasa, marcarDaCasa } = await import("@/lib/repositories/casa.repo");
+const { acertoDaCasa, marcarEscolhasDoCasal, marcarSoMeu } = await import("@/lib/repositories/casa.repo");
+const { escolhasDoLancamento, resultadoDoGasto } = await import("@/lib/casa/escolhas");
+const so = (doCasal: boolean) => ({ doCasal, doPar: false, pagouOPar: false, divisaoPropria: null, parteDeQuemLancou: null });
+const marcarDaCasa = (c: AuthContext, id: string, daCasa: boolean) => marcarEscolhasDoCasal(c, id, so(daCasa));
 
 const ANA = { userId: "ana", profileId: "pessoal-ana", letra: "A" as const, nome: "Ana", papel: "titular" as const };
 const LUCAS = { userId: "lucas", profileId: "pessoal-lucas", letra: "B" as const, nome: "Lucas", papel: "par" as const };
@@ -172,5 +179,78 @@ describe("Acerto do mês no Casal simples", () => {
     expect((await acertoDaCasa(ctx(ANA, LUCAS), 2026, 10))?.totalDaCasa).toBe(150);
     // O Lucas não troca o gasto da Ana.
     expect(await marcarDaCasa(ctx(LUCAS, ANA), "aluguel", true)).toBeNull();
+  });
+
+  describe("quem pagou e a divisão de cada gasto (versão A, 15/10/2026)", () => {
+    const RENDAS = () => [L(ANA, { category: "INCOME", amount: 5500, parentCategory: null }), L(LUCAS, { category: "INCOME", amount: 4500, parentCategory: null })];
+
+    it("Da casa 60/40 que o Lucas pagou, lançado pela Ana: a Ana manda R$ 120, nos dois logins", async () => {
+      db.config = { nomeA: "Ana", nomeB: "Lucas", divisao: "renda", acertos: [] };
+      db.regras = [];
+      db.linhas = [...RENDAS(), L(ANA, { id: "mercado", amount: 200, description: "Mercado", parentCategory: "ALIMENTACAO", doCasal: true, pagouOPar: true, divisaoPropria: "outra", parteDeQuemLancou: 60 })];
+      const daAna = await acertoDaCasa(ctx(ANA, LUCAS), 2026, 10);
+      const doLucas = await acertoDaCasa(ctx(LUCAS, ANA), 2026, 10);
+      expect(daAna?.euMando).toBe(120);
+      expect(doLucas?.euMando).toBe(-120);
+      expect(daAna?.pagou).toEqual({ A: 0, B: 200 });
+      expect(daAna?.gastosDaCasa).toEqual([expect.objectContaining({ id: "mercado", quem: "outro", deQuem: "casa", pctEu: 60 })]);
+      expect(doLucas?.gastosDaCasa).toEqual([expect.objectContaining({ id: "mercado", quem: "eu", deQuem: "casa", pctEu: 40 })]);
+    });
+
+    it("cada combinação, e o número do acerto é a soma do que o Digitar mostrou em cada gasto", async () => {
+      db.config = { nomeA: "Ana", nomeB: "Lucas", divisao: "renda", acertos: [] };
+      db.regras = [];
+      db.linhas = [
+        ...RENDAS(),
+        // Da casa pela renda (55/45), eu paguei: Lucas deve 450.
+        L(ANA, { id: "aluguel", amount: 1000, description: "Aluguel" }),
+        // Da casa 50/50 próprio, o Lucas pagou: Ana deve 100.
+        L(ANA, { id: "feira", amount: 200, description: "Feira", parentCategory: "ALIMENTACAO", doCasal: true, pagouOPar: true, divisaoPropria: "meio" }),
+        // Do Lucas, eu paguei: Lucas deve 90.
+        L(ANA, { id: "presente", amount: 90, description: "Presente", parentCategory: "LAZER", doCasal: false, doPar: true }),
+        // Meu, o Lucas pagou: Ana deve 150.
+        L(ANA, { id: "roupa", amount: 150, description: "Roupa", parentCategory: "VESTUARIO", doCasal: false, pagouOPar: true }),
+        // Meu, eu paguei, e do Lucas que o Lucas pagou: fora.
+        L(ANA, { id: "cabelo", amount: 80, description: "Cabelo", parentCategory: "CUIDADOS", doCasal: false }),
+        L(ANA, { id: "jogo", amount: 60, description: "Jogo", parentCategory: "LAZER", doCasal: false, doPar: true, pagouOPar: true }),
+        // Do Lucas lançado por ele, a Ana pagou: a Ana recebe 70 dele.
+        L(LUCAS, { id: "tenis-dele", amount: 70, description: "Tenis", parentCategory: "VESTUARIO", doCasal: false, pagouOPar: true }),
+      ];
+      const daAna = await acertoDaCasa(ctx(ANA, LUCAS), 2026, 10);
+      const doLucas = await acertoDaCasa(ctx(LUCAS, ANA), 2026, 10);
+      // Ana recebe: 450 + 90 + 70; manda: 100 + 150. Saldo: recebe 360.
+      expect(daAna?.euMando).toBe(-360);
+      expect(doLucas?.euMando).toBe(360);
+      expect(daAna?.totalDaCasa).toBe(1200);
+      expect(daAna?.gastosDaCasa.map((g) => g.id).sort()).toEqual(["aluguel", "feira", "presente", "roupa", "tenis-dele"]);
+      // O mesmo número que o Digitar mostrou, gasto por gasto, para quem lançou.
+      let soma = 0;
+      for (const l of db.linhas.filter((x) => x.category === "EXPENSE")) {
+        const dono = l.userId === ANA.userId ? "ana" : "lucas";
+        const divisao = dono === "ana" ? daAna!.divisao : doLucas!.divisao;
+        const e = escolhasDoLancamento({ ...l, parteDeQuemLancou: l.parteDeQuemLancou ?? null }, l.doCasal === true || (l.doCasal === null && l.parentCategory === "MORADIA"), divisao);
+        const r = resultadoDoGasto(l.amount, e, divisao);
+        const paraAna = r.tipo === "fora" ? 0 : (r.tipo === "parDeve") === (dono === "ana") ? r.valor : -r.valor;
+        soma += paraAna;
+      }
+      expect(Math.round(soma * 100) / 100).toBe(360);
+    });
+
+    it("o que entra no acerto por quem pagou não vai para o Só meu; o resto continua podendo", async () => {
+      db.linhas = [
+        L(ANA, { id: "do-lucas", amount: 90, doCasal: false, doPar: true }),
+        L(ANA, { id: "lucas-pagou", amount: 150, doCasal: false, pagouOPar: true }),
+        L(ANA, { id: "so-meu", amount: 80, doCasal: false }),
+      ];
+      expect(await marcarSoMeu(ctx(ANA, LUCAS), "do-lucas", true)).toBeNull();
+      expect(await marcarSoMeu(ctx(ANA, LUCAS), "lucas-pagou", true)).toBeNull();
+      expect(await marcarSoMeu(ctx(ANA, LUCAS), "so-meu", true)).not.toBeNull();
+      expect(db.linhas.map((l) => l.soMeu)).toEqual([false, false, true]);
+      // E marcar "Lucas pagou" num Só meu tira o Só meu (senão ele pagaria sem ver).
+      await marcarEscolhasDoCasal(ctx(ANA, LUCAS), "so-meu", { doCasal: false, doPar: false, pagouOPar: true, divisaoPropria: null, parteDeQuemLancou: null });
+      expect(db.linhas[2].soMeu).toBe(false);
+      // O Lucas não muda as escolhas do gasto da Ana.
+      expect(await marcarEscolhasDoCasal(ctx(LUCAS, ANA), "so-meu", { doCasal: true, doPar: false, pagouOPar: false, divisaoPropria: null, parteDeQuemLancou: null })).toBeNull();
+    });
   });
 });

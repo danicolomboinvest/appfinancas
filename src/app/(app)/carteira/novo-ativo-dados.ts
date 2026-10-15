@@ -112,7 +112,10 @@ export function formularioDoNovoAtivo(e: {
   modoHoje: "valor" | "titulos";
   taxaTxt: string;
   taxaNaoSei: boolean;
-  quando: { ano: number; mes: number } | null;
+  /** Dia da compra: sem o dia, vale o dia 1 do mês (o padrão, para não pesar). */
+  quando: { ano: number; mes: number; dia?: number } | null;
+  /** O valor de hoje é a estimativa do app (renda fixa sem "Digitar o valor exato"). */
+  estimado?: boolean;
 }): FormData {
   const { x, rendimento } = e;
   const fd = new FormData();
@@ -149,6 +152,9 @@ export function formularioDoNovoAtivo(e: {
   // Tesouro, a da pergunta "Qual taxa você comprou?". "Não sei" não grava nada.
   if (x.k === "rf" && rendimento && !e.naoSei) fd.set("taxaCompra", String(rendimento.indexador === "cdi" ? rendimento.percentual : rendimento.taxa).replace(".", ","));
   if (x.k === "tesouro" && !e.taxaNaoSei && lerNumero(e.taxaTxt) > 0) fd.set("taxaCompra", e.taxaTxt);
-  if (e.quando) fd.set("acquisitionDate", `${e.quando.ano}-${String(e.quando.mes).padStart(2, "0")}-01`);
+  if (e.quando) fd.set("acquisitionDate", `${e.quando.ano}-${String(e.quando.mes).padStart(2, "0")}-${String(e.quando.dia ?? 1).padStart(2, "0")}`);
+  // A estimativa do app parte da compra e passa a render sozinha; o valor que ela digitou vira o
+  // ponto de partida (lib/portfolio/valor-informado.ts).
+  if (e.estimado) fd.set("valorEstimado", "1");
   return fd;
 }

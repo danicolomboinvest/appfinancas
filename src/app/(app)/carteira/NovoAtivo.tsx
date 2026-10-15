@@ -14,7 +14,8 @@ import { NOME_DO_TIPO } from "@/lib/portfolio/classificacao";
 import { estimarRendaFixa, mesesDesde, textoDoRendimento, type Rendimento } from "@/lib/portfolio/estimativa-renda-fixa";
 import { buscarLocal, CLASSES_DE_FUNDO, formularioDoNovoAtivo, lerCotas, lerNumero, nomeDoFundo, taxaDoTitulo, type Achado, type TituloParaBusca } from "./novo-ativo-dados";
 import { createAssetAction } from "./actions";
-import { cotacaoDoNovoAtivoAction, type CotacaoDoNovoAtivo } from "./carteira-nova-actions";
+import { cotacaoDoNovoAtivoAction, estimarRendaFixaAction, type CotacaoDoNovoAtivo, type EstimativaDoNovoAtivo } from "./carteira-nova-actions";
+import { linhaDoRendimento } from "@/lib/portfolio/rendimento-texto";
 import type { NumeroDeFora } from "./dados";
 
 /**
@@ -80,7 +81,9 @@ export function NovoAtivo({
   const [modoHoje, setModoHoje] = useState<"valor" | "titulos">("valor");
   const hojeData = new Date();
   const [ano, setAno] = useState(hojeData.getFullYear());
-  const [quando, setQuando] = useState<{ ano: number; mes: number } | null>(null);
+  const [quando, setQuando] = useState<{ ano: number; mes: number; dia: number } | null>(null);
+  // A conta da Carteira (rendimento-renda-fixa.ts) feita no servidor; "carregando" enquanto não vem.
+  const [estServ, setEstServ] = useState<{ chave: string; r: EstimativaDoNovoAtivo | null } | null>(null);
   const [naoLembro, setNaoLembro] = useState(false);
   const [rende, setRende] = useState<Rendimento | null>(null);
   const [naoSei, setNaoSei] = useState(false);
@@ -158,7 +161,27 @@ export function NovoAtivo({
   const horaDaCotacao = cot ? new Date(cot.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
   const meses = quando ? mesesDesde(quando.ano, quando.mes, hojeData) : null;
   const rendimento: Rendimento | null = naoSei ? { indexador: "cdi", percentual: 100 } : rende;
-  const estimado = x?.k === "rf" && rendimento && meses !== null ? estimarRendaFixa({ investido, meses, rende: rendimento, cdiAoAno: cdiFracao, ipca12m: ipcaFracao }) : null;
+  // A mesma conta que a Carteira faz todo dia (CDI e IPCA dia a dia do Banco Central). Se o
+  // servidor não conseguir (séries ainda não carregadas), vale a conta aproximada pelo CDI de hoje.
+  const dataDaCompra = quando ? `${quando.ano}-${String(quando.mes).padStart(2, "0")}-${String(quando.dia).padStart(2, "0")}` : null;
+  const chaveDaEstimativa = x?.k === "rf" && rendimento && dataDaCompra && investido > 0 ? JSON.stringify([investido, dataDaCompra, rendimento, naoSei]) : null;
+  useEffect(() => {
+    if (!chaveDaEstimativa || passo !== "confere" || !rendimento || !dataDaCompra) return;
+    let vivo = true;
+    const chave = chaveDaEstimativa;
+    estimarRendaFixaAction({ investido, data: dataDaCompra, indexador: rendimento.indexador, taxa: rendimento.indexador === "cdi" ? rendimento.percentual : rendimento.taxa, naoSei })
+      .then((r) => vivo && setEstServ({ chave, r }))
+      .catch(() => vivo && setEstServ({ chave, r: null }));
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveDaEstimativa, passo]);
+  const estimadoLocal = x?.k === "rf" && rendimento && meses !== null ? estimarRendaFixa({ investido, meses, rende: rendimento, cdiAoAno: cdiFracao, ipca12m: ipcaFracao }) : null;
+  const doServidor = estServ && estServ.chave === chaveDaEstimativa ? estServ.r : null;
+  const calculando = chaveDaEstimativa !== null && passo === "confere" && estServ?.chave !== chaveDaEstimativa;
+  const estimado = doServidor ? doServidor.valor : estimadoLocal;
+  const linhaDoServidor = doServidor ? linhaDoRendimento({ como: doServidor.como, referenteA: doServidor.referenteA, estimado: doServidor.estimado, semTaxa: doServidor.semTaxa }) : null;
   const tit = x?.k === "tesouro" ? x.titulo : null;
   const valorHoje = (() => {
     if (!x) return 0;
@@ -172,7 +195,7 @@ export function NovoAtivo({
 
   function salvar() {
     if (!x) return;
-    const fd = formularioDoNovoAtivo({ x, investido, valorHoje, qtd, precoMedio, cotacao: cot?.preco ?? null, rendimento, naoSei, fundo, meta, qtdTitulos: lerNumero(qtdTitulos), modoHoje, taxaTxt, taxaNaoSei, quando });
+    const fd = formularioDoNovoAtivo({ x, investido, valorHoje, qtd, precoMedio, cotacao: cot?.preco ?? null, rendimento, naoSei, fundo, meta, qtdTitulos: lerNumero(qtdTitulos), modoHoje, taxaTxt, taxaNaoSei, quando, estimado: x.k === "rf" && !exato && estimado !== null });
     const totalDepois = totalAntes + valorHoje;
     startSalvar(async () => {
       const r = await createAssetAction({}, fd);
@@ -191,6 +214,7 @@ export function NovoAtivo({
     setHojeTxt(null);
     setQtdTitulos("");
     setQuando(null);
+    setEstServ(null);
     setNaoLembro(false);
     setRende(null);
     setNaoSei(false);
@@ -238,7 +262,7 @@ export function NovoAtivo({
         <div className="rounded-3xl p-5" style={{ background: "linear-gradient(145deg, var(--color-heroi-de), var(--color-heroi-para))", color: "var(--color-heroi-tinta)" }}>
           <p className="text-[14px] text-heroi-suave">Entrou na sua carteira</p>
           <p className="mt-1 text-[2.25rem] font-light leading-none tracking-[-0.03em] tabular-nums">{semDolar ? naTela(valorHoje) : money(totalNoFim ?? totalAntes + valorHoje)}</p>
-          <p className="mt-1 text-[14px] text-heroi-suave">Agora o app acompanha por você</p>
+          <p className="mt-1 text-[14px] text-heroi-suave">{textoDoFim(x)}</p>
         </div>
         <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 p-3.5">
           <span className="min-w-0">
@@ -414,12 +438,30 @@ export function NovoAtivo({
               const futuro = ano === hojeData.getFullYear() && k > hojeData.getMonth();
               const on = quando?.ano === ano && quando.mes === k + 1;
               return (
-                <button key={m} type="button" disabled={futuro} onClick={() => { setQuando({ ano, mes: k + 1 }); setNaoLembro(false); }} className={`min-h-11 rounded-full text-[14px] ${on ? "bg-ink font-medium text-surface" : "bg-surface-2 text-ink"} disabled:opacity-30`}>
+                <button key={m} type="button" disabled={futuro} onClick={() => { setQuando({ ano, mes: k + 1, dia: 1 }); setNaoLembro(false); }} className={`min-h-11 rounded-full text-[14px] ${on ? "bg-ink font-medium text-surface" : "bg-surface-2 text-ink"} disabled:opacity-30`}>
                   {m}
                 </button>
               );
             })}
           </div>
+          {quando && (
+            // O dia (15/10/2026): o padrão é o dia 1, para não pesar; quem sabe o dia escolhe.
+            <label className="flex items-center gap-3">
+              <span className="text-[14px] text-ink">Dia</span>
+              <select
+                value={quando.dia}
+                onChange={(e) => setQuando({ ...quando, dia: Number(e.target.value) })}
+                aria-label="Dia da compra"
+                className="min-h-11 rounded-full bg-surface-2 px-4 text-[15px] tabular-nums text-ink"
+              >
+                {Array.from({ length: diasDoMes(quando.ano, quando.mes, hojeData) }, (_, k) => k + 1).map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button type="button" onClick={() => { setNaoLembro(true); setQuando(null); }} aria-pressed={naoLembro} className={`min-h-11 w-fit rounded-full px-4 text-[14px] ${naoLembro ? "bg-ink text-surface" : "border border-border-strong text-ink"}`}>
             Não lembro
           </button>
@@ -557,10 +599,14 @@ export function NovoAtivo({
               <p className="mt-1.5 text-[13px] text-heroi-suave">
                 {valorHoje - investidoFinal >= 0 ? "+" : "−"}
                 {naTela(Math.abs(valorHoje - investidoFinal))}
-                {quando ? ` desde ${MES_A[quando.mes - 1]} ${quando.ano}` : ""}
+                {quando ? ` desde ${quando.dia > 1 ? `${quando.dia} de ` : ""}${MES_A[quando.mes - 1]} ${quando.ano}` : ""}
               </p>
               <p className="mt-2 text-[12.5px] text-heroi-suave">
-                {x.k === "rf"
+                {x.k === "rf" && calculando
+                  ? "Calculando pelo índice do Banco Central"
+                  : x.k === "rf" && linhaDoServidor
+                    ? `${naoSei ? "" : `${textoDoRendimento(rendimento!)}. `}${linhaDoServidor.texto}${linhaDoServidor.fonte ? ` · ${linhaDoServidor.fonte}` : ""}`
+                  : x.k === "rf"
                   ? `${naoSei ? "Estimado com 100% do CDI" : `Estimado com ${textoDoRendimento(rendimento!)}`}, antes do IR. ${fonteDoIndice ? `${rendimento?.indexador === "ipca" ? "IPCA" : "CDI"} ${fonteDoIndice.valor} · ${fonteDoIndice.fonte} · ${fonteDoIndice.quando}` : ""}`
                   : cot?.preco
                     ? `${cotas} cotas × cotação de hoje · ${horaDaCotacao}${semDolar ? ". O dólar de hoje não respondeu: o app converte ao salvar" : ""}`
@@ -648,4 +694,18 @@ function OutraTaxa({ onEscolher }: { onEscolher: (r: Rendimento) => void }) {
       </div>
     </div>
   );
+}
+
+/** Quantos dias do mês dá para escolher (no mês corrente, só até hoje). */
+function diasDoMes(ano: number, mes: number, hoje: Date): number {
+  const total = new Date(ano, mes, 0).getDate();
+  return ano === hoje.getFullYear() && mes === hoje.getMonth() + 1 ? hoje.getDate() : total;
+}
+
+/** O que o app acompanha sozinho de verdade, por tipo (15/10/2026). */
+function textoDoFim(x: Achado): string {
+  if (x.k === "bolsa" || x.k === "ext") return "Agora o app acompanha a cotação por você";
+  if ((x.k === "rf" || x.k === "tesouro") && !/poupan/i.test(x.nome)) return "Agora o app acompanha o rendimento por você";
+  // Fundo e poupança não têm conta pública diária: ela atualiza quando quiser.
+  return "Para atualizar o valor, toque nele e em Editar";
 }
