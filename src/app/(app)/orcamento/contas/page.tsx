@@ -201,7 +201,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
                 <li key={d.id} className="flex items-center gap-3 px-3 py-3">
                   <LogoDoCredor credor={d.credor} tipo={d.tipo} saude={saudeDe(d, selic ?? SELIC_DE_RESERVA)} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[16px] text-ink">{d.nome}</span>
+                    <span className="line-clamp-2 block break-words text-[16px] leading-snug text-ink">{d.nome}</span>
                     <span className="block text-[13px] text-ink-muted">{d.diaVencimento ? `todo dia ${d.diaVencimento}` : perfilDoTipo(d.tipo).nome}</span>
                   </span>
                   <span className="shrink-0 text-[16px] tabular-nums text-ink">{m(d.porMes)}</span>
