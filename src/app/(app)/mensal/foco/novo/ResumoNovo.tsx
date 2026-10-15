@@ -115,8 +115,8 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
     const antigos = (["hoje", "mes", "cats", "semana", "proximos"] as const)
       .filter((id) => disponiveis[id])
       .map((id): CartaoNaTela => ({ id, ...NOMES_DOS_CARTOES[id], tam: "l", node: disponiveis[id] }));
-    const cartoes: CartaoNaTela[] = [...antigos, ...(await carregarCartoesNovos(ctx, r))];
     const ordem = ordemQueVale(await lerOrdemDoResumo(ctx));
+    const cartoes: CartaoNaTela[] = [...antigos, ...(await carregarCartoesNovos(ctx, r, { assinaturas: ordem.includes("assin") }))];
     return (
       <div className="flex flex-col gap-5" data-resumo-novo={r.caso}>
         <ConquistasDeMetas ctx={ctx} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { GripHorizontal, Pencil, Plus, X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { salvarResumoAction } from "./actions";
@@ -17,7 +18,8 @@ export type CartaoNaTela = {
   id: string;
   nome: string;
   desc: string;
-  node: ReactNode;
+  /** Nulo: o cartão ainda não carregou o dado (o pesado só carrega depois do "Pronto"). */
+  node: ReactNode | null;
   /** "l" é o cartão largo de sempre; "q" é o quadradinho colorido (dois por linha). */
   tam: "l" | "q";
   /** As metas viram um só item na folha de adicionar: a pessoa escolhe qual. */
@@ -41,6 +43,7 @@ export function ResumoEditavel({
   const [folha, setFolha] = useState(false);
   const [escolhendoMeta, setEscolhendoMeta] = useState(false);
   const [, comecar] = useTransition();
+  const router = useRouter();
   const ordemSalva = useRef(ordemInicial.join("|"));
   const arrasto = useRef<{ id: string; gx: number; gy: number } | null>(null);
   const ponteiro = useRef({ x: 0, y: 0 });
@@ -56,8 +59,10 @@ export function ResumoEditavel({
     const atual = visiveis.join("|");
     if (atual === ordemSalva.current) return;
     ordemSalva.current = atual;
+    const faltaCarregar = visiveis.some((id) => porId.get(id)?.node == null);
     comecar(async () => {
       await salvarResumoAction(visiveis);
+      if (faltaCarregar) router.refresh();
     });
   }
 
@@ -174,7 +179,7 @@ export function ResumoEditavel({
                       </button>
                     </div>
                   )}
-                  <div className={`min-h-0 flex-1 ${editando ? "pointer-events-none select-none" : ""}`}>{c.node}</div>
+                  <div className={`min-h-0 flex-1 ${editando ? "pointer-events-none select-none" : ""}`}>{c.node ?? <Esperando nome={c.nome} />}</div>
                 </div>
               </div>
               {i === 0 && depoisDoPrimeiro && !editando ? <div className="col-span-2 flex flex-col gap-5 lg:col-span-4">{depoisDoPrimeiro}</div> : null}
@@ -248,6 +253,16 @@ export function ResumoEditavel({
           )}
         </div>
       </Modal>
+    </div>
+  );
+}
+
+/** O cartão que acabou de ser ligado e ainda não tem número: ganha o dado quando a pessoa toca em "Pronto". */
+function Esperando({ nome }: { nome: string }) {
+  return (
+    <div className="flex h-full min-h-[8.5rem] flex-col justify-center gap-1 rounded-3xl bg-surface-2 p-3.5">
+      <span className="text-[13px] font-semibold text-ink">{nome}</span>
+      <span className="text-[12.5px] leading-snug text-ink">O número aparece quando você tocar em Pronto.</span>
     </div>
   );
 }

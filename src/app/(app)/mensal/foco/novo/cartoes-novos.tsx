@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CircleDollarSign, CreditCard, PiggyBank, Receipt, ShieldCheck, Target } from "lucide-react";
+import { CircleDollarSign, CreditCard, PiggyBank, Receipt, Repeat, ShieldCheck, Target } from "lucide-react";
 import type { AuthContext } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
 import { semanaDasContas } from "@/lib/contas/semana-das-contas";
@@ -11,6 +11,11 @@ import { listarDividas } from "@/lib/repositories/divida.repo";
 import { gastoNoCartao, lerLimiteDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { listarMetasDaTela } from "@/lib/repositories/metas.repo";
 import { PREFIXO_DA_META, NOMES_DOS_CARTOES } from "@/lib/resumo/cartoes";
+import { montarAssinaturas } from "@/lib/assinaturas/montar";
+import { carregarRespostasDeAssinatura } from "@/lib/assinaturas/respostas";
+import { gastosDoMesParaAssinaturas, listarAssinaturasDela } from "@/lib/repositories/assinaturas.repo";
+import { carregarRaioX } from "@/app/(app)/mensal/foco/dados";
+import { carregarDinheiroPerdido } from "@/app/(app)/orcamento/contas/perdido/dados";
 import { serializarConta } from "@/app/(app)/orcamento/contas/serializar";
 import type { CartaoNaTela } from "./ResumoEditavel";
 import type { ResumoNovo as Dados } from "./dados";
@@ -56,16 +61,48 @@ async function seguro<T>(f: () => Promise<T>): Promise<T | null> {
   }
 }
 
-export async function carregarCartoesNovos(ctx: AuthContext, r: Dados): Promise<CartaoNaTela[]> {
+/**
+ * O total das assinaturas pelo mesmo cálculo da tela de Recorrentes (lib/assinaturas/montar). É o
+ * único cartão pesado (varre os lançamentos atrás de cobranças que se repetem), por isso só carrega
+ * quando a pessoa já ligou o cartão; se não, vem sem conteúdo e aparece depois do "Pronto".
+ */
+async function cartaoDeAssinaturas(ctx: AuthContext, r: Dados): Promise<CartaoNaTela["node"] | null> {
+  const m = r.foco.m;
+  const { ano, mes } = r.mes;
+  const [dela, raiox, perdido, respostas, lancamentosDoMes, contas] = await Promise.all([
+    listarAssinaturasDela(ctx),
+    carregarRaioX(ctx, ano, mes),
+    carregarDinheiroPerdido(ctx),
+    carregarRespostasDeAssinatura(ctx),
+    gastosDoMesParaAssinaturas(ctx, ano, mes),
+    listarContasAPagar(ctx),
+  ]);
+  const lista = montarAssinaturas({ dela, raiox, vivos: perdido?.vivos ?? [], contas, respostas, lancamentosDoMes });
+  if (lista.length === 0) return null;
+  const total = lista.reduce((s, a) => s + a.mensal, 0);
+  return (
+    <Quadrado
+      href="/orcamento/contas"
+      tom="accent"
+      icone={<Repeat size={17} aria-hidden />}
+      nome="Assinaturas"
+      numero={m(total)}
+      legenda={`por mês, em ${lista.length === 1 ? "1 assinatura" : `${lista.length} assinaturas`}`}
+    />
+  );
+}
+
+export async function carregarCartoesNovos(ctx: AuthContext, r: Dados, opcoes: { assinaturas: boolean }): Promise<CartaoNaTela[]> {
   const m = r.foco.m;
   const hoje = hojeEmBrasilia();
-  const [metas, dividas, contas, gastoCartao, limite, fundo] = await Promise.all([
+  const [metas, dividas, contas, gastoCartao, limite, fundo, assinaturas] = await Promise.all([
     seguro(() => listarMetasDaTela(ctx, new Date())),
     seguro(() => listarDividas(ctx)),
     seguro(() => listarContasAPagar(ctx)),
     seguro(() => gastoNoCartao(ctx, r.mes.ano, r.mes.mes)),
     seguro(() => lerLimiteDoCartao(ctx)),
     seguro(() => getEmergencyFund(ctx)),
+    opcoes.assinaturas ? seguro(() => cartaoDeAssinaturas(ctx, r)) : Promise.resolve(undefined),
   ]);
   const saida: CartaoNaTela[] = [];
   const dado = (id: keyof typeof NOMES_DOS_CARTOES, node: ReactNode) => saida.push({ id, ...NOMES_DOS_CARTOES[id], tam: "q", node });
@@ -151,6 +188,9 @@ export async function carregarCartoesNovos(ctx: AuthContext, r: Dados): Promise<
       />,
     );
   }
+
+  // Desligado: o cartão aparece na lista de adicionar, mas só ganha número depois do "Pronto".
+  if (opcoes.assinaturas ? assinaturas : true) dado("assin", assinaturas ?? null);
 
   for (const meta of (metas ?? []).slice(0, 12)) {
     const falta = Math.max(0, meta.alvo - meta.guardado);
