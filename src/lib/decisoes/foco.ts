@@ -1,6 +1,7 @@
 import { limiarCompraGrande } from "./foco-semana";
 import { CATEGORIAS_FIXAS, contasDoMes, semanaFixa, type ContaPendente, type ContasDoMes, type GastoDoDiaADia, type SemanaFixa } from "./semana-fixa";
-import { respostaSeguraOAviso, type AvisoDispensado } from "./resposta-ao-aviso";
+import type { AvisoDispensado } from "./resposta-ao-aviso";
+import { avisoResolvido, respostasDoFormatoAntigo, type AvisoAtual, type Resposta } from "@/lib/avisos/regra";
 import type { Titulos } from "@/lib/profiles/voice";
 
 /**
@@ -103,6 +104,11 @@ export type FocoEntrada = {
    * volta (ver resposta-ao-aviso.ts).
    */
   dispensados?: (string | AvisoDispensado)[];
+  /**
+   * As respostas da pessoa no mês, de todas as telas (lib/avisos/respostas.ts). O que já foi
+   * respondido sai daqui pela regra única (lib/avisos/regra.ts), não por regra deste motor.
+   */
+  respostas?: Resposta[];
   /**
    * O dia a dia do mês, gasto a gasto, e as contas (regra A, 13/10/2026). Omitido (testes antigos):
    * todo gasto fora das contas conta como de antes desta semana, e as contas são as categorias
@@ -308,6 +314,15 @@ export function gastoDepoisDoCombinado(gastos: GastoDoCombinado[], combinadoEm: 
   return Math.max(0, soma);
 }
 
+/** O item do motor como a regra única de avisos o entende (lib/avisos/regra.ts). */
+export function avisoDoItem(item: FocoItem): AvisoAtual | null {
+  const d = item.detalhe;
+  if (!d) return null;
+  if (d.tipo === "estouro" || d.tipo === "ritmo") return { tipo: d.tipo, categoria: d.categoria, gasto: d.gasto, passou: d.gasto - d.planejado };
+  if (d.tipo === "meta") return { tipo: "meta", metaId: d.metaId };
+  return { tipo: d.tipo };
+}
+
 export function montarFoco(e: FocoEntrada): FocoSaida {
   const { t, money } = e;
   const diasRestantes = Math.max(1, e.diasNoMes - e.dia + 1);
@@ -389,14 +404,10 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
   const hrefOrcamento = "/orcamento";
 
   if (!semDadoDoMes) {
-    // "Não gastar mais nada em X este mês" (teto zero) é a resposta dela a este aviso: com ele o
-    // estouro já está decidido e sai da lista (o teto aparece em "indo bem"). Sem isso o mesmo
-    // aviso voltava com os mesmos botões, e parecia que o botão não tinha feito nada. Teto maior
-    // que zero veio do aviso de ritmo, antes do estouro: passar do plano depois dele é novidade.
-    const decidiuParar = (key: string) => e.tetos?.some((x) => x.categoria === key && x.valor <= 0) ?? false;
-    // O maior estouro (em reais) primeiro: é ele que não pode cair no "+N podem esperar".
+    // O maior estouro (em reais) primeiro: é ele que não pode cair no "+N podem esperar". O que
+    // ela já respondeu (teto zero, foi pontual, cobriu...) sai mais abaixo, pela regra única.
     const estouradas = e.categorias
-      .filter((c) => c.planejado > 0 && c.gasto - c.planejado >= FOLGA_ESTOURO && !decidiuParar(c.key))
+      .filter((c) => c.planejado > 0 && c.gasto - c.planejado >= FOLGA_ESTOURO)
       .sort((a, b) => b.gasto - b.planejado - (a.gasto - a.planejado));
     for (const c of estouradas) {
       itens.push({
@@ -464,9 +475,9 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
       const fixo = Math.min(c.fixoAutomatico ?? 0, c.gasto);
       const planoVariavel = c.planejado - fixo;
       const usadoVariavel = planoVariavel >= FOLGA_ESTOURO ? (c.gasto - fixo) / planoVariavel : 0;
-      const temTeto = e.tetos?.some((x) => x.categoria === c.key);
       // Abaixo de 100%: categoria já paga inteira (o aluguel do dia 5) não é "correndo rápido".
-      if (!c.fixa && usadoVariavel >= 0.7 && c.gasto < c.planejado - FOLGA_ESTOURO && !temTeto && !itens.some((i) => i.id === `estouro-${c.key}`)) {
+      // Com teto ("Segurar em"), ele sai pela regra única: vira o cartão do combinado.
+      if (!c.fixa && usadoVariavel >= 0.7 && c.gasto < c.planejado - FOLGA_ESTOURO && !itens.some((i) => i.id === `estouro-${c.key}`)) {
         itens.push({
           id: `ritmo-${c.key}`,
           nivel: 3,
@@ -503,15 +514,14 @@ export function montarFoco(e: FocoEntrada): FocoSaida {
     itens.push({ id: "raiox", nivel: 3, titulo: t.focoRaioXT(e.raiox.n), texto: t.focoRaioXP(money(e.raiox.anual)), href: "/decidir/raio-x", acao: t.focoAcao, detalhe: { tipo: "raiox", n: e.raiox.n, anual: e.raiox.anual } });
   }
 
-  // O que ela dispensou ("foi pontual", "entendi") some da lista até o mês (ou a semana) virar.
-  if (e.dispensados && e.dispensados.length > 0) {
-    const fora = new Map(e.dispensados.map((d) => (typeof d === "string" ? [d, null] : [d.id, d.passou])));
+  // O que ela já respondeu, em qualquer tela (foi pontual, cobriu, deixou assim, segurou, subiu o
+  // plano, "Agora não" no Resumo), sai da lista pela regra única (lib/avisos/regra.ts). Volta só
+  // quando a regra diz (a categoria piorou bem, o mês virou).
+  const respostas = [...(e.respostas ?? []), ...respostasDoFormatoAntigo(e.dispensados, e.tetos)];
+  if (respostas.length > 0) {
     for (let i = itens.length - 1; i >= 0; i--) {
-      const item = itens[i];
-      if (!fora.has(item.id)) continue;
-      // Passou bem mais do que na hora da resposta: o aviso volta (é novidade).
-      const volta = item.detalhe?.tipo === "estouro" && !respostaSeguraOAviso(fora.get(item.id), item.detalhe.gasto - item.detalhe.planejado);
-      if (!volta) itens.splice(i, 1);
+      const aviso = avisoDoItem(itens[i]);
+      if (aviso && avisoResolvido(aviso, respostas)) itens.splice(i, 1);
     }
   }
 
