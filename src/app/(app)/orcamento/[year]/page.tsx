@@ -24,6 +24,8 @@ import { elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
 import { serverMoney } from "@/lib/money-server";
 import { Explica } from "@/components/ui/Explica";
 import { resumoDoMes } from "@/lib/planning/month-budget-summary";
+import { avisoDaRenda } from "@/lib/planning/livre-do-mes";
+import { carregarLivreDoMes } from "@/lib/repositories/livre-do-mes.repo";
 import { EditarPlano } from "@/components/budget/EditarPlano";
 import { ComecarOrcamento } from "@/components/budget/ComecarOrcamento";
 import { ajustesDoPadrao } from "@/lib/planning/padrao-orcamento";
@@ -139,9 +141,11 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   // As categorias do mês no jeito do Copilot (ver CategoriasDoMes): previsão, a vencer, Cobrir.
   // As respostas dela no mês, de qualquer tela (o "O que fazer?" daqui, o Decidir, o Resumo): a
   // categoria que ela já respondeu sai do aviso, e só volta pela regra única (lib/avisos).
-  const [detalhe, respostasDoMes] = currentMonthData
-    ? await Promise.all([carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now), carregarRespostasDoMes(ctx, { ano: year, mes: mesEscolhido }, now)])
-    : [null, null];
+  // O livre do mês vem da fonte única (lib/planning/livre-do-mes): o mesmo número do Decidir, do
+  // Posso comprar, dos Recorrentes e do widget.
+  const [detalhe, respostasDoMes, livre] = currentMonthData
+    ? await Promise.all([carregarDetalheDoOrcamento(ctx, year, currentMonthData.month, now), carregarRespostasDoMes(ctx, { ano: year, mes: mesEscolhido }, now), carregarLivreDoMes(ctx, { ano: year, mes: currentMonthData.month })])
+    : [null, null, null];
   const aVencerNoMes = detalhe ? Object.values(detalhe.porCategoria).reduce((s, c) => s + c.aVencer, 0) : 0;
   // Gasto sem categoria (importado e ainda sem resposta): entra no Resumo e na semana, então entra
   // aqui também, numa linha própria. Antes o Orçamento dizia "Gastou R$ 4.432" e o Resumo R$ 8.000.
@@ -150,8 +154,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   const resumoMes =
     currentMonthData
       ? resumoDoMes({
-          planejado: currentMonthData.totalPlanned,
-          gasto: currentMonthData.totalSpent + gastoSemCategoria,
+          planejado: livre?.tipo === "plano" ? livre.planejado : currentMonthData.totalPlanned,
+          gasto: livre?.tipo === "plano" ? livre.gasto : currentMonthData.totalSpent + gastoSemCategoria,
           hoje: now,
           ano: year,
           mes: currentMonthData.month,
@@ -202,7 +206,8 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   });
   const respondidas = respostasDoMes ? linhasDoMes.filter((l) => l.estado === "passou" && categoriaResolvida(respostasDoMes, "estouro", l.key)).map((l) => l.key) : [];
   const essenciais = [...categoriasEssenciais(ctx.categorias?.prefs)];
-  const livreDoMes = resumoMes ? resumoMes.restante : null;
+  const livreDoMes = livre?.tipo === "plano" ? livre.valor : null;
+  const avisoRenda = livre ? avisoDaRenda(livre, (v) => money(v, { round: true })) : null;
   const diasRestantes = resumoMes ? Math.max(1, resumoMes.diasRestantes) : 1;
 
   // "Seu plano" (o resumo que o Editar meu plano abre primeiro): as categorias com plano e as que
@@ -258,7 +263,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           (07/10/2026): com a curva dentro do cartão, na largura toda ela ficava do tamanho da tela. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
         {/* Mês sem plano (novembro antes de planejar): nada de "R$ 1.800 acima do plano" e "180000%". */}
-        {hasPlan && resumoMes && resumoMes.planejado > 0 && currentMonthData && (
+        {hasPlan && resumoMes && livre?.tipo === "plano" && currentMonthData && (
           // O herói do Orçamento (protótipo aprovado): o plano do mês, o livre grande e uma barra.
           <HeroiDoTema>
             <div className="flex items-baseline justify-between gap-3">
@@ -266,11 +271,11 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
               <p className="text-[15px] tabular-nums text-heroi-tinta">{money(resumoMes.planejado, { round: true })}</p>
             </div>
             <p className="flex flex-wrap items-baseline gap-x-2">
-              <ValorDestaque texto={money(Math.abs(resumoMes.restante), { round: true })} />
-              <span className="text-[17px] text-heroi-suave">{resumoMes.restante >= 0 ? "livres" : "acima do plano"}</span>
+              <ValorDestaque texto={money(Math.abs(livre.valor), { round: true })} />
+              <span className="text-[17px] text-heroi-suave">{livre.valor >= 0 ? "livres" : "acima do plano"}</span>
             </p>
             <div className="h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)]">
-              <div className={`h-full rounded-full ${resumoMes.restante >= 0 ? "bg-[var(--color-heroi-tinta)]" : "bg-danger"}`} style={{ width: `${Math.min(100, (resumoMes.gasto / Math.max(1, resumoMes.planejado)) * 100)}%` }} />
+              <div className={`h-full rounded-full ${livre.valor >= 0 ? "bg-[var(--color-heroi-tinta)]" : "bg-danger"}`} style={{ width: `${Math.min(100, (resumoMes.gasto / Math.max(1, resumoMes.planejado)) * 100)}%` }} />
             </div>
             <div className="flex items-baseline justify-between gap-3 text-sm text-heroi-suave">
               {/* O que ainda vai vencer (o curso do dia 25) já pesa no plano, mas não saiu: o "Gastou"
@@ -281,6 +286,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
               </span>
               <span className="tabular-nums">{Math.round((resumoMes.gasto / Math.max(1, resumoMes.planejado)) * 100)}%</span>
             </div>
+            {avisoRenda && <p className="text-[13px] text-heroi-suave" data-aviso-renda>{avisoRenda}</p>}
           </HeroiDoTema>
         )}
         <div className="flex min-w-0 flex-col gap-6 lg:gap-4">
