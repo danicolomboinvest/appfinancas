@@ -814,6 +814,25 @@ export function StatementImport({
     if (phase === "review") advanceReview(chaves);
   }
 
+  /**
+   * Nada novo para gravar, mas o que já estava no app ainda pode ficar com o dia e o valor do
+   * arquivo (o lançado à mão sem a gorjeta, 15/10/2026). Antes o "Pronto" só fechava, e o
+   * lançamento à mão ficava com o valor de antes.
+   */
+  function fecharSemNadaNovo() {
+    const conciliar = items.flatMap((it) => (!it.ignorar && it.jaNoApp?.id && !it.jaNoApp.faturaAberta ? [{ id: it.jaNoApp.id, valor: it.estorno ? -it.amount : it.amount, data: it.date, descricao: it.description }] : []));
+    if (conciliar.length === 0) return onDone();
+    startTransition(async () => {
+      try {
+        const r = await conciliarJaNoAppAction(conciliar);
+        if (r.error) console.error("conciliarJaNoAppAction", r.error);
+      } catch (err) {
+        console.error("conciliarJaNoAppAction falhou", err);
+      }
+      onDone();
+    });
+  }
+
   function handleImport() {
     // Gasto sem categoria ("Não sei agora") ENTRA, sem categoria: antes ele sumia calado da
     // importação, e o mês ficava com o saldo inflado. O servidor já grava gasto sem categoria
@@ -2142,7 +2161,7 @@ export function StatementImport({
             </>
           ) : (
             // Nada novo (o mesmo arquivo de novo): "Pronto" fecha, em vez de ficar apagado sem saída.
-            <Button type="button" className="min-h-12" onClick={semNadaParaGravar ? onDone : handleImport} disabled={isPending}>
+            <Button type="button" className="min-h-12" onClick={semNadaParaGravar ? fecharSemNadaNovo : handleImport} disabled={isPending}>
               {isPending ? t.impImportando : importable.length === 0 ? "Pronto" : `Pronto, anotar ${importable.length}`}
               <ArrowRight size={16} className="ml-1.5" />
             </Button>
