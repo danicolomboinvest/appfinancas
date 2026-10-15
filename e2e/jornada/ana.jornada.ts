@@ -19,6 +19,7 @@ import {
   moverParaPerfil,
   naoEAssinatura,
   pagueiNaConta,
+  pilula,
   prepararVoz,
   tocarNaSugestao,
   tocarNoLembrar,
@@ -397,6 +398,10 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       if (chips.dia !== "Hoje") await c.anotar(p, { tipo: "texto", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Recorrentes (linha aberta)", esperado: "o dia abre em Hoje", visto: chips.dia });
       const entrou = p.locator("[data-entrou-nos-gastos]");
       if (!(await entrou.count()) || !/Aluguel[\s\S]*2\.200,00/.test(await entrou.innerText())) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Recorrentes", esperado: "Entrou nos gastos: Aluguel R$ 2.200,00", visto: (await entrou.count()) ? await entrou.innerText() : "não aparece" });
+      // A linha volta paga depois do refresh; a pílula ("Aluguel paga", com Desfazer) some em 6 s.
+      await p.waitForLoadState("networkidle").catch(() => undefined);
+      await expect.poll(() => p.getByRole("button", { name: "Marcar Aluguel como paga" }).count(), { timeout: 15_000 }).toBe(0).catch(() => undefined);
+      await pilula(p, "Aluguel paga").waitFor({ state: "hidden", timeout: 15_000 }).catch(() => undefined);
       if (await p.getByRole("button", { name: "Marcar Aluguel como paga" }).count()) await c.anotar(p, { tipo: "tela", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Recorrentes", esperado: "o aluguel paga", visto: "continua com o Paguei" });
       await conferirTelaVelha(p, c, ["Resumo", "Orçamento", "Transações"]);
       const { orc, trans } = await conferirGastoPorCategoria(p, c, NOV, "Paguei aluguel");
@@ -433,8 +438,9 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
           return;
         }
         await link.click();
-        const lista = await pg.locator("[data-confirmacao-do-arquivo]").innerText();
-        if (!/ALUGUEL[\s\S]{0,120}já estava no app \(Paguei\)/i.test(lista)) await c.anotar(pg, { tipo: "texto", telaDeOrigem: "Importar (extrato com o aluguel)", telaErrada: "Conferência", esperado: "PIX ENVIADO ALUGUEL · já estava no app (Paguei)", visto: lista.split("\n").filter((l) => /ALUGUEL|Paguei|já esta/i.test(l)).join(" / ") || "(sem a linha)" });
+        // A lista "já estavam no app" abre embaixo do cartão da conferência, na mesma folha.
+        const lista = await pg.getByRole("dialog").innerText();
+        if (!/Aluguel[\s\S]{0,120}já estava no app \(Paguei\)/i.test(lista)) await c.anotar(pg, { tipo: "texto", telaDeOrigem: "Importar (extrato com o aluguel)", telaErrada: "Conferência", esperado: "PIX ENVIADO ALUGUEL · já estava no app (Paguei)", visto: lista.split("\n").filter((l) => /ALUGUEL|Paguei|já esta/i.test(l)).join(" / ") || "(sem a linha)" });
       });
       const { orc, trans } = await conferirGastoPorCategoria(p, c, NOV, "extrato novembro");
       const alugueis = trans.linhas.filter((l) => bate(l.valor, -2200));
