@@ -307,3 +307,14 @@ export async function lerAssinaturaNoDinheiroPerdido(p: Page, caderno: Caderno, 
   const t = (await li.textContent()) ?? "";
   return /Não uso/.test(t) ? "Não uso" : /Uso/.test(t) ? "Uso" : /Para conferir/.test(t) ? "Para conferir" : t.trim().slice(0, 40);
 }
+
+/** Raio-X: o lembrete de cancelar no item ("lembrete dia 1", "pede o dia", ou "sem lembrete"). */
+export async function lerLembreteNoRaioX(p: Page, caderno: Caderno, nome: string): Promise<string> {
+  await abrir(p, "/decidir/raio-x", caderno, "Raio-X");
+  const item = p.locator('[data-guia="raiox-item"]').filter({ has: p.locator("p", { hasText: exato(nome) }) }).first();
+  if (!(await item.count())) return "fora";
+  const selo = item.locator("[data-lembrete]");
+  if (await selo.count()) return ((await selo.textContent()) ?? "").replace(/\s+/g, " ").trim();
+  if (await item.getByText("Que dia ela cobra?").count()) return "pede o dia";
+  return "sem lembrete";
+}
