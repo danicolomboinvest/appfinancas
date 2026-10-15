@@ -63,7 +63,12 @@ export type TipoDecisao =
    * Os cartões que a pessoa escolheu ver no Resumo e a ordem (lib/resumo/cartoes). Um por conta e
    * perfil, chave "ordem", `dados.ordem` com os ids.
    */
-  | "resumo_layout";
+  | "resumo_layout"
+  /**
+   * O ganho (atual menos investido) e o total da Carteira de um dia, para o cartão de rendimento do
+   * mês do Resumo (lib/carteira/rendimento). Um por dia e perfil, chave "AAAA-MM-DD".
+   */
+  | "carteira_dia";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;
@@ -256,4 +261,25 @@ export async function lerOrdemDoResumo(ctx: AuthContext): Promise<unknown> {
 
 export async function guardarOrdemDoResumo(ctx: AuthContext, ordem: string[]) {
   return registrarDecisaoUnica(ctx, { tipo: "resumo_layout", chave: "ordem", dados: { ordem } });
+}
+
+/** Guarda o ganho e o total da Carteira de hoje, uma vez por dia (idempotente). */
+export async function registrarCarteiraDoDia(ctx: AuthContext, dia: string, ganho: number | null, total: number) {
+  const ja = await prisma.decisao.count({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "carteira_dia", chave: dia } });
+  if (ja > 0) return;
+  await registrarDecisaoUnica(ctx, { tipo: "carteira_dia", chave: dia, dados: { ganho, total } });
+}
+
+/** Os registros diários da Carteira de `desde` (AAAA-MM-DD) em diante. */
+export async function lerCarteiraDosDias(ctx: AuthContext, desde: string): Promise<{ dia: string; ganho: number; total: number }[]> {
+  const linhas = await prisma.decisao.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "carteira_dia", chave: { gte: desde } },
+    select: { chave: true, dados: true },
+    orderBy: { chave: "asc" },
+    take: 80,
+  });
+  return linhas.flatMap((l) => {
+    const d = l.dados as { ganho?: unknown; total?: unknown } | null;
+    return l.chave && typeof d?.ganho === "number" && typeof d.total === "number" ? [{ dia: l.chave, ganho: d.ganho, total: d.total }] : [];
+  });
 }
