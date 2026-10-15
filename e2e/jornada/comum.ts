@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Caderno, PASTA_DE_SAIDA, lerAchados, resumoDosAchados, type Achado, type TipoDeAchado } from "./achados";
 import { irPara, relogioNaPagina } from "./relogio";
-import { aba, peloMenu } from "./acoes";
+import { aba, peloMenu, quandoPreencher } from "./acoes";
 import { textoVisivel } from "./texto";
 import { conferirTextoELayout } from "./telas";
 
@@ -12,8 +12,9 @@ import { conferirTextoELayout } from "./telas";
  * a cópia guardada da tela em vez da nova depois de uma ação) e o fechamento por tipo de achado.
  */
 
-export async function novaPagina(p: Page) {
+export async function novaPagina(p: Page, c?: Caderno) {
   await relogioNaPagina(p);
+  if (c) quandoPreencher(async (pg, tela) => void (await conferirTextoELayout(pg, c, tela)));
 }
 
 export async function dia(c: Caderno, diaHora: string, paginas: Page[]) {

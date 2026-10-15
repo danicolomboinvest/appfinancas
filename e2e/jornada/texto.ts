@@ -63,6 +63,19 @@ export async function problemasDeLayout(p: Page): Promise<ProblemaDeLayout[]> {
       }
       return false;
     };
+    // O campo em que ela está digitando não pode estar coberto (barra presa no rodapé etc.).
+    const foco = document.activeElement;
+    if (foco instanceof HTMLInputElement && visivel(foco)) {
+      const b = foco.getBoundingClientRect();
+      const x = b.left + b.width / 2;
+      const y = b.top + b.height / 2;
+      if (y > 0 && y < window.innerHeight) {
+        const topo = document.elementFromPoint(x, y);
+        if (topo && topo !== foco && !foco.contains(topo) && !topo.contains(foco) && !(foco.labels && Array.from(foco.labels).some((l) => l.contains(topo)))) {
+          r.push({ motivo: "campo em uso coberto por outro elemento", onde: `${foco.getAttribute("aria-label") ?? foco.name ?? "campo"} sob "${nome(topo)}"` });
+        }
+      }
+    }
     let cortados = 0;
     for (const el of Array.from(document.body.querySelectorAll("*"))) {
       if (cortados > 8) break;

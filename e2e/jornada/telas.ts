@@ -209,12 +209,13 @@ export async function lerMetas(p: Page, caderno: Caderno) {
   const iG = ls.findIndex((l) => l === "Guardado nas metas");
   const total = iG >= 0 ? reais(ls.slice(iG + 1, iG + 3).join(" ")) : null;
   const metas: Record<string, number> = {};
-  for (let i = 0; i < ls.length - 3; i++) {
-    if (/^(Atrasada|No ritmo|Adiantada|Chegou|Pausada|Concluída|Sem data)/.test(ls[i])) {
-      const nome = ls[i + 1];
-      const v = ls.slice(i + 2, i + 6).join(" ").match(/R\$\s*([\d.]+(?:,\d+)?)/);
-      if (v) metas[nome] = reais(`R$ ${v[1]}`) ?? 0;
-    }
+  // Cada cartão: (selos) · nome · "N%" · "R$ valor" · "de R$ alvo". A fileira de fotos de cima
+  // também tem nome e "N%", mas sem valor logo depois.
+  for (let i = iG + 1; i < ls.length - 2; i++) {
+    if (!/^\d+%$/.test(ls[i + 1])) continue;
+    const depois = ls.slice(i + 2, i + 5).join(" ");
+    const v = depois.match(/^R\$\s*([\d.]+(?:,\d+)?)/);
+    if (v) metas[ls[i]] = reais(`R$ ${v[1]}`) ?? 0;
   }
   return { total, metas };
 }

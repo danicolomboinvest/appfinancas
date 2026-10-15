@@ -16,6 +16,18 @@ export async function entrar(p: Page, email: string) {
   await p.waitForLoadState("networkidle").catch(() => undefined);
 }
 
+/**
+ * Chamado depois de preencher um campo (o teste liga em conferirTextoELayout): pega campo coberto
+ * e tela cortada no meio da ação, que é quando ela vê.
+ */
+let aoPreencher: (p: Page, tela: string) => Promise<void> = async () => undefined;
+export function quandoPreencher(f: (p: Page, tela: string) => Promise<void>) {
+  aoPreencher = f;
+}
+
+/** Os campos de dinheiro leem dígitos como centavos: "4000,00" vira R$ 4.000. */
+export const digitado = (v: number) => v.toFixed(2).replace(".", ",");
+
 export async function sair(p: Page) {
   await p.context().clearCookies();
 }
@@ -172,8 +184,8 @@ export async function lapis(p: Page, ano: number, nomeDaCategoria: string, valor
   const painel = p.locator("[data-painel-categoria]");
   await painel.getByRole("button", { name: /Plano de R\$|Definir um plano/ }).click();
   const campo = p.getByLabel(/Planejado por mês/);
-  await campo.fill("");
-  await campo.pressSequentially(String(Math.round(valor * 100)));
+  await campo.fill(digitado(valor));
+  await aoPreencher(p, "Orçamento (lápis)");
   await p.getByRole("button", { name: "Salvar", exact: true }).click();
   await p.waitForLoadState("networkidle").catch(() => undefined);
   await p.waitForTimeout(500);
@@ -251,8 +263,8 @@ export async function naoEParcela(p: Page, nome: string) {
   await p.goto("/orcamento/contas");
   await p.getByRole("button", { name: `Mais opções de ${nome}` }).first().click();
   await p.getByRole("menuitem", { name: "Não é parcela" }).or(p.getByRole("button", { name: "Não é parcela" })).first().click();
-  const confirma = p.getByRole("button", { name: "Não é parcela", exact: true });
-  if (await confirma.count()) await confirma.last().click();
+  const confirma = p.getByRole("alertdialog").getByRole("button", { name: "Não é parcela", exact: true });
+  if (await confirma.count()) await confirma.click();
   await pilula(p, /não é parcela/i).waitFor({ timeout: 15_000 }).catch(() => undefined);
   await p.waitForLoadState("networkidle").catch(() => undefined);
 }
@@ -264,7 +276,8 @@ export async function criarMeta(p: Page, nome: string, valor: number) {
   const d = p.getByRole("dialog", { name: "Nova meta" });
   await d.getByLabel("Nome da meta").fill(nome);
   await d.getByRole("button", { name: "Continuar", exact: true }).click();
-  await d.getByLabel("Quanto você precisa").fill(String(valor));
+  await d.getByLabel("Quanto você precisa").fill(digitado(valor));
+  await aoPreencher(p, "Nova meta (Quanto você precisa?)");
   for (let i = 0; i < 4; i++) {
     const criar = d.getByRole("button", { name: "Criar meta", exact: true });
     if (await criar.count()) break;
@@ -278,7 +291,8 @@ export async function criarMeta(p: Page, nome: string, valor: number) {
 export async function apagarMeta(p: Page, nome: string, desfazer = false) {
   await p.goto("/planejamento/metas");
   await p.getByRole("button", { name: `Mais opções de ${nome}` }).first().click();
-  await p.getByRole("menuitem", { name: "Apagar" }).or(p.getByRole("button", { name: "Apagar", exact: true })).first().click();
+  await p.getByRole("menuitem", { name: "Apagar" }).click();
+  await p.getByRole("alertdialog").getByRole("button", { name: "Apagar", exact: true }).click();
   const t = pilula(p, "Meta apagada");
   await t.waitFor({ timeout: 15_000 });
   if (desfazer) await t.getByRole("button", { name: "Desfazer" }).click();
@@ -287,11 +301,12 @@ export async function apagarMeta(p: Page, nome: string, desfazer = false) {
 
 export async function aporteNaMeta(p: Page, nome: string, valor: number) {
   await p.goto("/planejamento/metas");
-  await p.getByText(nome, { exact: true }).first().click();
+  await p.locator('a[href^="/planejamento/metas/"]').filter({ hasText: nome }).first().click();
   await p.waitForURL(/\/planejamento\/metas\/.+/);
   await p.getByRole("button", { name: "Adicionar", exact: true }).first().click();
-  await p.getByLabel("Valor").fill(String(valor));
-  await p.getByRole("button", { name: "Adicionar", exact: true }).last().click();
+  await p.getByLabel("Valor").fill(digitado(valor));
+  await aoPreencher(p, "Meta (Quanto você vai adicionar?)");
+  await p.locator("section").filter({ hasText: "Quanto você vai adicionar?" }).getByRole("button", { name: "Adicionar", exact: true }).click();
   await p.waitForLoadState("networkidle").catch(() => undefined);
   await p.waitForTimeout(800);
 }
@@ -305,4 +320,26 @@ export async function fecharMes(p: Page, nomeDoMes: string) {
   if (await deixar.count()) await deixar.first().click();
   await p.getByRole("button", { name: new RegExp(`^Fechar ${nomeDoMes}`, "i") }).click();
   await p.getByRole("button", { name: /Voltar ao Resumo/ }).or(p.getByRole("link", { name: /Voltar ao Resumo/ })).first().waitFor({ timeout: 20_000 });
+}
+
+/** Foto do topo → "Perfil" → toca no perfil. */
+export async function trocarPerfil(p: Page, nome: string) {
+  await p.goto("/mensal/foco");
+  await p.getByRole("button", { name: "Abrir perfil e conta" }).click();
+  const d = p.getByRole("dialog", { name: "Perfil" });
+  await d.getByRole("button", { name: new RegExp(nome) }).first().click();
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await p.waitForTimeout(800);
+}
+
+/** Empresa: "+" → Vendi → valor → Registrar venda. */
+export async function vendiNaEmpresa(p: Page, valor: number) {
+  await p.goto("/empresa");
+  await p.getByRole("button", { name: "Registrar" }).first().click();
+  await p.getByRole("button", { name: /^Vendi/ }).first().click();
+  const campo = p.getByRole("dialog").locator("input").first();
+  await campo.fill(digitado(valor));
+  await p.getByRole("button", { name: "Registrar venda" }).click();
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await p.waitForTimeout(800);
 }

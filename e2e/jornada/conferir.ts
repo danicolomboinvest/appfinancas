@@ -159,3 +159,18 @@ export function mesAtual() {
 export function definirMesAtual(m: Mes) {
   mesDaJornada = m;
 }
+
+/**
+ * Um mês que já passou: o Resumo daquele mês, o Orçamento daquele mês e Gastos daquele mês
+ * mostram o mesmo gasto por categoria (os três olham o mês inteiro).
+ */
+export async function conferirMesPassado(p: Page, c: Caderno, m: Mes, origem: string) {
+  const res = await lerResumo(p, c, m);
+  const { orc, gastos } = await conferirGastoPorCategoria(p, c, m, `${origem} (${m.mes}/${m.ano})`, { atual: false });
+  for (const [nome, v] of Object.entries(res.categorias)) {
+    const g = gastos.categorias[nome];
+    if (g == null && v.valor === 0) continue;
+    if (!bate(v.valor, g ?? 0)) await c.anotar(p, { tipo: "numero", telaDeOrigem: `Gastos ${m.mes}/${m.ano}`, telaErrada: `Resumo de ${m.mes}/${m.ano}`, esperado: `${nome} ${brl(g ?? 0)} (Gastos do mês)`, visto: `${brl(v.valor)} (${v.texto})`, chave: `${c.perfil}|resumo-passado|${nome}|${origem}` });
+  }
+  return { res, orc, gastos };
+}

@@ -117,24 +117,28 @@ export function BarraDaMeta({ metaId, meta, editarEm }: { metaId: string; meta: 
           </button>
         </section>
       )}
-      <div className="sticky bottom-[calc(10px+var(--safe-bottom))] z-10 mt-auto flex items-center gap-2.5 pt-1.5">
-        <button type="button" onClick={() => setTipo("adicionar")} className="flex h-[54px] flex-1 items-center justify-center gap-2 rounded-full bg-ink text-[17px] font-semibold text-canvas shadow-[0_14px_28px_-14px_rgba(40,10,20,0.55)]">
-          <Plus size={18} aria-hidden />
-          Adicionar
-        </button>
-        <button type="button" aria-label="Retirar" onClick={() => setTipo("retirar")} className={redondo}>
-          <Minus size={20} aria-hidden />
-        </button>
-        {editarEm ? (
-          <Link href={editarEm} aria-label="Editar" className={redondo}>
-            <Pencil size={18} aria-hidden />
-          </Link>
-        ) : (
-          <AbrirFolhaDaMeta meta={meta} rotulo="Editar" className={redondo}>
-            <Pencil size={18} aria-hidden />
-          </AbrirFolhaDaMeta>
-        )}
-      </div>
+      {/* Com o "Quanto você vai adicionar?" aberto, a barra sai: ela é presa no rodapé e cobria o
+          campo do valor a 375 px (jornada de 14/10/2026). O quadro já tem Adicionar e Cancelar. */}
+      {!tipo && (
+        <div className="sticky bottom-[calc(10px+var(--safe-bottom))] z-10 mt-auto flex items-center gap-2.5 pt-1.5">
+          <button type="button" onClick={() => setTipo("adicionar")} className="flex h-[54px] flex-1 items-center justify-center gap-2 rounded-full bg-ink text-[17px] font-semibold text-canvas shadow-[0_14px_28px_-14px_rgba(40,10,20,0.55)]">
+            <Plus size={18} aria-hidden />
+            Adicionar
+          </button>
+          <button type="button" aria-label="Retirar" onClick={() => setTipo("retirar")} className={redondo}>
+            <Minus size={20} aria-hidden />
+          </button>
+          {editarEm ? (
+            <Link href={editarEm} aria-label="Editar" className={redondo}>
+              <Pencil size={18} aria-hidden />
+            </Link>
+          ) : (
+            <AbrirFolhaDaMeta meta={meta} rotulo="Editar" className={redondo}>
+              <Pencil size={18} aria-hidden />
+            </AbrirFolhaDaMeta>
+          )}
+        </div>
+      )}
     </>
   );
 }

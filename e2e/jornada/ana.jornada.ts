@@ -1,55 +1,95 @@
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { Caderno, conferirTelaVelha, dia, exigirSemAchados, novaPagina, passo, visitarPeloApp } from "./comum";
-import { cobrirCom, entrar, foiPontual, lancarAMao, lancarPorVoz, prepararVoz } from "./acoes";
-import { conferirAvisoDaCategoria, conferirGastoPorCategoria, conferirLivre, conferirMetas } from "./conferir";
-import { lerResumo } from "./telas";
+import {
+  agoraNaoNoResumo,
+  aporteNaMeta,
+  apagarLancamento,
+  apagarMeta,
+  cobrirCom,
+  criarMeta,
+  entrar,
+  fecharMes,
+  importarArquivo,
+  lancarAMao,
+  lancarPorVoz,
+  lapis,
+  moverParaPerfil,
+  prepararVoz,
+  responderNoDecidir,
+  tocarNaSugestao,
+  trocarPerfil,
+  vendiNaEmpresa,
+} from "./acoes";
+import {
+  conferirAvisoDaCategoria,
+  conferirGastoPorCategoria,
+  conferirLivre,
+  conferirMesPassado,
+  conferirMetas,
+  definirMesAtual,
+} from "./conferir";
+import { abrir, lerDecidir, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
 import { bate, brl } from "./dinheiro";
+import { BASE } from "./config";
+import { lerAchados, resumoDosAchados } from "./achados";
+import { textoVisivel } from "./texto";
 
 /**
- * A semana da Ana (a conta semeada de scripts/semear-local.ts): de quinta 15/10 a novembro.
+ * A semana da Ana (a conta semeada de scripts/semear-local.ts), de quinta 15/10 a 04/11.
  * Cada passo faz uma coisa como ela faz e confere todas as telas que mostram o que mudou.
  */
 const OUT = { ano: 2026, mes: 10 };
+const SET = { ano: 2026, mes: 9 };
+const NOV = { ano: 2026, mes: 11 };
 const PERFIL = "ana";
-
-test.describe.configure({ mode: "default" });
+const ARQ = (n: string) => path.join(__dirname, "arquivos", n);
 
 test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ page: p }) => {
-  test.setTimeout(8 * 60_000);
+  test.setTimeout(9 * 60_000);
   const c = new Caderno(PERFIL);
-  await novaPagina(p);
+  await novaPagina(p, c);
   await prepararVoz(p);
+  definirMesAtual(OUT);
+  /** Muda em Lazer, conferida contra o Orçamento depois de cada passo. */
+  const gastoDe = async (chave: string) => (await lerOrcamento(p, c, OUT)).categorias[chave]?.gasto ?? 0;
+  const esperarDelta = async (chave: string, antes: number, delta: number, tela: string) => {
+    const d = await gastoDe(chave);
+    if (!bate(d - antes, delta)) await c.anotar(p, { tipo: "numero", telaDeOrigem: tela, telaErrada: "Orçamento", esperado: `${chave} ${brl(antes + delta)}`, visto: brl(d) });
+  };
   try {
+    // ------------------------------------------------------------------ quinta 15/10
     await dia(c, "2026-10-15 09:00", [p]);
     await passo(c, "abrir o app (retrato de partida)", async () => {
       await entrar(p, "ana@exemplo.test");
+      await expect(p.locator("[data-periodo-nome]")).toContainText("15 out");
       const { orc } = await conferirGastoPorCategoria(p, c, OUT, "partida");
       await conferirLivre(p, c, orc, "partida");
       await conferirMetas(p, c, "partida");
       await conferirAvisoDaCategoria(p, c, "SAUDE", "Saúde", true, "partida");
+      await conferirMesPassado(p, c, SET, "partida");
     });
 
     await passo(c, "lançar à mão Lazer R$ 120 (Show)", async () => {
-      const antes = await conferirGastoPorCategoria(p, c, OUT, "antes do show");
+      const antes = await gastoDe("LAZER");
       await visitarPeloApp(p, ["Resumo", "Orçamento", "Transações"]);
       await lancarAMao(p, { valor: 120, categoria: "Lazer", descricao: "Show" });
       await conferirTelaVelha(p, c, ["Orçamento", "Resumo", "Transações"]);
+      // O relógio do servidor está no dia simulado: o Resumo corta no dia 15.
+      expect((await lerResumo(p, c)).heroi).toContain("até dia 15");
       const depois = await conferirGastoPorCategoria(p, c, OUT, "show");
-      const a = antes.orc.categorias.LAZER?.gasto ?? 0;
-      const d = depois.orc.categorias.LAZER?.gasto ?? 0;
-      if (!bate(d - a, 120)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "Orçamento", esperado: `Lazer ${brl(a + 120)}`, visto: brl(d) });
+      if (!bate((depois.orc.categorias.LAZER?.gasto ?? 0) - antes, 120)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "Orçamento", esperado: `Lazer ${brl(antes + 120)}`, visto: brl(depois.orc.categorias.LAZER?.gasto) });
       expect(depois.trans.linhas.some((l) => l.descricao === "Show")).toBe(true);
     });
 
-    await passo(c, "lançar por voz \"gastei 45 no mercado\"", async () => {
-      const antes = await conferirGastoPorCategoria(p, c, OUT, "antes da voz");
+    await passo(c, "lançar por voz \"gastei 45 reais no mercado\"", async () => {
+      const antes = await gastoDe("ALIMENTACAO");
       await lancarPorVoz(p, "gastei 45 reais no mercado");
-      const depois = await conferirGastoPorCategoria(p, c, OUT, "voz");
-      const a = antes.orc.categorias.ALIMENTACAO?.gasto ?? 0;
-      const d = depois.orc.categorias.ALIMENTACAO?.gasto ?? 0;
-      if (!bate(d - a, 45)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Gravar áudio", telaErrada: "Orçamento", esperado: `Alimentação ${brl(a + 45)}`, visto: brl(d) });
+      await esperarDelta("ALIMENTACAO", antes, 45, "Gravar áudio");
+      await conferirGastoPorCategoria(p, c, OUT, "voz");
     });
 
+    // ------------------------------------------------------------------ sexta 16/10
     await dia(c, "2026-10-16 20:00", [p]);
     await passo(c, "O que fazer? Saúde → cobrir com Outros", async () => {
       await visitarPeloApp(p, ["Resumo", "Orçamento"]);
@@ -61,19 +101,198 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirLivre(p, c, orc, "cobrir Saúde");
     });
 
-    await passo(c, "Lazer sobe (R$ 650 de show) e o Resumo avisa", async () => {
-      await lancarAMao(p, { valor: 650, categoria: "Lazer", descricao: "Ingresso festival" });
+    // ------------------------------------------------------------------ sábado 17/10
+    await dia(c, "2026-10-17 10:00", [p]);
+    let sugestaoDispensada = "";
+    await passo(c, "Agora não na sugestão do Resumo", async () => {
+      const recAntes = await lerRecorrentes(p, c);
+      sugestaoDispensada = await agoraNaoNoResumo(p);
       const r = await lerResumo(p, c);
-      await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", true, "Lazer passou");
-      test.info().annotations.push({ type: "resumo", description: `${r.sugestao?.tipo}: ${r.sugestao?.texto}` });
+      if (r.sugestao?.texto === sugestaoDispensada) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Resumo (Agora não)", telaErrada: "Resumo", esperado: `"${sugestaoDispensada}" some`, visto: "continua lá" });
+      // "Agora não" no Resumo não apaga o achado de Recorrentes (ele só sai do Resumo).
+      const recDepois = await lerRecorrentes(p, c);
+      const achados = (t: string) => t.match(/(\d+) achados? para conferir/)?.[1] ?? null;
+      if (achados(recAntes.texto) && achados(recAntes.texto) !== achados(recDepois.texto)) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Resumo (Agora não)", telaErrada: "Recorrentes (Dinheiro perdido)", esperado: `${achados(recAntes.texto)} achados para conferir`, visto: `${achados(recDepois.texto) ?? "nenhum"}` });
     });
 
-    await passo(c, "O que fazer? Lazer → foi pontual", async () => {
-      await foiPontual(p, OUT.ano, "LAZER");
-      await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", false, "Lazer pontual");
+    await passo(c, "Lazer passa do plano (Ingresso festival R$ 650)", async () => {
+      const antes = await gastoDe("LAZER");
+      await lancarAMao(p, { valor: 650, categoria: "Lazer", descricao: "Ingresso festival" });
+      await esperarDelta("LAZER", antes, 650, "Digitar");
+      await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", true, "Lazer passou");
+      const r = await lerResumo(p, c);
+      test.info().annotations.push({ type: "Resumo depois do festival", description: `${r.sugestao?.tipo}: ${r.sugestao?.texto}` });
+    });
+
+    await passo(c, "O que fazer? Lazer → cobrir com Alimentação (caso da Dani de 14/10)", async () => {
+      await visitarPeloApp(p, ["Resumo", "Orçamento"]);
+      await cobrirCom(p, OUT.ano, "LAZER", "Alimentação");
+      await conferirTelaVelha(p, c, ["Orçamento", "Resumo"]);
+      await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", false, "cobrir Lazer");
+      const { orc } = await conferirGastoPorCategoria(p, c, OUT, "cobrir Lazer");
+      await conferirLivre(p, c, orc, "cobrir Lazer");
+    });
+
+    // ------------------------------------------------------------------ domingo 18/10
+    await dia(c, "2026-10-18 11:00", [p]);
+    await passo(c, "Transporte sobe (Uber R$ 380) e ela toca no botão da sugestão", async () => {
+      await lancarAMao(p, { valor: 380, categoria: "Transporte", descricao: "Uber aeroporto" });
+      const r = await lerResumo(p, c);
+      if (r.sugestao?.tipo === "categoria") {
+        const { texto, rotulo } = await tocarNaSugestao(p);
+        const depois = await lerResumo(p, c);
+        if (depois.sugestao?.texto === texto) await c.anotar(p, { tipo: "aviso", telaDeOrigem: `Resumo (botão "${rotulo}")`, telaErrada: "Resumo", esperado: `"${texto}" some depois de tocar em ${rotulo}`, visto: "continua lá" });
+      } else {
+        test.info().annotations.push({ type: "sem sugestão de categoria", description: `${r.sugestao?.tipo}: ${r.sugestao?.texto}` });
+      }
+      await conferirGastoPorCategoria(p, c, OUT, "uber");
+    });
+
+    await passo(c, "Decidir: responder o cartão do topo (Segurar em, se houver)", async () => {
+      const dec = await lerDecidir(p, c);
+      const ritmo = dec.cartoes.find((x) => x.id.startsWith("ritmo-"));
+      if (ritmo) {
+        const chave = ritmo.id.slice("ritmo-".length);
+        await responderNoDecidir(p, ritmo.id, /^Segurar em/);
+        const depois = await lerDecidir(p, c);
+        if (depois.cartoes.some((x) => x.id === ritmo.id)) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Decidir (Segurar em)", telaErrada: "Decidir", esperado: `cartão ${ritmo.id} some`, visto: "continua" });
+        const r = await lerResumo(p, c);
+        const nome = ritmo.texto.split(" ")[0];
+        if (r.sugestao?.tipo === "categoria" && r.sugestao.texto.startsWith(nome)) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Decidir (Segurar em)", telaErrada: "Resumo (sugestão)", esperado: `sugestão de ${nome} (${chave}) some depois de segurar`, visto: r.sugestao.texto });
+      } else {
+        test.info().annotations.push({ type: "Decidir sem cartão de ritmo", description: dec.cartoes.map((x) => x.id).join(", ") });
+      }
+    });
+
+    // ------------------------------------------------------------------ segunda 19/10
+    await dia(c, "2026-10-19 08:00", [p]);
+    await passo(c, "lápis: Transporte de R$ 800 para R$ 900", async () => {
+      const antes = await lerOrcamento(p, c, OUT);
+      const decAntes = await lerDecidir(p, c);
+      await visitarPeloApp(p, ["Orçamento", "Resumo"]);
+      await lapis(p, OUT.ano, "Transporte", 900);
+      await conferirTelaVelha(p, c, ["Orçamento", "Resumo"]);
+      const { orc } = await conferirGastoPorCategoria(p, c, OUT, "lápis");
+      if (!bate(orc.categorias.TRANSPORTE?.plano, 900)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis", telaErrada: "Orçamento", esperado: "Transporte de R$ 900", visto: orc.categorias.TRANSPORTE?.texto ?? "(sem linha)" });
+      if (antes.plano != null && !bate(orc.plano, antes.plano + 100)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis", telaErrada: "Orçamento (plano do mês)", esperado: brl(antes.plano + 100), visto: brl(orc.plano) });
+      const { dec } = await conferirLivre(p, c, orc, "lápis");
+      // Subir o plano em R$ 100 sobe o livre em R$ 100 em todo lugar (o Orçamento e o Decidir).
+      if (decAntes.livres != null && dec.livres != null && !bate(dec.livres - decAntes.livres, 100)) await c.anotar(p, { tipo: "decisao", telaDeOrigem: "lápis (+R$ 100 em Transporte)", telaErrada: "Decidir (R$ X livres)", esperado: `${brl(decAntes.livres + 100)} livres (era ${brl(decAntes.livres)})`, visto: `${brl(dec.livres)} livres` });
+    });
+
+    await passo(c, "apagar o Show e Desfazer", async () => {
+      const antes = await gastoDe("LAZER");
+      await apagarLancamento(p, OUT.ano, OUT.mes, "Show", true);
+      const t = await lerTransacoes(p, c, OUT);
+      if (!t.linhas.some((l) => l.descricao === "Show")) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Desfazer", telaErrada: "Transações", esperado: "o Show de volta na lista", visto: "não voltou" });
+      await esperarDelta("LAZER", antes, 0, "Desfazer");
+      await conferirGastoPorCategoria(p, c, OUT, "desfazer");
+    });
+
+    await passo(c, "apagar o Uber aeroporto (sem desfazer)", async () => {
+      const antes = await gastoDe("TRANSPORTE");
+      await apagarLancamento(p, OUT.ano, OUT.mes, "Uber aeroporto");
+      await esperarDelta("TRANSPORTE", antes, -380, "Remover");
+      await conferirGastoPorCategoria(p, c, OUT, "apagar");
+    });
+
+    await passo(c, "mover a Drogasil para o Ateliê (Empresa)", async () => {
+      const antes = await gastoDe("SAUDE");
+      await moverParaPerfil(p, OUT.ano, OUT.mes, "Drogasil", "Ateliê");
+      await esperarDelta("SAUDE", antes, -28, "Enviar para outro perfil");
+      const t = await lerTransacoes(p, c, OUT);
+      if (t.linhas.some((l) => l.descricao === "Drogasil")) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Enviar para outro perfil", telaErrada: "Transações (Pessoal)", esperado: "Drogasil fora do Pessoal", visto: "continua na lista" });
+      await conferirGastoPorCategoria(p, c, OUT, "mover");
+      await conferirAvisoDaCategoria(p, c, "SAUDE", "Saúde", false, "mover Drogasil");
+    });
+
+    // ------------------------------------------------------------------ terça 20/10
+    await dia(c, "2026-10-20 12:30", [p]);
+    await passo(c, "criar a meta Notebook e guardar R$ 300", async () => {
+      const guardadoAntes = (await lerResumo(p, c)).heroi;
+      await criarMeta(p, "Notebook", 4000);
+      await conferirMetas(p, c, "criar meta", { Notebook: 0 });
+      await aporteNaMeta(p, "Notebook", 300);
+      await conferirMetas(p, c, "aporte", { Notebook: 300 });
+      const t = await lerTransacoes(p, c, OUT);
+      if (!t.linhas.some((l) => /Notebook|Guardado/.test(`${l.descricao} ${l.categoria}`) && bate(Math.abs(l.valor), 300))) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Metas (Adicionar)", telaErrada: "Transações", esperado: "o aporte de R$ 300 na lista do mês", visto: "não aparece" });
+      const guardadoDepois = (await lerResumo(p, c)).heroi;
+      const g = (h: string) => Number((h.match(/Guardado em 2026\s*R\$\s*([\d.]+)/)?.[1] ?? "0").replace(/\./g, ""));
+      if (g(guardadoAntes) && !bate(g(guardadoDepois) - g(guardadoAntes), 300)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Metas (Adicionar)", telaErrada: "Resumo (Guardado em 2026)", esperado: brl(g(guardadoAntes) + 300), visto: brl(g(guardadoDepois)) });
+    });
+
+    await passo(c, "apagar a meta Notebook", async () => {
+      await apagarMeta(p, "Notebook");
+      const m = await conferirMetas(p, c, "apagar meta");
+      if (m.metas.Notebook != null) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Metas (Apagar)", telaErrada: "Metas", esperado: "Notebook some", visto: "continua" });
+      const w = await lerWidget(p, BASE);
+      if (!("erro" in w) && w.metas.some((x) => x.nome === "Notebook")) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Metas (Apagar)", telaErrada: "widget", esperado: "Notebook fora do widget", visto: "continua no widget" });
+    });
+
+    // ------------------------------------------------------------------ quarta 21/10
+    await dia(c, "2026-10-21 19:00", [p]);
+    await passo(c, "extrato novo de outubro (dias 16 a 20)", async () => {
+      await importarArquivo(p, ARQ("ana-extrato-outubro.csv"));
+      const { orc } = await conferirGastoPorCategoria(p, c, OUT, "extrato outubro");
+      await conferirLivre(p, c, orc, "extrato outubro");
+      const r = await lerResumo(p, c);
+      test.info().annotations.push({ type: "Resumo depois do extrato", description: `${r.heroi} | ${r.sugestao?.texto}` });
+    });
+
+    await passo(c, "Empresa: vendeu R$ 300 no Ateliê", async () => {
+      const pessoalAntes = await lerOrcamento(p, c, OUT);
+      await trocarPerfil(p, "Ateliê");
+      await abrir(p, "/empresa", c, "Empresa");
+      await vendiNaEmpresa(p, 300);
+      await abrir(p, "/empresa", c, "Empresa (depois da venda)");
+      await abrir(p, "/empresa/lancamentos", c, "Empresa: lançamentos");
+      const lista = await textoVisivel(p);
+      if (!/Venda[\s\S]{0,80}300,00/.test(lista)) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Empresa (Vendi)", telaErrada: "Empresa: lançamentos", esperado: "a venda de R$ 300 na lista", visto: "não aparece" });
+      await trocarPerfil(p, "Pessoal");
+      const pessoalDepois = await lerOrcamento(p, c, OUT);
+      if (!bate(pessoalAntes.plano, pessoalDepois.plano) || !bate(pessoalAntes.livres, pessoalDepois.livres)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Empresa (Vendi)", telaErrada: "Orçamento (Pessoal)", esperado: `Pessoal igual: ${brl(pessoalAntes.livres)} livres`, visto: `${brl(pessoalDepois.livres)} livres` });
+    });
+
+    // ------------------------------------------------------------------ segunda 02/11 (virou o mês)
+    await dia(c, "2026-11-02 08:30", [p]);
+    definirMesAtual(NOV);
+    await passo(c, "virar o mês: novembro abre e outubro fica igual", async () => {
+      const r = await lerResumo(p, c);
+      test.info().annotations.push({ type: "Resumo em 02/11", description: `${r.caso} | ${r.heroi} | ${r.sugestao?.texto}` });
+      const { orc } = await conferirGastoPorCategoria(p, c, NOV, "virou o mês");
+      if (!bate(orc.categorias.TRANSPORTE?.plano, 900)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis (19/10, \"de outubro em diante\")", telaErrada: "Orçamento de novembro", esperado: "Transporte R$ 900", visto: orc.categorias.TRANSPORTE?.texto ?? "(sem linha)" });
+      await conferirMesPassado(p, c, OUT, "virou o mês");
+      await conferirLivre(p, c, orc, "virou o mês");
+    });
+
+    await passo(c, "fechar outubro", async () => {
+      await fecharMes(p, "outubro");
+      const r = await lerResumo(p, c);
+      if (r.sugestao?.texto?.startsWith("Fechar outubro")) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Fechamento", telaErrada: "Resumo", esperado: "o \"Fechar outubro\" some", visto: r.sugestao.texto });
+      const passado = await conferirMesPassado(p, c, OUT, "fechar outubro");
+      const fechar = await p.locator('[data-fechamento="fechar"]').count();
+      await abrir(p, "/mensal/foco?mes=2026-10", c, "Resumo de outubro");
+      if (fechar || (await p.locator('[data-fechamento="fechar"]').count())) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Fechamento", telaErrada: "Resumo de outubro", esperado: "outubro fechado", visto: "ainda oferece Fechar" });
+      void passado;
+    });
+
+    // ------------------------------------------------------------------ quarta 04/11
+    await dia(c, "2026-11-04 21:00", [p]);
+    await passo(c, "extrato de novembro (dias 2 a 4)", async () => {
+      await importarArquivo(p, ARQ("ana-extrato-novembro.csv"));
+      const { orc } = await conferirGastoPorCategoria(p, c, NOV, "extrato novembro");
+      await conferirLivre(p, c, orc, "extrato novembro");
+      await conferirMetas(p, c, "novembro");
+      await conferirMesPassado(p, c, OUT, "extrato novembro");
     });
   } finally {
     c.salvar();
   }
   exigirSemAchados(PERFIL, ["numero", "texto", "tela", "sumiu"]);
+});
+
+test("Ana: avisos respondidos somem em todas as telas (módulo de avisos)", async () => {
+  const avisos = lerAchados(PERFIL).filter((a) => a.tipo === "aviso");
+  test.fail(avisos.length > 0, `Esperado falhar até o módulo único de avisos (src/lib/avisos/, branch avisos-regra-unica):\n${resumoDosAchados(avisos)}`);
+  expect(avisos, resumoDosAchados(avisos)).toEqual([]);
 });
