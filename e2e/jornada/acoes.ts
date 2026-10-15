@@ -423,3 +423,34 @@ export async function comecarComExtrato(p: Page, arquivo: string) {
   await p.waitForURL(/\/mensal\/foco/, { timeout: 60_000 });
   await p.waitForLoadState("networkidle").catch(() => undefined);
 }
+
+/** Espera a ação do servidor (o POST) que um toque dispara. */
+async function comAcao(p: Page, tocar: () => Promise<void>) {
+  await Promise.all([p.waitForResponse((r) => r.request().method() === "POST", { timeout: 30_000 }).catch(() => undefined), tocar()]);
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+}
+
+/** Raio-X do Decidir: o botão no item da assinatura ("Cancelar", "Manter" ou "Desfazer"). */
+export async function tocarNoRaioX(p: Page, nome: string, botao: "Cancelar" | "Manter" | "Desfazer") {
+  await p.goto("/decidir/raio-x");
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await pularTutoriais(p);
+  // Os mantidos ficam recolhidos em "Você decidiu manter".
+  const recolhido = p.locator("details:not([open]) > summary").filter({ hasText: "Você decidiu manter" });
+  if (botao === "Desfazer" && (await recolhido.count())) await recolhido.click();
+  const item = p.locator('[data-guia="raiox-item"]').filter({ has: p.locator("p", { hasText: new RegExp(`^\\s*${nome}\\s*$`) }) }).first();
+  await comAcao(p, () => item.getByRole("button", { name: botao, exact: true }).click());
+}
+
+/**
+ * Recorrentes: toca na assinatura e em "Não é assinatura". Devolve a pílula (com o Desfazer),
+ * que some se ela sair da tela.
+ */
+export async function naoEAssinatura(p: Page, nome: string) {
+  await p.goto("/orcamento/contas");
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await pularTutoriais(p);
+  await p.locator("[data-assinaturas] li").filter({ hasText: nome }).first().getByRole("button").click();
+  await comAcao(p, () => p.getByRole("dialog").getByRole("button", { name: "Não é assinatura" }).click());
+  return pilula(p, "Não é assinatura");
+}

@@ -3,6 +3,9 @@ import type { Caderno } from "./achados";
 import { bate, brl } from "./dinheiro";
 import { BASE } from "./config";
 import {
+  lerAssinaturaEmRecorrentes,
+  lerAssinaturaNoDinheiroPerdido,
+  lerAssinaturaNoRaioX,
   lerDecidir,
   lerGastos,
   lerMetas,
@@ -200,4 +203,28 @@ export async function conferirMesPassado(p: Page, c: Caderno, m: Mes, origem: st
     if (!bate(v.valor, g ?? 0)) await c.anotar(p, { tipo: "numero", telaDeOrigem: `Gastos ${m.mes}/${m.ano}`, telaErrada: `Resumo de ${m.mes}/${m.ano}`, esperado: `${nome} ${brl(g ?? 0)} (Gastos do mês)`, visto: `${brl(v.valor)} (${v.texto})`, chave: `${c.perfil}|resumo-passado|${nome}|${origem}` });
   }
   return { res, orc, gastos };
+}
+
+/**
+ * A mesma assinatura nas três telas (regra única, lib/assinaturas): a última resposta, dada em
+ * qualquer uma, aparece igual no Raio-X, em Recorrentes e no Dinheiro perdido.
+ */
+export async function conferirAssinaturaNasTres(
+  p: Page,
+  c: Caderno,
+  nome: string,
+  esperado: { raiox: string; recorrentes: string; perdido: string },
+  telaDeOrigem: string,
+) {
+  const visto = {
+    raiox: await lerAssinaturaNoRaioX(p, c, nome),
+    recorrentes: await lerAssinaturaEmRecorrentes(p, c, nome),
+    perdido: await lerAssinaturaNoDinheiroPerdido(p, c, nome),
+  };
+  const telas = { raiox: "Raio-X", recorrentes: "Recorrentes", perdido: "Dinheiro perdido" } as const;
+  for (const k of ["raiox", "recorrentes", "perdido"] as const) {
+    if (visto[k] !== esperado[k])
+      await c.anotar(p, { tipo: "numero", telaDeOrigem, telaErrada: telas[k], esperado: `${nome}: ${esperado[k]}`, visto: `${nome}: ${visto[k]}`, chave: `${c.perfil}|assinatura|${telas[k]}|${nome}|${c.acao}` });
+  }
+  return visto;
 }

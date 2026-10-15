@@ -102,9 +102,19 @@ export function mesmaAssinatura(a: readonly string[], b: readonly string[]): boo
   return a.some((m) => b.includes(m));
 }
 
-/** Junta marcas sem repetir, na ordem (a principal continua a primeira). */
+const ORDEM_DAS_MARCAS = ["c:", "n:", "r:"];
+const ordemDa = (m: string) => {
+  const i = ORDEM_DAS_MARCAS.indexOf(m.slice(0, 2));
+  return i < 0 ? ORDEM_DAS_MARCAS.length : i;
+};
+
+/**
+ * Junta marcas sem repetir, sempre na mesma ordem (comerciante, nome, Raio-X): a chave principal
+ * da assinatura é a mesma, venha a resposta de que tela vier.
+ */
 export function juntarMarcas(...listas: (readonly string[])[]): string[] {
-  return [...new Set(listas.flat())];
+  const todas = [...new Set(listas.flat())];
+  return todas.map((m, i) => ({ m, i })).sort((a, b) => ordemDa(a.m) - ordemDa(b.m) || a.i - b.i).map((x) => x.m);
 }
 
 /* ---------------------------------------------------------------- os eventos */

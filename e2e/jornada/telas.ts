@@ -266,3 +266,36 @@ export async function lerWidget(p: Page, base: string, request?: APIRequestConte
 export function esquecerWidget(p: Page) {
   chaves.delete(p.context());
 }
+
+// ------------------------------------------------------------------ Assinaturas (regra única)
+// A mesma assinatura em três telas (lib/assinaturas, 15/10/2026): a última resposta vale em todas.
+const exato = (nome: string) => new RegExp(`^\\s*${nome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`);
+
+/** Raio-X do Decidir: "aberto", "Mantido", "Vou cancelar", "Cancelada", ou "fora" (não aparece). */
+export async function lerAssinaturaNoRaioX(p: Page, caderno: Caderno, nome: string): Promise<string> {
+  await abrir(p, "/decidir/raio-x", caderno, "Raio-X");
+  const item = p.locator('[data-guia="raiox-item"]').filter({ has: p.locator("p", { hasText: exato(nome) }) }).first();
+  if (!(await item.count())) return "fora";
+  const t = (await item.textContent()) ?? "";
+  return /Cancelada/.test(t) ? "Cancelada" : /Vou cancelar/.test(t) ? "Vou cancelar" : /Mantido/.test(t) ? "Mantido" : "aberto";
+}
+
+/** Recorrentes › Assinaturas: "na lista", "para cancelar", ou "fora". */
+export async function lerAssinaturaEmRecorrentes(p: Page, caderno: Caderno, nome: string): Promise<string> {
+  await abrir(p, "/orcamento/contas", caderno, "Recorrentes");
+  const li = p.locator("[data-assinaturas] li").filter({ hasText: nome }).first();
+  if (!(await li.count())) return "fora";
+  return /para cancelar/.test((await li.textContent()) ?? "") ? "para cancelar" : "na lista";
+}
+
+/** Dinheiro perdido › Ver tudo › Assinatura: "Para conferir", "Não uso", "Uso", ou "fora". */
+export async function lerAssinaturaNoDinheiroPerdido(p: Page, caderno: Caderno, nome: string): Promise<string> {
+  await abrir(p, "/orcamento/contas/perdido", caderno, "Dinheiro perdido");
+  const ver = p.getByRole("button", { name: "Ver tudo" });
+  if (!(await ver.count())) return "fora";
+  await ver.click();
+  const li = p.locator("li").filter({ has: p.locator("span", { hasText: exato(nome) }) }).first();
+  if (!(await li.count())) return "fora";
+  const t = (await li.textContent()) ?? "";
+  return /Não uso/.test(t) ? "Não uso" : /Uso/.test(t) ? "Uso" : /Para conferir/.test(t) ? "Para conferir" : t.trim().slice(0, 40);
+}

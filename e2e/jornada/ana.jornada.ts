@@ -15,12 +15,15 @@ import {
   lancarPorVoz,
   lapis,
   moverParaPerfil,
+  naoEAssinatura,
   prepararVoz,
   tocarNaSugestao,
+  tocarNoRaioX,
   trocarPerfil,
   vendiNaEmpresa,
 } from "./acoes";
 import {
+  conferirAssinaturaNasTres,
   conferirAvisoDaCategoria,
   conferirGastoPorCategoria,
   conferirLivre,
@@ -66,6 +69,35 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirMetas(p, c, "partida");
       await conferirAvisoDaCategoria(p, c, "SAUDE", "Saúde", true, "partida");
       await conferirMesPassado(p, c, SET, "partida");
+    });
+
+    // Assinaturas (15/10/2026, "a última resposta vale em todo lugar"): marcar num lugar e
+    // conferir os outros dois. Cada passo termina como começou, para o resto da semana não mudar.
+    await passo(c, "Raio-X: Cancelar a Netflix vale em Recorrentes e no Dinheiro perdido", async () => {
+      await conferirAssinaturaNasTres(p, c, "Netflix", { raiox: "aberto", recorrentes: "na lista", perdido: "Para conferir" }, "partida");
+      await tocarNoRaioX(p, "Netflix", "Cancelar");
+      await conferirAssinaturaNasTres(p, c, "Netflix", { raiox: "Vou cancelar", recorrentes: "para cancelar", perdido: "Não uso" }, "Raio-X");
+    });
+
+    await passo(c, "Raio-X: Desfazer a Netflix volta as três telas", async () => {
+      await tocarNoRaioX(p, "Netflix", "Desfazer");
+      await conferirAssinaturaNasTres(p, c, "Netflix", { raiox: "aberto", recorrentes: "na lista", perdido: "Para conferir" }, "Raio-X (Desfazer)");
+    });
+
+    await passo(c, "Recorrentes: Não é assinatura no iCloud some do Raio-X e do Dinheiro perdido, e o Desfazer volta", async () => {
+      await conferirAssinaturaNasTres(p, c, "iCloud", { raiox: "aberto", recorrentes: "na lista", perdido: "Para conferir" }, "partida");
+      const pilula = await naoEAssinatura(p, "iCloud");
+      // As outras duas telas numa segunda aba: a pílula com o Desfazer fica na primeira.
+      const p2 = await p.context().newPage();
+      await novaPagina(p2);
+      await conferirAssinaturaNasTres(p2, c, "iCloud", { raiox: "fora", recorrentes: "fora", perdido: "fora" }, "Recorrentes");
+      await p2.close();
+      await Promise.all([
+        p.waitForResponse((r) => r.request().method() === "POST", { timeout: 30_000 }).catch(() => undefined),
+        pilula.getByRole("button", { name: "Desfazer" }).click(),
+      ]);
+      await p.waitForLoadState("networkidle").catch(() => undefined);
+      await conferirAssinaturaNasTres(p, c, "iCloud", { raiox: "aberto", recorrentes: "na lista", perdido: "Para conferir" }, "Recorrentes (Desfazer)");
     });
 
     await passo(c, "lançar à mão Lazer R$ 120 (Show)", async () => {
