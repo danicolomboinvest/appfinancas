@@ -1,11 +1,16 @@
+import { after } from "next/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CircleDollarSign, CreditCard, PiggyBank, Receipt, Repeat, ShieldCheck, Target } from "lucide-react";
+import { CircleDollarSign, CreditCard, PiggyBank, Receipt, Repeat, ShieldCheck, Target, TrendingUp } from "lucide-react";
 import type { AuthContext } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
 import { semanaDasContas } from "@/lib/contas/semana-das-contas";
 import { vencimentosDaJanela } from "@/lib/contas/recorrentes";
 import { listarContasAPagar } from "@/lib/repositories/conta-a-pagar.repo";
+import { rendimentoDoMes } from "@/lib/carteira/rendimento";
+import { resumirCarteira } from "@/lib/portfolio/resumo-carteira";
+import { lerCarteiraDosDias, registrarCarteiraDoDia } from "@/lib/repositories/decisao.repo";
+import { listAssets } from "@/lib/repositories/asset.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { listarDividas } from "@/lib/repositories/divida.repo";
 import { gastoNoCartao, lerLimiteDoCartao } from "@/lib/repositories/limite-cartao.repo";
@@ -92,10 +97,43 @@ async function cartaoDeAssinaturas(ctx: AuthContext, r: Dados): Promise<CartaoNa
   );
 }
 
+/**
+ * A Carteira e o que rendeu no mês. O app só guardava o valor de hoje, então o rendimento nasce de
+ * um registro por dia (ganho e total, ver lib/carteira/rendimento): o ganho não muda quando a pessoa
+ * aporta, só quando o preço muda. Sem registro do começo do mês o cartão não inventa número: diz que
+ * está juntando o histórico. O registro de hoje é gravado aqui, para todo mundo, para o histórico
+ * já existir no dia em que a pessoa ligar o cartão.
+ */
+async function carteiraDoResumo(ctx: AuthContext): Promise<{ total: number; rendimento: ReturnType<typeof rendimentoDoMes> } | null> {
+  const ativos = await listAssets(ctx);
+  if (ativos.length === 0) return null;
+  const resumo = resumirCarteira(
+    ativos.map((a) => ({
+      id: a.id,
+      assetClass: a.assetClass,
+      fixedIncomeIndex: a.fixedIncomeIndex,
+      currency: a.currency,
+      tipoEscolhido: a.tipoEscolhido,
+      ondeEscolhido: a.ondeEscolhido,
+      currentValue: Number(a.currentValue),
+      investedValue: a.investedValue !== null ? Number(a.investedValue) : null,
+      nativeCurrentValue: a.nativeCurrentValue !== null ? Number(a.nativeCurrentValue) : null,
+      exchangeRate: a.exchangeRate !== null ? Number(a.exchangeRate) : null,
+    })),
+  );
+  if (resumo.total <= 0) return null;
+  const hoje = hojeEmBrasilia().toISOString().slice(0, 10);
+  const comeco = new Date(Date.parse(`${hoje.slice(0, 7)}-01T12:00:00Z`) - 10 * 86_400_000).toISOString().slice(0, 10);
+  const registros = await lerCarteiraDosDias(ctx, comeco);
+  const deHoje = ativos.map((a) => ({ id: a.id, atual: Number(a.currentValue), investido: a.investedValue !== null ? Number(a.investedValue) : null }));
+  after(() => registrarCarteiraDoDia(ctx, hoje, deHoje).catch(() => {}));
+  return { total: resumo.total, rendimento: rendimentoDoMes(registros, hoje, deHoje) };
+}
+
 export async function carregarCartoesNovos(ctx: AuthContext, r: Dados, opcoes: { assinaturas: boolean }): Promise<CartaoNaTela[]> {
   const m = r.foco.m;
   const hoje = hojeEmBrasilia();
-  const [metas, dividas, contas, gastoCartao, limite, fundo, assinaturas] = await Promise.all([
+  const [metas, dividas, contas, gastoCartao, limite, fundo, assinaturas, carteira] = await Promise.all([
     seguro(() => listarMetasDaTela(ctx, new Date())),
     seguro(() => listarDividas(ctx)),
     seguro(() => listarContasAPagar(ctx)),
@@ -103,6 +141,7 @@ export async function carregarCartoesNovos(ctx: AuthContext, r: Dados, opcoes: {
     seguro(() => lerLimiteDoCartao(ctx)),
     seguro(() => getEmergencyFund(ctx)),
     opcoes.assinaturas ? seguro(() => cartaoDeAssinaturas(ctx, r)) : Promise.resolve(undefined),
+    seguro(() => carteiraDoResumo(ctx)),
   ]);
   const saida: CartaoNaTela[] = [];
   const dado = (id: keyof typeof NOMES_DOS_CARTOES, node: ReactNode) => saida.push({ id, ...NOMES_DOS_CARTOES[id], tam: "q", node });
@@ -185,6 +224,29 @@ export async function carregarCartoesNovos(ctx: AuthContext, r: Dados, opcoes: {
         numero={m(gasto)}
         legenda={limite ? `de um limite de ${m(limite)} no mês` : "neste mês"}
         barra={limite ? gasto / limite : undefined}
+      />,
+    );
+  }
+
+  if (carteira) {
+    const rend = carteira.rendimento;
+    const pct = rend?.pct == null ? "" : ` (${(Math.abs(rend.pct) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%)`;
+    const desde = rend ? `${rend.desde.slice(8, 10)}/${rend.desde.slice(5, 7)}` : "";
+    dado(
+      "carteira",
+      <Quadrado
+        href="/carteira"
+        tom="success"
+        icone={<TrendingUp size={17} aria-hidden />}
+        nome="Carteira"
+        numero={m(carteira.total)}
+        legenda={
+          !rend
+            ? "Guardando o histórico. O rendimento do mês aparece a partir de amanhã"
+            : rend.valor === 0
+              ? `Sem variação desde ${desde}`
+              : `${rend.valor > 0 ? "Rendeu" : "Perdeu"} ${m(Math.abs(rend.valor))}${pct} desde ${desde}${rend.deFora > 0 ? ", sem os ativos novos" : ""}`
+        }
       />,
     );
   }

@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { carregarEmpresa } from "@/lib/empresa/dados";
-import { diaDaSemanaDe, resumoDaEmpresa, MESES } from "@/lib/empresa/resumo";
+import { diaDaSemanaDe, guiaDoMeiDaEmpresa, resumoDaEmpresa, MESES } from "@/lib/empresa/resumo";
 import { ehGuiaDoMei } from "@/lib/empresa/regras";
-import { textoDaGuia } from "@/lib/empresa/legal";
+import { origemDaGuia, textoDaGuia } from "@/lib/empresa/legal";
+import { UsarValorDaGuia } from "../UsarValorDaGuia";
 import { serverMoney } from "@/lib/money-server";
 import { Cartao, Heroi, Titulo, Voltar } from "../partes";
 
@@ -18,16 +19,17 @@ export default async function ImpostosPage() {
   if (!dados.config) redirect("/empresa");
   const { guia } = resumoDaEmpresa(dados);
   if (!guia) redirect("/empresa");
-  const ultima = dados.lancamentos.find((l) => ehGuiaDoMei(l));
   const pagasNoAno = dados.lancamentos.filter((l) => l.year === dados.mesAtual.ano && ehGuiaDoMei(l));
-  const ajuda = textoDaGuia(dados.legal, ultima?.amount ?? null);
+  const ajuda = textoDaGuia(dados.legal, dados.config.atividadeMei, guiaDoMeiDaEmpresa(dados));
   return (
     <>
       <Voltar>{dados.nome}</Voltar>
       <Titulo>Impostos</Titulo>
       <Heroi rotulo={`Guia do MEI de ${MESES[dados.mesAtual.mes - 1]}`} valor={money(guia.valor)} ajuda={ajuda}>
         <p className="text-sm font-medium">{guia.paga ? "paga" : guia.diasAte < 0 ? `venceu dia ${Number(guia.vence.slice(8))}` : `vence ${diaDaSemanaDe(guia.vence)}`}</p>
+        <p className="text-xs text-heroi-suave" data-origem-da-guia>{origemDaGuia(guia)}</p>
       </Heroi>
+      <UsarValorDaGuia origem={guia.origem} />
       {pagasNoAno.length > 0 && (
         <Cartao className="flex min-h-14 items-center justify-between gap-3 px-4">
           <span className="text-[15px] text-ink">

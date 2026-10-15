@@ -1702,7 +1702,8 @@ model PedidoAntesDeCancelar {
 /// mostra o que estiver aqui; sem a linha, o número não aparece. Não é dado de perfil.
 model ParametroLegal {
   id           String   @id @default(cuid())
-  /// "mei_teto_anual", "mei_teto_tolerancia", "mei_das_servico", "mei_das_dia_vencimento".
+  /// "mei_teto_anual", "mei_teto_tolerancia", "mei_das_servico", "mei_das_dia_vencimento" e, desde
+  /// 15/10/2026, as partes da guia: "mei_salario_minimo", "mei_inss_percentual", "mei_das_icms", "mei_das_iss".
   chave        String   @db.VarChar(48)
   valor        Decimal  @db.Decimal(18, 2)
   /// Ano em que passa a valer (o teto de 2026 vale de 1º de janeiro de 2026 em diante).

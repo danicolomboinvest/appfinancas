@@ -160,7 +160,8 @@ export async function transferirSalario(ctx: AuthContext, p: { ref: Mes; valor: 
  */
 export async function garantirContaDaGuia(ctx: AuthContext, p: { valor: number; dia: number; lembrar: boolean; hoje: string }) {
   const existe = await prisma.contaAPagar.findFirst({ where: { ...doDono(ctx), nome: "Guia do MEI", quitada: false }, select: { id: true } });
-  if (existe) return prisma.contaAPagar.updateMany({ where: { id: existe.id, ...doDono(ctx) }, data: { lembrar: p.lembrar } });
+  // A conta segue o valor da fonte única da guia (valorDaGuia em lib/empresa/legal.ts).
+  if (existe) return prisma.contaAPagar.updateMany({ where: { id: existe.id, ...doDono(ctx) }, data: { lembrar: p.lembrar, valor: p.valor } });
   const [ano, mes, diaHoje] = p.hoje.split("-").map(Number);
   // O próximo dia 20: este mês, se ainda não passou; senão, o mês que vem.
   const proximo = diaHoje <= p.dia ? new Date(Date.UTC(ano, mes - 1, p.dia)) : new Date(Date.UTC(ano, mes, p.dia));
