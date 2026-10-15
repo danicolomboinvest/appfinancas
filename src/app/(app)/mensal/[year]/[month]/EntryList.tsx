@@ -437,7 +437,6 @@ export function EntryList({
                   {" · "}
                 </span>
               )}
-              <SelosDoCasal selos={selos(entry)} />
               {/* Conta lançada antes de pagar (03/10/2026): mostra que ainda vai vencer. */}
               {entry.divididoCom && (
                 <span className="mr-1 rounded-full bg-accent-soft px-1.5 py-px font-medium text-accent-strong">{entry.parteDeOutro ? `dividido com ${entry.divididoCom}` : `presente`}</span>
@@ -454,6 +453,12 @@ export function EntryList({
               {entry.category === "INCOME" ? "Entrada" : entry.category === "INVESTMENT_CONTRIBUTION" ? categoryKindLabel(entry.category, voz, entry.amount) : nomeDaCategoria}
               {entry.noCartao ? (casa && doOutro(entry) ? ` · cartão de ${casa.outro.nome}` : " · cartão") : casa && doOutro(entry) ? ` · de ${casa.outro.nome}` : ""}
             </span>
+            {/* Casal simples: os selinhos numa linha só deles, embaixo (Da casa, Ana pagou, 55/45). */}
+            {selos(entry).length > 0 && (
+              <span className="mt-0.5 block">
+                <SelosDoCasal selos={selos(entry)} compacto />
+              </span>
+            )}
           </span>
           <span className="flex shrink-0 flex-col items-end">
             <ValorDaLinha entry={entry} voz={voz} money={money} />
