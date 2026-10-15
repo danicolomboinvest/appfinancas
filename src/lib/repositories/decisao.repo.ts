@@ -63,7 +63,12 @@ export type TipoDecisao =
    * Os cartões que a pessoa escolheu ver no Resumo e a ordem (lib/resumo/cartoes). Um por conta e
    * perfil, chave "ordem", `dados.ordem` com os ids.
    */
-  | "resumo_layout";
+  | "resumo_layout"
+  /**
+   * Os ativos da Carteira de um dia (valor atual e investido de cada um), para o cartão de rendimento do
+   * mês do Resumo (lib/carteira/rendimento). Um por dia e perfil, chave "AAAA-MM-DD".
+   */
+  | "carteira_dia";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;
@@ -256,4 +261,31 @@ export async function lerOrdemDoResumo(ctx: AuthContext): Promise<unknown> {
 
 export async function guardarOrdemDoResumo(ctx: AuthContext, ordem: string[]) {
   return registrarDecisaoUnica(ctx, { tipo: "resumo_layout", chave: "ordem", dados: { ordem } });
+}
+
+/** Guarda os ativos da Carteira de hoje (valor atual e investido), uma vez por dia (idempotente). */
+export async function registrarCarteiraDoDia(ctx: AuthContext, dia: string, ativos: { id: string; atual: number; investido: number | null }[]) {
+  if (ativos.length === 0 || ativos.length > 300) return;
+  const ja = await prisma.decisao.count({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "carteira_dia", chave: dia } });
+  if (ja > 0) return;
+  await registrarDecisaoUnica(ctx, { tipo: "carteira_dia", chave: dia, dados: { ativos } });
+}
+
+/** Os registros diários da Carteira de `desde` (AAAA-MM-DD) em diante. */
+export async function lerCarteiraDosDias(ctx: AuthContext, desde: string): Promise<{ dia: string; ativos: { id: string; atual: number; investido: number | null }[] }[]> {
+  const linhas = await prisma.decisao.findMany({
+    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "carteira_dia", chave: { gte: desde } },
+    select: { chave: true, dados: true },
+    orderBy: { chave: "asc" },
+    take: 80,
+  });
+  return linhas.flatMap((l) => {
+    const d = l.dados as { ativos?: unknown } | null;
+    if (!l.chave || !Array.isArray(d?.ativos)) return [];
+    const ativos = (d.ativos as unknown[]).flatMap((a) => {
+      const x = a as { id?: unknown; atual?: unknown; investido?: unknown };
+      return typeof x?.id === "string" && typeof x.atual === "number" ? [{ id: x.id, atual: x.atual, investido: typeof x.investido === "number" ? x.investido : null }] : [];
+    });
+    return [{ dia: l.chave, ativos }];
+  });
 }

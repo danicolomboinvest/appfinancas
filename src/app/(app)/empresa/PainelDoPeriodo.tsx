@@ -65,7 +65,7 @@ export function PainelDoPeriodo({
         <Link href={lista("entradas")} className="flex flex-col gap-0.5" data-ganhou>
           <ValorDestaque texto={m0(r.recibo.entrou)} />
           <small className="text-xs text-heroi-suave">
-            faturou{r.recibo.nVendas > 0 ? `, ${r.recibo.nVendas} ${r.recibo.nVendas === 1 ? "venda" : "vendas"}` : ""}
+            {r.recibo.nVendas > 0 ? `${r.recibo.nVendas} ${r.recibo.nVendas === 1 ? "entrada" : "entradas"}` : "entrou"}
           </small>
         </Link>
         <div className="grid grid-cols-2 gap-2">

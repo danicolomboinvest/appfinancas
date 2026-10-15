@@ -95,7 +95,7 @@ export type VendaDoRegistrar = { valor: number; forma: Forma; cliente: string | 
 export async function vendiAction(v: VendaDoRegistrar): Promise<Resultado> {
   const ctx = await sessaoDaEmpresa();
   const valor = valorValido(v.valor);
-  if (!valor) return { ok: false, erro: "Digite o valor da venda." };
+  if (!valor) return { ok: false, erro: "Digite quanto entrou." };
   if (!ehForma(v.forma)) return { ok: false, erro: "Escolha como pagou." };
   const hoje = hojeIso();
   const config = (await lerPerfilDaEmpresa(ctx)).config;
@@ -105,7 +105,7 @@ export async function vendiAction(v: VendaDoRegistrar): Promise<Resultado> {
   const cliente = v.cliente?.trim().slice(0, 80) || null;
   await registrarVenda(ctx, { valor, forma: v.forma, cliente, hoje, recebeEm: recebeEm && recebeEm > hoje ? recebeEm : null, recebida: !recebeEm || recebeEm <= hoje });
   atualizar();
-  return { ok: true, mensagem: "Venda registrada" };
+  return { ok: true, mensagem: "Entrada registrada" };
 }
 
 /** O que ela pagou: uma conta das Recorrentes ou um tipo de gasto do dia a dia. */
@@ -141,7 +141,7 @@ export async function pagueiAction(p: { valor: number; tipo?: string; contaId?: 
 export async function recebiAction(id: string): Promise<Resultado> {
   const ctx = await sessaoDaEmpresa();
   const r = await marcarRecebida(ctx, id, hojeIso());
-  if (r.count === 0) return { ok: false, erro: "Essa venda já estava recebida." };
+  if (r.count === 0) return { ok: false, erro: "Essa entrada já estava recebida." };
   atualizar();
   return { ok: true };
 }
