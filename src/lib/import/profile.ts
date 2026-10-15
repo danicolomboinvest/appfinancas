@@ -168,6 +168,11 @@ const KIND_LABEL: Record<DocProfileKind, string> = {
 /** Banco que mais aparece, com peso extra pro começo do arquivo (cabeçalho): o extrato do
  * Nubank cita "BTG" numa transferência, mas é do Nubank. */
 function detectInstitution(text: string): string | null {
+  // A movimentação da B3 repete a corretora em toda linha ("BANCO BTG PACTUAL S/A."): é da B3.
+  if (isB3Movimentacao(text)) return "B3";
+  // CSV da conta do Nubank ("Data,Valor,Identificador,Descrição"): o nome do banco não aparece, e
+  // um Pix para o Bradesco na descrição fazia a tela dizer "extrato do Bradesco".
+  if (/^\uFEFF?data,valor,identificador,descri[çc][ãa]o\s*$/i.test(text.split(/\r?\n/, 1)[0] ?? "")) return "Nubank";
   // O extrato do Nubank em PDF nem sempre diz "Nubank" no alto da página, mas as transferências
   // dizem o banco do OUTRO lado do Pix. Foi assim que o extrato de uma cliente apareceu na tela
   // como "Sicredi" — banco que ela não tem. O molde do documento vale mais que as citações.
@@ -175,11 +180,6 @@ function detectInstitution(text: string): string | null {
   // O extrato do BB não diz "Banco do Brasil" em lugar nenhum, só "BB Rende Fácil"; um boleto
   // pago ao "BANCO C6 S.A." fazia a tela chamar o arquivo de C6.
   if (isBancoDoBrasilStatement(text)) return "Banco do Brasil";
-  // CSV da conta do Nubank ("Data,Valor,Identificador,Descrição"): o nome do banco não aparece, e
-  // um Pix para o Bradesco na descrição fazia a tela dizer "extrato do Bradesco".
-  if (/^\uFEFF?data,valor,identificador,descri[çc][ãa]o\s*$/i.test(text.split(/\r?\n/, 1)[0] ?? "")) return "Nubank";
-  // A movimentação da B3 repete a corretora em toda linha ("BANCO BTG PACTUAL S/A."): é da B3.
-  if (isB3Movimentacao(text)) return "B3";
   const head = text.slice(0, 2500);
   let best: { name: string; score: number } | null = null;
   for (const [re, name] of INSTITUTIONS) {
@@ -295,6 +295,17 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
     reason = known.reason;
   }
 
+  // Extrato de Movimentação da B3: compra, venda, rendimento e empréstimo de ativos, não a conta do
+  // banco. A corretora em toda linha fazia o perfil dizer "extrato bancário do BTG" e a pessoa
+  // ouvia que o formato era desconhecido (13/10/2026, duas pessoas, nas duas telas).
+  if (isB3Movimentacao(text)) {
+    kind = "position";
+    reason = MOTIVO_MOVIMENTACAO_B3;
+    const i = contents.indexOf("movements");
+    if (i !== -1) contents.splice(i, 1);
+    if (!contents.includes("position")) contents.push("position");
+  }
+
   // Extrato de custódia (Nubank): só o saldo de cada caixinha/fundo, sem entrada nem saída. Sem
   // código de ativo o perfil lia como "extrato bancário" e a cliente via "não achei transações".
   if (/extrato de cust[óo]dia/i.test(text) && /posi[çc][ãa]o consolidada/i.test(text)) {
@@ -315,17 +326,6 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
   if (isB3Position(text)) {
     kind = "position";
     reason = "posição da Área do Investidor (B3)";
-    if (!contents.includes("position")) contents.push("position");
-  }
-
-  // Extrato de Movimentação da B3: compra, venda, rendimento e empréstimo de ativos, não a conta do
-  // banco. A corretora em toda linha fazia o perfil dizer "extrato bancário do BTG" e a pessoa
-  // ouvia que o formato era desconhecido (13/10/2026, duas pessoas, nas duas telas).
-  if (isB3Movimentacao(text)) {
-    kind = "position";
-    reason = MOTIVO_MOVIMENTACAO_B3;
-    const i = contents.indexOf("movements");
-    if (i !== -1) contents.splice(i, 1);
     if (!contents.includes("position")) contents.push("position");
   }
 
