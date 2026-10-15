@@ -73,7 +73,10 @@ export async function listImportBatches(ctx: AuthContext, limit = 20): Promise<I
  * e passavam a parecer lançadas à mão — sem nenhum histórico que as desfizesse depois.
  */
 export async function deleteImportBatchWithEntries(ctx: AuthContext, id: string): Promise<number> {
-  const [entries] = await prisma.$transaction([
+  const [, entries] = await prisma.$transaction([
+    // A linha que ficou no lugar de um "Paguei" (ver juntarComPaguei em import-actions) volta a ser
+    // o gasto do "Paguei", sem lote: a conta continua paga e o gasto não some com o arquivo errado.
+    prisma.monthlyEntry.updateMany({ where: { importBatchId: id, userId: ctx.userId, contaAPagarId: { not: null }, importBatch: { is: { userId: ctx.userId, profileId: ctx.profileId } } }, data: { importBatchId: null } }),
     prisma.monthlyEntry.deleteMany({ where: { importBatchId: id, userId: ctx.userId, importBatch: { is: { userId: ctx.userId, profileId: ctx.profileId } } } }),
     prisma.importBatch.deleteMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }),
   ]);

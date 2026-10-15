@@ -64,6 +64,11 @@ export function origemDoLote(docType: string, fileName: string | null): string |
   return chave;
 }
 
+/** A origem de um arquivo para casar com o "Paguei": a do lote ou, sem o banco no nome, o genérico do tipo. */
+export function origemDoArquivo(docType: string, fileName: string | null): string {
+  return origemDoLote(docType, fileName) ?? (docType === "fatura" ? ORIGEM_CARTAO : ORIGEM_CONTA);
+}
+
 /**
  * As origens que a linha oferece: as contas e os cartões dos extratos que ela trouxe (do mais
  * recente para o mais antigo, até 4), o genérico do tipo que faltar e o dinheiro. A `ultima` (a

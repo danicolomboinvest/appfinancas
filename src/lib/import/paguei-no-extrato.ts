@@ -69,13 +69,18 @@ function diasEntre(a: string, b: string): number {
 
 /**
  * A origem do "Paguei" combina com a conta do arquivo? "mesma" (a mesma conta ou cartão),
- * "tipo" (o genérico do mesmo tipo, ou o "Paguei" sem origem), ou null (não combina).
+ * "tipo" (um dos dois é genérico, do mesmo tipo, ou o "Paguei" não tem origem), ou null (não
+ * combina: outro banco, conta com cartão, dinheiro). `contaDoArquivo` vem de origemDoLote, ou do
+ * genérico ("conta", "cartao") quando o nome do arquivo não diz o banco.
  */
 export function origemCombina(origem: string | null, contaDoArquivo: string | null): "mesma" | "tipo" | null {
   if (origem === ORIGEM_DINHEIRO) return null;
   if (origem === null || contaDoArquivo === null) return "tipo";
   const tipoDoArquivo = contaDoArquivo.startsWith("cartao") ? ORIGEM_CARTAO : ORIGEM_CONTA;
-  if (origem === ORIGEM_CONTA || origem === ORIGEM_CARTAO) return origem === tipoDoArquivo ? "tipo" : null;
+  const tipoDaOrigem = origem === ORIGEM_CONTA || origem === ORIGEM_CARTAO ? origem : origem.startsWith("cartao") ? ORIGEM_CARTAO : ORIGEM_CONTA;
+  if (tipoDaOrigem !== tipoDoArquivo) return null;
+  // Um dos dois é genérico (o "Paguei" em "Pix ou débito", ou o arquivo que não diz o banco).
+  if (origem === ORIGEM_CONTA || origem === ORIGEM_CARTAO || contaDoArquivo === ORIGEM_CONTA || contaDoArquivo === ORIGEM_CARTAO) return "tipo";
   return origem === contaDoArquivo ? "mesma" : null;
 }
 

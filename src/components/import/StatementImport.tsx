@@ -783,7 +783,7 @@ export function StatementImport({
       const dup = it.possivelDuplicata;
       if (!mesmo || !dup) return { ...it, possivelDuplicata: null };
       // De outro arquivo não tem o que acertar: a linha só não entra de novo.
-      return { ...it, possivelDuplicata: null, jaNoApp: { descricao: dup.descricao, data: dup.data, id: dup.id ?? "", valor: dup.valor ?? it.amount } };
+      return { ...it, possivelDuplicata: null, jaNoApp: { descricao: dup.descricao, data: dup.data, id: dup.id ?? "", valor: dup.valor ?? it.amount, ...(dup.paguei ? { paguei: true } : {}) } };
     });
   }
 
@@ -818,6 +818,12 @@ export function StatementImport({
       if (it.ignorar || !it.jaNoApp?.faturaAberta) continue;
       confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: it.estorno ?? false, resgate: false, adotar: it.jaNoApp.id });
     }
+    // O pagamento de uma conta que ela marcou "Paguei": vai junto, para a gravação deixar a linha
+    // do arquivo com a categoria e a ligação da conta e tirar o lançamento do "Paguei".
+    for (const it of items) {
+      if (it.ignorar || !it.jaNoApp?.paguei || !it.jaNoApp.id) continue;
+      confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: false, resgate: false, paguei: it.jaNoApp.id });
+    }
     // A parcela que já estava no mês também vai: a gravação a reconhece (não grava de novo) e
     // confirma a projeção que a fatura anterior tinha feito, como antes de a tela separá-la.
     for (const it of items) {
@@ -844,7 +850,7 @@ export function StatementImport({
         return;
       }
       // Os que já estavam no app: o lançamento à mão fica com o dia e o valor do arquivo.
-      const conciliar = items.flatMap((it) => (it.jaNoApp?.id && !it.jaNoApp.faturaAberta ? [{ id: it.jaNoApp.id, valor: it.estorno ? -it.amount : it.amount, data: it.date, descricao: it.description }] : []));
+      const conciliar = items.flatMap((it) => (it.jaNoApp?.id && !it.jaNoApp.faturaAberta && !it.jaNoApp.paguei ? [{ id: it.jaNoApp.id, valor: it.estorno ? -it.amount : it.amount, data: it.date, descricao: it.description }] : []));
       if (conciliar.length > 0) {
         try {
           const r = await conciliarJaNoAppAction(conciliar);
@@ -1357,7 +1363,7 @@ export function StatementImport({
     if (dup) {
       return (
         <div className="flex flex-col gap-3" data-pergunta-duplicata>
-          <p className="text-[17px] font-semibold text-ink">{dup.importado ? "Já veio de outro arquivo?" : "Você já lançou este?"}</p>
+          <p className="text-[17px] font-semibold text-ink">{dup.paguei ? "É a conta que você marcou como paga?" : dup.importado ? "Já veio de outro arquivo?" : "Você já lançou este?"}</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
               <p className="text-caption text-ink-muted">No arquivo</p>
@@ -1365,7 +1371,7 @@ export function StatementImport({
               <p className="break-words text-caption text-ink-muted">{formatDate(it.date)} · {nomeNaTela(it.description).nome}</p>
             </div>
             <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
-              <p className="text-caption text-ink-muted">{dup.importado ? "Já no app" : "Você lançou"}</p>
+              <p className="text-caption text-ink-muted">{dup.paguei ? "Paguei no app" : dup.importado ? "Já no app" : "Você lançou"}</p>
               <p className="truncate text-[17px] font-semibold tabular-nums text-ink">{money(dup.valor ?? it.amount)}</p>
               <p className="break-words text-caption text-ink-muted">
                 {dup.data ? `${formatDate(dup.data)} · ` : ""}
@@ -1575,7 +1581,8 @@ export function StatementImport({
     const importable = items.filter(entraNaImportacao);
     // As que já vieram por print da fatura aberta: não entram de novo, mas gravar ainda as passa para
     // esta fatura (valor, dia e nome dela). Sem nada novo, o botão segue valendo para isso.
-    const vemDoPrint = items.filter((it) => !it.ignorar && it.jaNoApp?.faturaAberta).length;
+    // O "Paguei" que o arquivo traz também precisa da gravação (a linha fica no lugar dele).
+    const vemDoPrint = items.filter((it) => !it.ignorar && (it.jaNoApp?.faturaAberta || it.jaNoApp?.paguei)).length;
     const semNadaParaGravar = importable.length === 0 && vemDoPrint === 0;
     // Gasto sem categoria ENTRA (sem categoria). Antes ficava de fora calado: o botão dizia
     // "Importar 12" e 3 gastos simplesmente não existiam depois. O aviso agora diz que ele entra
@@ -1845,7 +1852,7 @@ export function StatementImport({
                   <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
                   <span className="block text-caption text-ink-muted">
                     {formatDate(it.date)} · {money(it.amount)}
-                    {it.jaNoApp?.importado ? " · veio de outro arquivo" : it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
+                    {it.jaNoApp?.paguei ? " · já estava no app (Paguei)" : it.jaNoApp?.importado ? " · veio de outro arquivo" : it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
                   </span>
                 </span>
                 {/* A que veio de outro arquivo igualzinha não entra de novo nem com o toque: a gravação pula. */}
