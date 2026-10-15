@@ -50,6 +50,7 @@ import { Explica } from "@/components/ui/Explica";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { confirmadasDaMoedaDeFora, somaDigitada } from "@/lib/import/moeda-de-fora";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { CartaoDaFatura } from "./CartaoDaFatura";
 
 type Phase = "upload" | "password" | "arquivos" | "review" | "confirm" | "done";
 
@@ -828,7 +829,7 @@ export function StatementImport({
     confirmed.push(...confirmadasDaMoedaDeFora(stats?.semValorEmReal ?? [], reaisDoDolar));
     // Sem mês escolhido, o servidor põe cada compra no mês dela (com o vencimento e o fechamento lidos).
     const [targetYear, targetMonth] = docType === "fatura" && contarNoMes ? faturaMonth.split("-").map(Number) : [undefined, undefined];
-    const datasDaFatura = docType === "fatura" ? { vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null, porCompra: !contarNoMes } : null;
+    const datasDaFatura = docType === "fatura" ? { vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null, porCompra: !contarNoMes, banco: stats?.banco ?? null, final: stats?.final ?? null } : null;
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof importTransactionsAction>>;
       try {
@@ -1766,6 +1767,7 @@ export function StatementImport({
                 {stats?.conferencia.status === "fechou" && <span className="text-ink-muted" title={t.impBateuComTotal(money(stats.conferencia.esperado))}> · bateu com o total</span>}
               </span>
               )}
+              {docType === "fatura" && stats && <CartaoDaFatura key={ultimoArquivo?.file.name ?? "fatura"} stats={stats} />}
               {aberta && stats?.invoiceTotal ? (
                 Math.abs(totalGap) >= 1 ? (
                   <span className="mt-1 text-sm text-accent-strong" data-falta-total>

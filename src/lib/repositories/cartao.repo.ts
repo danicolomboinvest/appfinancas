@@ -13,7 +13,7 @@ import { faturasDoCartao, type CartaoComDias, type FaturasDoCartao, type Lancame
 const CAMPOS = { id: true, banco: true, apelido: true, diaFechamento: true, diaVencimento: true, final: true } as const;
 export type CartaoGravado = CartaoComDias & { final: string | null };
 
-export type DadosDoCartao = { banco: string; apelido?: string | null; diaFechamento: number; diaVencimento: number };
+export type DadosDoCartao = { banco: string; apelido?: string | null; diaFechamento: number; diaVencimento: number; final?: string | null };
 
 export async function listarCartoes(ctx: AuthContext): Promise<CartaoGravado[]> {
   return prisma.cartao.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, orderBy: { createdAt: "asc" }, select: CAMPOS });
@@ -27,7 +27,7 @@ export async function cartaoDoPerfil(ctx: AuthContext, id: string | null | undef
 
 export async function criarCartao(ctx: AuthContext, dados: DadosDoCartao): Promise<CartaoGravado> {
   return prisma.cartao.create({
-    data: { userId: ctx.userId, profileId: ctx.profileId, banco: dados.banco, apelido: dados.apelido?.trim() || null, diaFechamento: dados.diaFechamento, diaVencimento: dados.diaVencimento },
+    data: { userId: ctx.userId, profileId: ctx.profileId, banco: dados.banco, apelido: dados.apelido?.trim() || null, diaFechamento: dados.diaFechamento, diaVencimento: dados.diaVencimento, final: dados.final ?? null },
     select: CAMPOS,
   });
 }

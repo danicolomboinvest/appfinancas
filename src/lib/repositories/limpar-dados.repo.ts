@@ -142,6 +142,9 @@ export async function limparDados(ctx: AuthContext, opcoes: OpcoesDaLimpeza): Pr
     apaga("orcamentos", prisma.budget.deleteMany({ where: onde }));
     apaga("planosDoMes", prisma.monthlyPlan.deleteMany({ where: onde }));
   }
+  // Os cartões cadastrados (15/10/2026) são configuração do orçamento, como o limite do cartão:
+  // saem com ele. Lançamento que fica perde só a ligação (SetNull) e continua "no cartão".
+  if (sai("orcamento")) passos.push([null, prisma.cartao.deleteMany({ where: { userId, profileId: { in: alvo } } })]);
   // Os resumos guardados são contas feitas em cima de tudo: saem sempre, e o app refaz.
   apaga("resumosGuardados", prisma.yearlyConsolidationCache.deleteMany({ where: onde }));
   apaga("resumosGuardados", prisma.accumulationProjectionCache.deleteMany({ where: onde }));

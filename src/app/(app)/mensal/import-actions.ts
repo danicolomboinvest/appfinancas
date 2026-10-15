@@ -18,6 +18,8 @@ import { conferirLeitura, leituraIncompleta, type Conferencia } from "@/lib/impo
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
+import { finalDoCartao } from "@/lib/cartao/bancos";
+import { acharCartaoDaFatura, ligarLoteAoCartao } from "@/lib/repositories/cartao.repo";
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
 import { PREFIXO_COMPRA_APAGADA, PREFIXO_NAO_PARCELA, projecaoRecusada } from "@/lib/contas/parcelas-do-mes";
@@ -178,6 +180,11 @@ export type ParseStats = {
   fechamento: string | null;
   /** O banco, quando o perfil do arquivo reconhece ("Nubank"). */
   banco: string | null;
+  /** Fatura: os 4 últimos dígitos do cartão, quando o arquivo traz (lib/cartao/bancos.ts). */
+  final?: string | null;
+  /** Fatura: o cartão cadastrado desta fatura (mesmo final ou mesmo banco), quando há um. A tela
+   * oferece guardar os dias lidos quando ele ainda não tem. */
+  cartao?: { id: string; banco: string; apelido: string | null; diaFechamento: number | null; diaVencimento: number | null } | null;
   /** Fatura: os meses em que as compras caem ("YYYY-MM"), cada uma no mês em que foi feita. */
   mesesDasCompras: string[];
   /** Fatura: quantas compras (gastos que entram, sem estorno e sem o que fica de fora). */
@@ -632,7 +639,19 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     if (docType === "fatura") for (const item of items) item.date = ajustarAnoDaCompra(item.date, datasDaFatura.vencimento, datasDaFatura.fechamento);
     const linhas = docType === "fatura" ? items.filter((i) => i.category === "EXPENSE" && !i.estorno && !i.ignorar) : parsed.filter((t) => !isFaturaSummaryLine(t));
     const contexto = contextoDaFatura(datasDaFatura, parsed.map((t) => t.date));
+    const final = docType === "fatura" ? finalDoCartao(text) : null;
+    let cartao: ParseStats["cartao"] = null;
+    if (docType === "fatura") {
+      try {
+        const achado = await acharCartaoDaFatura(ctx, { banco: profile.institution ?? null, final });
+        cartao = achado ? { id: achado.id, banco: achado.banco, apelido: achado.apelido, diaFechamento: achado.diaFechamento, diaVencimento: achado.diaVencimento } : null;
+      } catch (err) {
+        console.error("parseStatementAction: cartão da fatura (a leitura segue)", err);
+      }
+    }
     Object.assign(stats, {
+      final,
+      cartao,
       vencimento: datasDaFatura.vencimento,
       fechamento: datasDaFatura.fechamento,
       mesesDasCompras: mesesDasCompras(linhas.map((l) => ({ date: l.date, description: l.description })), contexto),
@@ -1177,6 +1196,21 @@ async function marcarParcelasJaNoApp(ctx: AuthContext, items: ReviewItem[], cont
 }
 
 /**
+ * Fatura do cartão cadastrado (15/10/2026): as compras que este lote gravou ficam ligadas ao
+ * cartão (mesmo final ou, sem final, o único cartão do mesmo banco). Só liga; o mês que conta no
+ * orçamento não muda. Falha aqui não desfaz a importação.
+ */
+async function ligarFaturaAoCartao(ctx: AuthContext, loteId: string, fatura: { banco?: string | null; final?: string | null } | null | undefined) {
+  try {
+    const lido = { banco: fatura?.banco ?? null, final: fatura?.final && /^\d{4}$/.test(fatura.final) ? fatura.final : null };
+    const cartao = await acharCartaoDaFatura(ctx, lido);
+    if (cartao) await ligarLoteAoCartao(ctx, loteId, cartao, lido.final);
+  } catch (err) {
+    console.error("importTransactionsAction: ligar ao cartão (a importação segue)", err);
+  }
+}
+
+/**
  * Cria os lançamentos escolhidos e memoriza as categorias definidas manualmente (item 3).
  * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas, importar o
  * mesmo extrato duas vezes não duplica nada.
@@ -1198,7 +1232,7 @@ export async function importTransactionsAction(
   /** Perfil Casal: de quem é o extrato ("A"/"B"). Todas as linhas que ficam no perfil levam o nome. */
   pessoaDoExtrato?: string | null,
   /** Fatura: vencimento e fechamento lidos do arquivo (ParseStats), que decidem o mês de cada compra. */
-  fatura?: { vencimento: string | null; fechamento: string | null; porCompra?: boolean } | null,
+  fatura?: { vencimento: string | null; fechamento: string | null; porCompra?: boolean; banco?: string | null; final?: string | null } | null,
   /** Prints da fatura ABERTA: o lote fica marcado como parcial e não projeta parcelas (a fatura fechada projeta). */
   faturaAberta?: boolean,
 ): Promise<ImportResult> {
@@ -1765,6 +1799,7 @@ export async function importTransactionsAction(
   // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio. (O que
   // só confirmou parcelas projetadas por outro lote não está vazio: agora elas são dele.)
   if (created === 0 && adotados === 0) await deleteEmptyImportBatch(ctx, batch.id);
+  else if (ehFatura) await ligarFaturaAoCartao(ctx, batch.id, fatura);
   // O lote de print que ficou sem nenhuma compra (todas passaram para este) sai do histórico.
   for (const id of lotesDePrintMexidos) if (id !== batch.id) await deleteEmptyImportBatch(ctx, id);
 
