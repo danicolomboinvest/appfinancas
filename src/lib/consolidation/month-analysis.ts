@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { filtroDosTotais, nomesDasPersonalizadas } from "./escopo";
 
 /**
  * Análises do mês que respondem "como estou indo?" em vez de só "quanto deu?": a curva do
@@ -44,7 +45,8 @@ export type DailyFlow = {
  */
 export async function getDailyFlow(ctx: AuthContext, year: number, month: number): Promise<DailyFlow> {
   const entries = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: { in: ["INCOME", "EXPENSE", "INVESTMENT_CONTRIBUTION"] } },
+    // Mesmo escopo do Resumo (escopo.ts): no casal, a curva soma os dois, como o Gastou ao lado.
+    where: filtroDosTotais(ctx, { year, month, category: { in: ["INCOME", "EXPENSE", "INVESTMENT_CONTRIBUTION"] } }),
     select: { category: true, amount: true, entryDate: true },
   });
 
@@ -107,6 +109,15 @@ export async function getDailyFlow(ctx: AuthContext, year: number, month: number
   return { points, daysInMonth, undatedCount, undatedAmount, undatedIncomeCount, undatedIncomeAmount };
 }
 
+/**
+ * O que já saiu no mês até hoje: o último ponto da curva mais o gasto sem data (a fatura
+ * importada, que já aconteceu). O "a vencer" (data mais para frente no mês) fica de fora: ainda
+ * não saiu. É o lado "deste mês" da comparação com o mês passado (ver blocos do Foco).
+ */
+export function gastoAteHoje(flow: Pick<DailyFlow, "points" | "undatedAmount">): number {
+  return (flow.points.at(-1)?.expense ?? 0) + flow.undatedAmount;
+}
+
 export type CategorySpending = {
   /** Chave estável (categoria-mãe ou id da personalizada), pra casar ícone/cor. */
   key: string;
@@ -138,19 +149,21 @@ export async function getCategorySpending(
 ): Promise<CategorySpending[]> {
   const previous = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 
+  // Mesmo escopo do Resumo (escopo.ts): no casal, o ranking soma os dois, e a fatia de cada
+  // categoria é do mesmo Gastou que o Resumo mostra. As categorias do par vêm com o nome dele.
   const [current, prev, customCategories] = await Promise.all([
     prisma.monthlyEntry.groupBy({
       by: ["parentCategory", "customCategoryId"],
-      where: { userId: ctx.userId, profileId: ctx.profileId, year, month, category: "EXPENSE" },
+      where: filtroDosTotais(ctx, { year, month, category: "EXPENSE" }),
       _sum: { amount: true },
       _count: true,
     }),
     prisma.monthlyEntry.groupBy({
       by: ["parentCategory", "customCategoryId"],
-      where: { userId: ctx.userId, profileId: ctx.profileId, year: previous.year, month: previous.month, category: "EXPENSE" },
+      where: filtroDosTotais(ctx, { year: previous.year, month: previous.month, category: "EXPENSE" }),
       _sum: { amount: true },
     }),
-    prisma.customCategory.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true, name: true, icon: true } }),
+    nomesDasPersonalizadas(ctx),
   ]);
 
   const customCategoryNames = new Map(customCategories.map((c) => [c.id, c.name]));

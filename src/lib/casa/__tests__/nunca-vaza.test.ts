@@ -37,6 +37,17 @@ const PODEM_LER_A_CASA = [
   // subiu, com os mesmos totais do Resumo e do Orçamento. Do outro, lê só as respostas sobre
   // categoria do orçamento (lib/casa/regras.ts: donosDasRespostasDoOrcamento).
   "lib/avisos/respostas.ts",
+  // O escopo único dos totais (15/10/2026, "as coisas precisam bater certinho"): o ranking por
+  // categoria, a curva do dia a dia, o ano, os stories, o e-mail do resumo e os avisos do dia
+  // passam a ler os mesmos totais do Resumo, pela carga única de escopo.ts (lancamentosDosTotais:
+  // o "Só meu" e a conta escondida do outro continuam fora). Os crons montam o contexto como a
+  // sessão (contextoDoPerfil).
+  "lib/consolidation/escopo.ts",
+  "lib/consolidation/yearly.ts",
+  "lib/consolidation/month-analysis.ts",
+  "lib/recap/monthly.ts",
+  "app/api/cron/monthly-recap/route.ts",
+  "app/api/cron/alerts/route.ts",
 ];
 
 /** As leituras que nunca podem ver a casa, uma por uma, com o porquê. */
@@ -44,9 +55,8 @@ const NUNCA_LEEM_A_CASA = [
   "lib/repositories/dinheiro-perdido.repo.ts",
   "lib/repositories/contas-do-historico.repo.ts",
   "app/(app)/configuracoes/dados/actions.ts",
-  "app/api/cron/monthly-recap/route.ts",
-  "app/api/cron/alerts/route.ts",
-  "lib/recap/monthly.ts",
+  // O e-mail do resumo, os avisos do dia e os stories saíram daqui em 15/10/2026: mostram os
+  // mesmos totais do Resumo (ver PODEM_LER_A_CASA), sem nada que o outro escondeu.
   "lib/repositories/limpar-dados.repo.ts",
   "lib/repositories/mover-perfil.repo.ts",
   "lib/repositories/delete-account.repo.ts",
@@ -63,7 +73,7 @@ function arquivos(dir: string, achados: string[] = []): string[] {
   return achados;
 }
 
-const FILTROS_DA_CASA = /\b(lancamentosParaVer|lancamentosDosTotais|doOutroVisivel|lancamentosDoAcertoDaCasa|casaDoUsuario)\b/;
+const FILTROS_DA_CASA = /\b(lancamentosParaVer|lancamentosDosTotais|doOutroVisivel|lancamentosDoAcertoDaCasa|casaDoUsuario|filtroDosTotais|somarPorMesETipo|perfisDosTotais|contextoDoPerfil)\b/;
 
 describe("o escondido nunca vaza para o outro", () => {
   const todos = arquivos("src");

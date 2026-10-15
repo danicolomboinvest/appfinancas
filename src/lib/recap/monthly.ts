@@ -5,6 +5,8 @@ import { fv } from "@/lib/finance/fv";
 import { annualToMonthly } from "@/lib/finance/rate-conversion";
 import type { ParentCategory } from "@prisma/client";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { nomesDasPersonalizadas, filtroDosTotais, somarPorMesETipo, type SomaPorTipo } from "@/lib/consolidation/escopo";
+import { sobrouDoMes, type ValoresDoMes } from "@/lib/consolidation/sobrou";
 
 export type WeekdaySpend = { label: string; value: number };
 
@@ -25,12 +27,13 @@ export type MonthlyRecap = {
   byWeekday: WeekdaySpend[];
   bestDay: { label: string; value: number } | null;
   worstDay: { label: string; value: number } | null;
-  /** Renda − gastos desde o primeiro lançamento até o mês RECAPEADO ("ficou no bolso").
-   * Acumulado, não é média; meses depois dele (recorrência, parcelas, o mês novo) ficam de fora. */
+  /** O sobrou (entrou − gastou − guardou, lib/consolidation/sobrou) somado desde o primeiro
+   * lançamento até o mês RECAPEADO ("ficou no bolso"). Acumulado, não é média; meses depois dele
+   * (recorrência, parcelas, o mês novo) ficam de fora. */
   allTimeSaved: number;
   /** Quantos meses de uso (mínimo 1), só para a frase "desde que você chegou aqui". */
   monthsActive: number;
-  /** Poupança MÉDIA de verdade: total poupado no ano (até o mês recapeado) ÷ meses com
+  /** Poupança MÉDIA de verdade: guardou + sobrou do ano (até o mês recapeado) ÷ meses com
    * lançamento nesse ano. Não confundir com allTimeSaved (esse é acumulado, não é por mês). */
   avgMonthlySaving: number;
   /** allTimeSaved investido de uma vez, a 10% a.a. por 10 anos (o que already existe hoje vira patrimônio). */
@@ -100,6 +103,25 @@ export function maiorCategoriaDoMes(
   return maior && maior.value > 0 ? maior : null;
 }
 
+/** Centavos exatos: a soma de vários meses em número não pode virar "0,30000000004". */
+function centavos(n: number): number {
+  return Math.round(n * 100) / 100 || 0;
+}
+
+/** As somas da carga única viradas em entrou, gastou e guardou de cada mês ("2026-9"). */
+export function valoresPorMes(somas: SomaPorTipo[]): Map<string, ValoresDoMes & { ano: number; mes: number }> {
+  const porMes = new Map<string, ValoresDoMes & { ano: number; mes: number }>();
+  for (const s of somas) {
+    const k = `${s.year}-${s.month}`;
+    const v = porMes.get(k) ?? { ano: s.year, mes: s.month, entrou: 0, gastou: 0, guardou: 0 };
+    if (s.category === "INCOME") v.entrou += s.total;
+    else if (s.category === "EXPENSE") v.gastou += s.total;
+    else v.guardou += s.total;
+    porMes.set(k, v);
+  }
+  return porMes;
+}
+
 /**
  * Qual mês recapear e se o card deve aparecer agora: só no começo do mês (dia 1 a 7), sobre o
  * mês ANTERIOR, e só se esse mês ainda não foi fechado pelo usuário (User.recapDismissedMonth).
@@ -149,39 +171,23 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     OR: [{ year: { lt: year } }, { year, month: { lte: month } }],
   };
 
-  const [monthExpenses, prevMonthAgg, allTime, firstEntry, yearAgg, personalizadas] = await Promise.all([
+  // Casal simples: o mesmo escopo do Resumo (lib/consolidation/escopo.ts). Antes os stories liam
+  // só quem estava logada e o "Em setembro você gastou" não batia com o Gastou de setembro.
+  const [monthExpenses, porMes, firstEntry, personalizadas] = await Promise.all([
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", year, month },
+      where: filtroDosTotais(ctx, { category: "EXPENSE", year, month }),
       select: { amount: true, entryDate: true, createdAt: true, importBatchId: true, parentCategory: true, customCategoryId: true },
     }),
-    prisma.monthlyEntry.aggregate({
-      where: {
-        userId: ctx.userId, profileId: ctx.profileId,
-        category: "EXPENSE",
-        year: prev.getFullYear(),
-        month: prev.getMonth() + 1,
-      },
-      _sum: { amount: true },
-    }),
-    prisma.monthlyEntry.groupBy({
-      by: ["category"],
-      where: { userId: ctx.userId, profileId: ctx.profileId, ...jaAconteceu },
-      _sum: { amount: true },
-    }),
+    // A carga única: entrou, gastou e guardou de cada mês até o recapeado. Dela saem o gasto do
+    // mês anterior, o "no bolso" desde o começo e a média do ano, numa consulta só.
+    somarPorMesETipo(ctx, jaAconteceu),
     prisma.monthlyEntry.findFirst({
-      where: { userId: ctx.userId, profileId: ctx.profileId },
+      where: filtroDosTotais(ctx, {}),
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     }),
-    // Poupança média REAL do ano (até o mês recapeado): agrupa por mês pra saber quantos
-    // meses de fato têm lançamento (não é "meses corridos desde o início").
-    prisma.monthlyEntry.groupBy({
-      by: ["year", "month", "category"],
-      where: { userId: ctx.userId, profileId: ctx.profileId, year, month: { lte: month } },
-      _sum: { amount: true },
-    }),
     // Nomes das categorias personalizadas, pra maior categoria sair com o nome que ela deu.
-    prisma.customCategory.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, select: { id: true, name: true } }),
+    nomesDasPersonalizadas(ctx),
   ]);
   const nomeDaPersonalizada = new Map(personalizadas.map((c) => [c.id, c.name]));
 
@@ -194,7 +200,8 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     const weekday = weekdayOfExpense(e, year, month);
     if (weekday !== null) byWeekday[weekday] += amount;
   }
-  const prevMonthSpent = Number(prevMonthAgg._sum.amount ?? 0);
+  const meses = valoresPorMes(porMes);
+  const prevMonthSpent = meses.get(`${prev.getFullYear()}-${prev.getMonth() + 1}`)?.gastou ?? 0;
 
   const topCategory = maiorCategoriaDoMes(
     monthExpenses.map((e) => ({ amount: Number(e.amount), parentCategory: e.parentCategory, customCategoryId: e.customCategoryId })),
@@ -212,9 +219,11 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
   const worstDay = daysWithSpend.length > 0 ? daysWithSpend.reduce((max, d) => (d.value > max.value ? d : max)) : null;
   const bestDay = daysWithSpend.length > 0 ? daysWithSpend.reduce((min, d) => (d.value < min.value ? d : min)) : null;
 
-  const sums = { INCOME: 0, EXPENSE: 0, INVESTMENT_CONTRIBUTION: 0 };
-  for (const g of allTime) sums[g.category] = Number(g._sum.amount ?? 0);
-  const allTimeSaved = sums.INCOME - sums.EXPENSE;
+  // "Ficou no seu bolso" é o sobrou da regra única (entrou − gastou − guardou), somado mês a mês:
+  // o mesmo número que o Resumo mostra em cada mês. Antes era entrou − gastou, e o aporte do mês
+  // contava duas vezes (no Guardou do Resumo e no "no bolso" dos stories).
+  const allTimeSaved = centavos([...meses.values()].reduce((t, v) => t + sobrouDoMes(v), 0));
+  const temRendaOuGasto = [...meses.values()].some((v) => v.entrou > 0 || v.gastou > 0);
 
   const monthsActive = firstEntry
     ? Math.max(
@@ -225,16 +234,13 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
       )
     : 1;
 
-  // Poupança média real: soma renda-gasto do ano (até o mês recapeado) ÷ meses PREENCHIDOS
-  // (não meses corridos) — sem isso, um valor acumulado de vários meses vira "poupança do mês".
-  const yearSums = { INCOME: 0, EXPENSE: 0 };
-  const filledMonths = new Set<number>();
-  for (const g of yearAgg) {
-    if (g.category === "INCOME" || g.category === "EXPENSE") yearSums[g.category] += Number(g._sum.amount ?? 0);
-    filledMonths.add(g.month);
-  }
-  const monthsFilled = Math.max(1, filledMonths.size);
-  const avgMonthlySaving = (yearSums.INCOME - yearSums.EXPENSE) / monthsFilled;
+  // Poupança média real do ano (até o mês recapeado) ÷ meses PREENCHIDOS (não meses corridos):
+  // sem isso, um valor acumulado de vários meses vira "poupança do mês". Poupança é o que não
+  // virou gasto: o que ela guardou mais o que sobrou (sobrouDoMes), a conta do Resumo somada ao
+  // Guardou. O texto do story diz "o que você costuma guardar", então o aporte fica dentro.
+  const doAno = [...meses.values()].filter((v) => v.ano === year);
+  const monthsFilled = Math.max(1, doAno.length);
+  const avgMonthlySaving = centavos(doAno.reduce((t, v) => t + sobrouDoMes(v) + v.guardou, 0) / monthsFilled);
 
   const monthlyRate = annualToMonthly(PROJECTION_ANNUAL_RATE);
   const nper = PROJECTION_YEARS * 12;
@@ -257,6 +263,6 @@ export async function computeMonthlyRecap(ctx: AuthContext, year: number, month:
     avgMonthlySaving,
     lumpSumProjection10y,
     recurringProjection10y,
-    hasData: monthSpent > 0 || prevMonthSpent > 0 || sums.INCOME > 0 || sums.EXPENSE > 0,
+    hasData: monthSpent > 0 || prevMonthSpent > 0 || temRendaOuGasto,
   };
 }

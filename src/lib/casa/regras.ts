@@ -125,6 +125,19 @@ export function comFiltro(base: Prisma.MonthlyEntryWhereInput, resto: Prisma.Mon
   return conflita ? { AND: [base, resto] } : { ...base, ...resto };
 }
 
+/**
+ * Os Pessoais cujos lançamentos entram nos totais de quem olha: só o dele, ou os dois da casa.
+ * Serve para dar NOME às categorias que ele criou e às do outro que aparecem nos totais (o gasto
+ * do par numa categoria dele vinha como "Outro" no ranking de quem olha). Só nomes: o filtro dos
+ * lançamentos continua sendo `lancamentosDosTotais`.
+ */
+export function perfisDosTotais(q: QuemLe): { userId: string; profileId: string }[] {
+  const casa = casaAtiva(q);
+  const eu = { userId: q.userId, profileId: q.profileId };
+  if (!casa) return [eu];
+  return [eu, { userId: casa.outro.userId, profileId: casa.outro.profileId }];
+}
+
 /** De quem é o orçamento que vale: o da casa (o Pessoal da titular) ou, sem casa, o de quem olha. */
 export function donoDoOrcamento(q: QuemLe): { userId: string; profileId: string } {
   const casa = casaAtiva(q);

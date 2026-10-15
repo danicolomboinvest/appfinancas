@@ -1,8 +1,8 @@
 import type { EntryCategory } from "@prisma/client";
 import { Decimal } from "@/lib/finance/decimal";
-import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { monthsElapsedInYear } from "./realized-months";
+import { somarPorMesETipo } from "./escopo";
 
 export type MonthlyBreakdown = {
   month: number;
@@ -69,17 +69,16 @@ export function buildMonthlyBreakdowns(grouped: GroupedAmount[], monthsElapsed: 
  * principais (`totalIncome`/`totalExpense`/`totalInvestment`/`balance`) só somam meses já
  * ocorridos, uma despesa recorrente lançada em março não conta como "já gasta" em dezembro
  * só porque a linha do lançamento já existe no banco para os meses futuros.
+ *
+ * Mesmo escopo do Resumo (a carga única de escopo.ts): no casal, os meses do ano somam os dois,
+ * como o Resumo de cada mês. Antes o ano lia só quem estava logada e não fechava com os meses.
  */
 export async function getYearlySummary(ctx: AuthContext, year: number): Promise<YearlySummary> {
-  const grouped = await prisma.monthlyEntry.groupBy({
-    by: ["month", "category"],
-    where: { userId: ctx.userId, profileId: ctx.profileId, year },
-    _sum: { amount: true },
-  });
+  const grouped = await somarPorMesETipo(ctx, { year });
 
   const monthsElapsed = monthsElapsedInYear(year);
   const months = buildMonthlyBreakdowns(
-    grouped.map((g) => ({ month: g.month, category: g.category, sum: Number(g._sum.amount ?? 0) })),
+    grouped.map((g) => ({ month: g.month, category: g.category, sum: g.total })),
     monthsElapsed,
   );
 
