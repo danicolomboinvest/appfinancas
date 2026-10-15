@@ -31,7 +31,13 @@ export function CartaoSugestao({ sugestao, marca, maisNoDecidir }: { sugestao: S
         </div>
         <div className="flex items-center gap-2">
           {sugestao.botao && (
-            <Link href={sugestao.botao.href} className="inline-flex min-h-11 items-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent">
+            <Link
+              href={sugestao.botao.href}
+              // Tocar no botão é resolver: a sugestão não espera o "Agora não" para sair (14/10/2026).
+              onClick={() => {
+                if (!indoBem) comecar(() => dispensarSugestaoAction(sugestao.tipo, sugestao.id, marca, false));
+              }}
+              className="inline-flex min-h-11 items-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent">
               {sugestao.botao.rotulo}
             </Link>
           )}

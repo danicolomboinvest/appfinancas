@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { comFiltro, lancamentosDosTotais } from "@/lib/casa/regras";
+import { comFiltro, donoDoOrcamento, lancamentosDosTotais } from "@/lib/casa/regras";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey } from "@/lib/categories";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
@@ -347,7 +347,11 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
 
     // 3. Categoria que subiu. A que passou do plano e ela já respondeu no "O que fazer?" fica de
     // fora: seria o mesmo aviso de volta.
-    const respondidas = new Set(foco.estourosRespondidos);
+    // E a que ela já resolveu no Orçamento neste mês (14/10/2026, "tirei de outras e coloquei em
+    // Cuidado pessoal, e o Resumo continuou igual"): cobrir com outra categoria ou mexer no lápis
+    // muda o plano dela no mês, e aí a sugestão não volta.
+    const planoMexido = await categoriasComPlanoMexidoNoMes(ctx, mes);
+    const respondidas = new Set([...foco.estourosRespondidos, ...planoMexido]);
     const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram.filter((c) => !respondidas.has(c.categoria))) : null;
     if (subiu) {
       const nome = info(subiu.categoria).nome;
@@ -493,4 +497,18 @@ async function carregarPrimeiraVez(
     parcelas: parcelas.length > 0 && ultimaParcela ? { n: parcelas.length, valor: parcelas.reduce((s, p) => s + p.valor, 0), acabaEm: ultimaParcela } : null,
     tarifas: achados.length > 0 ? { n: achados.length, mensal: achados.reduce((s, a) => s + (a.mensal ?? 0), 0) } : null,
   };
+}
+
+/**
+ * As categorias cujo plano do mês ela mexeu DEPOIS de criado, dentro do próprio mês: o "Cobrir com
+ * outra categoria" e o lápis do Planejado. O plano criado de uma vez no começo do ano (createdAt e
+ * updatedAt juntos) não conta.
+ */
+async function categoriasComPlanoMexidoNoMes(ctx: AuthContext, mes: Mes): Promise<string[]> {
+  const inicio = new Date(Date.UTC(mes.ano, mes.mes - 1, 1, 3));
+  const linhas = await prisma.budget.findMany({
+    where: { ...donoDoOrcamento(ctx), year: mes.ano, month: mes.mes, updatedAt: { gte: inicio } },
+    select: { parentCategory: true, customCategoryId: true, createdAt: true, updatedAt: true },
+  });
+  return linhas.filter((l) => l.updatedAt.getTime() - l.createdAt.getTime() > 60_000).map((l) => (l.customCategoryId ?? l.parentCategory) as string);
 }
