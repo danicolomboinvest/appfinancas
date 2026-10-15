@@ -8,7 +8,7 @@ import { agendarContasDoHistorico } from "@/lib/contas/agendar-contas";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { descricaoComparavel, installmentDescription, mesmaParcela, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
-import { profileDocument } from "@/lib/import/profile";
+import { MOTIVO_MOVIMENTACAO_B3, profileDocument } from "@/lib/import/profile";
 import { veioDeImagem } from "@/lib/import/ocr-marca";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
@@ -411,6 +411,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   if (profile.kind === "position" && !profile.contents.includes("movements")) {
     const msg = /extrato de cust[óo]dia/i.test(profile.reason)
       ? `Li o arquivo inteiro: esse é o extrato de custódia, o saldo de cada caixinha e fundo. Ele não traz entradas e saídas, então não serve aqui. Para lançar o dia a dia, baixe o extrato da conta (Conta › Extrato) no app do banco.`
+      : profile.reason === MOTIVO_MOVIMENTACAO_B3
+      ? `Li o arquivo inteiro: esse é o extrato de movimentação da B3, com as compras, vendas e rendimentos dos investimentos. Ele não traz as entradas e saídas da conta, então não serve aqui. Para lançar o dia a dia, baixe o extrato da conta no app do banco.`
       : `Li o arquivo inteiro: ${profile.summary}. É a posição dos investimentos, não entradas e saídas: suba em Carteira › Importar.`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
     return { ok: false, error: msg };

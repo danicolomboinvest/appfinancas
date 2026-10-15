@@ -173,6 +173,8 @@ function detectInstitution(text: string): string | null {
   // O extrato do BB não diz "Banco do Brasil" em lugar nenhum, só "BB Rende Fácil"; um boleto
   // pago ao "BANCO C6 S.A." fazia a tela chamar o arquivo de C6.
   if (isBancoDoBrasilStatement(text)) return "Banco do Brasil";
+  // A movimentação da B3 repete a corretora em toda linha ("BANCO BTG PACTUAL S/A."): é da B3.
+  if (isB3Movimentacao(text)) return "B3";
   const head = text.slice(0, 2500);
   let best: { name: string; score: number } | null = null;
   for (const [re, name] of INSTITUTIONS) {
@@ -184,6 +186,14 @@ function detectInstitution(text: string): string | null {
     if (!best || score > best.score) best = { name, score };
   }
   return best?.name ?? null;
+}
+
+/** O motivo do perfil para a movimentação da B3: as telas de importação reconhecem por ele. */
+export const MOTIVO_MOVIMENTACAO_B3 = "extrato de movimentação da B3 (compras, vendas e rendimentos dos investimentos)";
+
+/** "Extrato de Movimentação" baixado da Área do Investidor (investidor.b3.com.br). */
+export function isB3Movimentacao(text: string): boolean {
+  return /Extrato de Movimenta[çc][ãa]o/i.test(text) && /investidor\.b3\.com\.br/i.test(text);
 }
 
 export function profileDocument(text: string, fileName?: string | null): DocProfile {
@@ -300,6 +310,17 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
   if (isB3Position(text)) {
     kind = "position";
     reason = "posição da Área do Investidor (B3)";
+    if (!contents.includes("position")) contents.push("position");
+  }
+
+  // Extrato de Movimentação da B3: compra, venda, rendimento e empréstimo de ativos, não a conta do
+  // banco. A corretora em toda linha fazia o perfil dizer "extrato bancário do BTG" e a pessoa
+  // ouvia que o formato era desconhecido (13/10/2026, duas pessoas, nas duas telas).
+  if (isB3Movimentacao(text)) {
+    kind = "position";
+    reason = MOTIVO_MOVIMENTACAO_B3;
+    const i = contents.indexOf("movements");
+    if (i !== -1) contents.splice(i, 1);
     if (!contents.includes("position")) contents.push("position");
   }
 

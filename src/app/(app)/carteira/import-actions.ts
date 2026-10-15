@@ -10,7 +10,7 @@ import { createAsset } from "@/lib/repositories/asset.repo";
 import { refreshDividendsForTickers } from "@/lib/repositories/dividend.repo";
 import { parsePortfolioStatement, guessAssetClass } from "@/lib/import/portfolio-parser";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
-import { profileDocument } from "@/lib/import/profile";
+import { MOTIVO_MOVIMENTACAO_B3, profileDocument } from "@/lib/import/profile";
 import { isPartialRead, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import { NUMBERS_ONLY_MESSAGE, pdfTextQuality } from "@/lib/import/pdf-quality";
@@ -160,6 +160,13 @@ export async function parsePortfolioAction(formData: FormData): Promise<ParsePor
   const profile = profileDocument(text, fileName);
   if (profile.kind === "irpf") {
     const msg = `Li o arquivo inteiro: ${profile.summary}. A declaração serve para pegar o preço médio: use o botão "Preço médio (IR)" na carteira.`;
+    await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
+    return { ok: false, error: msg };
+  }
+  // Movimentação da B3: são as operações, não quanto a pessoa tem de cada ativo. Lida como posição,
+  // a quantidade de UMA compra viraria o total do ativo na carteira.
+  if (profile.reason === MOTIVO_MOVIMENTACAO_B3) {
+    const msg = `Li o arquivo inteiro: esse é o extrato de movimentação da B3, com as compras, vendas e rendimentos, não quanto você tem de cada ativo. Para a carteira, baixe o relatório de posição da B3 (Área do Investidor › Posição).`;
     await falha(msg, { kind: profile.kind, institution: profile.institution, header: safeHeader(text) });
     return { ok: false, error: msg };
   }
