@@ -17,6 +17,7 @@ import { isPicPayInvoice, parsePicPayInvoice } from "./picpay-fatura-pdf";
 import { isSicrediInvoice, parseSicrediInvoice } from "./sicredi-fatura-pdf";
 import { isSicoobInvoice, parseSicoobInvoice } from "./sicoob-fatura-pdf";
 import { isBtgInvoice, parseBtgInvoice } from "./btg-fatura-pdf";
+import { isBtgExtratoContaPdf, parseBtgExtratoContaPdf } from "./btg-extrato-pdf";
 import { isBtgExtratoApp, parseBtgExtratoApp } from "./btg-extrato-app-pdf";
 import { lerExtratoPeloSaldo } from "./extrato-pelo-saldo";
 import { isCaixaInvoice, parseCaixaInvoice } from "./caixa-fatura-pdf";
@@ -289,6 +290,10 @@ const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$|gasto$|aporte$)/i;
 const CATEGORY_HEADERS = ["categoria", "category", "ramo", "segmento", "mcc"];
 /** Célula que é SÓ o sinal (nada de "Pix enviado"): essa não enriquece a descrição. */
 const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-]|gasto|renda|aporte|resgate)$/i;
+/** A coluna "Tipo de compra" da planilha da fatura (BTG): diz COMO foi pago, não o quê. Grudada
+ * na frente ("Parcela sem juros · Loja (2/6)") o nome deixava de bater com as regras dela e com a
+ * mesma compra vinda do PDF: a fatura em planilha virava quase uma pergunta por compra e quase nada "já no app". */
+const CELULA_TIPO_DE_COMPRA_RE = /^(?:compra (?:[àa] vista|parcelada|internacional|nacional|online)|parcela (?:sem|com) juros|parcelad[ao]|[àa] vista)$/i;
 /** Coluna separada de "Transação"/"Tipo" (ex.: extrato BTG), enriquece a descrição. */
 const TRANSACTION_HEADERS = ["transa", "tipo de lanç", "tipo"];
 /** Célula que é SÓ uma data: no Inter a coluna "TRANSACAO" traz a data, não o tipo. */
@@ -447,7 +452,7 @@ function readTransactionLine(line: string, layout: CsvLayout, refYear: number): 
   // Data repetida na coluna de "Transação" não enriquece nada: virava "1/07/26 · PAGAMENTO…".
   const transRaw = transCol !== -1 ? (cols[transCol] ?? "").trim() : "";
   // A coluna "Tipo" que só traz D/C/Saída/Entrada já deu o sinal: não vira "D · Mercado".
-  const trans = CELL_IS_DATE_RE.test(transRaw) || CELULA_SO_SINAL_RE.test(transRaw) ? "" : transRaw;
+  const trans = CELL_IS_DATE_RE.test(transRaw) || CELULA_SO_SINAL_RE.test(transRaw) || CELULA_TIPO_DE_COMPRA_RE.test(transRaw) ? "" : transRaw;
   // Pula saldos/totais, são fotografias do saldo, não transações.
   if (NON_TRANSACTION_RE.test(desc) || NON_TRANSACTION_RE.test(trans)) return null;
 
@@ -953,6 +958,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "sicoob-fatura", reconhece: isSicoobInvoice, le: (t, ano) => parseSicoobInvoice(t, ano) },
   { nome: "btg-fatura", reconhece: isBtgInvoice, le: (t, ano) => parseBtgInvoice(t, ano) },
   { nome: "btg-extrato-app", reconhece: isBtgExtratoApp, le: (t, ano) => parseBtgExtratoApp(t, ano) },
+  { nome: "btg-extrato", reconhece: isBtgExtratoContaPdf, le: (t) => parseBtgExtratoContaPdf(t) },
   { nome: "mercado-pago-fatura", reconhece: isMercadoPagoInvoice, le: (t, ano) => parseMercadoPagoInvoice(t, ano) },
   { nome: "banrisul-fatura", reconhece: isBanrisulInvoice, le: (t, ano) => parseBanrisulInvoice(t, ano) },
   { nome: "bradesco-cartoes-app", reconhece: isBradescoCartoesApp, le: (t, ano) => parseBradescoCartoesApp(t, ano) },
