@@ -35,6 +35,8 @@ export type RaioXItem = {
   /** Uma cobrança por mês (assinatura) ou várias (hábito, como café na rua). */
   tipo: "assinatura" | "habito";
   vezesPorMes: number;
+  /** A descrição da cobrança mais recente: dá o comerciante, a marca que as outras telas usam. */
+  descricao?: string;
 };
 
 const MIN_MESES = 3;
@@ -153,7 +155,7 @@ export function nomeLegivel(description: string): string {
  */
 export function acharRecorrentes(lancamentos: RaioXLancamento[], limite = 10, opcoes: { essenciais?: boolean } = {}): RaioXItem[] {
   type Cobranca = { mes: number; valor: number; fracoes: [number, number][] };
-  type Grupo = { nomes: Map<string, number>; cobrancas: Cobranca[]; transferencia: boolean };
+  type Grupo = { nomes: Map<string, number>; cobrancas: Cobranca[]; transferencia: boolean; ultima?: { mes: number; descricao: string } };
   const grupos = new Map<string, Grupo>();
   // Meses que a pessoa tem no app: é por eles que o gasto mensal de um hábito é dividido. Quem
   // aparece em 3 de 5 meses custa 3/5 do que custaria todo mês, não o mês cheio.
@@ -178,6 +180,7 @@ export function acharRecorrentes(lancamentos: RaioXLancamento[], limite = 10, op
       .map((f) => [Number(f[1]), Number(f[2])] as [number, number])
       .filter(([a, b]) => a <= b && b >= 2);
     g.cobrancas.push({ mes, valor: l.amount, fracoes });
+    if (!g.ultima || mes >= g.ultima.mes) g.ultima = { mes, descricao: l.description };
     if (TRANSFERENCIA.test(baixa)) g.transferencia = true;
     grupos.set(chave, g);
   }
@@ -222,7 +225,7 @@ export function acharRecorrentes(lancamentos: RaioXLancamento[], limite = 10, op
     const assinatura = umaPorMes && estavel && todoMes && !g.transferencia;
     // Assinatura custa o valor dela por mês. Hábito custa a média pelos meses que a pessoa tem no app.
     const mensal = assinatura ? mensalTipico : meses.reduce((s, m) => s + m.total, 0) / Math.max(porMes.size, mesesComDados.size);
-    const item: RaioXItem = { chave, nome, mensal, anual: mensal * 12, meses: porMes.size, tipo: assinatura ? "assinatura" : "habito", vezesPorMes };
+    const item: RaioXItem = { chave, nome, mensal, anual: mensal * 12, meses: porMes.size, tipo: assinatura ? "assinatura" : "habito", vezesPorMes, ...(g.ultima ? { descricao: g.ultima.descricao } : {}) };
     (assinatura ? assinaturas : habitos).push(item);
   }
   // Assinaturas primeiro: são o "pequeno gasto" clássico, e mercado e posto não podem empurrá-las pra fora da lista.
