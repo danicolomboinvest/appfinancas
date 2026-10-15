@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, CreditCard, Receipt } from "lucide-react";
 import type { AuthContext } from "@/lib/auth/session";
@@ -23,6 +24,10 @@ import { PainelDoNumero } from "./DetalheDoNumero";
 import { HeroiDaPrimeiraVez, HeroiDoDiaADia, HeroiDoDigitou, HeroiDoMesFechado, HeroiDoNada, type CorDoHeroi } from "./Heroi";
 import { type Mes } from "./regras";
 import { ListaDeCategorias } from "./ListaDeCategorias";
+import { ResumoEditavel, type CartaoNaTela } from "./ResumoEditavel";
+import { carregarCartoesNovos } from "./cartoes-novos";
+import { lerOrdemDoResumo } from "@/lib/repositories/decisao.repo";
+import { NOMES_DOS_CARTOES, ordemQueVale, type CartaoDoResumo } from "@/lib/resumo/cartoes";
 
 const ENVIAR = "/comecar?passo=volta";
 const nome = (m: Mes) => MESES[m.mes - 1];
@@ -80,6 +85,55 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
   const titulo =
     r.caso === "extrato" ? `Pronto. Esse é o seu ${nome(r.primeiraVez!.mes)}.` : r.caso === "extrato-fatura" ? "Pronto. Agora com o cartão aberto." : r.caso === "fatura" ? `Pronto. Esse é o seu cartão em ${nome(r.primeiraVez!.mes)}.` : r.caso === "digitou" && r.digitou?.n === 1 ? "Primeiro gasto anotado." : null;
 
+  const bloco1 = (
+    <>
+        {primeira ? (
+          <ProximoPasso r={r} money={m} />
+        ) : passos && comeco ? (
+          <PrimeirosPassos ctx={ctx} comeco={comeco} hrefMes={r.foco.hrefMes} />
+        ) : r.sugestao ? (
+          <CartaoSugestao key={`${r.sugestao.tipo}|${r.sugestao.id}`} sugestao={r.sugestao} marca={r.marca} maisNoDecidir={r.maisNoDecidir} />
+        ) : r.maisNoDecidir > 0 ? (
+          <Link href="/decidir" className="px-1 text-[13px] font-medium text-ink-muted underline-offset-4 hover:underline">
+            {r.maisNoDecidir === 1 ? "1 decisão no Decidir" : `${r.maisNoDecidir} decisões no Decidir`}
+          </Link>
+        ) : null}
+    </>
+  );
+  const blocoAcerto = <>{casa && acerto && <CartaoAcerto acerto={acerto} casa={casa} money={m} href={`/mensal/foco/acerto?mes=${r.mes.ano}-${r.mes.mes}`} />}</>;
+
+  // Quem já tem o mês na mão monta o próprio Resumo (cartões que liga, tira e reordena). A primeira
+  // vez, o "digitou" e o "nada" ficam como eram: ali não há o que escolher.
+  if (r.caso === "dia-a-dia" || r.caso === "mes-fechado") {
+    const disponiveis: Partial<Record<CartaoDoResumo, ReactNode>> = {
+      hoje: <ParaGastarHoje r={r} money={m} />,
+      mes: heroi,
+      cats: r.categorias.length > 0 ? <Categorias r={r} money={m} /> : null,
+      semana: <LinhaDaSemana r={r} money={m} />,
+      proximos: proximos.length > 0 ? <ProximosMeses meses={proximos} money={m} href={(p) => `/mensal/foco?mes=${paraParametro(p)}${cor !== "a" ? `&cor=${cor}` : ""}`} /> : null,
+    };
+    const antigos = (["hoje", "mes", "cats", "semana", "proximos"] as const)
+      .filter((id) => disponiveis[id])
+      .map((id): CartaoNaTela => ({ id, ...NOMES_DOS_CARTOES[id], tam: "l", node: disponiveis[id] }));
+    const ordem = ordemQueVale(await lerOrdemDoResumo(ctx));
+    const cartoes: CartaoNaTela[] = [...antigos, ...(await carregarCartoesNovos(ctx, r, { assinaturas: ordem.includes("assin") }))];
+    return (
+      <div className="flex flex-col gap-5" data-resumo-novo={r.caso}>
+        <ConquistasDeMetas ctx={ctx} />
+        <ResumoEditavel
+          cartoes={cartoes}
+          ordemInicial={ordem}
+          depoisDoPrimeiro={
+            <>
+              {bloco1}
+              {blocoAcerto}
+            </>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6" data-resumo-novo={r.caso}>
       <div className="flex min-w-0 flex-col gap-5">
@@ -108,10 +162,6 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
         {/* Bloco 2: as categorias que mais mudaram (a primeira vez mostra "para onde foi"). */}
         {r.categorias.length > 0 && <Categorias r={r} money={m} />}
         {r.primeiraVez && <ParaOndeFoi r={r} money={m} />}
-        {/* Bloco 3: a semana numa linha. */}
-        {(r.caso === "dia-a-dia" || r.caso === "mes-fechado") && <LinhaDaSemana r={r} money={m} />}
-        {/* Abaixo da dobra: os próximos meses (parcelas, contas e assinaturas contra a renda média). */}
-        {proximos.length > 0 && <ProximosMeses meses={proximos} money={m} href={(p) => `/mensal/foco?mes=${paraParametro(p)}${cor !== "a" ? `&cor=${cor}` : ""}`} />}
       </div>
     </div>
   );
@@ -123,6 +173,31 @@ function IconeDa({ c }: { c: InfoDaCategoria }) {
 
 function Categorias({ r, money }: { r: Dados; money: (v: number) => string }) {
   return <ListaDeCategorias titulo={`Contra ${nome(r.passado)}, no mesmo dia`} linhas={r.categorias} money={money} href="/mensal/gastos" />;
+}
+
+/**
+ * A faixa do dia (pedido de uma cliente, 15/10/2026): quanto dá para gastar hoje para chegar ao
+ * domingo no valor da semana. Some quando não há orçamento ou quando a semana já passou (a linha
+ * da semana diz "Passou da semana"). Tocar abre a mesma conta da semana.
+ */
+function ParaGastarHoje({ r, money }: { r: Dados; money: (v: number) => string }) {
+  const livre = r.foco.foco.livre;
+  if (livre.tipo === "semOrcamento" || livre.semana.passou >= 1) return null;
+  const hoje = Math.max(0, Math.round(livre.semana.porDia));
+  const restante = Math.max(0, livre.semana.restante);
+  return (
+    <Card className="p-1.5" data-para-gastar-hoje>
+      <ContaDoLivre titulo={r.foco.t.focoComoCheguei} conta={<ComoChegamos livre={livre} money={money} rendaSoOQueEntrou={r.foco.rendaSoOQueEntrou} />}>
+        <span className="flex items-center justify-between gap-4 rounded-xl px-3 py-3">
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-[15px] font-medium text-ink">Para gastar hoje</span>
+            <span className="text-[13px] text-ink-muted">Até domingo restam {money(restante)}</span>
+          </span>
+          <b className="text-[34px] font-light leading-none tabular-nums text-ink">{money(hoje)}</b>
+        </span>
+      </ContaDoLivre>
+    </Card>
+  );
 }
 
 function LinhaDaSemana({ r, money }: { r: Dados; money: (v: number) => string }) {

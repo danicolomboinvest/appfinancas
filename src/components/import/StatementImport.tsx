@@ -276,9 +276,11 @@ export function StatementImport({
   // Ela mexeu no mês da fatura à mão: o vencimento lido do arquivo vira só uma sugestão, não
   // troca a escolha dela.
   const [faturaMesTocado, setFaturaMesTocado] = useState(false);
-  // Fatura: o app separa cada compra no mês em que foi feita, sem perguntar. "Mudar" abre a
-  // escolha de contar tudo num mês só (o modo antigo), só pra ESTA fatura.
+  // Fatura: tudo conta no mês da fatura (o do vencimento), sem perguntar. "Mudar" deixa contar
+  // cada compra no mês em que foi feita, só pra ESTA fatura.
   const [contarNoMes, setContarNoMes] = useState(false);
+  // Ela mexeu no "Mudar" desta fatura: a leitura não escolhe por ela.
+  const contarTocado = useRef(false);
   // O menu "…" do cartão do arquivo: ler como o outro tipo, contar a fatura num mês só.
   const [menuDoArquivo, setMenuDoArquivo] = useState(false);
   // Qual lista discreta está aberta na conferência: as que já estavam no app ou as que ficam de fora.
@@ -365,6 +367,7 @@ export function StatementImport({
     setStats(null);
     // "Tudo num mês só" era escolha da fatura anterior.
     setContarNoMes(false);
+    contarTocado.current = false;
     setMenuDoArquivo(false);
     // Barra aqui o que a Vercel recusaria com 413 lá fora, onde não sobra nem registro.
     if (ehImagem(file)) {
@@ -489,6 +492,9 @@ export function StatementImport({
       // Fatura: o mês certo é o do vencimento. Se o arquivo diz e ela não escolheu outro à mão,
       // já fica escolhido (o seletor começa no mês de hoje, e era aí que a fatura caía errada).
       if (type === "fatura" && result.stats.vencimento && !faturaMesTocado) setFaturaMonth(result.stats.vencimento.slice(0, 7));
+      // Fatura (15/10/2026, decisão da Dani): tudo conta no mês da fatura, que é o do vencimento.
+      // O "Mudar" ainda deixa contar cada compra no mês em que foi feita.
+      if (type === "fatura" && result.stats.vencimento && !contarTocado.current) setContarNoMes(true);
       setKindMismatch(null);
       carregarLeitura(result.stats, result.items, result.customCategories);
     });
@@ -822,7 +828,7 @@ export function StatementImport({
     confirmed.push(...confirmadasDaMoedaDeFora(stats?.semValorEmReal ?? [], reaisDoDolar));
     // Sem mês escolhido, o servidor põe cada compra no mês dela (com o vencimento e o fechamento lidos).
     const [targetYear, targetMonth] = docType === "fatura" && contarNoMes ? faturaMonth.split("-").map(Number) : [undefined, undefined];
-    const datasDaFatura = docType === "fatura" ? { vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null } : null;
+    const datasDaFatura = docType === "fatura" ? { vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null, porCompra: !contarNoMes } : null;
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof importTransactionsAction>>;
       try {
@@ -1680,6 +1686,7 @@ export function StatementImport({
           const contexto = docType === "fatura" ? contextoDaFatura({ vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null }, importable.map((it) => it.date)) : null;
           const mesDoItem = (it: ReviewItem) => {
             if (!contexto) return it.date.slice(0, 7);
+            if (contarNoMes) return faturaMonth;
             const m = mesDaCompra({ date: it.date, description: it.description, installment: it.installment }, contexto).mes;
             return `${m.year}-${String(m.month).padStart(2, "0")}`;
           };
@@ -1729,6 +1736,7 @@ export function StatementImport({
                           onClick={() => {
                             setMenuDoArquivo(false);
                             if (!contarNoMes && stats?.vencimento && !faturaMesTocado) setFaturaMonth(stats.vencimento.slice(0, 7));
+                            contarTocado.current = true;
                             setContarNoMes((v) => !v);
                           }}
                           className="min-h-11 rounded-xl px-3 text-left text-sm text-ink hover:bg-surface-2"

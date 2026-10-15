@@ -16,8 +16,10 @@ import { detectarVencimento } from "./vencimento";
  *   se encaixam;
  * - sem data legível: o mês do vencimento lido; sem vencimento, o mês de hoje.
  *
- * Não existe opção por pessoa de "conto a fatura no mês em que pago". Quem quiser isso para uma
- * fatura toca em "Mudar" na conferência, e aí vale o modo antigo (tudo num mês, sem dia).
+ * Desde 15/10/2026 este NÃO é o padrão: a Dani voltou ao modo antigo (a fatura inteira conta no mês
+ * dela, o do vencimento, sem dia), porque quem paga a fatura em setembro quer o setembro. Este
+ * jeito vale quando a pessoa toca em "Mudar › contar cada compra no mês dela", ou quando o arquivo
+ * não diz o vencimento.
  */
 
 export type Mes = { year: number; month: number };

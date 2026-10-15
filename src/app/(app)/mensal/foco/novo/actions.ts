@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
-import { registrarDecisao } from "@/lib/repositories/decisao.repo";
+import { guardarOrdemDoResumo, registrarDecisao } from "@/lib/repositories/decisao.repo";
+import { limparOrdem } from "@/lib/resumo/cartoes";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { dadosDaRespostaDeCategoria } from "@/lib/avisos/respostas";
 import { chaveDaSemana } from "../ritmo";
@@ -32,4 +33,12 @@ export async function dispensarSugestaoAction(tipo: TipoDeSugestao, id: string, 
   // A mesma resposta vale no Orçamento e no Decidir (lib/avisos).
   revalidatePath("/orcamento", "layout");
   revalidatePath("/decidir");
+}
+
+/** "Pronto" na edição do Resumo: guarda os cartões que a pessoa quer ver e a ordem deles. */
+export async function salvarResumoAction(ordem: string[]) {
+  if (!Array.isArray(ordem) || ordem.length > 20) return;
+  const ctx = await getRequiredSession();
+  await guardarOrdemDoResumo(ctx, limparOrdem(ordem));
+  revalidatePath("/mensal/foco");
 }

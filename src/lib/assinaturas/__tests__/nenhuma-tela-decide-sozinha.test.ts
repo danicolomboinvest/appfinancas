@@ -29,7 +29,10 @@ describe("só o módulo de assinaturas decide o estado de uma assinatura", () =>
   it("as três telas montam o que mostram pela regra única", () => {
     expect(ler("src/app/(app)/mensal/foco/dados.ts")).toMatch(/raioXComARegraUnica\(/);
     expect(ler("src/app/(app)/orcamento/contas/perdido/dados.ts")).toMatch(/cartaComARegraUnica\(/);
-    expect(ler("src/app/(app)/orcamento/contas/page.tsx")).toMatch(/assinaturasComARegraUnica\(/);
+    // Recorrentes e o cartão do Resumo montam a lista pelo mesmo módulo, que aplica a regra única.
+    expect(ler("src/lib/assinaturas/montar.ts")).toMatch(/assinaturasComARegraUnica</);
+    expect(ler("src/app/(app)/orcamento/contas/page.tsx")).toMatch(/montarAssinaturas\(/);
+    expect(ler("src/app/(app)/mensal/foco/novo/cartoes-novos.tsx")).toMatch(/montarAssinaturas\(/);
     // E Recorrentes não filtra mais pela recusa por conta própria.
     expect(ler("src/app/(app)/orcamento/contas/page.tsx")).not.toMatch(/listarRecusasDeAssinatura/);
   });

@@ -58,7 +58,12 @@ export type TipoDecisao =
    * Resumo novo (14/10/2026): "Agora não" numa sugestão (chave "<tipo>|<id>"). `descricao` guarda a
    * marca do extrato da hora (a sugestão volta com o próximo extrato) e `dados` o "Boa" do indo bem.
    */
-  | "sugestao_dispensada";
+  | "sugestao_dispensada"
+  /**
+   * Os cartões que a pessoa escolheu ver no Resumo e a ordem (lib/resumo/cartoes). Um por conta e
+   * perfil, chave "ordem", `dados.ordem` com os ids.
+   */
+  | "resumo_layout";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;
@@ -235,4 +240,20 @@ export async function listarCancelamentosPraConfirmar(ctx: AuthContext, inicioDo
   return cancelar
     .filter((c) => c.chave && !respondidas.has(`${c.chave}|sim`) && !respondidas.has(`${c.chave}|nao|${anoMes}`))
     .map((c) => ({ chave: c.chave as string, nome: c.descricao ?? c.chave ?? "", anual: Number(c.valor ?? 0) }));
+}
+
+/** A ordem dos cartões do Resumo que a pessoa salvou, ou null se nunca editou. */
+export async function lerOrdemDoResumo(ctx: AuthContext): Promise<unknown> {
+  const d = await prisma.decisao.findFirst({
+    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "resumo_layout", chave: "ordem" },
+    orderBy: { createdAt: "desc" },
+    select: { dados: true },
+  });
+  if (!d) return null;
+  const dados = d.dados as { ordem?: unknown } | null;
+  return dados && Array.isArray(dados.ordem) ? dados.ordem : null;
+}
+
+export async function guardarOrdemDoResumo(ctx: AuthContext, ordem: string[]) {
+  return registrarDecisaoUnica(ctx, { tipo: "resumo_layout", chave: "ordem", dados: { ordem } });
 }

@@ -1181,10 +1181,10 @@ async function marcarParcelasJaNoApp(ctx: AuthContext, items: ReviewItem[], cont
  * Transações idênticas já lançadas (mesma data+valor+descrição) são puladas, importar o
  * mesmo extrato duas vezes não duplica nada.
  *
- * Fatura (out/2026): sem `targetYear`/`targetMonth`, cada compra entra no mês em que foi feita,
- * com o dia, e a parcela k no mês da compra + (k - 1), sem dia (ver lib/import/mes-da-compra; o
- * vencimento e o fechamento lidos do arquivo vêm em `fatura`). Com o mês escolhido no "Mudar",
- * vale o modo antigo: TODAS as compras nesse mês, sem dia. Nos dois modos a mesma fatura já
+ * Fatura: por padrão (15/10/2026) TODAS as compras entram no mês da fatura, o do vencimento lido,
+ * sem dia; `targetYear`/`targetMonth` trocam esse mês. Com `fatura.porCompra` (o "Mudar" da tela),
+ * cada compra entra no mês em que foi feita, com o dia, e a parcela k no mês da compra + (k - 1)
+ * (ver lib/import/mes-da-compra; o vencimento e o fechamento lidos do arquivo vêm em `fatura`). Nos dois modos a mesma fatura já
  * gravada no outro modelo é reconhecida (ver `chavesDoOutroModelo`).
  */
 export async function importTransactionsAction(
@@ -1198,7 +1198,7 @@ export async function importTransactionsAction(
   /** Perfil Casal: de quem é o extrato ("A"/"B"). Todas as linhas que ficam no perfil levam o nome. */
   pessoaDoExtrato?: string | null,
   /** Fatura: vencimento e fechamento lidos do arquivo (ParseStats), que decidem o mês de cada compra. */
-  fatura?: { vencimento: string | null; fechamento: string | null } | null,
+  fatura?: { vencimento: string | null; fechamento: string | null; porCompra?: boolean } | null,
   /** Prints da fatura ABERTA: o lote fica marcado como parcial e não projeta parcelas (a fatura fechada projeta). */
   faturaAberta?: boolean,
 ): Promise<ImportResult> {
@@ -1226,11 +1226,19 @@ export async function importTransactionsAction(
   const aberta = docType === "fatura" && faturaAberta === true;
   const batch = await createImportBatch(ctx, { docType, fileName, faturaAberta: aberta });
 
-  // Fatura com mês escolhido ("Mudar › contar tudo num mês"): o modo antigo, tudo nesse mês e
-  // sem dia. Sem mês escolhido (o padrão desde out/2026): cada compra no mês em que foi feita,
-  // parcela k no mês da compra + (k - 1) (ver lib/import/mes-da-compra).
+  // Fatura com mês: tudo nesse mês e sem dia. Sem mês escolhido: cada compra no mês em que foi
+  // feita, parcela k no mês da compra + (k - 1) (ver lib/import/mes-da-compra), só se pedido.
+  // Decisão da Dani (15/10/2026): sem mês escolhido, a fatura inteira conta no mês dela, o do
+  // vencimento (quem paga em setembro quer o setembro). Sem vencimento legível, cada compra no mês
+  // em que foi feita. `porCompra` (o "Mudar" da tela) pede esse jeito mesmo com o vencimento lido.
   const faturaTarget =
-    docType === "fatura" && targetYear && targetMonth ? { year: targetYear, month: targetMonth } : null;
+    docType !== "fatura"
+      ? null
+      : targetYear && targetMonth
+        ? { year: targetYear, month: targetMonth }
+        : fatura?.porCompra
+          ? null
+          : mesDaData(fatura?.vencimento);
   const ehFatura = docType === "fatura";
   const modoCompra = ehFatura && !faturaTarget;
   const datasDaFatura = { vencimento: fatura?.vencimento ?? null, fechamento: fatura?.fechamento ?? null };
