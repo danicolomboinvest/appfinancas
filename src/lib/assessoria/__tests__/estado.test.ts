@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EQI_ABRIR_CONTA_URL } from "@/lib/eqi";
 import { crmLigado, enviarLeadDaAssessoria } from "../crm";
-import { estadoDaAssessoria, proximoEstado, TEXTOS_DA_ASSESSORIA } from "../estado";
+import { estadoDaAssessoria, estadoDepoisDaEquipe, proximoEstado, TEXTOS_DA_ASSESSORIA } from "../estado";
 
 describe("assessoria na Carteira (rodadas 68, 73 e 76)", () => {
   it("o link de abrir conta é exatamente o da seção 12, com o assessor da Fatos", () => {
@@ -16,6 +16,15 @@ describe("assessoria na Carteira (rodadas 68, 73 e 76)", () => {
     expect(proximoEstado("confirmando", "ainda_nao")).toBe("nao_cliente");
     expect(proximoEstado("cliente", "ainda_nao")).toBe("cliente");
     expect(estadoDaAssessoria("qualquer")).toBe("nao_cliente");
+  });
+
+  it("Admin › Assessoria: confirma ou devolve só quem está esperando; Desfazer só em confirmada", () => {
+    expect(estadoDepoisDaEquipe("confirmando", "confirmar")).toBe("cliente");
+    expect(estadoDepoisDaEquipe("confirmando", "nao_achou")).toBe("nao_cliente");
+    expect(estadoDepoisDaEquipe("cliente", "desfazer")).toBe("confirmando");
+    expect(estadoDepoisDaEquipe("nao_cliente", "confirmar")).toBeNull();
+    expect(estadoDepoisDaEquipe("cliente", "nao_achou")).toBeNull();
+    expect(estadoDepoisDaEquipe("confirmando", "desfazer")).toBeNull();
   });
 
   it("os textos não falam de custo, prazo, remuneração, garantia nem 'escritório da Dani'", () => {

@@ -25,3 +25,16 @@ export const TEXTOS_DA_ASSESSORIA = {
   confirmando: { titulo: "Estamos conferindo sua conta", apoio: "Na EQI, pela Fatos Capital", botao: null, secundario: "Ainda não abri" },
   cliente: { titulo: "Sua conta está confirmada", apoio: "Na EQI, pela Fatos Capital", botao: null, secundario: null },
 } as const;
+
+/**
+ * O que a equipe marca no Admin › Assessoria (15/10/2026), depois que o assessor confere na EQI:
+ * "Confirmada" libera (cliente); "Não achou a conta" volta ao começo; "Desfazer" devolve uma
+ * confirmada para a fila. Só sai de "confirmando" (ou volta para ele): nunca mexe em quem não pediu.
+ */
+export type DecisaoDaEquipe = "confirmar" | "nao_achou" | "desfazer";
+
+export function estadoDepoisDaEquipe(atual: EstadoDaAssessoria, decisao: DecisaoDaEquipe): EstadoDaAssessoria | null {
+  if (decisao === "desfazer") return atual === "cliente" ? "confirmando" : null;
+  if (atual !== "confirmando") return null;
+  return decisao === "confirmar" ? "cliente" : "nao_cliente";
+}
