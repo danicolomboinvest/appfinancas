@@ -72,14 +72,14 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const ano = agora.getFullYear();
   const mes = agora.getMonth() + 1;
   const empresa = ehEmpresa(ctx.profileKind);
+  // O livre do mês da fonte única (lib/planning/livre-do-mes), junto com as outras consultas.
+  const livreDoMesP = carregarLivreDoMes(ctx, { ano, mes });
   // Quem já tinha extrato antes desta versão não precisa importar de novo para ver as contas.
   try {
     await sincronizarContasDoHistorico(ctx);
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  // O livre do mês da fonte única (lib/planning/livre-do-mes), junto com as outras consultas.
-  const livreDoMesP = carregarLivreDoMes(ctx, { ano, mes });
   const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
