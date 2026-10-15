@@ -144,7 +144,7 @@ export function OQueFazer({
         </>
       )}
 
-      <Opcao icone={CircleCheck} seta disabled={pendente} titulo="Foi pontual" sub="Uma consulta, um exame. O plano não muda." onClick={dispensar} />
+      <Opcao icone={CircleCheck} seta disabled={pendente} titulo="Foi pontual" sub="Aconteceu uma vez, não se repete. O plano não muda." onClick={dispensar} />
       {erro?.onde === "pontual" && <ErroNoBotao erro={erro.texto} />}
 
       {temCobrir && (

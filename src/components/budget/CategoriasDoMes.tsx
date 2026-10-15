@@ -1,5 +1,6 @@
 "use client";
 
+import { quantoPassou } from "@/lib/planning/remanejo";
 import { Selinho } from "@/components/ui/Selinho";
 import { seloDaCategoria, useSelos } from "@/lib/ui/selos";
 import { brilharQuandoAparecer } from "@/lib/ui/brilho";
@@ -127,7 +128,7 @@ export function CategoriasDoMes({
                   <span className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
                     <span className="tabular-nums text-ink-muted">{l.planejado > 0 ? `${m(gasto)} de ${m(l.planejado)}` : `${m(gasto)} sem plano`}</span>
                     {l.planejado > 0 && (
-                      <span className={`tabular-nums ${passou ? "text-danger" : "text-success"}`}>{passou ? `passou ${m(Math.abs(l.sobra))}` : `sobram ${m(Math.max(0, l.sobra))}`}</span>
+                      <span className={`tabular-nums ${passou ? "text-danger" : "text-success"}`}>{passou ? `passou ${m(quantoPassou({ planejado: l.planejado, gasto: l.gasto + l.aVencer }))}` : `sobram ${m(Math.max(0, l.sobra))}`}</span>
                     )}
                   </span>
                 </span>
