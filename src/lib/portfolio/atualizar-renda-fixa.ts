@@ -8,6 +8,8 @@ import { lerSeries } from "@/lib/indicadores/series";
 import { dataDoDia, dia, diaDe } from "./calendario-anbima";
 import { rendimentoDoAtivo, serieEmFracao, type Series } from "./rendimento-renda-fixa";
 import { recordPatrimonySnapshotIfNeeded } from "./snapshot";
+import { CONTA_BRASIL } from "./conta-exterior";
+import type { CurrencyCode } from "@/lib/money";
 
 /**
  * Grava no Asset.currentValue o rendimento da renda fixa e do Tesouro (15/10/2026), com a conta de
@@ -17,11 +19,14 @@ import { recordPatrimonySnapshotIfNeeded } from "./snapshot";
  * Só a conta em reais de quem usa o app em reais: CDI e IPCA não valem para um depósito em euro.
  */
 
-/** Os ativos que este cálculo acompanha. */
+/** CDI e IPCA são índices do real: só quem usa o app em reais. */
+const REAIS: CurrencyCode = "BRL";
+
+/** Os ativos que este cálculo acompanha: renda fixa e Tesouro na conta Brasil de quem usa reais. */
 export const ONDE_RENDA_FIXA: Prisma.AssetWhereInput = {
   assetClass: { in: ["RENDA_FIXA", "TESOURO_DIRETO"] },
-  currency: "BRL",
-  user: { currency: "BRL" },
+  currency: CONTA_BRASIL,
+  user: { currency: REAIS },
 };
 
 const CAMPOS = {
