@@ -56,6 +56,7 @@ import { isSantanderInvoice, parseSantanderInvoice } from "./santander-fatura-pd
 import { isNubankInvoice, parseNubankInvoice } from "./nubank-fatura-pdf";
 import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
 import { isRecargaPayStatement, parseRecargaPayStatement } from "./recargapay-pdf";
+import { isSofisaStatement, parseSofisaStatement } from "./sofisa-pdf";
 
 export type ParsedTransaction = {
   /** ISO (YYYY-MM-DD) quando possível; string original caso não dê pra normalizar. */
@@ -928,6 +929,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "unicred", reconhece: isUnicredStatement, le: (t) => parseUnicredStatement(t) },
   { nome: "wise", reconhece: isWiseStatement, le: (t) => parseWiseStatement(t) },
   { nome: "recargapay", reconhece: isRecargaPayStatement, le: (t) => parseRecargaPayStatement(t) },
+  { nome: "sofisa", reconhece: isSofisaStatement, le: (t) => parseSofisaStatement(t) },
 ];
 
 /** Texto de OCR: só leitores que conferem o que leram pelos saldos/totais do próprio extrato. */

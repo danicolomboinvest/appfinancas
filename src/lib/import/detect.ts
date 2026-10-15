@@ -13,6 +13,8 @@ import { isNomadInvoice } from "./nomad-fatura-pdf";
 import { isXpInvoice } from "./xp-fatura-pdf";
 import { isCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement } from "./cora-pdf";
+import { isRecargaPayStatement } from "./recargapay-pdf";
+import { isSofisaStatement, sofisaSemMovimento } from "./sofisa-pdf";
 import { isInterInvoice, isInterStatement } from "./inter-pdf";
 import { isItauInvoice } from "./itau-fatura-pdf";
 import { isMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
@@ -58,6 +60,8 @@ const MOLDES_DE_EXTRATO: [(t: string) => boolean, string][] = [
   [isBanrisulStatement, "extrato do Banrisul"],
   [isXpContaDigitalStatement, "extrato da Conta Digital XP"],
   [isArgentinaCuenta, "extrato de banco argentino"],
+  [isRecargaPayStatement, "extrato do RecargaPay"],
+  [isSofisaStatement, "extrato do Sofisa"],
 ];
 const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isNubankInvoice, "fatura do Nubank"],
@@ -206,6 +210,8 @@ export function periodoSemMovimento(text: string): boolean {
     const datadas = text.split(/\r?\n/).filter((l) => /^\s*\d{2}\/\d{2}\/\d{4}\s/.test(l));
     if (datadas.length > 0 && datadas.every((l) => /\bSALDO\b/i.test(l))) return true;
   }
+  // Sofisa: o período sem movimento traz só o cabeçalho e o quadro de saldo e limite.
+  if (sofisaSemMovimento(text)) return true;
   if (/<OFX>/i.test(text)) return !/<STMTTRN>/i.test(text);
   const linhas = text.split(/\r?\n/).filter((l) => l.trim());
   return linhas.length === 1 && /[;,\t]/.test(linhas[0]) && !/\d{1,3},\d{2}/.test(linhas[0]);
