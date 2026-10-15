@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { PARENT_CATEGORY_LABEL } from "@/lib/categories";
 import type { AuthContext } from "@/lib/auth/session";
 import { diasValidos, somarMesesAoMes, type Dia } from "@/lib/cartao/fatura";
 import { slugDoBancoLido } from "@/lib/cartao/bancos";
@@ -59,9 +60,13 @@ export async function lancamentosDoCartao(ctx: AuthContext, cartaoId: string, ho
   const meses = Array.from({ length: 18 }, (_, i) => somarMesesAoMes(hoje.ano, hoje.mes, i - 3));
   const linhas = await prisma.monthlyEntry.findMany({
     where: { userId: ctx.userId, profileId: ctx.profileId, cartaoId, category: "EXPENSE", OR: meses.map((m) => ({ year: m.ano, month: m.mes })) },
-    select: { id: true, year: true, month: true, entryDate: true, amount: true, description: true },
+    select: { id: true, year: true, month: true, entryDate: true, amount: true, description: true, parentCategory: true, customCategory: { select: { name: true } } },
   });
-  return linhas.map((l) => ({ ...l, amount: Number(l.amount) }));
+  return linhas.map(({ parentCategory, customCategory, ...l }) => ({
+    ...l,
+    amount: Number(l.amount),
+    rotulo: customCategory?.name ?? (parentCategory ? PARENT_CATEGORY_LABEL[parentCategory] : null),
+  }));
 }
 
 export type CartaoComFaturas = CartaoGravado & { faturas: FaturasDoCartao | null };

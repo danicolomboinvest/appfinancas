@@ -93,7 +93,7 @@ export function SeusCartoes({ cartoes, hoje, money }: { cartoes: CartaoComFatura
                         return (
                           <li key={l.id} className="flex min-h-12 items-center justify-between gap-3 py-2.5">
                             <span className="min-w-0">
-                              <span className="block break-words text-sm text-ink">{l.description || "Compra"}</span>
+                              <span className="block break-words text-sm text-ink">{l.description || l.rotulo || "Compra"}</span>
                               {d && <span className="block text-caption text-ink-muted">{diaCurto(d)}</span>}
                             </span>
                             <span className={`shrink-0 text-sm font-semibold tabular-nums ${l.amount < 0 ? "text-success" : "text-ink"}`}>{money(l.amount)}</span>

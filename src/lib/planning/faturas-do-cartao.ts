@@ -30,6 +30,8 @@ export type LancamentoDoCartao = {
   entryDate: Date | string | null;
   amount: number;
   description: string | null;
+  /** O nome que a lista mostra quando não há descrição (a categoria). */
+  rotulo?: string | null;
 };
 
 export type FaturaComTotal = Fatura & { total: number; lancamentos: LancamentoDoCartao[] };

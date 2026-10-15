@@ -58,7 +58,8 @@ async function main() {
   await prisma.financialProfile.create({ data: { userId: bia.id, name: "Nós dois", kind: "CASAL", theme: "girly", isDefault: false } });
 
   await semearDuda();
-  console.log("Pronto: Ana (Pessoal + Ateliê), Clara (só a compra), Bia (Pessoal + Casal) e Duda (números).");
+  await semearEdu();
+  console.log("Pronto: Ana (Pessoal + Ateliê), Clara (só a compra), Bia (Pessoal + Casal), Duda (números) e Edu (cartão).");
 }
 
 /**
@@ -111,6 +112,19 @@ async function semearDuda() {
       { ...dono, name: "Tesouro Selic 2029", assetClass: "TESOURO_DIRETO", fixedIncomeIndex: "POS_FIXADO", objective: "RESERVA_EMERGENCIA", currentValue: 4300.4, investedValue: 4200 },
     ],
   });
+}
+
+/**
+ * Edu (edu@exemplo.test), a conta da jornada do cartão (cartao.jornada.ts): só o Pessoal e um
+ * salário em outubro. Ele cadastra o cartão e lança as compras durante a jornada.
+ */
+async function semearEdu() {
+  await prisma.allowedEmail.upsert({ where: { email: "edu@exemplo.test" }, update: { active: true }, create: { email: "edu@exemplo.test", note: "jornada: cartão", source: "HUBLA" } });
+  const edu = await prisma.user.create({
+    data: { email: "edu@exemplo.test", name: "Edu Prado", passwordHash: await bcrypt.hash(SENHA, 10), emailVerifiedAt: new Date(), onboardedAt: new Date(), theme: "light", novidadesVersaoNova: "pulou", novidadesVistasEm: new Date() },
+  });
+  const perfil = await prisma.financialProfile.create({ data: { userId: edu.id, name: "Pessoal", kind: "PESSOAL", theme: "girly", isDefault: true } });
+  await prisma.monthlyEntry.create({ data: { userId: edu.id, profileId: perfil.id, year: 2026, month: 10, category: "INCOME", description: "Salário", amount: 4800, externalId: "jornada:edu:s10", entryDate: new Date(Date.UTC(2026, 9, 5)) } });
 }
 
 main()

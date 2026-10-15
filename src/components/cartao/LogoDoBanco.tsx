@@ -8,5 +8,10 @@ import { bancoDoCartao } from "@/lib/cartao/bancos";
  * ícone do cartão, nunca uma inicial.
  */
 export function LogoDoBanco({ banco, size = 40 }: { banco: string; size?: 36 | 40 | 44 | 48 }) {
-  return <LogoDoLancamento descricao={bancoDoCartao(banco).apelido || null} icon={CreditCard} size={size} />;
+  // Aro fino: o logo escuro (XP, C6) não some no fundo escuro.
+  return (
+    <span className="inline-flex shrink-0 rounded-[30%] ring-1 ring-border">
+      <LogoDoLancamento descricao={bancoDoCartao(banco).apelido || null} icon={CreditCard} size={size} />
+    </span>
+  );
 }
