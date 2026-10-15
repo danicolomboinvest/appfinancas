@@ -1,3 +1,5 @@
+import { ehAtividadeDoMei, type AtividadeDoMei, type GuiaDigitada } from "./legal";
+
 /**
  * O que o assistente da Empresa perguntou (versão nova, 11/10/2026), guardado em
  * FinancialProfile.empresa (JSON), no mesmo jeito do `casal`.
@@ -53,6 +55,10 @@ export type ConfigEmpresa = {
   horasPorMes: number;
   /** Quando ela abriu o negócio no app (ISO). */
   abertoEm: string;
+  /** MEI: o que faz, para a guia (15/10/2026). Quem abriu antes fica com serviço, o valor de antes. */
+  atividadeMei: AtividadeDoMei;
+  /** MEI: o valor da guia que ELA digitou ("Usar o valor da minha guia"). Nulo = a estimativa. */
+  dasDigitado: GuiaDigitada | null;
 };
 
 export const HORAS_POR_MES_PADRAO = 120;
@@ -90,7 +96,17 @@ export function lerConfigEmpresa(json: unknown): ConfigEmpresa | null {
     taxas: { credito: taxa(taxas.credito), debito: taxa(taxas.debito) },
     horasPorMes: horas !== null && horas >= 10 && horas <= 400 ? Math.round(horas) : HORAS_POR_MES_PADRAO,
     abertoEm: typeof o.abertoEm === "string" ? o.abertoEm : new Date().toISOString(),
+    atividadeMei: ehAtividadeDoMei(o.atividadeMei) ? o.atividadeMei : "servico",
+    dasDigitado: lerGuiaDigitada(o.dasDigitado),
   };
+}
+
+function lerGuiaDigitada(v: unknown): GuiaDigitada | null {
+  if (!v || typeof v !== "object") return null;
+  const g = v as Record<string, unknown>;
+  const valor = numero(g.valor);
+  if (valor === null || valor <= 0 || valor > 100_000 || typeof g.em !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(g.em)) return null;
+  return { valor: Math.round(valor * 100) / 100, em: g.em.slice(0, 10) };
 }
 
 /** "o ateliê", "a loja", "a empresa": o nome curto do negócio a partir do nome do perfil. */

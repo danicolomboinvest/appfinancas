@@ -9,6 +9,7 @@ import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { useToast } from "@/components/ui/toast-context";
 import { ramoDe, type ConfigEmpresa } from "@/lib/empresa/config";
+import { ATIVIDADES_DO_MEI } from "@/lib/empresa/legal";
 import { ajustarEmpresaAction } from "../actions";
 import { Interruptor } from "../Assistente";
 import { Cartao, Chip, Titulo, Voltar } from "../partes";
@@ -29,6 +30,7 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
   const [debito, setDebito] = useState(config.taxas.debito !== null ? String(config.taxas.debito).replace(".", ",") : "");
   const [horas, setHoras] = useState(config.horasPorMes);
   const [lembrete, setLembrete] = useState(config.lembreteDas);
+  const [atividade, setAtividade] = useState(config.atividadeMei);
 
   // Salva sozinho ao sair do campo ou tocar: o campo já mostra o valor (14/10/2026, sem "Salvo").
   function salvar(m: Parameters<typeof ajustarEmpresaAction>[0]) {
@@ -60,6 +62,21 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
           <b className="text-[15px] font-medium text-ink">Tipo</b>
           <span className="text-[15px] text-ink">{config.tipo === "MEI" ? "MEI" : config.tipo === "ME" ? "ME" : "Autônoma"}</span>
         </div>
+        {config.tipo === "MEI" && (
+          <div className={`${linha} flex-col items-start justify-center`} data-atividade-do-mei>
+            <span>
+              <b className="block text-[15px] font-medium text-ink">Atividade do MEI</b>
+              <small className="text-xs text-ink-muted">muda o valor da guia</small>
+            </span>
+            <div className="flex flex-wrap gap-2 pb-1">
+              {ATIVIDADES_DO_MEI.map((a) => (
+                <Chip key={a.chave} on={atividade === a.chave} onClick={() => { setAtividade(a.chave); salvar({ atividadeMei: a.chave }); }}>
+                  {a.nome}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        )}
         <div className={linha}>
           <b className="text-[15px] font-medium text-ink">Faz</b>
           <span className="text-[15px] text-ink">{ramoDe(config.faz)?.nome ?? "Outro"}</span>

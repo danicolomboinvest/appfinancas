@@ -7,6 +7,9 @@ import { hojeEmBrasilia, lerData } from "@/lib/contas/contas";
 import { fecharAvisoDasContas } from "@/lib/repositories/contas-do-historico.repo";
 import { apagarContaAPagar, criarContaAPagar, desfazerContaPaga, editarContaAPagar, historicoDaConta, pagarContaComGasto } from "@/lib/repositories/conta-a-pagar.repo";
 import { diaValido, origemValida } from "@/lib/contas/paguei";
+import { acertarGuiaDepoisDoPaguei } from "@/lib/empresa/acertar-guia";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { prisma } from "@/lib/db/prisma";
 
 const dataSchema = z.string().transform((s, c) => {
   const d = lerData(s);
@@ -78,6 +81,7 @@ export async function pagarContaAction(id: string, escolha: { valor: number; dia
   if (!diaValido(escolha?.dia, iso(hojeEmBrasilia()))) return { ok: false, erro: "Escolha o dia" };
   if (!origemValida(escolha?.origem)) return { ok: false, erro: "Escolha de onde saiu" };
   const r = await pagarContaComGasto(ctx, z.string().min(1).parse(id), { valor, dia: escolha.dia, origem: escolha.origem });
+  if (r) await acertarGuiaDepoisDoPaguei(ctx, r.nome);
   revalidarComGasto();
   if (!r) return { ok: false, erro: "Essa conta já estava paga" };
   return { ok: true, antes: iso(r.antes), antesParcela: r.antesParcela, proxima: r.quitada ? null : iso(r.vencimento), lancamentoId: r.lancamentoId };
@@ -95,6 +99,11 @@ export async function desfazerPagamentoAction(id: string, antes: string, antesPa
     antesParcela === undefined ? undefined : z.number().int().min(1).max(48).nullable().parse(antesParcela),
     lancamentoId ? z.string().min(1).max(40).parse(lancamentoId) : null,
   );
+  // A guia do MEI desfeita: a conta volta a seguir a guia paga antes desta.
+  if (ehEmpresa(ctx.profileKind)) {
+    const c = await prisma.contaAPagar.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, select: { nome: true } });
+    if (c) await acertarGuiaDepoisDoPaguei(ctx, c.nome);
+  }
   revalidarComGasto();
 }
 

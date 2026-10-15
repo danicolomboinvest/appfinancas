@@ -304,12 +304,12 @@ describe("o extrato chega com o mesmo pagamento", () => {
     expect(gastos()).toHaveLength(2);
   });
 
-  it("outro banco não junta nem pergunta", async () => {
+  it("outro banco não junta sozinho: no máximo a pergunta geral \"parece já estar no app\"", async () => {
     aluguel();
     await pagarContaAction("c-Aluguel", { valor: 1800, dia: "2026-10-15", origem: "conta:nubank" });
     const items = await lerExtrato(["16/10/2026;PIX ENVIADO IMOBILIARIA;-1800,00"], "itau-outubro.csv");
     expect(items[0].jaNoApp).toBeFalsy();
-    expect(items[0].possivelDuplicata).toBeFalsy();
+    expect(items[0].possivelDuplicata?.paguei).toBeFalsy();
   });
 
   it("um id trocado na gravação não apaga nada: a linha entra como nova", async () => {

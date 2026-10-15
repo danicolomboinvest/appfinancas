@@ -160,7 +160,7 @@ export async function pagarContaComGasto(ctx: AuthContext, id: string, e: Escolh
     return lancamento;
   });
   if (!r) return null;
-  return { antes: c.vencimento, antesParcela: c.parcelaAtual, lancamentoId: r.id, ...depois };
+  return { antes: c.vencimento, antesParcela: c.parcelaAtual, lancamentoId: r.id, nome: c.nome, ...depois };
 }
 
 /**

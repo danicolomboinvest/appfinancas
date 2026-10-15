@@ -32,6 +32,7 @@ import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } fro
 import type { PrintLido } from "@/lib/import/print-fatura";
 import { prometeParcelasSeguintes } from "@/lib/import/fatura-aberta";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
+import { TEXTO_JA_NO_APP, tituloDoGrupo } from "@/lib/import/ja-no-app-texto";
 import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { perguntasDeMaiorValor } from "@/lib/onboarding/conferencia-inicial";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
@@ -141,9 +142,16 @@ function precisaResposta(it: ReviewItem): boolean {
  */
 function filaDePerguntas(linhas: ReviewItem[], pular: Set<number> = new Set()): number[] {
   const pendentes = linhas.filter((it) => precisaResposta(it) && !pular.has(it.key));
-  const umaPorUma = pendentes.filter((it) => it.possivelDuplicata || it.duvida);
+  // "Parece já estar no app" (lib/import/ja-no-app): todas numa pergunta só, na primeira delas.
+  const altaChance = pendentes.filter((it) => it.possivelDuplicata?.altaChance);
+  const umaPorUma = pendentes.filter((it) => (it.possivelDuplicata && !it.possivelDuplicata.altaChance) || it.duvida);
   const porCategoria = filaPorComerciante(pendentes.filter((it) => !it.possivelDuplicata && !it.duvida));
-  return [...umaPorUma.map((it) => it.key), ...porCategoria.keys];
+  return [...(altaChance.length > 0 ? [altaChance[0].key] : []), ...umaPorUma.map((it) => it.key), ...porCategoria.keys];
+}
+
+/** As que ainda esperam a resposta da pergunta agrupada "N parecem já estar no app". */
+function pendentesDeAltaChance(linhas: ReviewItem[], pular: Set<number> = new Set()): ReviewItem[] {
+  return linhas.filter((it) => !it.ignorar && !it.jaNoApp && it.possivelDuplicata?.altaChance && !pular.has(it.key));
 }
 
 /** No começo, só as `max` perguntas de maior valor; o resto entra "A conferir". Fora dele, a fila toda. */
@@ -787,6 +795,44 @@ export function StatementImport({
     });
   }
 
+  /**
+   * "N parecem já estar no app. Importar mesmo assim?": a resposta vale para todas as do grupo.
+   * Não importar: ficam em "já estavam no app", com "Anotar também" para voltar atrás. Importar:
+   * entram como lançamento novo.
+   */
+  function responderAltaChance(importar: boolean) {
+    const grupo = pendentesDeAltaChance(items, naoSei);
+    const chaves = new Set(grupo.map((it) => it.key));
+    setItems((prev) =>
+      prev.map((it) => {
+        const dup = it.possivelDuplicata;
+        if (!chaves.has(it.key) || !dup) return it;
+        if (importar) return { ...it, possivelDuplicata: null };
+        return { ...it, possivelDuplicata: null, jaNoApp: { descricao: dup.descricao, data: dup.data, id: dup.id ?? "", valor: dup.valor ?? it.amount, importado: dup.importado, perguntado: true } };
+      }),
+    );
+    if (phase === "review") advanceReview(chaves);
+  }
+
+  /**
+   * Nada novo para gravar, mas o que já estava no app ainda pode ficar com o dia e o valor do
+   * arquivo (o lançado à mão sem a gorjeta, 15/10/2026). Antes o "Pronto" só fechava, e o
+   * lançamento à mão ficava com o valor de antes.
+   */
+  function fecharSemNadaNovo() {
+    const conciliar = items.flatMap((it) => (!it.ignorar && it.jaNoApp?.id && !it.jaNoApp.faturaAberta ? [{ id: it.jaNoApp.id, valor: it.estorno ? -it.amount : it.amount, data: it.date, descricao: it.description }] : []));
+    if (conciliar.length === 0) return onDone();
+    startTransition(async () => {
+      try {
+        const r = await conciliarJaNoAppAction(conciliar);
+        if (r.error) console.error("conciliarJaNoAppAction", r.error);
+      } catch (err) {
+        console.error("conciliarJaNoAppAction falhou", err);
+      }
+      onDone();
+    });
+  }
+
   function handleImport() {
     // Gasto sem categoria ("Não sei agora") ENTRA, sem categoria: antes ele sumia calado da
     // importação, e o mês ficava com o saldo inflado. O servidor já grava gasto sem categoria
@@ -1360,6 +1406,37 @@ export function StatementImport({
    */
   function perguntaDaLinha(it: ReviewItem) {
     const dup = it.possivelDuplicata;
+    if (dup?.altaChance) {
+      const grupo = pendentesDeAltaChance(items, naoSei);
+      const lista = grupo.length > 0 ? grupo : [it];
+      return (
+        <div className="flex flex-col gap-3" data-pergunta-ja-no-app>
+          <p className="text-[17px] font-semibold text-ink">{tituloDoGrupo(lista.length)}</p>
+          <p className="text-[15px] text-ink-muted">{TEXTO_JA_NO_APP}</p>
+          <ul className="flex max-h-72 flex-col divide-y divide-border overflow-y-auto rounded-2xl bg-surface-2">
+            {lista.map((x) => (
+              <li key={x.key} className="flex min-w-0 flex-col gap-0.5 px-3 py-2">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 break-words text-[15px] font-medium text-ink">{nomeNaTela(x.description).nome}</span>
+                  <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">{money(x.amount)}</span>
+                </span>
+                <span className="break-words text-caption text-ink-muted">
+                  {formatDate(x.date)} · no app: {x.possivelDuplicata?.data ? `${formatDate(x.possivelDuplicata.data)} · ` : ""}
+                  {x.possivelDuplicata?.descricao ? nomeNaTela(x.possivelDuplicata.descricao).nome : ""}
+                  {x.possivelDuplicata?.valor !== undefined && Math.abs(x.possivelDuplicata.valor - x.amount) > 0.009 ? ` · ${money(x.possivelDuplicata.valor)}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={() => responderAltaChance(false)} className={respostaForte}>
+            Não importar
+          </button>
+          <button type="button" onClick={() => responderAltaChance(true)} className={respostaFraca}>
+            Importar mesmo assim
+          </button>
+        </div>
+      );
+    }
     if (dup) {
       return (
         <div className="flex flex-col gap-3" data-pergunta-duplicata>
@@ -1552,7 +1629,12 @@ export function StatementImport({
           </label>
         )}
         <Button type="button" variant="secondary" className="min-h-12" onClick={() => {
-            const estas = new Set([it.key, ...(igualNasParecidas && !pergunta ? iguaisPraAplicar(items, it.key) : [])]);
+            const estas = new Set([
+              it.key,
+              ...(igualNasParecidas && !pergunta ? iguaisPraAplicar(items, it.key) : []),
+              // A pergunta agrupada: o "Não sei" vale para o grupo inteiro.
+              ...(it.possivelDuplicata?.altaChance ? pendentesDeAltaChance(items, naoSei).map((x) => x.key) : []),
+            ]);
             setNaoSei((prev) => new Set([...prev, ...estas]));
             advanceReview(estas);
           }}>
@@ -1852,11 +1934,11 @@ export function StatementImport({
                   <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
                   <span className="block text-caption text-ink-muted">
                     {formatDate(it.date)} · {money(it.amount)}
-                    {it.jaNoApp?.paguei ? " · já estava no app (Paguei)" : it.jaNoApp?.importado ? " · veio de outro arquivo" : it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
+                    {it.jaNoApp?.paguei ? " · já estava no app (Paguei)" : it.jaNoApp?.perguntado ? " · parecia já estar no app" : it.jaNoApp?.importado ? " · veio de outro arquivo" : it.jaNoApp?.descricao && it.jaNoApp.descricao !== "(sem descrição)" ? ` · você lançou “${nomeNaTela(it.jaNoApp.descricao).nome}”` : ""}
                   </span>
                 </span>
                 {/* A que veio de outro arquivo igualzinha não entra de novo nem com o toque: a gravação pula. */}
-                {!it.jaNoApp?.importado && (
+                {(!it.jaNoApp?.importado || it.jaNoApp.perguntado) && (
                 <button
                   type="button"
                   onClick={() => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, jaNoApp: null } : x)))}
@@ -2086,7 +2168,7 @@ export function StatementImport({
             </>
           ) : (
             // Nada novo (o mesmo arquivo de novo): "Pronto" fecha, em vez de ficar apagado sem saída.
-            <Button type="button" className="min-h-12" onClick={semNadaParaGravar ? onDone : handleImport} disabled={isPending}>
+            <Button type="button" className="min-h-12" onClick={semNadaParaGravar ? fecharSemNadaNovo : handleImport} disabled={isPending}>
               {isPending ? t.impImportando : importable.length === 0 ? "Pronto" : `Pronto, anotar ${importable.length}`}
               <ArrowRight size={16} className="ml-1.5" />
             </Button>

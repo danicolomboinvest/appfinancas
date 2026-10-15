@@ -34,7 +34,7 @@ function Valor({ c, riscado = false }: { c: ContaSerial; riscado?: boolean }) {
 }
 
 /** Uma conta do mês: logo ou ícone, nome, quando vence, o valor e o círculo do "Paguei". */
-function LinhaDoMes({ c, hoje, onPaguei }: { c: ContaSerial; hoje: string; onPaguei: () => void }) {
+function LinhaDoMes({ c, hoje, selo, onPaguei }: { c: ContaSerial; hoje: string; selo?: string; onPaguei: () => void }) {
   const abrir = useAbrirConta();
   const hojeD = lerData(hoje)!;
   const paga = pagaNoMes(c, hojeD);
@@ -58,6 +58,7 @@ function LinhaDoMes({ c, hoje, onPaguei }: { c: ContaSerial; hoje: string; onPag
           <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
             <span className={`text-[13px] leading-snug ${atrasada ? "text-danger" : "text-ink-muted"}`}>{parcela ? `${parcela} · ${quando}` : quando}</span>
             {!paga && (c.aproximado || c.valor === null) && <Selo>varia</Selo>}
+            {!paga && selo && <Selo>{selo}</Selo>}
             {c.origem === "historico" && <span className="shrink-0 rounded-full bg-surface-2 px-2 py-px text-xs text-ink-muted">do extrato</span>}
           </span>
         </span>
@@ -108,7 +109,7 @@ function EntrouNosGastos({ feito }: { feito: PagueiFeito }) {
  * as que faltam com o dia da semana e o círculo para marcar como paga. As contas do ano moram na
  * seção delas.
  */
-export function ContasAPagar({ contas, pagas, hoje, paguei }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string; paguei: DadosDoPagueiNaTela }) {
+export function ContasAPagar({ contas, pagas, hoje, selos, paguei }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string; /** Um selo a mais por conta (id → texto): a guia do MEI "estimado pelo app". */ selos?: Record<string, string>; paguei: DadosDoPagueiNaTela }) {
   const money = useMoney();
   const abrir = useAbrirConta();
   const router = useRouter();
@@ -169,7 +170,7 @@ export function ContasAPagar({ contas, pagas, hoje, paguei }: { contas: ContaSer
                 <PagueiDaConta conta={c} dados={paguei} hoje={hoje} onPago={pago} onFechar={() => setAberta(null)} />
               </li>
             ) : (
-              <LinhaDoMes key={c.id} c={c} hoje={hoje} onPaguei={() => setAberta(c.id)} />
+              <LinhaDoMes key={c.id} c={c} hoje={hoje} selo={selos?.[c.id]} onPaguei={() => setAberta(c.id)} />
             ),
           )}
         </ul>

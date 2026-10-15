@@ -7,7 +7,7 @@ describe("o menu ☰ da versão nova", () => {
   it("tem a ordem do protótipo, com Dívidas logo depois de Metas", () => {
     const pessoa = secoesVisiveis(NAV_SECTIONS, { empresa: false, casal: false });
     expect(pessoa.map((s) => s.label)).toEqual([
-      "Visão geral", "Metas", "Dívidas", "Carteira", "Viagem", "Calculadoras", "Análises", "Decidir", "Configurações", "Como funciona",
+      "Visão geral", "Ritual da semana", "Metas", "Dívidas", "Carteira", "Viagem", "Calculadoras", "Análises", "Decidir", "Configurações", "Como funciona",
     ]);
   });
 
@@ -26,13 +26,20 @@ describe("o menu ☰ da versão nova", () => {
     // As outras telas continuam com o título delas.
     expect(tituloDaTela("/planejamento/metas", casal)).toBe("Metas");
     expect(tituloDaTela("/mensal/foco", casal)).toBe("Visão geral");
-    expect(casal).toHaveLength(11);
+    expect(casal).toHaveLength(12);
   });
 
   it("toda tela da Visão geral acende a Visão geral, e só ela", () => {
     for (const rota of ["/mensal/foco", "/mensal/2026/10", "/mensal/gastos", "/orcamento", "/orcamento/contas"]) {
       expect(NAV_SECTIONS.filter((s) => sectionMatches(s, rota)).map((s) => s.basePath), rota).toEqual(["/mensal"]);
     }
+  });
+
+  it("o ritual da semana tem item próprio, e só ele acende na tela do ritual", () => {
+    expect(NAV_SECTIONS.filter((s) => sectionMatches(s, "/mensal/foco/ritual")).map((s) => s.label)).toEqual(["Ritual da semana"]);
+    expect(tituloDaTela("/mensal/foco/ritual", NAV_SECTIONS)).toBe("Ritual da semana");
+    expect(NAV_SECTIONS.filter((s) => sectionMatches(s, "/mensal/foco")).map((s) => s.label)).toEqual(["Visão geral"]);
+    expect(bases(secoesVisiveis(NAV_SECTIONS, { empresa: true, casal: false }))).not.toContain("/mensal/foco/ritual");
   });
 
   it("o título do topo é o nome da seção", () => {

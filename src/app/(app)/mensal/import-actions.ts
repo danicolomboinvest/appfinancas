@@ -47,6 +47,8 @@ import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-
 import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
 import { casarComPaguei, confirmaOPaguei, type PagueiNoApp } from "@/lib/import/paguei-no-extrato";
 import { contaVaria, origemDoArquivo } from "@/lib/contas/paguei";
+import { casarJaNoApp, TOLERANCIA_JA_NO_APP, type JaNoApp, type LinhaNova } from "@/lib/import/ja-no-app";
+import { casaAtiva, chaveDaConta, comFiltro, doOutroVisivel } from "@/lib/casa/regras";
 import { lidasEmDobro } from "@/lib/import/repetidos";
 import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
 import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
@@ -130,6 +132,9 @@ export type ReviewItem = {
     /** O lançamento é o de um "Paguei" das Recorrentes (lib/import/paguei-no-extrato): com "é o
      * mesmo", fica a linha do arquivo com a categoria e a ligação da conta, e o do "Paguei" sai. */
     paguei?: boolean;
+    /** Alta chance de já estar no app (lib/import/ja-no-app): a pergunta "Essa movimentação parece
+     * já estar no app. Importar mesmo assim?", agrupada com as outras iguais. */
+    altaChance?: boolean;
   } | null;
   /** Já está no app: um lançamento à mão quase certamente igual (lib/import/parecido-manual). Não
    * entra de novo; na gravação, o lançamento à mão fica com o dia e o valor do arquivo. */
@@ -141,6 +146,9 @@ export type ReviewItem = {
     faturaAberta?: boolean;
     /** Veio de outro arquivo, com o mesmo dia, valor e nome: a gravação pula sozinha (é o mesmo arquivo de novo). */
     importado?: boolean;
+    /** Ela respondeu "Não importar" na pergunta "parece já estar no app": dá para voltar atrás
+     * ("Anotar também") mesmo quando o par veio de outro arquivo. */
+    perguntado?: boolean;
     /** Parcela que já está no mês (ver marcarParcelasJaNoApp). Vai junto para a gravação, que a
      * reconhece e confirma a projeção da fatura anterior, mas não conta como compra nova. */
     parcela?: boolean;
@@ -664,6 +672,10 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   await marcarDestinoPelaRegra(ctx, items);
   await marcarParecidosDeOutraImportacao(ctx, items);
   if (docType === "fatura") await marcarParcelasJaNoApp(ctx, items, contextoDaFatura(datasDaFatura, parsed.map((t) => t.date)));
+  // Por último, o que as regras de cima deixaram passar com alta chance de já estar no app (o
+  // lançado à mão com gorjeta, a mesma compra de outro banco em outro dia, o cartão que o par já
+  // subiu): vira a pergunta "Importar mesmo assim?", nunca some sozinho.
+  await marcarJaNoAppProvavel(ctx, items, chaveDaConta(docType, uploadedName), docType === "fatura" ? (datasDaFatura.vencimento?.slice(0, 7) ?? null) : null);
   const diagnosticId = await recordImportDiagnostic({
     userId: ctx.userId,
     target: docType,
@@ -1135,7 +1147,8 @@ export async function conciliarJaNoAppAction(lista: { id: string; valor: number;
     });
     if (!atual) continue;
     // Nunca mais longe que o critério: protege de um id trocado no cliente.
-    if (Math.abs(Number(atual.amount) - valor) > Math.max(0.011, Math.abs(valor) * 0.01 + 0.001)) continue;
+    // A gorjeta (até 12% com o nome que bate, lib/import/ja-no-app) também.
+    if (Math.abs(Number(atual.amount) - valor) > Math.max(0.011, Math.abs(valor) * TOLERANCIA_JA_NO_APP.gorjeta + 0.001)) continue;
     const nome = typeof l.descricao === "string" ? nomeNaTela(l.descricao).nome.slice(0, 120) : "";
     await prisma.monthlyEntry.updateMany({
       where: { id: l.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null },
@@ -1238,6 +1251,78 @@ async function marcarParcelasJaNoApp(ctx: AuthContext, items: ReviewItem[], cont
     if (!achado) continue;
     usados.add(achado.id);
     item.jaNoApp = { descricao: achado.description ?? item.description, data: achado.entryDate ? achado.entryDate.toISOString().slice(0, 10) : item.date, id: "", valor: Number(achado.amount), importado: true, parcela: true };
+  }
+}
+
+/**
+ * Alta chance de já estar no app (critério em lib/import/ja-no-app): a linha que nenhuma regra de
+ * cima pegou e bate com um lançamento dela (à mão ou de outro arquivo, com até 5 dias e 5% de
+ * diferença) ou, no casal, com um do par. Vira `possivelDuplicata.altaChance`, a pergunta
+ * agrupada "N parecem já estar no app". Nada é pulado nem apagado aqui.
+ *
+ * Do par só vem o que ele deixou visível (doOutroVisivel: sem o "Só meu" e sem a conta
+ * escondida). O que ele escondeu nunca vira pergunta, para a pergunta não revelar o lançamento.
+ */
+async function marcarJaNoAppProvavel(ctx: AuthContext, items: ReviewItem[], contaDoArquivo: string, mesDaFatura: string | null) {
+  const ehData = (d: string) => Number.isFinite(Date.parse(`${d}T12:00:00Z`));
+  const candidatas = items.filter((it) => !it.ignorar && !it.installment && it.amount > 0 && ehData(it.date));
+  const novas = candidatas.filter((it) => !it.jaNoApp && !it.possivelDuplicata);
+  if (novas.length === 0) return;
+  const datas = novas.map((i) => Date.parse(`${i.date}T12:00:00Z`));
+  const de = new Date(Math.min(...datas) - (TOLERANCIA_JA_NO_APP.dias + 1) * DIA_MS);
+  const ate = new Date(Math.max(...datas) + (TOLERANCIA_JA_NO_APP.dias + 1) * DIA_MS);
+  const periodo = { entryDate: { gte: de, lte: ate } };
+  const tipos = [...new Set(novas.map((i) => i.category))];
+  const perfis = [...new Set(items.map((it) => it.profileId ?? ctx.profileId))];
+  const select = { id: true, category: true, amount: true, entryDate: true, year: true, month: true, description: true, importBatch: { select: { docType: true, fileName: true } } } as const;
+  const casa = casaAtiva(ctx);
+  // Do par também a fatura gravada sem dia (no mês do vencimento): os dois subindo a mesma fatura.
+  const mesesSemDia = [...new Set([...(mesDaFatura ? [mesDaFatura] : []), ...novas.map((i) => i.date.slice(0, 7))])].map((m) => ({ entryDate: null, year: Number(m.slice(0, 4)), month: Number(m.slice(5, 7)) }));
+  const [meus, doPar, nomesDoBanco] = await Promise.all([
+    prisma.monthlyEntry.findMany({ where: { userId: ctx.userId, profileId: { in: perfis }, category: { in: tipos }, ...periodo }, select }),
+    casa ? prisma.monthlyEntry.findMany({ where: comFiltro(doOutroVisivel(casa), { category: { in: tipos }, OR: [periodo, ...mesesSemDia] }), select }) : Promise.resolve([]),
+    descricoesOriginais(ctx, perfis),
+  ]);
+  // Os meus sem dia ficam com a regra de antes (a gravação já pula a mesma fatura de novo).
+  const paraComparar = (doOutro: boolean) => (e: (typeof meus)[number]): JaNoApp[] =>
+    e.entryDate || doOutro
+      ? [{
+          id: e.id,
+          category: e.category,
+          amount: Number(e.amount),
+          date: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
+          mes: `${e.year}-${String(e.month).padStart(2, "0")}`,
+          description: e.description,
+          descricaoOriginal: doOutro ? null : (nomesDoBanco.get(e.id) ?? null),
+          conta: e.importBatch ? chaveDaConta(e.importBatch.docType, e.importBatch.fileName) : null,
+          doPar: doOutro,
+        }]
+      : [];
+  const existentes = [...meus.flatMap(paraComparar(false)), ...doPar.flatMap(paraComparar(true))];
+  if (existentes.length === 0) return;
+  const linhas: LinhaNova[] = candidatas.map((it) => ({
+    key: it.key,
+    date: it.date,
+    description: it.description,
+    valor: (it.estorno && it.category === "EXPENSE") || (it.resgate && it.category === "INVESTMENT_CONTRIBUTION") ? -it.amount : it.amount,
+    category: it.category,
+    resolvida: !!it.jaNoApp || !!it.possivelDuplicata,
+    mesDaFatura,
+  }));
+  const casados = casarJaNoApp(linhas, existentes, { contaDoArquivo });
+  for (const it of novas) {
+    const e = casados.get(it.key);
+    if (!e) continue;
+    it.possivelDuplicata = {
+      descricao: e.description ?? "(sem descrição)",
+      data: e.date,
+      importado: e.conta !== null || !!e.doPar,
+      // O lançamento à mão leva o id: "não importar" o deixa com o dia e o valor do arquivo. O do
+      // par nunca leva (só quem gastou mexe no lançamento dele).
+      ...(e.conta === null && !e.doPar ? { id: e.id } : {}),
+      valor: Math.abs(e.amount),
+      altaChance: true,
+    };
   }
 }
 

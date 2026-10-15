@@ -52,6 +52,10 @@ const PODEM_LER_A_CASA = [
   // assinatura (o "Cancelei mesmo" do outro para o lembrete). Lembretes e lançamentos lidos são só
   // de quem pediu.
   "lib/assinaturas/lembretes-envio.ts",
+  // A importação (15/10/2026): o cartão que o par já subiu vira a pergunta "Importar mesmo
+  // assim?". Lê só o que o par deixou visível (doOutroVisivel), então o "Só meu" e a conta
+  // escondida dele nunca viram pergunta.
+  "app/(app)/mensal/import-actions.ts",
 ];
 
 /** As leituras que nunca podem ver a casa, uma por uma, com o porquê. */
@@ -109,5 +113,14 @@ describe("o escondido nunca vaza para o outro", () => {
       // Espalhar o filtro da casa num objeto com outro OR perderia um dos dois.
       expect(/\.\.\.(lancamentosParaVer|lancamentosDosTotais)\(/.test(texto), c).toBe(false);
     }
+  });
+});
+
+describe("a importação só pergunta do que o par deixou visível", () => {
+  it("o lançamento do par chega só pela leitura da casa (doOutroVisivel)", () => {
+    const fonte = readFileSync(join(__dirname, "..", "..", "..", "app", "(app)", "mensal", "import-actions.ts"), "utf8");
+    expect(fonte).toMatch(/doOutroVisivel\(casa\)/);
+    // Nenhum atalho para o Pessoal do outro: sem o filtro, o "Só meu" viraria pergunta.
+    expect(fonte).not.toMatch(/casa\.outro\.(userId|profileId)/);
   });
 });

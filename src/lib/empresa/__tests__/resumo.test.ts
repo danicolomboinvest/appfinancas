@@ -62,7 +62,7 @@ describe("resumo da Empresa (Ana canônica)", () => {
     expect(faturamentoMedio([venda(10, 100)], { ano: 2026, mes: 10 })).toEqual({ ritmo: null, meses: 0 });
   });
   it("guia de R$ 86,05 que vence dia 20, ainda não paga em outubro", () => {
-    expect(r.guia).toEqual({ valor: 86.05, vence: "2026-10-20", paga: false, diasAte: 13 });
+    expect(r.guia).toEqual({ valor: 86.05, vence: "2026-10-20", paga: false, diasAte: 13, origem: "paga" });
   });
   it("a Marina deve R$ 450 há 5 dias (pela data em que o dinheiro devia cair)", () => {
     const c = resumoDaEmpresa({ config, hoje: "2026-10-11", mesAtual: { ano: 2026, mes: 10 }, dia: 11, diasNoMes: 31, lancamentos: ana, legal, caixa: 0 });

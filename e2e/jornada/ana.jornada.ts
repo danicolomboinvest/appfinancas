@@ -11,6 +11,8 @@ import {
   entrar,
   fecharMes,
   importarArquivo,
+  importarRespondendo,
+  peloMenu,
   lancarAMao,
   lancarPorVoz,
   lapis,
@@ -320,6 +322,34 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirLivre(p, c, orc, "extrato outubro");
       const r = await lerResumo(p, c);
       test.info().annotations.push({ type: "Resumo depois do extrato", description: `${r.heroi} | ${r.sugestao?.texto}` });
+    });
+
+    // 15/10/2026 (feedback de uma cliente): o mesmo extrato de novo, agora com o Outback que ela já
+    // tinha lançado à mão sem a gorjeta. Tem de perguntar "parece já estar no app" e não duplicar.
+    await passo(c, "lança o Outback à mão e sobe o extrato de outubro de novo", async () => {
+      await lancarAMao(p, { valor: 100, categoria: "Alimentação", descricao: "Outback", ontem: true });
+      const antes = await lerTransacoes(p, c, OUT);
+      const titulo = await importarRespondendo(p, ARQ("ana-extrato-outubro-de-novo.csv"), "Não importar");
+      if (!titulo || !/parece|parecem já estar no app/i.test(titulo)) await c.anotar(p, { tipo: "tela", telaDeOrigem: "extrato de novo + Outback à mão", telaErrada: "Importação", esperado: "a pergunta \"Parece já estar no app\"", visto: titulo ?? "não perguntou" });
+      const depois = await lerTransacoes(p, c, OUT);
+      const outback = depois.linhas.filter((l) => /outback/i.test(l.descricao));
+      if (outback.length !== 1) await c.anotar(p, { tipo: "numero", telaDeOrigem: "extrato de novo + Outback à mão", telaErrada: "Transações", esperado: "o Outback uma vez só", visto: `${outback.length} vezes` });
+      // "Não importar" deixa o lançamento à mão com o valor do extrato (a gorjeta).
+      else if (!bate(Math.abs(outback[0].valor), 110, 0.01)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "extrato de novo + Outback à mão", telaErrada: "Transações", esperado: "Outback R$ 110,00 (o valor do extrato)", visto: brl(Math.abs(outback[0].valor)) });
+      for (const nome of [/IFOOD/i, /TICKETMASTER/i, /POSTO SHELL/i]) {
+        const n = (l: typeof depois) => l.linhas.filter((x) => nome.test(x.descricao)).length;
+        if (n(depois) !== n(antes)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "extrato de novo", telaErrada: "Transações", esperado: `${nome.source} ${n(antes)} vez(es)`, visto: `${n(depois)} vezes` });
+      }
+      const { orc } = await conferirGastoPorCategoria(p, c, OUT, "extrato de novo");
+      await conferirLivre(p, c, orc, "extrato de novo");
+    });
+
+    // Quarta-feira: o ritual abre pelo menu e mostra a semana que passou (15/10/2026).
+    await passo(c, "Ritual da semana pelo menu, numa quarta", async () => {
+      await p.goto("/mensal/foco");
+      await peloMenu(p, "Ritual da semana");
+      await p.waitForURL(/\/mensal\/foco\/ritual/, { timeout: 20_000 });
+      if (!(await p.locator("[data-semana-que-passou]").count())) await c.anotar(p, { tipo: "tela", telaDeOrigem: "menu (Ritual da semana)", telaErrada: "Ritual numa quarta", esperado: "a semana que passou", visto: (await textoVisivel(p)).slice(0, 120) });
     });
 
     await passo(c, "Empresa: vendeu R$ 300 no Ateliê", async () => {
