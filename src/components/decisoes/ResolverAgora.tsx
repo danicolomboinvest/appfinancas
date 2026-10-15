@@ -10,7 +10,7 @@ import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/Err
 import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
 import { desfazerDispensaAction } from "@/app/(app)/decidir/actions";
-import { planoDeCobrir, porDiaComOLivre, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
+import { planoDeCobrir, porDiaComOLivre, quantoPassou, tempoDoMes, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 import "./decidir.css";
 
 type Opcao = "cobrir" | "livre" | "deixar";
@@ -54,7 +54,7 @@ export function ResolverAgora({
   const [pendente, iniciar] = useTransition();
   const comEssencial = categorias.map((c) => ({ ...c, essencial: c.essencial || essenciais.includes(c.key) }));
   const passou = comEssencial.find((c) => c.key === categoria);
-  const plano = passou ? planoDeCobrir(passou, comEssencial) : null;
+  const plano = passou ? planoDeCobrir(passou, comEssencial, tempoDoMes(diasRestantes)) : null;
   const [opcao, setOpcao] = useState<Opcao>(plano?.principal === "tirar" ? "cobrir" : "livre");
   if (!passou || !plano) return null;
   const valor = quantoPassou(passou);

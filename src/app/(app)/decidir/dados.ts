@@ -61,6 +61,7 @@ export async function carregarDecidir(ctx: AuthContext) {
       essenciais: [...categoriasEssenciais(ctx.categorias?.prefs)],
       livre: temLivre ? livre.restante : null,
       diasRestantes: temLivre ? livre.diasRestantes : 1,
+      diasNoMes: d.diasNoMes,
     },
     metas,
     reserva: fund ? { atual: Number(fund.currentAmount), alvo: Number(fund.targetAmount), fimDoMes } : null,

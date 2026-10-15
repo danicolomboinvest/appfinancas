@@ -1,7 +1,7 @@
 import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { categoryLabel } from "@/lib/categories";
 import type { DadosDoAviso } from "@/lib/email/templates";
-import { planoDeCobrir, porDiaComOLivre, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
+import { planoDeCobrir, porDiaComOLivre, quantoPassou, tempoDoMes, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 
 /** `dados` é o que o e-mail precisa para desenhar o aviso (barra, número, de onde tirar). */
 export type Alert = { key: string; title: string; body: string; url: string; dados?: DadosDoAviso };
@@ -109,7 +109,7 @@ export function buildBudgetAlerts(input: {
       ...input.planned.map((c) => ({ key: c.parentCategory, label: categoryLabel(input.kind, c.parentCategory), planejado: c.planned, gasto: spentBy.get(c.parentCategory) ?? 0, essencial: input.essenciais?.has(c.parentCategory) })),
       ...(input.outras ?? []),
     ];
-    const plano = planoDeCobrir({ key, label, planejado, gasto }, todas);
+    const plano = planoDeCobrir({ key, label, planejado, gasto }, todas, tempoDoMes(diasComHoje, new Date(input.year, input.month, 0).getDate()));
     const origem = plano.origens.length === 1 ? plano.origens[0] : null;
     const livre = input.livre ?? null;
     return {

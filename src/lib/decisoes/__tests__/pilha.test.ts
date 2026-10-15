@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cartaoDaPilha, contadorDaPilha, juntarComE, ordenarPilha, type DadosDaPilha } from "../pilha";
-import { planoDeCobrir, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
+import { planoDeCobrir, reservaDoRitmo, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 import type { FocoItem } from "../foco";
 
 const money = (v: number) => `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
@@ -18,7 +18,7 @@ const ana: CategoriaParaRemanejo[] = [
 
 const dados = (mudar: Partial<DadosDaPilha> = {}): DadosDaPilha => ({
   money,
-  remanejo: { categorias: ana, essenciais: [], livre: 3241, diasRestantes: 25 },
+  remanejo: { categorias: ana, essenciais: [], livre: 3241, diasRestantes: 25, diasNoMes: 31 },
   metas: [{ id: "europa", nome: "Europa", atual: 1429, alvo: 20000, prazoCurto: "nov/2027", porMes: 1340, ritmo: 200, chega: { curto: "mai/2032", ano: 2032, mes: 5 }, vencida: false }],
   reserva: { atual: 4200, alvo: 21000, fimDoMes: 383 },
   hrefMes: "/mensal/2026/10",
@@ -50,7 +50,8 @@ describe("pilha do Decidir (rodadas 38, 49 e 53)", () => {
 
   it("sem folga no desejo: o livre vira a principal e o dia a dia vem com a etiqueta", () => {
     const cats = ana.map((c) => (c.key === "OUTROS" || c.key === "LAZER" ? { ...c, gasto: c.planejado } : c));
-    const c = cartaoDaPilha(estouro, dados({ remanejo: { categorias: cats, essenciais: [], livre: 3241, diasRestantes: 25 } }))!;
+    // Dia 14 (faltam 18 de 31): o dia a dia só dá o que passa do ritmo dela até o fim do mês.
+    const c = cartaoDaPilha(estouro, dados({ remanejo: { categorias: cats, essenciais: [], livre: 3241, diasRestantes: 18, diasNoMes: 31 } }))!;
     expect(c.respostas[0]).toMatchObject({ id: "livre", principal: true });
     expect(c.respostas[1]).toMatchObject({ id: "tirar", etiqueta: "é do dia a dia" });
     expect(c.respostas[1].principal).toBeFalsy();
@@ -77,8 +78,13 @@ describe("pilha do Decidir (rodadas 38, 49 e 53)", () => {
       const cats = ana.map((c) => ({ ...c, planejado: Math.round(100 + sorteio() * 3000), gasto: Math.round(sorteio() * 3000) }));
       const passou = cats[Math.floor(sorteio() * cats.length)];
       if (passou.gasto <= passou.planejado) passou.gasto = passou.planejado + 1 + Math.round(sorteio() * 800);
-      const p = planoDeCobrir(passou, cats);
+      const tempo = { diasRestantes: 1 + Math.floor(sorteio() * 31), diasNoMes: 31 };
+      const p = planoDeCobrir(passou, cats, tempo);
       for (const o of p.origens) expect(["MORADIA", "SAUDE", "EDUCACAO", "IMPOSTOS"]).not.toContain(o.key);
+      // O dia a dia nunca fica abaixo do que ainda vai gastar no ritmo (15/10/2026).
+      for (const o of p.origens.filter((x) => x.key === "ALIMENTACAO" || x.key === "TRANSPORTE")) {
+        expect(o.sobraDepois).toBeGreaterThanOrEqual(reservaDoRitmo(cats.find((c) => c.key === o.key)!, tempo));
+      }
       // Desejo primeiro: só cai no dia a dia quando nenhum desejo cobre sozinho ou em dupla.
       if (p.nivel === 2) {
         const desejo = cats.filter((c) => c.key !== passou.key && ["OUTROS", "LAZER"].includes(c.key)).map((c) => Math.max(0, Math.floor(c.planejado - c.gasto)));

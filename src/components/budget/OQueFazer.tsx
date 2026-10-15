@@ -14,7 +14,7 @@ import { cobrirCategoriaAction } from "@/app/(app)/orcamento/actions";
 import { dispensarAvisoAction } from "@/app/(app)/mensal/foco/actions";
 import { desfazerDispensaAction } from "@/app/(app)/decidir/actions";
 import { idDoEstouro } from "@/lib/decisoes/resposta-ao-aviso";
-import { fontesParaCobrir, planoDeCobrir, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
+import { fontesParaCobrir, nivelDaCategoria, planoDeCobrir, quantoPassou, tempoDoMes, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 
 /**
  * A folha "O que fazer?" (protótipo aprovado, #passou): o ícone, "Saúde passou R$ 67 do plano /
@@ -29,6 +29,8 @@ export function OQueFazer({
   essenciais = [],
   oQuePesou,
   revisao,
+  diasRestantes,
+  diasNoMes,
   onFeito,
   mes,
   icone,
@@ -49,6 +51,8 @@ export function OQueFazer({
   /** O livre do mês (plano − gastou). Null quando não há orçamento. */
   livre: number | null;
   diasRestantes: number;
+  /** Quantos dias o mês tem (sem ele, o do mês de hoje): o ritmo do dia a dia. */
+  diasNoMes?: number;
   /** A lista dos lançamentos da categoria (logo, nome, valor), já montada por quem chama. */
   oQuePesou?: ReactNode;
   revisao?: { mediana: number } | null;
@@ -63,7 +67,8 @@ export function OQueFazer({
   const [erro, setErro] = useState<{ onde: "pontual" | "cobrir"; texto: string } | null>(null);
   const [vendo, setVendo] = useState(false);
   const comEssencial = categorias.map((c) => ({ ...c, essencial: c.essencial || essenciais.includes(c.key) }));
-  const plano = planoDeCobrir(categoria, comEssencial);
+  // Desejo primeiro, todo; o dia a dia só completa, e nunca abaixo do que ainda vai gastar no ritmo.
+  const plano = planoDeCobrir(categoria, comEssencial, tempoDoMes(diasRestantes, diasNoMes));
   const valor = quantoPassou(categoria);
 
   /**
@@ -156,7 +161,7 @@ export function OQueFazer({
           <div className="flex flex-wrap gap-2">
             {fontes.map((f) => (
               <button key={f.key} type="button" aria-pressed={f.key === de} onClick={() => setDe(f.key)} className="min-h-10 rounded-full bg-surface-2 px-3.5 text-sm text-ink aria-pressed:bg-ink aria-pressed:text-surface">
-                {f.label} · {m(f.folga)} livres{f.nivel === 2 ? " · dia a dia" : ""}
+                {f.label} · {m(f.folga)} livres
               </button>
             ))}
           </div>
@@ -176,10 +181,18 @@ export function OQueFazer({
       )}
       {cobrindo && fontes.length === 0 && plano.origens.length > 0 && (
         <div className="flex flex-col gap-3 rounded-2xl bg-surface p-3.5 shadow-[inset_0_0_0_1px_var(--color-border)]" data-cobrir>
-          <p className="text-sm text-ink-muted">Nenhuma categoria cobre sozinha. Juntando duas:</p>
+          <p className="text-sm text-ink-muted">Nenhuma categoria de desejo cobre sozinha. Juntando, desejo primeiro:</p>
           <button type="button" disabled={pendente} onClick={() => cobrirCom(plano.origens)} className="min-h-12 rounded-full bg-ink px-4 text-[15px] font-medium text-surface disabled:opacity-50">
             {erro?.onde === "cobrir" ? TENTAR_DE_NOVO : plano.origens.map((o) => `${m(o.valor)} de ${o.label}`).join(" + ")}
           </button>
+          {/* O dia a dia fica com o que ela ainda vai gastar até o fim do mês: mostra quanto. */}
+          {plano.origens
+            .filter((o) => nivelDaCategoria(comEssencial.find((c) => c.key === o.key) ?? o) === 2)
+            .map((o) => (
+              <p key={o.key} className="text-[13px] text-ink-muted">
+                {o.label} fica com {m(o.sobraDepois)} para {diasRestantes === 1 ? "hoje" : `os ${diasRestantes} dias que faltam`}.
+              </p>
+            ))}
           {erro?.onde === "cobrir" && <ErroNoBotao erro={erro.texto} />}
         </div>
       )}

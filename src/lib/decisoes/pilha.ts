@@ -1,5 +1,5 @@
 import type { FocoItem } from "./foco";
-import { planoDeCobrir, porDiaComOLivre, quantoPassou, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
+import { planoDeCobrir, porDiaComOLivre, quantoPassou, tempoDoMes, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
 
 /**
  * A pilha do Decidir (rodadas 38, 49 e 53): "uma decisão por vez". Cada aviso do motor do Foco
@@ -97,7 +97,7 @@ export type MetaDaPilha = {
 
 export type DadosDaPilha = {
   money: (v: number) => string;
-  remanejo: { categorias: CategoriaParaRemanejo[]; essenciais: string[]; livre: number | null; diasRestantes: number };
+  remanejo: { categorias: CategoriaParaRemanejo[]; essenciais: string[]; livre: number | null; diasRestantes: number; diasNoMes?: number };
   metas: MetaDaPilha[];
   /** A reserva de emergência: quanto tem, a meta e quanto sobra no fim do mês se seguir assim. */
   reserva: { atual: number; alvo: number; fimDoMes: number | null } | null;
@@ -119,7 +119,8 @@ export function cartaoDaPilha(item: FocoItem, d: DadosDaPilha): CartaoDaPilha | 
     const categorias = d.remanejo.categorias.map((c) => ({ ...c, essencial: c.essencial || essenciais.has(c.key) }));
     const passou = categorias.find((c) => c.key === det.categoria) ?? { key: det.categoria, label: det.label, planejado: det.planejado, gasto: det.gasto };
     const valor = quantoPassou(passou);
-    const plano = planoDeCobrir(passou, categorias);
+    // O dia a dia só dá o que passa do ritmo dela até o fim do mês (remanejo.ts).
+    const plano = planoDeCobrir(passou, categorias, tempoDoMes(d.remanejo.diasRestantes, d.remanejo.diasNoMes));
     const tirar: RespostaDaPilha | null =
       plano.origens.length === 0
         ? null
