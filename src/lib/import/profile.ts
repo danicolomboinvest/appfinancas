@@ -175,6 +175,9 @@ function detectInstitution(text: string): string | null {
   // O extrato do BB não diz "Banco do Brasil" em lugar nenhum, só "BB Rende Fácil"; um boleto
   // pago ao "BANCO C6 S.A." fazia a tela chamar o arquivo de C6.
   if (isBancoDoBrasilStatement(text)) return "Banco do Brasil";
+  // CSV da conta do Nubank ("Data,Valor,Identificador,Descrição"): o nome do banco não aparece, e
+  // um Pix para o Bradesco na descrição fazia a tela dizer "extrato do Bradesco".
+  if (/^\uFEFF?data,valor,identificador,descri[çc][ãa]o\s*$/i.test(text.split(/\r?\n/, 1)[0] ?? "")) return "Nubank";
   // A movimentação da B3 repete a corretora em toda linha ("BANCO BTG PACTUAL S/A."): é da B3.
   if (isB3Movimentacao(text)) return "B3";
   const head = text.slice(0, 2500);
