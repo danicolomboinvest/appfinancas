@@ -56,6 +56,9 @@ export type MonthlyEntryInput = {
   /** Limite do cartão: true = no cartão de crédito, false = não, null = limpa (deixou de ser
    * gasto), undefined = não mexe. Ver lib/cartao/limite.ts. */
   noCartao?: boolean | null;
+  /** Cartão cadastrado em que foi a compra (15/10/2026). Quem chama já conferiu que é dela e do
+   * perfil (cartaoDoPerfil). undefined não mexe. */
+  cartaoId?: string | null;
   /** Empresa: o cliente da venda. null limpa, undefined não mexe. */
   cliente?: string | null;
 };
@@ -148,6 +151,7 @@ export async function createRecurringMonthlyEntries(
     pessoa?: string;
     doCasal?: boolean;
     noCartao?: boolean | null;
+    cartaoId?: string | null;
   },
 ) {
   const refs = await resolveOwnRefs(ctx, ctx.profileId, input);

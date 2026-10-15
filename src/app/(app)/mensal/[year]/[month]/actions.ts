@@ -27,6 +27,7 @@ import { aprenderComCorrecao, linhasAntesDaCorrecao, upsertTransactionRule } fro
 import { regraDaCorrecaoDaVoz } from "@/lib/entries/aprender-da-voz";
 import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
+import { cartaoDoPerfil } from "@/lib/repositories/cartao.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { serverMoney } from "@/lib/money-server";
 import type { z } from "zod";
@@ -49,6 +50,20 @@ async function depoisDoGasto(ctx: Sessao, entry: MonthlyEntryInput): Promise<str
   const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
   const money = await serverMoney();
   return situacao.falta >= 0 ? t.limToastFalta(money(situacao.falta)) : t.limToastPassou(money(-situacao.falta));
+}
+
+/**
+ * Cartão cadastrado escolhido no Digitar (15/10/2026, CartaoNoDigitar): só gasto, e só um cartão
+ * dela no perfil aberto. Com cartão, o gasto é "no cartão" (o limite já conta). O mês do
+ * orçamento continua o da compra; a fatura sai da data (lib/cartao/fatura.ts).
+ */
+async function ligarAoCartao(ctx: Sessao, formData: FormData, entry: MonthlyEntryInput) {
+  const id = formData.get("cartaoId");
+  if (entry.category !== "EXPENSE" || typeof id !== "string" || !id) return;
+  const cartao = await cartaoDoPerfil(ctx, id);
+  if (!cartao) return;
+  entry.cartaoId = cartao.id;
+  entry.noCartao = true;
 }
 
 /**
@@ -161,6 +176,7 @@ export async function createMonthlyEntryAction(
     await registrarFalhaDaAcao("lancar", entry.error);
     return entry;
   }
+  await ligarAoCartao(ctx, formData, entry);
   try {
     if (parsed.data.repeatMonthly) {
       await createRecurringMonthlyEntries(ctx, entry);

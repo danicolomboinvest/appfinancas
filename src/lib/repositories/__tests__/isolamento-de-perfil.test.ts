@@ -37,6 +37,8 @@ const COM_ESCOPO = [
   "regraDePerfil",
   // Casal simples (13/10/2026): o "Da casa" aprendido por comerciante, no Pessoal de quem tocou.
   "regraDaCasa",
+  // Cartão com fechamento e vencimento (15/10/2026): o cartão é do perfil, como o limite.
+  "cartao",
 ];
 
 /**

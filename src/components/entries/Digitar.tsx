@@ -14,6 +14,7 @@ import { CurrencySwitch, ExchangeRateLine } from "@/components/forms/CurrencySwi
 import { CasalFields } from "@/components/forms/CasalFields";
 import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/mensal/[year]/[month]/actions";
 import { NovaCategoria } from "./NovaCategoria";
+import { CartaoNoDigitar, type EscolhaDoCartao } from "./CartaoNoDigitar";
 import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclar, textoDoRepetir } from "@/lib/entries/digitar";
@@ -105,6 +106,7 @@ export function Digitar({
     }
   });
   const [repetir, setRepetir] = useState(false);
+  const [cartao, setCartao] = useState<EscolhaDoCartao>({ id: null, temCartoes: false });
   const [mais, setMais] = useState(() => Boolean(inicial?.moeda && inicial.moeda !== moedaDoApp));
   const [descricao, setDescricao] = useState(rascunho?.descricao ?? inicial?.descricao ?? "");
   const [moeda, setMoeda] = useState<CurrencyCode>(inicial?.moeda ?? moedaDoApp);
@@ -196,7 +198,8 @@ export function Digitar({
     if (meta) fd.set("goalId", meta);
     if (repetir) fd.set("repeatMonthly", "on");
     if (entrada && mesSeguinte) fd.set("paraMesSeguinte", "on");
-    if (cartaoComLimite && ehGasto) {
+    if (ehGasto && cartao.id) fd.set("cartaoId", cartao.id);
+    if (cartaoComLimite && ehGasto && !cartao.temCartoes) {
       fd.set("noCartao", noCartao ? "sim" : "nao");
       try {
         window.localStorage.setItem(ULTIMO_NO_CARTAO, noCartao ? "1" : "0");
@@ -343,8 +346,10 @@ export function Digitar({
         <input type="date" aria-label="Outra data" defaultValue={chip === "hoje" || chip === "ontem" ? dataDoChip("ontem", hoje) : chip} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
       )}
 
+      {ehGasto && <CartaoNoDigitar data={dataDoChip(chip, hoje)} escolha={cartao} onEscolha={setCartao} />}
+
       <div className="flex flex-col divide-y divide-border">
-        {cartaoComLimite && ehGasto && linhaSw("No cartão de crédito", noCartao, () => setNoCartao((v) => !v))}
+        {cartaoComLimite && ehGasto && !cartao.temCartoes && linhaSw("No cartão de crédito", noCartao, () => setNoCartao((v) => !v))}
         {linhaSw("Repetir todo mês", repetir, () => setRepetir((v) => !v))}
       </div>
       {repetir && <p className="-mt-1 text-sm text-ink-muted">{textoDoRepetir(dataDoChip(chip, hoje))}</p>}
