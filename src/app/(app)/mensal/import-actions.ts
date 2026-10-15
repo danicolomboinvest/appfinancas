@@ -19,6 +19,7 @@ import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { bancoNoNomeDoArquivo, finalDoCartao } from "@/lib/cartao/bancos";
+import { mesDoGastoNoCartao } from "@/lib/cartao/fatura";
 import { acharCartaoDaFatura, ligarLoteAoCartao } from "@/lib/repositories/cartao.repo";
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
@@ -1126,7 +1127,9 @@ async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) 
   }
   const manuais = await prisma.monthlyEntry.findMany({
     // O gasto do "Paguei" tem a regra dele (marcarPagueiNoExtrato), com a origem e a conta que varia.
-    where: { userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, externalId: null, contaAPagarId: null, OR: meses },
+    // Pela data também: o gasto num cartão cadastrado conta no mês da fatura (15/10/2026), e a
+    // compra de 15/10 está em novembro. Sem isto ela não era achada e entrava em dobro.
+    where: { userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, externalId: null, contaAPagarId: null, OR: [...meses, { entryDate: { gte: de, lte: ate } }] },
     select: { id: true, category: true, amount: true, entryDate: true, description: true, year: true, month: true },
   });
   const linhas: LinhaDoArquivo[] = items.flatMap((item) =>
@@ -1162,9 +1165,11 @@ export async function conciliarJaNoAppAction(lista: { id: string; valor: number;
     const atual = await prisma.monthlyEntry.findFirst({
       // O gasto do "Paguei" junta na gravação (juntarComPaguei), nunca aqui.
       where: { id: l.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, contaAPagarId: null },
-      select: { amount: true, description: true },
+      select: { amount: true, description: true, cartao: { select: { diaFechamento: true, diaVencimento: true } } },
     });
     if (!atual) continue;
+    // Gasto num cartão cadastrado conta no mês da fatura do dia do arquivo (lib/cartao/fatura.ts).
+    const mes = (atual.cartao && mesDoGastoNoCartao(dia, atual.cartao)) || { year: dia.getFullYear(), month: dia.getMonth() + 1 };
     // Nunca mais longe que o critério: protege de um id trocado no cliente.
     // A gorjeta (até 12% com o nome que bate, lib/import/ja-no-app) também.
     if (Math.abs(Number(atual.amount) - valor) > Math.max(0.011, Math.abs(valor) * TOLERANCIA_JA_NO_APP.gorjeta + 0.001)) continue;
@@ -1174,8 +1179,8 @@ export async function conciliarJaNoAppAction(lista: { id: string; valor: number;
       data: {
         amount: valor,
         entryDate: dia,
-        year: dia.getFullYear(),
-        month: dia.getMonth() + 1,
+        year: mes.year,
+        month: mes.month,
         ...(nome && semNomeUtil(atual.description) ? { description: nome } : {}),
       },
     });
