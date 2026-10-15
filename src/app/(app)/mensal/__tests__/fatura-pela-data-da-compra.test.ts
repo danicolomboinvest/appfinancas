@@ -138,9 +138,9 @@ const compra = (date: string, description: string, amount: number, extra: Partia
   })(),
   ...extra,
 });
-/** Pela data da compra: sem mês escolhido, com as datas lidas. */
+/** Pela data da compra ("Mudar › contar cada compra no mês dela"), com as datas lidas. */
 const importarFatura = (itens: ConfirmedItem[], datas: { vencimento: string | null; fechamento: string | null }) =>
-  importTransactionsAction(itens, "fatura", undefined, undefined, "fatura.pdf", null, null, datas);
+  importTransactionsAction(itens, "fatura", undefined, undefined, "fatura.pdf", null, null, { ...datas, porCompra: true });
 
 const doMes = (year: number, month: number) => banco.filter((e) => e.year === year && e.month === month);
 const comDescricao = (d: string) => banco.filter((e) => e.description === d);
@@ -157,6 +157,20 @@ const FATURA_SETEMBRO = [
   compra("2026-09-03", "NETFLIX", 39.9),
   compra("2026-06-20", "LOJA X PARC 03/10", 100),
 ];
+
+describe("fatura no mês dela (o padrão)", () => {
+  it("sem pedir nada, a fatura que vence em setembro conta toda em setembro, mesmo as compras de agosto", async () => {
+    const r = await importTransactionsAction(FATURA_SETEMBRO, "fatura", undefined, undefined, "fatura.pdf", null, null, SET);
+    expect(r).toMatchObject({ ok: true });
+    expect(doMes(2026, 8)).toHaveLength(0);
+    expect(doMes(2026, 9).map((e) => e.description)).toEqual(expect.arrayContaining(["MERCADO EXTRA", "FARMACIA", "NETFLIX", "LOJA X PARC 03/10"]));
+  });
+
+  it("sem vencimento lido, cada compra segue no mês em que foi feita", async () => {
+    await importTransactionsAction([compra("2026-08-20", "MERCADO EXTRA", 150), compra("2026-09-03", "NETFLIX", 39.9)], "fatura", undefined, undefined, "fatura.pdf", null, null, { vencimento: null, fechamento: null });
+    expect(doMes(2026, 8).map((e) => e.description)).toEqual(["MERCADO EXTRA"]);
+  });
+});
 
 describe("fatura pela data da compra", () => {
   it("cada compra no mês dela, com o dia; a parcela no mês da compra + (k - 1) no dia da compra, e as seguintes projetadas no mesmo dia", async () => {

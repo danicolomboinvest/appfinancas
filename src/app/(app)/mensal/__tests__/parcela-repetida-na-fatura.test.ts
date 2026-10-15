@@ -136,9 +136,9 @@ const compra = (date: string, description: string, amount: number, extra: Partia
   })(),
   ...extra,
 });
-/** Pela data da compra: sem mês escolhido, com as datas lidas. */
+/** Pela data da compra ("Mudar › contar cada compra no mês dela"), com as datas lidas. */
 const importarFatura = (itens: ConfirmedItem[], datas: { vencimento: string | null; fechamento: string | null }) =>
-  importTransactionsAction(itens, "fatura", undefined, undefined, "fatura.pdf", null, null, datas);
+  importTransactionsAction(itens, "fatura", undefined, undefined, "fatura.pdf", null, null, { ...datas, porCompra: true });
 
 const comDescricao = (d: string) => banco.filter((e) => e.description === d);
 
