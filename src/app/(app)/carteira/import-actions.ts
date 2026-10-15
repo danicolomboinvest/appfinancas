@@ -291,6 +291,7 @@ export type ImportPortfolioResult =
  * chegam aqui. Objetivo padrão OUTRO nos novos; o usuário refina depois. */
 export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promise<ImportPortfolioResult> {
   const ctx = await getRequiredSession();
+  const agora = new Date();
   let created = 0;
   let updated = 0;
 
@@ -351,6 +352,9 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
                 ...(u.investedValue !== undefined ? { investedValue: u.investedValue } : {}),
               }),
               ...(h.fixedIncomeIndex !== null ? { fixedIncomeIndex: h.fixedIncomeIndex } : {}),
+              // O valor do extrato é o da corretora: a renda fixa passa a render a partir dele
+              // (rendimento-renda-fixa.ts). Nos outros ativos o campo não é lido.
+              ...(u.currentValue !== undefined && !emDolar(h) ? { valorInformado: u.currentValue, valorInformadoEm: agora } : {}),
             },
           }),
         ),
@@ -375,6 +379,8 @@ export async function importPortfolioAction(holdings: ConfirmedHolding[]): Promi
       quantity: h.quantity > 0 ? h.quantity : undefined,
       fixedIncomeIndex: h.fixedIncomeIndex ?? undefined,
       ...(comCambio(h, { currentValue: atual, investedValue: investido }) as { currentValue: number; investedValue: number }),
+      // Sem a data da compra no extrato, a renda fixa rende a partir do valor de hoje.
+      ...(!emDolar(h) ? { valorInformado: atual, valorInformadoEm: agora } : {}),
     });
     created += 1;
   }
