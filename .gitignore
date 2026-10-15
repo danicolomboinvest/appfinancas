@@ -38,3 +38,7 @@ next-env.d.ts
 
 # Rascunhos de depuração (scripts temporários de análise)
 .tmp/
+
+# Jornada (e2e/jornada): resultados e o relógio de teste
+/.jornada-resultados/
+/e2e/jornada/.relogio.json
