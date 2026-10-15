@@ -101,7 +101,8 @@ const RESUMO_EM_COLUNA = new RegExp(
 const RESUMO_MENSAL_C6 = /Entradas:\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*•\s*Sa[íi]das:\s*R\$\s*-?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
 
 const MERCADO_PAGO_ENTRADAS = new RegExp(String.raw`\bEntradas:\s*${VALOR}`);
-const MERCADO_PAGO_SAIDAS = new RegExp(String.raw`\bSa[íi]das:\s*(?:R\$\s*)?-?(\d{1,3}(?:\.\d{3})*,\d{2})`);
+// "Saídas: -R$ 6.330,82" (RecargaPay) põe o sinal antes do R$.
+const MERCADO_PAGO_SAIDAS = new RegExp(String.raw`\bSa[íi]das:\s*-?\s*(?:R\$\s*)?-?(\d{1,3}(?:\.\d{3})*,\d{2})`);
 
 function numero(m: RegExpMatchArray | null): number | null {
   if (!m) return null;

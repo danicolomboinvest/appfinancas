@@ -69,6 +69,7 @@ const INSTITUTIONS: [RegExp, string][] = [
   [/\bavenue\b/i, "Avenue"],
   [/\bnomad\b/i, "Nomad"],
   [/\beqi\b/i, "EQI"],
+  [/recargapay/i, "RecargaPay"],
   [/\bb3\b|[aá]rea do investidor/i, "B3"],
 ];
 
