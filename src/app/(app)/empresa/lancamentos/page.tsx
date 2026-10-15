@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
 import { carregarEmpresa } from "@/lib/empresa/dados";
-import { dentroDoPeriodo, lerGrupo, mesesDoPeriodo, noGrupo, parametrosDoPeriodo } from "@/lib/empresa/periodo";
-import { padraoDaEmpresa, periodoDaTela, nomesDasCategorias } from "@/lib/empresa/periodo-dados";
+import { dentroDoPeriodo, lerGrupo, mesesDoPeriodo, noGrupo, parametrosDoPeriodo, periodoDoTipo } from "@/lib/empresa/periodo";
+import { periodoDaTela, nomesDasCategorias } from "@/lib/empresa/periodo-dados";
 import { ehForma } from "@/lib/empresa/config";
 import type { LancamentoDaEmpresa } from "@/lib/empresa/regras";
 import { linhasDaEmpresaNosMeses } from "@/lib/repositories/empresa.repo";
@@ -30,7 +30,9 @@ export default async function LancamentosDaEmpresa(props: { searchParams: Promis
   const ctx = await getRequiredSession();
   const dados = await carregarEmpresa(ctx);
   if (!dados.config) redirect("/empresa");
-  const periodo = periodoDaTela(sp, dados.hoje, () => padraoDaEmpresa(dados));
+  // Lançamentos abre no mês de hoje (15/10/2026, a Dani): a venda que ela acabou de registrar tem de
+  // estar na lista. O último mês fechado continua o padrão da Visão geral e dos Relatórios.
+  const periodo = periodoDaTela(sp, dados.hoje, () => periodoDoTipo("mes", dados.hoje));
   const grupo = lerGrupo(um(sp.ver));
   const voltaLida = um(sp.volta);
   const volta = voltaLida && /^\/empresa(\/[a-z-]+)?$/.test(voltaLida) ? voltaLida : "/empresa";
