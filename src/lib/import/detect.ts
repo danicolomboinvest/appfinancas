@@ -210,6 +210,9 @@ export function periodoSemMovimento(text: string): boolean {
     const datadas = text.split(/\r?\n/).filter((l) => /^\s*\d{2}\/\d{2}\/\d{4}\s/.test(l));
     if (datadas.length > 0 && datadas.every((l) => /\bSALDO\b/i.test(l))) return true;
   }
+  // Banco do Brasil: "Sem lançamentos no período" (o leitor já devolve zero de propósito, mas a
+  // tela dizia que o formato era desconhecido; 14/10/2026).
+  if (/sem\s+lan[çc]amentos\s+no\s+per[íi]odo/i.test(text)) return true;
   // Sofisa: o período sem movimento traz só o cabeçalho e o quadro de saldo e limite.
   if (sofisaSemMovimento(text)) return true;
   if (/<OFX>/i.test(text)) return !/<STMTTRN>/i.test(text);
