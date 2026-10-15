@@ -62,6 +62,10 @@ const REMANESCENTE = new RegExp(String.raw`valor\s+remanescente\s+da\s+fatura\s+
  * anterior ("10/10 SALDO ANTERIOR BRL 0,00 0,00 R$ 0,00 1.097,14"), que não é compra deste mês. */
 const SALDO_ANTERIOR_BRADESCO_APP = /SALDO ANTERIOR BRL\s+[\d.,]+\s+[\d.,]+\s+R\$\s*[\d.,]+\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i;
 
+/** C6: "(-) 500,00 <TAB> Pagamento antecipado". Quem adianta parte da fatura antes de fechar vê o
+ * total a pagar já descontado, mas a linha "Inclusao de Pagamento" fica de fora da leitura. */
+const PAGAMENTO_ANTECIPADO_C6 = new RegExp(String.raw`\(-\)\s*${VALOR}\s+pagamento\s+antecipado`, "i");
+
 /** Sicoob: o resumo vem com o número antes do rótulo ("+ 16,95 <TAB> ENCARGOS", "+ 605,69 <TAB>
  * DESPESAS/DÉBITOS"). Encargos (anuidade, seguro, IOF) + despesas no Brasil + no exterior = tudo
  * que foi lançado no mês; o "SALDO TOTAL" mistura a anterior e o pagamento (que conta duas vezes
@@ -146,6 +150,8 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     if (outros !== null && comprasNubank !== null) referencias.push(Math.round((comprasNubank + outros) * 100) / 100);
     const remanescente = numero(texto.match(REMANESCENTE));
     if (total !== null && remanescente !== null) referencias.push(Math.round((total - remanescente) * 100) / 100);
+    const antecipadoC6 = numero(texto.match(PAGAMENTO_ANTECIPADO_C6));
+    if (total !== null && antecipadoC6 !== null) referencias.push(Math.round((total + antecipadoC6) * 100) / 100);
     const saldoAnteriorBradesco = numero(texto.match(SALDO_ANTERIOR_BRADESCO_APP));
     const totalEmReal = numero(texto.match(TOTAL_EM_REAL));
     if (totalEmReal !== null && saldoAnteriorBradesco !== null) referencias.push(Math.round((totalEmReal - saldoAnteriorBradesco) * 100) / 100);

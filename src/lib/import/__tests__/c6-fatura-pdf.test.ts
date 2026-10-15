@@ -67,3 +67,40 @@ describe("fatura do C6 Bank (PDF)", () => {
     expect(conferirLeitura(C6, "fatura", linhas)).toMatchObject({ status: "fechou", esperado: 323.75 });
   });
 });
+
+/** Fatura FICTÍCIA do C6 em que a pessoa adiantou parte do valor: o total a pagar já vem sem ele. */
+const C6_ANTECIPADO = [
+  "Olá, Pessoa! Sua fatura com",
+  "no valor de R$ 370,00.",
+  "Cartão C6 Black",
+  "Resumo da fatura",
+  "Compras e pagamentos feitos até o fechamento desta fatura em 26/02/26.",
+  "Compras nacionais 500,00",
+  "Compras internacionais 0,00",
+  "Valor remanescente da fatura anterior 0,00",
+  "20,00",
+  "(-) 50,00\tEstornos / Crédito na Fatura",
+  "(-) 100,00\tPagamento antecipado",
+  "Total a pagar R$ 370,00",
+  "Transações do cartão principal",
+  "C6 Black Final 0000 - PESSOA EXEMPLO Subtotal deste cartão R$ 500,00",
+  "Valores em reais",
+  "10 fev LOJA UM 300,00",
+  "11 fev Inclusao de Pagamento 100,00",
+  "12 fev LOJA DOIS 200,00",
+  "13 fev LOJA DOIS - Estorno 30,00",
+  "24 fev Anuidade Diferenciada - Parcela 2/12 20,00",
+  "24 fev Estorno Tarifa - Estorno 20,00",
+  "Formas de pagamento",
+  "Banco C6 SA",
+  "VALOR TOTAL",
+  "370,00",
+].join("\n");
+
+describe("fatura do C6 com pagamento antecipado", () => {
+  it("fecha: o total a pagar é o das compras menos o estorno e menos o que a pessoa já adiantou", () => {
+    const linhas = parseStatement(C6_ANTECIPADO, "pdf", 2026).filter((t) => !isFaturaSummaryLine(t));
+    expect(linhas).toHaveLength(5);
+    expect(conferirLeitura(C6_ANTECIPADO, "fatura", linhas)).toMatchObject({ status: "fechou", esperado: 470 });
+  });
+});
