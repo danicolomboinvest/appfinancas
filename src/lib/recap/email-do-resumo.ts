@@ -11,7 +11,9 @@ import { sobrouDoMes } from "@/lib/consolidation/sobrou";
  *    da tela.
  *
  * 2) O botão leva pro fechamento do mês (/mensal/foco/fechamento), então fala disso: "Fechar
- *    setembro", e não "Ver o mês completo".
+ *    setembro", e não "Ver o mês completo". Quem JÁ fechou o mês (15/10/2026, decisão da Dani)
+ *    não recebe o convite: o botão volta a ser o "Ver o mês completo" e leva ao mês (ver
+ *    `botaoDoResumo`). O resto do e-mail é igual.
  *
  * Os rótulos trocados só valem pra este e-mail: a rota passa esta cópia do catálogo ao modelo.
  */
@@ -21,16 +23,26 @@ export function ajustarResumoPorEmail(
   mesNome: string,
   /** Perfil Empresa: a linha do guardado continua com o termo de negócio ("Reteve"). */
   empresa = false,
+  /** Ela já fechou este mês (mesJaFechado): sem o "Fechar setembro". */
+  mesFechado = false,
 ): { balance: number; t: Titulos } {
   const balance = sobrouDoMes({ entrou: valores.income, gastou: valores.expense, guardou: valores.investment });
   return {
     balance,
     t: {
       ...t,
-      emailRecapBotao: t.emailRecapBotaoFechar(mesNome),
+      emailRecapBotao: mesFechado ? t.emailRecapBotao : t.emailRecapBotaoFechar(mesNome),
       ...(!empresa ? { aportou: t.emailRecapGuardou } : {}),
     },
   };
+}
+
+/**
+ * Para onde o botão do resumo leva: o fechamento do mês, ou, se ela já fechou, o próprio mês na
+ * Visão geral (o resumo do mês passado), sem convite para fechar de novo.
+ */
+export function botaoDoResumo(baseUrl: string, ano: number, mes: number, mesFechado: boolean): string {
+  return mesFechado ? `${baseUrl}/mensal/foco?mes=${ano}-${String(mes).padStart(2, "0")}` : `${baseUrl}/mensal/foco/fechamento`;
 }
 
 const ROTULOS_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];

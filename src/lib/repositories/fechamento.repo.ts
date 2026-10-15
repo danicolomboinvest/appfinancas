@@ -6,13 +6,22 @@ import { estadoDoFechamento, proximoEstado, type AcaoDoFechamento } from "@/app/
  * O estado do fechamento de um mês do perfil ativo (tabela FechamentoDoMes, seção 3.12).
  * Perfil é obrigatório: o fechamento é de um dinheiro, não da conta.
  */
-export async function lerFechamento(ctx: AuthContext, ano: number, mes: number) {
+export async function lerFechamento(ctx: Pick<AuthContext, "userId" | "profileId">, ano: number, mes: number) {
   if (!ctx.profileId) return estadoDoFechamento(null);
   const linha = await prisma.fechamentoDoMes.findUnique({
     where: { profileId_ano_mes: { profileId: ctx.profileId, ano, mes } },
     select: { estado: true, fechadoEm: true, reabertoEm: true, userId: true },
   });
   return estadoDoFechamento(linha && linha.userId === ctx.userId ? linha : null);
+}
+
+/**
+ * O mês está fechado? O mesmo critério do convite do app (ondeMostrarFechamento recebe
+ * `fechamentoFeito: estado === "fechado"`): reaberto conta como não fechado. O e-mail do resumo
+ * mensal usa este para não convidar a fechar quem já fechou (15/10/2026).
+ */
+export async function mesJaFechado(dono: { userId: string; profileId: string | null }, ano: number, mes: number): Promise<boolean> {
+  return (await lerFechamento(dono, ano, mes)).estado === "fechado";
 }
 
 /** Fecha ou reabre. Devolve false quando a passagem não vale (reabrir o que nunca fechou). */

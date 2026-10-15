@@ -16,10 +16,11 @@ import { categoryLabel, isParentCategoryKey } from "@/lib/categories";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { maiorCategoriaDoMes, nomeDoMes } from "@/lib/recap/monthly";
-import { ajustarResumoPorEmail, categoriasDoResumo, mesesDoGrafico, serieDoGrafico } from "@/lib/recap/email-do-resumo";
+import { ajustarResumoPorEmail, botaoDoResumo, categoriasDoResumo, mesesDoGrafico, serieDoGrafico } from "@/lib/recap/email-do-resumo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
+import { mesJaFechado } from "@/lib/repositories/fechamento.repo";
 
 // Centenas de e-mails em sequência: o teto maior da Vercel (o mesmo do cron do Open Finance), e
 // o loop para sozinho com folga antes dele (PRAZO_MS). Quem ficar pra trás recebe na rodada do
@@ -219,7 +220,7 @@ export async function GET(request: Request) {
 
       // Os 6 meses do gráfico Entrou x Gastou (terminando no do resumo), numa consulta só.
       const mesesDoResumo = mesesDoGrafico(year, month);
-      const [grouped, byCategory, personalizadas, porMes, planos, metas] = await Promise.all([
+      const [grouped, byCategory, personalizadas, porMes, planos, metas, fechado] = await Promise.all([
         prisma.monthlyEntry.groupBy({
           by: ["category"],
           // Um perfil só (o do resumo): o e-mail leva pra /mensal, que mostra um perfil só. Somar
@@ -245,6 +246,8 @@ export async function GET(request: Request) {
         prisma.budget.findMany({ where: { userId: user.id, profileId: perfilDoEmail.id, year, month }, select: { parentCategory: true, customCategoryId: true, plannedAmount: true } }),
         // As metas, com o progresso da mesma conta da tela de Metas.
         listGoalsWithProgress({ userId: user.id, role: user.role, profileId: perfilDoEmail.id, profileTheme: perfilDoEmail.theme, profileKind: perfilDoEmail.kind }),
+        // Já fechou o mês do resumo (o mesmo critério do convite no app): sem "Fechar setembro".
+        mesJaFechado({ userId: user.id, profileId: perfilDoEmail.id }, year, month),
       ]);
 
       const totalOf = (category: string) =>
@@ -254,7 +257,7 @@ export async function GET(request: Request) {
       const investment = totalOf("INVESTMENT_CONTRIBUTION");
       // O valor grande é o sobrou da regra única (entrou − gastou − guardou), e o botão leva pro
       // fechamento do mês e diz isso. Ver ajustarResumoPorEmail.
-      const ajuste = ajustarResumoPorEmail(t, { income, expense, investment }, nomeDoMes(year, month), ehEmpresa(perfilDoEmail.kind));
+      const ajuste = ajustarResumoPorEmail(t, { income, expense, investment }, nomeDoMes(year, month), ehEmpresa(perfilDoEmail.kind), fechado);
 
       // Gasto do mês anterior ao recapeado, só pra frase de comparação.
       const previous = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
@@ -310,8 +313,8 @@ export async function GET(request: Request) {
         tema: perfilDoEmail.theme,
         // O fechamento do mês (o ritual de passos), e não a tela crua do mês: é lá que ela vê
         // se fechou no azul, decide o que fazer com a sobra e ajusta o plano do mês novo. Ele
-        // fecha sempre o mês anterior, o mesmo deste e-mail.
-        appUrl: `${baseUrl}/mensal/foco/fechamento`,
+        // fecha sempre o mês anterior, o mesmo deste e-mail. Já fechado: o mês, sem convite.
+        appUrl: botaoDoResumo(baseUrl, year, month, fechado),
         preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
         t: ajuste.t,
         perfil: user._count.financialProfiles > 1 ? perfilDoEmail.name : undefined,
