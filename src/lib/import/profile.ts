@@ -157,6 +157,14 @@ function formatPeriod(period: NonNullable<DocProfile["period"]>): string {
   return `${fd}/${fm}/${fy} a ${td}/${tm}/${ty}`;
 }
 
+/** O motivo do perfil para a movimentação da B3: as telas de importação reconhecem por ele. */
+export const MOTIVO_MOVIMENTACAO_B3 = "extrato de movimentação da B3 (compras, vendas e rendimentos dos investimentos)";
+
+/** "Extrato de Movimentação" baixado da Área do Investidor (investidor.b3.com.br). */
+export function isB3Movimentacao(text: string): boolean {
+  return /Extrato de Movimenta[çc][ãa]o/i.test(text) && /investidor\.b3\.com\.br/i.test(text);
+}
+
 const KIND_LABEL: Record<DocProfileKind, string> = {
   position: "Posição da carteira",
   statement: "Extrato bancário",
@@ -191,14 +199,6 @@ function detectInstitution(text: string): string | null {
     if (!best || score > best.score) best = { name, score };
   }
   return best?.name ?? null;
-}
-
-/** O motivo do perfil para a movimentação da B3: as telas de importação reconhecem por ele. */
-export const MOTIVO_MOVIMENTACAO_B3 = "extrato de movimentação da B3 (compras, vendas e rendimentos dos investimentos)";
-
-/** "Extrato de Movimentação" baixado da Área do Investidor (investidor.b3.com.br). */
-export function isB3Movimentacao(text: string): boolean {
-  return /Extrato de Movimenta[çc][ãa]o/i.test(text) && /investidor\.b3\.com\.br/i.test(text);
 }
 
 export function profileDocument(text: string, fileName?: string | null): DocProfile {
