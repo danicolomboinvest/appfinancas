@@ -17,7 +17,7 @@ export function CartaoSugestao({ sugestao, marca, maisNoDecidir }: { sugestao: S
   const indoBem = sugestao.tipo === "indo-bem";
   const dispensar = () => {
     setSaiu(true);
-    comecar(() => dispensarSugestaoAction(sugestao.tipo, sugestao.id, marca, indoBem));
+    comecar(() => dispensarSugestaoAction(sugestao.tipo, sugestao.id, marca, indoBem, false, sugestao.excesso));
   };
   if (saiu && !pendente) return null;
   return (
@@ -35,7 +35,7 @@ export function CartaoSugestao({ sugestao, marca, maisNoDecidir }: { sugestao: S
               href={sugestao.botao.href}
               // Tocar no botão é resolver: a sugestão não espera o "Agora não" para sair (14/10/2026).
               onClick={() => {
-                if (!indoBem) comecar(() => dispensarSugestaoAction(sugestao.tipo, sugestao.id, marca, false));
+                if (!indoBem) comecar(() => dispensarSugestaoAction(sugestao.tipo, sugestao.id, marca, false, true, sugestao.excesso));
               }}
               className="inline-flex min-h-11 items-center rounded-full bg-accent-gradient px-5 text-[15px] font-semibold text-on-accent">
               {sugestao.botao.rotulo}

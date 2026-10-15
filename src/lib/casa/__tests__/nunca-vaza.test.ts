@@ -31,6 +31,10 @@ const PODEM_LER_A_CASA = [
   // O Resumo de um mês passado (14/10/2026): os mesmos totais, de outro mês.
   "app/(app)/mensal/foco/novo/dados-mes-passado.ts",
   "lib/auth/session.ts",
+  // A regra única dos avisos (14/10/2026): o gasto da categoria na hora em que o plano da casa
+  // subiu, com os mesmos totais do Resumo e do Orçamento. Do outro, lê só as respostas sobre
+  // categoria do orçamento (lib/casa/regras.ts: donosDasRespostasDoOrcamento).
+  "lib/avisos/respostas.ts",
 ];
 
 /** As leituras que nunca podem ver a casa, uma por uma, com o porquê. */

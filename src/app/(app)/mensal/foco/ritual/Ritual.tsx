@@ -110,7 +110,7 @@ export function Ritual({ d }: { d: DadosRitual }) {
                 disabled={salvando}
                 onClick={() =>
                   gravar(async () => {
-                    await dispensarAvisoAction(d.alvo!.avisoId, "mes");
+                    await dispensarAvisoAction(d.alvo!.avisoId, "mes", undefined, "pontual");
                     seguir("seguir o plano");
                   })
                 }

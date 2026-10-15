@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { avisoRespondido, respostaSeguraOAviso, respostasDeEstouro } from "../resposta-ao-aviso";
+import { respostaSeguraOAviso } from "../resposta-ao-aviso";
+import { avisoResolvido, respostasDoFormatoAntigo } from "@/lib/avisos/regra";
 import { montarFoco, type FocoEntrada } from "../foco";
 import { vozDoTema } from "@/lib/profiles/voice";
 
@@ -41,9 +42,9 @@ describe("respostaSeguraOAviso", () => {
   });
 });
 
-describe("respostasDeEstouro", () => {
-  it("lê só os avisos de categoria que passou, e o teto zero vale o mês todo", () => {
-    const r = respostasDeEstouro(
+describe("as respostas no formato antigo (dispensas e tetos do mês)", () => {
+  it("lê os avisos de categoria que passou, e o teto zero vale o mês todo", () => {
+    const r = respostasDoFormatoAntigo(
       [
         { id: "estouro-SAUDE", passou: 153 },
         { id: "aporte", passou: null },
@@ -54,15 +55,14 @@ describe("respostasDeEstouro", () => {
         { categoria: "ALIMENTACAO", valor: 200 },
       ],
     );
-    expect([...r.entries()]).toEqual([
-      ["SAUDE", 153],
-      ["ck1abc", 40],
-      ["LAZER", null],
-    ]);
-    expect(avisoRespondido(r, "SAUDE", 160)).toBe(true);
-    expect(avisoRespondido(r, "SAUDE", 300)).toBe(false);
-    expect(avisoRespondido(r, "LAZER", 9_999)).toBe(true);
-    expect(avisoRespondido(r, "ALIMENTACAO", 10)).toBe(false);
+    const passou = (categoria: string, valor: number) => avisoResolvido({ tipo: "estouro", categoria, gasto: 0, passou: valor }, r);
+    expect(passou("SAUDE", 160)).toBe(true);
+    expect(passou("SAUDE", 300)).toBe(false);
+    expect(passou("ck1abc", 50)).toBe(true);
+    expect(passou("LAZER", 9_999)).toBe(true);
+    // "Segurar em R$ 200" veio do aviso de ritmo: passar do plano depois dele é novidade.
+    expect(passou("ALIMENTACAO", 10)).toBe(false);
+    expect(avisoResolvido({ tipo: "aporte" }, r)).toBe(true);
   });
 });
 

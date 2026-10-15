@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
-import { comFiltro, donoDoOrcamento, lancamentosDosTotais } from "@/lib/casa/regras";
+import { comFiltro, lancamentosDosTotais } from "@/lib/casa/regras";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey } from "@/lib/categories";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
@@ -18,7 +18,7 @@ import { parecePagamentoDeFatura } from "@/lib/import/dinheiro-proprio";
 import { carregarFoco, MESES } from "../dados";
 import { chaveDaSemana } from "../ritmo";
 import { ondeMostrarFechamento } from "../fechamento/quando-mostrar";
-import { listarDispensasDeSugestao } from "./dispensas";
+import { categoriaResolvida, escolherSugestaoDoMes } from "@/lib/avisos/respostas";
 import { parcelasProjetadas } from "@/lib/import/total-do-lote";
 import { detalharONumero, type DetalheDoNumero, type LancamentoDoNumero } from "./detalhe-do-numero";
 import {
@@ -30,7 +30,6 @@ import {
   diaDeCorte,
   diasNoMes,
   escolherCaso,
-  escolherSugestao,
   limiteProposto,
   mesAnterior,
   porcentagemQueFicou,
@@ -130,9 +129,8 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
   const dia = hoje.getDate();
   const doze = mesesAte(mes.ano, mes.mes, 12);
   const base = lancamentosDosTotais(ctx);
-  const dono = { userId: ctx.userId, profileId: ctx.profileId };
 
-  const [foco, valores, gastos, porLote, digitadosPorMes, ultimoLote, personalizadas, dispensas, parcelaveis, recusas, paraCacar, assinaturasDela, guardados, mesesPorCategoria, aplicacoes] = await Promise.all([
+  const [foco, valores, gastos, porLote, digitadosPorMes, personalizadas, parcelaveis, recusas, paraCacar, assinaturasDela, guardados, mesesPorCategoria, aplicacoes] = await Promise.all([
     carregarFoco(ctx, hojeDeTeste ? hoje : null),
     valoresDosMeses(ctx, doze),
     // Os gastos dos dois meses da comparação.
@@ -152,9 +150,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       where: comFiltro(base, { category: "EXPENSE", importBatchId: null, externalId: null, OR: [{ year: mes.ano, month: mes.mes }, { year: passado.ano, month: passado.mes }] }),
       _count: { _all: true },
     }),
-    prisma.importBatch.findFirst({ where: dono, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     listCustomCategories(ctx),
-    listarDispensasDeSugestao(ctx),
     listarLancamentosParcelaveis(ctx, { year: mes.ano, month: mes.mes }),
     listarRecusasDeParcela(ctx),
     lancamentosParaCacar(ctx, hoje),
@@ -325,6 +321,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
 
   // ---------------------------------------------------------------- a fila de sugestões
   const m = foco.m;
+  const respostas = foco.respostasDoMes;
   const fila: Sugestao[] = [];
   const nomePassado = nomeDoMes(passado);
   if (caso === "dia-a-dia" || caso === "mes-fechado") {
@@ -345,14 +342,11 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     const achado = cacarDinheiroPerdido(paraCacar, { assinaturasDela }).achados.filter((a) => !decididos.has(a.chave)).sort((a, b) => b.anual - a.anual)[0];
     if (achado) fila.push({ tipo: "dinheiro", id: achado.chave, texto: fraseDoAchado(achado, m), botao: { rotulo: "Ver", href: "/orcamento/contas/perdido" } });
 
-    // 3. Categoria que subiu. A que passou do plano e ela já respondeu no "O que fazer?" fica de
-    // fora: seria o mesmo aviso de volta.
-    // E a que ela já resolveu no Orçamento neste mês (14/10/2026, "tirei de outras e coloquei em
-    // Cuidado pessoal, e o Resumo continuou igual"): cobrir com outra categoria ou mexer no lápis
-    // muda o plano dela no mês, e aí a sugestão não volta.
-    const planoMexido = await categoriasComPlanoMexidoNoMes(ctx, mes);
-    const respondidas = new Set([...foco.estourosRespondidos, ...planoMexido]);
-    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram.filter((c) => !respondidas.has(c.categoria))) : null;
+    // 3. Categoria que subiu. A que ela já respondeu em qualquer tela (cobriu ou mexeu no lápis no
+    // Orçamento, "Foi pontual", "Deixar assim" no Decidir, "Agora não" aqui) fica de fora pela
+    // regra única (lib/avisos): 14/10/2026, "tirei de outras e coloquei em Cuidado pessoal, e o
+    // Resumo continuou igual".
+    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram.filter((c) => !categoriaResolvida(respostas, "categoria-subiu", c.categoria))) : null;
     if (subiu) {
       const nome = info(subiu.categoria).nome;
       const meses = mesesAte(passado.ano, passado.mes, 3).map((mm) =>
@@ -366,7 +360,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
           : limite
             ? `${nome} subiu ${m(subiu.diferenca)} contra ${nomePassado}. Quer um limite de ${m(limite)}?`
             : `${nome} subiu ${m(subiu.diferenca)} contra ${nomePassado}.`;
-      fila.push({ tipo: "categoria", id: subiu.categoria, texto, botao: { rotulo: planejado > 0 ? "Ver limite" : "Criar limite", href: "/orcamento" } });
+      fila.push({ tipo: "categoria", id: subiu.categoria, texto, botao: { rotulo: planejado > 0 ? "Ver limite" : "Criar limite", href: "/orcamento" }, excesso: subiu.diferenca });
     }
 
     // 4. Parcela que acaba neste mês: a partir do mês que vem, sobra o valor dela.
@@ -403,8 +397,8 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     if (caiu) fila.push({ tipo: "indo-bem", id: caiu.categoria, texto: `${info(caiu.categoria).nome} está ${m(-caiu.diferenca)} abaixo de ${nomePassado}.`, botao: null });
   }
 
-  const marca = (ultimoLote?.createdAt ?? null)?.toISOString() ?? "sem-extrato";
-  const sugestao = escolherSugestao(fila, dispensas, { marca, agora: new Date(), semana: chaveDaSemana(hoje) });
+  const marca = respostas.marca;
+  const sugestao = escolherSugestaoDoMes(respostas, fila, { agora: new Date(), semana: chaveDaSemana(hoje) });
   // O arquivo mais recente COM lançamento neste mês (a fatura de setembro mandada no dia 12 não
   // é "pelo extrato de 12/10"), e do mesmo ano.
   const lotesDoMes = new Set(porLote.filter((l) => l.year === mes.ano && l.month === mes.mes && l.importBatchId).map((l) => l.importBatchId as string));
@@ -497,18 +491,4 @@ async function carregarPrimeiraVez(
     parcelas: parcelas.length > 0 && ultimaParcela ? { n: parcelas.length, valor: parcelas.reduce((s, p) => s + p.valor, 0), acabaEm: ultimaParcela } : null,
     tarifas: achados.length > 0 ? { n: achados.length, mensal: achados.reduce((s, a) => s + (a.mensal ?? 0), 0) } : null,
   };
-}
-
-/**
- * As categorias cujo plano do mês ela mexeu DEPOIS de criado, dentro do próprio mês: o "Cobrir com
- * outra categoria" e o lápis do Planejado. O plano criado de uma vez no começo do ano (createdAt e
- * updatedAt juntos) não conta.
- */
-async function categoriasComPlanoMexidoNoMes(ctx: AuthContext, mes: Mes): Promise<string[]> {
-  const inicio = new Date(Date.UTC(mes.ano, mes.mes - 1, 1, 3));
-  const linhas = await prisma.budget.findMany({
-    where: { ...donoDoOrcamento(ctx), year: mes.ano, month: mes.mes, updatedAt: { gte: inicio } },
-    select: { parentCategory: true, customCategoryId: true, createdAt: true, updatedAt: true },
-  });
-  return linhas.filter((l) => l.updatedAt.getTime() - l.createdAt.getTime() > 60_000).map((l) => (l.customCategoryId ?? l.parentCategory) as string);
 }

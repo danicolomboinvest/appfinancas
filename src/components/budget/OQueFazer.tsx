@@ -84,7 +84,7 @@ export function OQueFazer({
     setErro(null);
     iniciar(async () => {
       try {
-        await dispensarAvisoAction(idDoAviso, "mes", valor);
+        await dispensarAvisoAction(idDoAviso, "mes", valor, "pontual");
         // A categoria ganha o selinho "pontual"; como agora dá para desfazer, vem também a
         // pílula curta com Desfazer (o mesmo tratamento do "Segurar em").
         marcarSelo(seloDaCategoria(categoria.key, mes), "pontual");
@@ -114,7 +114,7 @@ export function OQueFazer({
           return setErro({ onde: "cobrir", texto: r.error });
         }
       }
-      await dispensarAvisoAction(idDoAviso, "mes", valor).catch(() => undefined);
+      await dispensarAvisoAction(idDoAviso, "mes", valor, "cobrir").catch(() => undefined);
       feito(`${categoria.label} coberta`, async () => {
         for (const o of origens) await cobrirCategoriaAction({ de: categoria.key, para: o.key, valor: o.valor });
         await desfazerDispensaAction(idDoAviso, "mes");

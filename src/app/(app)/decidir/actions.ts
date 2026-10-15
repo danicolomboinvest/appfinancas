@@ -39,8 +39,9 @@ export async function desfazerDispensaAction(itemId: string, quando: "mes" | "se
   revalidarDecisoes();
 }
 
-async function dispensar(ctx: Awaited<ReturnType<typeof getRequiredSession>>, id: string) {
-  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo("mes")}|${id}` });
+/** A resposta conta em todas as telas pela regra única (lib/avisos), com o jeito como ela respondeu. */
+async function dispensar(ctx: Awaited<ReturnType<typeof getRequiredSession>>, id: string, como: "guardar-mais" | "mudar-data" | "sobra-reserva") {
+  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo("mes")}|${id}`, dados: { como } });
 }
 
 async function metaDela(goalId: string) {
@@ -61,7 +62,7 @@ export async function guardarMaisNaMetaAction(goalId: string, porMes: number): P
   const { ctx, meta } = await metaDela(id);
   if (!meta) return null;
   await prisma.goal.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { monthlyContribution: valor } });
-  await dispensar(ctx, `meta-${id}`);
+  await dispensar(ctx, `meta-${id}`, "guardar-mais");
   revalidarDecisoes();
   return { goalId: id, monthlyContribution: meta.monthlyContribution === null ? null : Number(meta.monthlyContribution), targetDate: meta.targetDate?.toISOString() ?? null };
 }
@@ -74,7 +75,7 @@ export async function mudarDataDaMetaAction(goalId: string, ano: number, mes: nu
   const { ctx, meta } = await metaDela(id);
   if (!meta) return null;
   await prisma.goal.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { targetDate: new Date(Date.UTC(a, m - 1, 1)) } });
-  await dispensar(ctx, `meta-${id}`);
+  await dispensar(ctx, `meta-${id}`, "mudar-data");
   revalidarDecisoes();
   return { goalId: id, monthlyContribution: meta.monthlyContribution === null ? null : Number(meta.monthlyContribution), targetDate: meta.targetDate?.toISOString() ?? null };
 }
@@ -100,7 +101,7 @@ export async function combinarSobraNaReservaAction(valor: number) {
   const v = z.number().min(0).max(100_000_000).parse(valor);
   const ctx = await getRequiredSession();
   await registrarDecisaoUnica(ctx, { tipo: "reserva_sobra_combinada", chave: periodo("mes"), valor: v });
-  await dispensar(ctx, "reserva");
+  await dispensar(ctx, "reserva", "sobra-reserva");
   revalidarDecisoes();
 }
 
