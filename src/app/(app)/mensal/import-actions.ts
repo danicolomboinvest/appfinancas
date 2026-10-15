@@ -44,7 +44,8 @@ import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceRes
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
 import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
 import { lidasEmDobro } from "@/lib/import/repetidos";
-import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, type CompraDoPrint, type PrintLido } from "@/lib/import/print-fatura";
+import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
+import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
 import { casarComFaturaAberta } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
@@ -176,6 +177,8 @@ export type ParseStats = {
   compras: number;
   /** Veio de prints da fatura ABERTA: parcial, "N compras até hoje" (ver lib/import/print-fatura). */
   faturaAberta?: boolean;
+  /** Prints: compra em moeda estrangeira (US$ 19,00) que a tela não mostra em real. Só entra quando ela digita o valor em real na revisão. */
+  semValorEmReal?: CompraParaPreencher[];
 };
 
 export type ParseStatementResult =
@@ -244,7 +247,7 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
 }
 
 /** Os prints que a tela juntou (JSON no formulário), conferidos: só o formato esperado passa. */
-function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; banco: string | null } | null {
+function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; banco: string | null; semReal: CompraSemValorEmReal[]; total: number | null } | null {
   try {
     const envio = String(formData.get("envio") ?? "");
     const brutos = JSON.parse(String(formData.get("prints") ?? "null")) as unknown;
@@ -253,10 +256,17 @@ function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; ban
       const linhas = Array.isArray(p?.linhas) ? p.linhas : [];
       return {
         cabecalhoNoFim: typeof p?.cabecalhoNoFim === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.cabecalhoNoFim) ? p.cabecalhoNoFim : null,
+        totalDaFatura: Number.isFinite(Number(p?.totalDaFatura)) && Number(p?.totalDaFatura) > 0 && Number(p?.totalDaFatura) < 1e8 ? Math.round(Number(p.totalDaFatura) * 100) / 100 : null,
         linhas: linhas.slice(0, 200).flatMap((l: Record<string, unknown>) => {
           const valor = Number(l?.valor);
           const nome = typeof l?.nome === "string" ? l.nome.slice(0, 120).trim() : "";
-          if (!nome || !Number.isFinite(valor) || valor <= 0 || valor > 1e7) return [];
+          // Compra em dólar sem o real na tela chega com valor 0 e o valor de fora em `estrangeira`.
+          const est = l?.estrangeira as { moeda?: unknown; valor?: unknown } | null | undefined;
+          const valorDeFora = Number(est?.valor);
+          const estrangeira = est && Number.isFinite(valorDeFora) && valorDeFora > 0 && valorDeFora < 1e7
+            ? { moeda: est.moeda === "USD" || est.moeda === "EUR" || est.moeda === "GBP" ? est.moeda : null, valor: Math.round(valorDeFora * 100) / 100 }
+            : null;
+          if (!nome || !Number.isFinite(valor) || valor < 0 || valor > 1e7 || (valor === 0 && !estrangeira)) return [];
           const parcela = l?.parcela as { atual?: unknown; total?: unknown } | null;
           const atual = Number(parcela?.atual);
           const total = Number(parcela?.total);
@@ -268,13 +278,17 @@ function printsDoFormulario(formData: FormData): { compras: CompraDoPrint[]; ban
             credito: l?.credito === true,
             parcela: Number.isInteger(atual) && Number.isInteger(total) && atual >= 1 && atual <= total && total <= 48 ? { atual, total } : null,
             categoriaDoBanco: typeof l?.categoriaDoBanco === "string" && l.categoriaDoBanco.length <= 40 ? l.categoriaDoBanco : null,
+            estrangeira,
           }];
         }),
       };
     });
-    const compras = comprasDosPrints(juntarPrints(prints), envio);
+    const juntas = juntarPrints(prints);
+    const compras = comprasDosPrints(juntas, envio);
+    const semReal = semValorEmReal(juntas, envio);
+    const total = prints.find((p) => p.totalDaFatura)?.totalDaFatura ?? null;
     const banco = typeof formData.get("banco") === "string" && String(formData.get("banco")).length <= 40 ? String(formData.get("banco")) || null : null;
-    return compras.length > 0 ? { compras, banco } : null;
+    return compras.length > 0 || semReal.length > 0 ? { compras, banco, semReal, total } : null;
   } catch {
     return null;
   }
@@ -348,6 +362,11 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     if (!dosPrints) {
       await falha(`${MSG_PRINT_ILEGIVEL} [prints sem compra]`, { kind: "print" });
       return { ok: false, error: MSG_PRINT_ILEGIVEL };
+    }
+    if (dosPrints.compras.length === 0) {
+      const msg = "As compras desse print são em dólar e a tela não mostra o valor em real, então não gravei nada. Lance pelo PDF da fatura quando ela fechar, ou à mão com o valor em real.";
+      await falha(`${msg} [só compra em moeda de fora]`, { kind: "print" });
+      return { ok: false, error: msg };
     }
     // Um texto no formato de sempre (data, descrição, valor), só para o diagnóstico e as contas de
     // conferência; as compras em si vêm prontas dos prints.
@@ -564,7 +583,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     summary: profile.summary,
     moneyLines,
     parsed: items.length,
-    invoiceTotal: docType === "fatura" ? detectInvoiceTotal(text) : null,
+    // Prints: o "Compras e despesas, Total" que o resumo da fatura mostra na tela (se estiver num dos prints).
+    invoiceTotal: docType === "fatura" ? (dosPrints?.total ?? detectInvoiceTotal(text)) : null,
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + (i.estorno ? -i.amount : i.amount), 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
     suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType, conferencia.status === "fechou"),
@@ -578,6 +598,15 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     mesesDasCompras: [],
     compras: 0,
     faturaAberta: doPrint,
+    // A categoria sugerida pela mesma regra das outras linhas (a regra dela, a base, o dicionário).
+    ...(dosPrints && dosPrints.semReal.length > 0
+      ? {
+          semValorEmReal: dosPrints.semReal.map((c): CompraParaPreencher => {
+            const sugerida = categoriaDaLinha({ descricao: c.nome, regras: learned, profileKind: ctx.profileKind, gasto: true, estorno: false, personalizadas }).categoria;
+            return { ...c, parentCategory: sugerida?.customCategoryId ? null : (sugerida?.parentCategory ?? null), customCategoryId: sugerida?.customCategoryId ?? null, subcategory: sugerida?.subcategory ?? null };
+          }),
+        }
+      : {}),
   };
   if (docType === "fatura" || detectedKind === "fatura") {
     // A fatura só traz dia/mês: a compra de dezembro na fatura que vence em janeiro volta um ano.
@@ -659,6 +688,9 @@ export type ConfirmedItem = {
   /** A compra que já entrou pelo print da fatura aberta (jaNoApp.faturaAberta): em vez de criar,
    * ela passa para este lote com o valor, o dia e o nome desta linha. Conferido de novo aqui. */
   adotar?: string | null;
+  /** Compra em dólar/euro/libra do print da fatura: o valor de fora, guardado nos campos de outra
+   * moeda do lançamento. `amount` é o valor em real que ela digitou. */
+  moedaDeFora?: { moeda: MoedaDeFora; valor: number } | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -1596,6 +1628,7 @@ export async function importTransactionsAction(
       subcategory: item.subcategory ?? undefined,
       description: item.description,
       amount: valorGravado(item),
+      ...(item.moedaDeFora && moedaDeForaValida(item.moedaDeFora.moeda) ? conversaoDaCompra(item.moedaDeFora, valorGravado(item)) : {}),
       // Extrato e compra à vista da fatura: o dia da transação. Parcela e fatura pelo mês
       // escolhido: sem dia.
       entryDate: dia ? new Date(`${dia}T12:00:00`) : undefined,
