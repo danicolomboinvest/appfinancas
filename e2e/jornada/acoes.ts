@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { SENHA } from "./config";
+import type { Caderno } from "./achados";
 
 /**
  * O que a cliente faz, tocando nos botões como ela toca. Nada aqui chama ação de servidor direto.
@@ -177,11 +178,28 @@ export async function foiPontual(p: Page, ano: number, chave: string, desfazer =
   await p.waitForLoadState("networkidle").catch(() => undefined);
 }
 
-export async function cobrirCom(p: Page, ano: number, chave: string, de?: string, desfazer = false) {
+export async function cobrirCom(
+  p: Page,
+  ano: number,
+  chave: string,
+  de?: string,
+  desfazer = false,
+  /** Categorias que a regra de remanejo não pode oferecer aqui (desejo primeiro, essencial nunca). */
+  regra?: { naoOferece: string[]; anotar: Caderno },
+) {
   await abrirOQueFazer(p, ano, chave);
   const f = p.locator("[data-o-que-fazer]");
   await f.getByRole("button", { name: /Cobrir com outra categoria/ }).click();
   const c = p.locator("[data-cobrir]");
+  await c.first().waitFor();
+  if (regra) {
+    const texto = await c.first().innerText();
+    for (const nome of regra.naoOferece) {
+      if (new RegExp(`(^|\\n)${nome} ·|de ${nome}\\b`).test(texto)) {
+        await regra.anotar.anotar(p, { tipo: "aviso", telaDeOrigem: "O que fazer? (Cobrir)", telaErrada: "O que fazer? (Cobrir)", esperado: `${nome} fora das opções (desejo primeiro)`, visto: texto.replace(/\n+/g, " | "), chave: `${regra.anotar.perfil}|remanejo|${chave}|${nome}` });
+      }
+    }
+  }
   if (de) await c.getByRole("button", { name: new RegExp(`^${de} ·`) }).click();
   await c.getByRole("button", { name: /^Cobrir R\$|R\$ .* de / }).last().click();
   if (desfazer) return desfazerNaPilula(p, /coberta/);

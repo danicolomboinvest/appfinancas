@@ -133,9 +133,11 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       test.info().annotations.push({ type: "Resumo depois do festival", description: `${r.sugestao?.tipo}: ${r.sugestao?.texto}` });
     });
 
-    await passo(c, "O que fazer? Lazer → cobrir com Alimentação (caso da Dani de 14/10)", async () => {
+    // Até 15/10 a jornada cobria com Alimentação (o caso da Dani de 14/10). A regra de remanejo
+    // dela manda tirar do desejo primeiro: com Outros sobrando, Alimentação nem é oferecida.
+    await passo(c, "O que fazer? Lazer → cobrir com Outros (desejo primeiro, Alimentação não é opção)", async () => {
       await visitarPeloApp(p, ["Resumo", "Orçamento"]);
-      await cobrirCom(p, OUT.ano, "LAZER", "Alimentação");
+      await cobrirCom(p, OUT.ano, "LAZER", "Outros", false, { naoOferece: ["Alimentação", "Transporte", "Moradia", "Saúde", "Educação"], anotar: c });
       await conferirTelaVelha(p, c, ["Orçamento", "Resumo"]);
       await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", false, "cobrir Lazer");
       const { orc } = await conferirGastoPorCategoria(p, c, OUT, "cobrir Lazer");
