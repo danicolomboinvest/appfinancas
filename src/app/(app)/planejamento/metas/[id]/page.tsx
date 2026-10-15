@@ -12,7 +12,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { Explica } from "@/components/ui/Explica";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { ProvedorDaFolhaDaMeta } from "../FolhaDaMeta";
-import { editarEmDaMeta, metaParaEditar, textoDoSelo, valorDoLancamento } from "../visual";
+import { editarEmDaMeta, metaApertada, metaParaEditar, seloDaMeta, valorDoLancamento } from "../visual";
 import { MaisDaMeta } from "../MenuDaMeta";
 import { GraficoQuandoChego } from "./GraficoQuandoChego";
 import { CartaoDoAporte, type EstadoDoAporte } from "./CartaoDoAporte";
@@ -153,7 +153,8 @@ export default async function DetalheDaMetaPage(props: PageProps<"/planejamento/
 
         <div className="flex flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13.5px] font-semibold before:size-[7px] before:rounded-full before:bg-current ${ruim ? "bg-danger-soft text-danger" : bom || plano.status === "ACHIEVED" ? "bg-success-soft text-success" : "bg-surface-2 text-ink"}`}>
-            {textoDoSelo(plano.status, plano.nova)}
+            {/* O mesmo selo único da lista (visual.ts, seloDaMeta). */}
+            {seloDaMeta({ status: plano.status, nova: plano.nova, inicio: meta.inicio, hoje, apertada: metaApertada(meta, limite) }).texto}
           </span>
           {ruim && plano.atras !== null && <span className="text-sm font-semibold text-danger">{m(plano.atras)} atrás</span>}
           {bom && <span className="text-sm font-semibold text-success">dentro da folga</span>}

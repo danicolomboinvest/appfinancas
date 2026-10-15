@@ -11,14 +11,13 @@ import { ResumoDasMetas } from "./ResumoDasMetas";
 import { DestacarMetaNova, FileiraDeFotos } from "./FileiraDeFotos";
 import { CartaoDaMeta } from "./CartaoDaMeta";
 import { AbrirFolhaDaMeta, ProvedorDaFolhaDaMeta } from "./FolhaDaMeta";
-import { editarEmDaMeta, jeitoDasMetas, metaParaEditar } from "./visual";
+import { editarEmDaMeta, jeitoDasMetas, metaApertada, metaParaEditar, seloDaMeta } from "./visual";
 import { CartaoComMenu } from "./MenuDaMeta";
 import "./metas.css";
 import { metasADois } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
 import { MetasADois } from "./MetasADois";
 import { getLimiteDasMetas } from "@/lib/repositories/renda-media.repo";
-import { prazoApertado } from "@/lib/metas/prazo-que-cabe";
 import { AbrirPrazoPelaUrl, SeloPrazoApertado } from "./SeloPrazoApertado";
 
 /**
@@ -40,10 +39,11 @@ export default async function MetasPage() {
   const guardado = metas.reduce((t, x) => t + x.guardado, 0);
   const alvo = metas.reduce((t, x) => t + x.alvo, 0);
   const porMes = abertas.reduce((t, x) => t + x.combinado, 0);
-  const prox = proximaAChegar(metas);
-  // Prazo apertado: com prazo, aberta, e pedindo por mês mais do que cabe. A da Viagem edita no
-  // assistente dela, então fica sem o selo.
-  const apertada = (x: (typeof metas)[number]) => Boolean(x.prazo) && !x.daViagem && x.plano.status !== "ACHIEVED" && prazoApertado(x.plano.porMesNecessario, limite);
+  // Um selo só por meta (visual.ts, seloDaMeta): prazo apertado ganha, e a meta apertada nunca é a
+  // "Próxima a chegar".
+  const apertada = (x: (typeof metas)[number]) => metaApertada(x, limite);
+  const prox = proximaAChegar(metas, apertada);
+  const selo = (x: (typeof metas)[number]) => seloDaMeta({ status: x.plano.status, nova: x.plano.nova, inicio: x.inicio, hoje, apertada: apertada(x), proxima: prox?.id === x.id });
 
   const novaMeta = (
     <AbrirFolhaDaMeta guia="nova-meta" className="flex w-full items-center gap-3 rounded-[28px] border border-border bg-surface p-5 text-left shadow-premium-sm">
@@ -97,9 +97,9 @@ export default async function MetasPage() {
             {metas.map((x) => (
               <div key={x.id} className="relative">
                 <CartaoComMenu meta={metaParaEditar(x)} editarEm={editarEmDaMeta(x)}>
-                  <CartaoDaMeta meta={x} jeito={jeito} hoje={hoje} money={m} />
+                  <CartaoDaMeta meta={x} jeito={jeito} hoje={hoje} money={m} selo={selo(x)} />
                 </CartaoComMenu>
-                {apertada(x) && <SeloPrazoApertado meta={metaParaEditar(x)} className="absolute left-3 top-3 z-[2]" />}
+                {selo(x).tipo === "prazo-apertado" && <SeloPrazoApertado meta={metaParaEditar(x)} className="absolute left-3 top-3 z-[2]" />}
               </div>
             ))}
           </>

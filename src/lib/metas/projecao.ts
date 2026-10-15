@@ -188,10 +188,12 @@ export function planoDaMeta(e: EntradaDaMeta): PlanoDaMeta {
 
 /**
  * Qual meta chega primeiro: a de chegada mais cedo pelo ritmo (sem ritmo, pelo combinado). As
- * concluídas e as que nunca chegam ficam de fora. Nula quando nenhuma tem chegada.
+ * concluídas, as que nunca chegam e as de prazo apertado ficam de fora. Nula quando nenhuma tem chegada.
  */
-export function proximaAChegar<T extends { plano: PlanoDaMeta }>(metas: T[]): T | null {
-  const candidatas = metas.filter((m) => m.plano.status !== "ACHIEVED" && m.plano.chega !== null);
+export function proximaAChegar<T extends { plano: PlanoDaMeta }>(metas: T[], apertada: (m: T) => boolean = () => false): T | null {
+  // Meta de prazo apertado não é "próxima a chegar" (15/10/2026): sem ritmo, a chegada dela vem de
+  // um "por mês" que não cabe, e o app dizia "chega primeiro" e "prazo apertado" da mesma meta.
+  const candidatas = metas.filter((m) => m.plano.status !== "ACHIEVED" && m.plano.chega !== null && !apertada(m));
   if (candidatas.length === 0) return null;
   return candidatas.reduce((a, b) => ((b.plano.chega ?? Infinity) < (a.plano.chega ?? Infinity) ? b : a));
 }

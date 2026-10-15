@@ -2,6 +2,7 @@ import { chaveDoMes, type StatusDaMeta } from "@/lib/metas/projecao";
 import type { MetaDaTela } from "@/lib/repositories/metas.repo";
 import type { MetaParaEditar } from "./FolhaDaMeta";
 import type { MoneyFormatter } from "@/lib/money";
+import { prazoApertado, type LimiteDasMetas } from "@/lib/metas/prazo-que-cabe";
 
 /**
  * O jeito de cada tema na área Metas (protótipos aprovados, rota #metas). A estrutura é a mesma
@@ -41,7 +42,35 @@ export const TEXTO_DO_STATUS: Record<StatusDaMeta, string> = {
   SEM_PRAZO: "Sem prazo",
 };
 
-export const textoDoSelo = (status: StatusDaMeta, nova: boolean) => (nova && status !== "ACHIEVED" ? "Nova" : TEXTO_DO_STATUS[status]);
+/** "Nova" só nos primeiros dias da meta (e ainda sem nenhum aporte). */
+export const DIAS_DO_SELO_NOVA = 7;
+
+export type TipoDoSelo = "concluida" | "prazo-apertado" | "atrasada" | "nova" | "no-ritmo" | "sem-prazo";
+export type SeloDaMeta = { tipo: TipoDoSelo; texto: string };
+
+/**
+ * Um selo só por meta, o mais útil (15/10/2026: a Reserva aparecia ao mesmo tempo com "Prazo
+ * apertado", "Nova" e "Próxima a chegar"). A ordem:
+ * 1. Concluída;
+ * 2. Prazo apertado (pede por mês mais do que cabe; o toque leva ao prazo que cabe);
+ * 3. Atrasada;
+ * 4. Nova: só nos primeiros dias, sem aporte, e se nada acima vale nem ela é a "Próxima a chegar";
+ * 5. No ritmo / Sem prazo.
+ * A "Próxima a chegar" nunca é uma meta de prazo apertado (ver `proximaAChegar` na página).
+ */
+export function seloDaMeta(e: { status: StatusDaMeta; nova: boolean; inicio: Date; hoje: Date; apertada: boolean; proxima?: boolean }): SeloDaMeta {
+  if (e.status === "ACHIEVED") return { tipo: "concluida", texto: TEXTO_DO_STATUS.ACHIEVED };
+  if (e.apertada) return { tipo: "prazo-apertado", texto: "Prazo apertado" };
+  if (e.status === "BEHIND") return { tipo: "atrasada", texto: TEXTO_DO_STATUS.BEHIND };
+  const dias = (e.hoje.getTime() - e.inicio.getTime()) / 86_400_000;
+  if (e.nova && !e.proxima && dias < DIAS_DO_SELO_NOVA) return { tipo: "nova", texto: "Nova" };
+  return e.status === "SEM_PRAZO" ? { tipo: "sem-prazo", texto: TEXTO_DO_STATUS.SEM_PRAZO } : { tipo: "no-ritmo", texto: TEXTO_DO_STATUS.ON_TRACK };
+}
+
+/** Prazo apertado: com prazo, aberta, e pedindo por mês mais do que cabe. A da Viagem edita no assistente dela, então fica sem. */
+export function metaApertada(x: Pick<MetaDaTela, "prazo" | "daViagem" | "plano">, limite: LimiteDasMetas | null): boolean {
+  return Boolean(x.prazo) && !x.daViagem && x.plano.status !== "ACHIEVED" && prazoApertado(x.plano.porMesNecessario, limite);
+}
 
 /** O que a folha de edição recebe de uma meta (lista e detalhe). */
 export function metaParaEditar(meta: MetaDaTela): MetaParaEditar {
