@@ -15,6 +15,10 @@ describe("cartões do Resumo", () => {
     expect(ordemQueVale([])).toEqual([]);
   });
 
+  it("aceita os cartões novos e uma meta escolhida, mas não um id de meta inventado", () => {
+    expect(limparOrdem(["hoje", "meta:cmv5nh2470006jr06", "reserva", "meta:", "meta:../x"])).toEqual(["hoje", "meta:cmv5nh2470006jr06", "reserva"]);
+  });
+
   it("ignora o que não é cartão e o que veio repetido", () => {
     expect(limparOrdem(["mes", "xis", "mes", 3, null, "cats"])).toEqual(["mes", "cats"]);
     expect(limparOrdem("mes")).toEqual([]);

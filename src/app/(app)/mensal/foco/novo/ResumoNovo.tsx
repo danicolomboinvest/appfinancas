@@ -25,6 +25,7 @@ import { HeroiDaPrimeiraVez, HeroiDoDiaADia, HeroiDoDigitou, HeroiDoMesFechado, 
 import { type Mes } from "./regras";
 import { ListaDeCategorias } from "./ListaDeCategorias";
 import { ResumoEditavel, type CartaoNaTela } from "./ResumoEditavel";
+import { carregarCartoesNovos } from "./cartoes-novos";
 import { lerOrdemDoResumo } from "@/lib/repositories/decisao.repo";
 import { NOMES_DOS_CARTOES, ordemQueVale, type CartaoDoResumo } from "@/lib/resumo/cartoes";
 
@@ -111,9 +112,10 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
       semana: <LinhaDaSemana r={r} money={m} />,
       proximos: proximos.length > 0 ? <ProximosMeses meses={proximos} money={m} href={(p) => `/mensal/foco?mes=${paraParametro(p)}${cor !== "a" ? `&cor=${cor}` : ""}`} /> : null,
     };
-    const cartoes: CartaoNaTela[] = (Object.keys(NOMES_DOS_CARTOES) as CartaoDoResumo[])
+    const antigos = (["hoje", "mes", "cats", "semana", "proximos"] as const)
       .filter((id) => disponiveis[id])
-      .map((id) => ({ id, ...NOMES_DOS_CARTOES[id], node: disponiveis[id] }));
+      .map((id): CartaoNaTela => ({ id, ...NOMES_DOS_CARTOES[id], tam: "l", node: disponiveis[id] }));
+    const cartoes: CartaoNaTela[] = [...antigos, ...(await carregarCartoesNovos(ctx, r))];
     const ordem = ordemQueVale(await lerOrdemDoResumo(ctx));
     return (
       <div className="flex flex-col gap-5" data-resumo-novo={r.caso}>
