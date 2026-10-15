@@ -9,7 +9,8 @@ import { HORAS_POR_MES_PADRAO, PRAZOS_DO_CREDITO, RAMOS, TIPOS_DE_EMPRESA, ehFor
 import { mesAntes, somarDias, type Mes } from "@/lib/empresa/regras";
 import { MESES } from "@/lib/empresa/resumo";
 import { garantirContaDaGuia, lerPerfilDaEmpresa, marcarRecebida, registrarPagamento, registrarVenda, salvarConfigDaEmpresa, transferirSalario } from "@/lib/repositories/empresa.repo";
-import { marcarContaPaga } from "@/lib/repositories/conta-a-pagar.repo";
+import { pagarContaComGasto } from "@/lib/repositories/conta-a-pagar.repo";
+import { ORIGEM_CONTA } from "@/lib/contas/paguei";
 import { parametrosDoMei } from "@/lib/repositories/parametro-legal.repo";
 
 type Resultado = { ok: true; mensagem?: string } | { ok: false; erro: string };
@@ -123,16 +124,10 @@ export async function pagueiAction(p: { valor: number; tipo?: string; contaId?: 
   if (!valor) return { ok: false, erro: "Digite o valor pago." };
   const hoje = hojeIso();
   if (p.contaId) {
-    const ehGuia = p.contaNome === "Guia do MEI";
-    const paga = await marcarContaPaga(ctx, p.contaId);
+    // Uma conta das Recorrentes: o mesmo "Paguei" das Recorrentes (gasto ligado à conta, categoria
+    // da conta, a Guia do MEI em Impostos). A tela usa o PagueiDaConta; isto fica para quem chama sem ela.
+    const paga = await pagarContaComGasto(ctx, p.contaId, { valor, dia: hoje, origem: ORIGEM_CONTA });
     if (!paga) return { ok: false, erro: "Essa conta já estava paga." };
-    await registrarPagamento(ctx, {
-      valor,
-      parentCategory: ehGuia ? "IMPOSTOS" : "MORADIA",
-      subcategory: ehGuia ? "DAS (Simples Nacional)" : null,
-      descricao: (p.contaNome ?? "Conta").slice(0, 80),
-      hoje,
-    });
   } else {
     const t = TIPOS_DE_PAGAMENTO[p.tipo ?? ""];
     if (!t) return { ok: false, erro: "Escolha o que você pagou." };
