@@ -30,10 +30,9 @@ import { carregarDinheiroPerdido } from "./perdido/dados";
 import { EntradaDoDinheiroPerdido } from "./perdido/Entrada";
 import { AvisoDasContas } from "./AvisoDasContas";
 import { listarContasNovasDoHistorico, sincronizarContasDoHistorico } from "@/lib/repositories/contas-do-historico.repo";
-import { juntarAssinaturas } from "@/lib/contas/assinaturas";
 import { gastosDoMesParaAssinaturas, listarAssinaturasDela } from "@/lib/repositories/assinaturas.repo";
-import { carregarRespostasDeAssinatura, estadoPara } from "@/lib/assinaturas/respostas";
-import { assinaturasComARegraUnica } from "@/lib/assinaturas/regra";
+import { carregarRespostasDeAssinatura } from "@/lib/assinaturas/respostas";
+import { montarAssinaturas } from "@/lib/assinaturas/montar";
 import { categoryLabel } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { Assinaturas } from "./Assinaturas";
@@ -127,21 +126,14 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   // O que ela respondeu sobre cada uma, em qualquer tela, decide se aparece (regra única,
   // lib/assinaturas): a que não é assinatura e a cancelada saem; a que ela vai cancelar fica com o
   // selo. O Raio-X já vem sem as que ela disse que não são assinatura.
-  const vivosDeAssinatura = (perdido?.vivos ?? []).filter((a) => a.tipo === "assinatura" && a.mensal);
-  const assinaturas = assinaturasComARegraUnica(
-    juntarAssinaturas({
-      dela,
-      achadas: [
-        ...raiox.itens.filter((i) => i.tipo === "assinatura").map((i) => ({ chave: `rx:${i.chave}`, nome: i.nome, mensal: i.mensal })),
-        ...vivosDeAssinatura.map((a) => ({ chave: `dp:${a.chave}`, nome: a.nome, mensal: a.mensal as number, comerciante: a.comerciante.split("#")[0] })),
-      ],
-      contas: abertas,
-      recusas: new Set(),
-      lancamentosDoMes: gastosDoMes,
-    }),
-    { dela, raiox: raiox.itens, achados: vivosDeAssinatura },
-    (marcas) => estadoPara(respostas, marcas),
-  );
+  const assinaturas = montarAssinaturas({
+    dela,
+    raiox,
+    vivos: perdido?.vivos ?? [],
+    contas: abertas,
+    respostas,
+    lancamentosDoMes: gastosDoMes,
+  });
   const rotulos = Object.fromEntries((["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS"] as ParentCategory[]).map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
   // O mesmo número do Orçamento (antes: plano − resumo.totalExpense, com outro arredondamento).

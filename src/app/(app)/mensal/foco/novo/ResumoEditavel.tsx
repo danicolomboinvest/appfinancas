@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { GripHorizontal, Pencil, Plus, X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { salvarResumoAction } from "./actions";
@@ -13,7 +14,17 @@ import { salvarResumoAction } from "./actions";
  * A sugestão e o acerto do Nós dois não são cartões: vêm em `depoisDoPrimeiro`, logo abaixo do
  * primeiro cartão, onde o herói sempre os teve.
  */
-export type CartaoNaTela = { id: string; nome: string; desc: string; node: ReactNode };
+export type CartaoNaTela = {
+  id: string;
+  nome: string;
+  desc: string;
+  /** Nulo: o cartão ainda não carregou o dado (o pesado só carrega depois do "Pronto"). */
+  node: ReactNode | null;
+  /** "l" é o cartão largo de sempre; "q" é o quadradinho colorido (dois por linha). */
+  tam: "l" | "q";
+  /** As metas viram um só item na folha de adicionar: a pessoa escolhe qual. */
+  grupo?: "meta";
+};
 
 const BOTAO_PEQUENO = "flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-md";
 
@@ -30,7 +41,9 @@ export function ResumoEditavel({
   const [ordem, setOrdem] = useState<string[]>(() => ordemInicial.filter((id) => porId.has(id)));
   const [editando, setEditando] = useState(false);
   const [folha, setFolha] = useState(false);
+  const [escolhendoMeta, setEscolhendoMeta] = useState(false);
   const [, comecar] = useTransition();
+  const router = useRouter();
   const ordemSalva = useRef(ordemInicial.join("|"));
   const arrasto = useRef<{ id: string; gx: number; gy: number } | null>(null);
   const ponteiro = useRef({ x: 0, y: 0 });
@@ -38,14 +51,18 @@ export function ResumoEditavel({
 
   const visiveis = ordem.filter((id) => porId.has(id));
   const fora = cartoes.filter((c) => !ordem.includes(c.id));
+  const foraSemMeta = fora.filter((c) => c.grupo !== "meta");
+  const metasFora = fora.filter((c) => c.grupo === "meta");
 
   function pronto() {
     setEditando(false);
     const atual = visiveis.join("|");
     if (atual === ordemSalva.current) return;
     ordemSalva.current = atual;
+    const faltaCarregar = visiveis.some((id) => porId.get(id)?.node == null);
     comecar(async () => {
       await salvarResumoAction(visiveis);
+      if (faltaCarregar) router.refresh();
     });
   }
 
@@ -81,7 +98,7 @@ export function ResumoEditavel({
     const alvo = visiveis.find((id) => {
       if (id === a.id) return false;
       const r = itens.current.get(id)?.getBoundingClientRect();
-      return !!r && e.clientY > r.top && e.clientY < r.bottom;
+      return !!r && e.clientY > r.top && e.clientY < r.bottom && e.clientX > r.left && e.clientX < r.right;
     });
     if (alvo) {
       setOrdem((atual) => {
@@ -129,45 +146,48 @@ export function ResumoEditavel({
         )}
       </div>
 
-      <div className={editando ? "flex flex-col gap-5" : "flex flex-col gap-5 lg:block lg:columns-2 lg:gap-6"}>
+      <div className="grid grid-flow-dense grid-cols-2 gap-x-3 gap-y-5 lg:grid-cols-4 lg:gap-x-6">
         {visiveis.map((id, i) => {
           const c = porId.get(id)!;
+          const largo = c.tam === "l";
           return (
-            <div key={id} className={editando ? "" : "lg:mb-5 lg:break-inside-avoid"}>
-              <div
-                ref={(el) => {
-                  if (el) itens.current.set(id, el);
-                  else itens.current.delete(id);
-                }}
-                className={`relative rounded-3xl ${editando ? "resumo-treme touch-none data-[arrastando=true]:z-10 data-[arrastando=true]:shadow-2xl" : ""}`}
-                data-cartao-resumo={id}
-              >
-                {editando && (
-                  <div className="mb-2 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      aria-label={`Arrastar ${c.nome}`}
-                      className={`${BOTAO_PEQUENO} cursor-grab touch-none`}
-                      onPointerDown={(e) => comecaArrasto(e, id)}
-                      onPointerMove={moveArrasto}
-                      onPointerUp={soltaArrasto}
-                      onPointerCancel={soltaArrasto}
-                    >
-                      <GripHorizontal size={17} aria-hidden />
-                    </button>
-                    <button type="button" aria-label={`Tirar ${c.nome} do Resumo`} className={BOTAO_PEQUENO} onClick={() => setOrdem((atual) => atual.filter((x) => x !== id))}>
-                      <X size={17} aria-hidden />
-                    </button>
-                  </div>
-                )}
-                <div className={editando ? "pointer-events-none select-none" : ""}>{c.node}</div>
+            <Fragment key={id}>
+              <div className={largo ? "col-span-2" : "col-span-1"}>
+                <div
+                  ref={(el) => {
+                    if (el) itens.current.set(id, el);
+                    else itens.current.delete(id);
+                  }}
+                  className={`relative flex h-full flex-col rounded-3xl ${editando ? "resumo-treme touch-none data-[arrastando=true]:z-10 data-[arrastando=true]:shadow-2xl" : ""}`}
+                  data-cartao-resumo={id}
+                >
+                  {editando && (
+                    <div className="mb-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        aria-label={`Arrastar ${c.nome}`}
+                        className={`${BOTAO_PEQUENO} cursor-grab touch-none`}
+                        onPointerDown={(e) => comecaArrasto(e, id)}
+                        onPointerMove={moveArrasto}
+                        onPointerUp={soltaArrasto}
+                        onPointerCancel={soltaArrasto}
+                      >
+                        <GripHorizontal size={17} aria-hidden />
+                      </button>
+                      <button type="button" aria-label={`Tirar ${c.nome} do Resumo`} className={BOTAO_PEQUENO} onClick={() => setOrdem((atual) => atual.filter((x) => x !== id))}>
+                        <X size={17} aria-hidden />
+                      </button>
+                    </div>
+                  )}
+                  <div className={`min-h-0 flex-1 ${editando ? "pointer-events-none select-none" : ""}`}>{c.node ?? <Esperando nome={c.nome} />}</div>
+                </div>
               </div>
-              {i === 0 && depoisDoPrimeiro && !editando ? <div className="mt-5 flex flex-col gap-5">{depoisDoPrimeiro}</div> : null}
-            </div>
+              {i === 0 && depoisDoPrimeiro && !editando ? <div className="col-span-2 flex flex-col gap-5 lg:col-span-4">{depoisDoPrimeiro}</div> : null}
+            </Fragment>
           );
         })}
-        {visiveis.length === 0 && depoisDoPrimeiro && !editando ? <div className="flex flex-col gap-5">{depoisDoPrimeiro}</div> : null}
-        {editando && visiveis.length === 0 ? <p className="rounded-3xl border border-dashed border-border px-4 py-6 text-center text-[14px] text-ink-muted">Nenhum cartão aqui. Toque em adicionar.</p> : null}
+        {visiveis.length === 0 && depoisDoPrimeiro && !editando ? <div className="col-span-2 flex flex-col gap-5 lg:col-span-4">{depoisDoPrimeiro}</div> : null}
+        {editando && visiveis.length === 0 ? <p className="col-span-2 rounded-3xl border border-dashed border-border px-4 py-6 text-center text-[14px] text-ink-muted lg:col-span-4">Nenhum cartão aqui. Toque em adicionar.</p> : null}
       </div>
 
       {editando && (
@@ -181,25 +201,68 @@ export function ResumoEditavel({
         </button>
       )}
 
-      <Modal open={folha} onClose={() => setFolha(false)} title="Adicionar ao Resumo">
+      <Modal
+        open={folha}
+        onClose={() => {
+          setFolha(false);
+          setEscolhendoMeta(false);
+        }}
+        title={escolhendoMeta ? "Qual meta?" : "Adicionar ao Resumo"}
+      >
         <div className="flex flex-col gap-2">
-          {fora.length === 0 ? <p className="py-4 text-center text-[14px] text-ink-muted">Você já adicionou todos os cartões.</p> : null}
-          {fora.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => {
-                setOrdem((atual) => [...atual, c.id]);
-                setFolha(false);
-              }}
-              className="flex min-h-14 flex-col items-start justify-center gap-0.5 rounded-2xl bg-surface-2 px-4 py-3 text-left"
-            >
-              <span className="text-[15px] font-semibold text-ink">{c.nome}</span>
-              <span className="text-[13px] text-ink-muted">{c.desc}</span>
-            </button>
-          ))}
+          {escolhendoMeta ? (
+            metasFora.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setOrdem((atual) => [...atual, c.id]);
+                  setFolha(false);
+                  setEscolhendoMeta(false);
+                }}
+                className="flex min-h-14 flex-col items-start justify-center gap-0.5 rounded-2xl bg-surface-2 px-4 py-3 text-left"
+              >
+                <span className="text-[15px] font-semibold text-ink">{c.nome}</span>
+                <span className="text-[13px] text-ink-muted">{c.desc}</span>
+              </button>
+            ))
+          ) : (
+            <>
+              {foraSemMeta.length === 0 && metasFora.length === 0 ? <p className="py-4 text-center text-[14px] text-ink-muted">Você já adicionou todos os cartões.</p> : null}
+              {foraSemMeta.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setOrdem((atual) => [...atual, c.id]);
+                    setFolha(false);
+                  }}
+                  className="flex min-h-14 flex-col items-start justify-center gap-0.5 rounded-2xl bg-surface-2 px-4 py-3 text-left"
+                >
+                  <span className="text-[15px] font-semibold text-ink">{c.nome}</span>
+                  <span className="text-[13px] text-ink-muted">{c.desc}</span>
+                </button>
+              ))}
+              {metasFora.length > 0 ? (
+                <button type="button" onClick={() => setEscolhendoMeta(true)} className="flex min-h-14 flex-col items-start justify-center gap-0.5 rounded-2xl bg-surface-2 px-4 py-3 text-left">
+                  <span className="text-[15px] font-semibold text-ink">Uma meta</span>
+                  <span className="text-[13px] text-ink-muted">Você escolhe qual</span>
+                </button>
+              ) : null}
+            </>
+          )}
         </div>
       </Modal>
+    </div>
+  );
+}
+
+/** O cartão que acabou de ser ligado e ainda não tem número: ganha o dado quando a pessoa toca em "Pronto". */
+function Esperando({ nome }: { nome: string }) {
+  return (
+    <div className="flex h-full min-h-[8.5rem] flex-col justify-center gap-1 rounded-3xl bg-surface-2 p-3.5">
+      <span className="text-[13px] font-semibold text-ink">{nome}</span>
+      <span className="text-[12.5px] leading-snug text-ink">O número aparece quando você tocar em Pronto.</span>
     </div>
   );
 }

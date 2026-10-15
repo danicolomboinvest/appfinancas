@@ -422,10 +422,11 @@ export async function trocarPerfil(p: Page, nome: string) {
 export async function vendiNaEmpresa(p: Page, valor: number) {
   await p.goto("/empresa");
   await p.getByRole("button", { name: "Registrar" }).first().click();
-  await p.getByRole("button", { name: /^Vendi/ }).first().click();
+  // A main (15/10/2026) trocou "Vendi" por "Entrou" e "Registrar venda" por "Registrar entrada".
+  await p.getByRole("button", { name: /^(Entrou|Vendi)/ }).first().click();
   const campo = p.getByRole("dialog").locator("input").first();
   await campo.fill(digitado(valor));
-  await p.getByRole("button", { name: "Registrar venda" }).click();
+  await p.getByRole("button", { name: /^Registrar (entrada|venda)$/ }).click();
   await p.waitForLoadState("networkidle").catch(() => undefined);
   await p.waitForTimeout(800);
 }

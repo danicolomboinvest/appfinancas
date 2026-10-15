@@ -2,25 +2,32 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Gauge, Check, ChevronRight, FileText, ReceiptText, ShoppingBag, Tag, Truck, Megaphone, Building2, Users } from "lucide-react";
+import { CalendarDays, Gauge, ChevronRight, FileText, Users } from "lucide-react";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { categoriasDasDespesas } from "./categorias-das-despesas";
+import { ContasAPagar } from "@/app/(app)/orcamento/contas/ContasAPagar";
+import { FolhaDasContas } from "@/app/(app)/orcamento/contas/folha-contexto";
+import { SemanaDasContas } from "@/app/(app)/orcamento/contas/SemanaDasContas";
+import type { ContaSerial } from "@/app/(app)/orcamento/contas/LinhaDaConta";
+import type { ContaDaSemana } from "@/lib/contas/semana-das-contas";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { BotaoRegistrar } from "@/components/shell/BotaoRegistrar";
-import { NOME_DA_FORMA, paraO, type Forma } from "@/lib/empresa/config";
-import { chaveDoMes, ehMaquininha, ehVenda, nomeDaSaida, tipoDaSaida, type LancamentoDaEmpresa, type Mes, type Recibo } from "@/lib/empresa/regras";
-import { MESES, MESES_CURTOS, contasDoMes, diaCurto, guiaDoMeiDaEmpresa, diaDaSemanaDe, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
-import { hrefDaLista, lancamentosDoPeriodo, noPeriodoTexto, resumoDoPeriodo, umMesSo, type PeriodoDaEmpresa } from "@/lib/empresa/periodo";
+import { NOME_DA_FORMA, type Forma } from "@/lib/empresa/config";
+import { chaveDoMes, mesAntes, reciboDoMes, type LancamentoDaEmpresa, type Mes, type Recibo } from "@/lib/empresa/regras";
+import { MESES, contasDoMes, diaDaSemanaDe, guiaDoMeiDaEmpresa, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
+import { hrefDaLista, lancamentosDoPeriodo, noPeriodoTexto, resumoDoPeriodo, umMesSo, type PeriodoDaEmpresa, type ResumoDoPeriodo } from "@/lib/empresa/periodo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
-import { Cartao, Iniciais, LinhaDoRecibo, LogoDaForma, Picote, BOTAO_PRINCIPAL } from "./partes";
+import { Cartao, Iniciais, BOTAO_PRINCIPAL } from "./partes";
 import { RegistrarNaEmpresa } from "./RegistrarNaEmpresa";
 import { CarrosselDeAbas, useArrastoEntreAbas } from "@/components/shell/Carrossel";
 import { SeletorDePeriodo } from "./SeletorDePeriodo";
 import { PainelDoPeriodo } from "./PainelDoPeriodo";
 
-type Aba = "resumo" | "vendas" | "despesas" | "contas";
-const ABAS: [Aba, string][] = [["resumo", "Resumo"], ["vendas", "Vendas"], ["despesas", "Despesas"], ["contas", "Contas"]];
+type Aba = "resumo" | "entradas" | "despesas" | "contas";
+const ABAS: [Aba, string][] = [["resumo", "Resumo"], ["entradas", "Entradas"], ["despesas", "Despesas"], ["contas", "Contas"]];
 const ord = (m: Mes) => m.ano * 12 + m.mes;
 
 /** As cores do "Como pagou" (tons do tema, sem arco-íris). */
@@ -32,7 +39,6 @@ const COR_DA_FORMA: Record<Forma, string> = {
   dinheiro: "var(--color-border-strong)",
 };
 
-const ICONE_DA_SAIDA: Record<string, typeof ShoppingBag> = { ALIMENTACAO: ShoppingBag, TRANSPORTE: Truck, EDUCACAO: Megaphone, MORADIA: Building2, SAUDE: Users, IMPOSTOS: FileText };
 
 /**
  * O dia a dia da Empresa: as abas Resumo, Vendas, Despesas e Contas com o seletor de período, o
@@ -41,7 +47,7 @@ const ICONE_DA_SAIDA: Record<string, typeof ShoppingBag> = { ALIMENTACAO: Shoppi
  * Escolher datas) mostra o painel do período. Abre no último mês fechado, como antes.
  * `antigos`: os lançamentos de um período mais velho que a janela de 12 meses (nulo: a janela basta).
  */
-export function VisaoDaEmpresa({ dados, clientes, abaInicial, periodo, antigos, custom, abrirRegistrar }: { dados: DadosDaEmpresa; clientes: string[]; abaInicial: Aba; periodo: PeriodoDaEmpresa; antigos: LancamentoDaEmpresa[] | null; custom: Record<string, { nome: string; icone: string }>; abrirRegistrar: boolean }) {
+export function VisaoDaEmpresa({ dados, clientes, abaInicial, periodo, antigos, custom, abrirRegistrar, contas }: { dados: DadosDaEmpresa; clientes: string[]; abaInicial: Aba; periodo: PeriodoDaEmpresa; antigos: LancamentoDaEmpresa[] | null; custom: Record<string, { nome: string; icone: string }>; abrirRegistrar: boolean; contas: ContasDaTela }) {
   const money = useMoney();
   const m0 = (v: number) => money(v, { round: true });
   const R = useMemo(() => resumoDaEmpresa(dados), [dados]);
@@ -81,15 +87,15 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, periodo, antigos, 
       <div ref={conteudo} className="flex flex-col gap-4">
       {aba === "resumo" &&
         (mes ? (
-          <AbaResumo dados={dados} R={R} mes={mes} periodo={periodo} recibo={recibo} atual={atual} m0={m0} money={money} />
+          <AbaResumo dados={dados} R={R} mes={mes} periodo={periodo} recibo={recibo} atual={atual} lancs={lancs} m0={m0} money={money} />
         ) : (
-          <AbaResumo dados={dados} R={R} mes={null} periodo={periodo} recibo={recibo} atual={false} m0={m0} money={money}>
+          <AbaResumo dados={dados} R={R} mes={null} periodo={periodo} recibo={recibo} atual={false} lancs={lancs} m0={m0} money={money}>
             <PainelDoPeriodo r={RP} periodo={periodo} hoje={dados.hoje} ehMei={dados.config?.tipo === "MEI"} custom={custom} caminho="/empresa" />
           </AbaResumo>
         ))}
-      {aba === "vendas" && <AbaVendas R={R} doPeriodo={doPeriodo} periodo={periodo} quando={quando} recibo={recibo} m0={m0} />}
-      {aba === "despesas" && <AbaDespesas doPeriodo={doPeriodo} periodo={periodo} quando={quando} recibo={recibo} m0={m0} />}
-      {aba === "contas" && <AbaContas dados={dados} money={money} m0={m0} />}
+      {aba === "entradas" && <AbaEntradas R={R} RP={RP} periodo={periodo} quando={quando} recibo={recibo} m0={m0} />}
+      {aba === "despesas" && <AbaDespesas doPeriodo={doPeriodo} periodo={periodo} quando={quando} recibo={recibo} custom={custom} m0={m0} />}
+      {aba === "contas" && <AbaContas dados={dados} contas={contas} m0={m0} />}
       </div>
 
       <BotaoRegistrar onClick={() => setRegistrar(true)} />
@@ -99,44 +105,6 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, periodo, antigos, 
 }
 
 type Fmt = (v: number) => string;
-
-function Recibo({ dados, mes, periodo, recibo, atual, salario, pago, m0 }: { dados: DadosDaEmpresa; mes: Mes; periodo: PeriodoDaEmpresa; recibo: Recibo; atual: boolean; salario: number; pago: number | null; m0: Fmt }) {
-  const ehMei = dados.config?.tipo === "MEI";
-  const fica = recibo.sobrou - (pago ?? salario);
-  return (
-    <div className="relative rounded-3xl border border-border bg-surface px-4 pb-6 pt-4">
-      <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">
-        <span>Recibo do mês</span>
-        <span>{atual ? `${MESES_CURTOS[mes.mes - 1]} ${mes.ano}, até hoje` : `${MESES_CURTOS[mes.mes - 1]} ${mes.ano}`}</span>
-      </div>
-      {/* Cada linha abre os lançamentos dela, para editar (13/10/2026). */}
-      <Link href={hrefDaLista(periodo, "entradas")} className="block" data-linha-recibo="entradas"><LinhaDoRecibo rotulo="Entrou" valor={m0(recibo.entrou)} /></Link>
-      <Link href={hrefDaLista(periodo, "variaveis")} className="block"><LinhaDoRecibo rotulo="Insumos e entregas" valor={m0(recibo.variaveis)} menos /></Link>
-      <Link href={hrefDaLista(periodo, "fixas")} className="block"><LinhaDoRecibo rotulo="Contas do mês" valor={m0(recibo.fixas)} menos /></Link>
-      <Link href={hrefDaLista(periodo, "impostos")} className="block"><LinhaDoRecibo rotulo={ehMei ? "Guia do MEI" : "Impostos"} valor={m0(recibo.impostos)} menos nota={atual && ehMei && recibo.impostos === 0 && dados.legal.diaDoDas ? `vence ${dados.legal.diaDoDas.valor}/${MESES_CURTOS[mes.mes - 1]}` : undefined} /></Link>
-      <Link href={hrefDaLista(periodo, "lucro")} className="mt-3 block">
-        <HeroiDoTema>
-          <p className="text-sm text-heroi-suave">Sobrou {paraO(dados.negocio)}</p>
-          <ValorDestaque texto={recibo.sobrou < 0 ? `−${m0(-recibo.sobrou)}` : m0(recibo.sobrou)} />
-        </HeroiDoTema>
-      </Link>
-      {!atual && recibo.sobrou > 0 && (pago !== null || salario > 0) && (
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <Link href={`/empresa/salario?mes=${chaveDoMes(mes)}`} className="rounded-2xl bg-success-soft px-3 py-3 text-ink shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-success)_25%,transparent)]">
-            <small className="block text-xs text-ink-muted">Seu salário{pago !== null ? ", pago" : ""}</small>
-            <ValorDestaque texto={m0(pago ?? salario)} className="text-xl font-medium tabular-nums text-ink" />
-          </Link>
-          <div className="rounded-2xl bg-surface-2 px-3 py-3">
-            <small className="block text-xs text-ink-muted">Fica no caixa</small>
-            <ValorDestaque texto={fica < 0 ? `−${m0(-fica)}` : m0(fica)} className="text-xl font-medium tabular-nums text-ink" />
-          </div>
-        </div>
-      )}
-      {atual && <p className="mt-3 text-center text-sm text-ink-muted">O salário sai quando o mês fecha.</p>}
-      <Picote />
-    </div>
-  );
-}
 
 function Faixa({ cor }: { cor: string }) {
   return <span className="absolute inset-y-0 left-0 w-1" style={{ background: cor }} aria-hidden />;
@@ -150,7 +118,25 @@ function IconeTingido({ icon: Icone, cor }: { icon: typeof FileText; cor: string
   );
 }
 
-function AbaResumo({ dados, R, mes, periodo, recibo, atual, m0, money, children }: { dados: DadosDaEmpresa; R: ResumoDaEmpresa; mes: Mes | null; periodo: PeriodoDaEmpresa; recibo: Recibo; atual: boolean; m0: Fmt; money: (v: number) => string; children?: React.ReactNode }) {
+/** Um quadradinho do herói que abre a lista daquele total. */
+function Quadradinho({ href, rotulo, valor }: { href: string; rotulo: string; valor: string }) {
+  return (
+    <Link href={href} className="heroi-veu min-w-0 rounded-2xl px-3 py-2.5">
+      <small className="block text-xs text-heroi-suave">{rotulo}</small>
+      <ValorDestaque texto={valor} className="text-[17px] font-medium tabular-nums" />
+    </Link>
+  );
+}
+
+/** "2% a menos que agosto", "igual a agosto". Ganho e perda em palavra. */
+function contraOMesAntes(a: number, b: number, nomeAntes: string): string | null {
+  if (b <= 0) return null;
+  const d = Math.round(((a - b) / b) * 100);
+  if (d === 0) return `igual a ${nomeAntes}`;
+  return `${Math.abs(d)}% a ${d > 0 ? "mais" : "menos"} que ${nomeAntes}`;
+}
+
+function AbaResumo({ dados, R, mes, periodo, recibo, atual, lancs, m0, money, children }: { dados: DadosDaEmpresa; R: ResumoDaEmpresa; mes: Mes | null; periodo: PeriodoDaEmpresa; recibo: Recibo; atual: boolean; lancs: LancamentoDaEmpresa[]; m0: Fmt; money: (v: number) => string; children?: React.ReactNode }) {
   const pagoDoMes = mes ? dados.lancamentos.find((l) => l.externalId === `prolabore:${chaveDoMes(mes)}`) : undefined;
   const pago = pagoDoMes ? pagoDoMes.amount : null;
   const salario = Math.min(R.salario, Math.max(0, recibo.sobrou));
@@ -177,8 +163,8 @@ function AbaResumo({ dados, R, mes, periodo, recibo, atual, m0, money, children 
         <Faixa cor="var(--color-danger)" />
         <Iniciais nome={d.cliente} />
         <span className="min-w-0 flex-1">
-          <b className="block truncate text-[15px] font-medium text-ink">{d.cliente.split(" ")[0]} deve</b>
-          <small className="block truncate text-xs text-ink-muted">
+          <b className="block break-words text-[15px] font-medium text-ink">{d.cliente.split(" ")[0]} deve</b>
+          <small className="block break-words text-xs text-ink-muted">
             {d.descricao ? `${d.descricao.charAt(0).toLowerCase()}${d.descricao.slice(1)}, ` : ""}há {d.dias} {d.dias === 1 ? "dia" : "dias"}
           </small>
         </span>
@@ -200,18 +186,74 @@ function AbaResumo({ dados, R, mes, periodo, recibo, atual, m0, money, children 
       </Link>,
     );
   }
+
+  // O mês (11/10 → 15/10/2026, a Dani): o primeiro número é quanto ENTROU, não o que sobrou.
+  const saiu = recibo.variaveis + recibo.fixas + recibo.impostos;
+  const antes = mes ? reciboDoMes(lancs, mesAntes(mes, 1)) : null;
+  const comparacao = mes && antes && !atual ? contraOMesAntes(recibo.entrou, antes.entrou, MESES[mesAntes(mes, 1).mes - 1]) : null;
+  const seuSalario = pago ?? (atual ? 0 : salario);
+  const ficou = recibo.sobrou - seuSalario;
+  // Para onde foi o que entrou: despesas, o salário dela e o que ficou no caixa (só com lucro).
+  const pedacos = recibo.entrou > 0 && recibo.sobrou >= 0
+    ? [
+        { nome: "Despesas", valor: saiu, cor: "var(--color-accent)" },
+        ...(seuSalario > 0 ? [{ nome: "Seu salário", valor: seuSalario, cor: "var(--color-success)" }] : []),
+        { nome: seuSalario > 0 ? "Ficou no caixa" : atual ? "Sobrou até hoje" : "Lucro", valor: Math.max(0, ficou), cor: "var(--color-info)" },
+      ].filter((p) => p.valor > 0)
+    : [];
+
   return (
     <>
-      {mes ? <Recibo dados={dados} mes={mes} periodo={periodo} recibo={recibo} atual={atual} salario={salario} pago={pago} m0={m0} /> : children}
+      {mes ? (
+        <HeroiDoTema>
+          <p className="text-sm text-heroi-suave">Entrou {atual ? `em ${MESES[mes.mes - 1]}, até hoje` : `em ${MESES[mes.mes - 1]}`}</p>
+          <Link href={hrefDaLista(periodo, "entradas")} className="flex flex-col gap-0.5" data-linha-recibo="entradas">
+            <ValorDestaque texto={m0(recibo.entrou)} />
+            <small className="text-xs text-heroi-suave">
+              {[recibo.nVendas > 0 ? `${recibo.nVendas} ${recibo.nVendas === 1 ? "entrada" : "entradas"}` : null, comparacao].filter(Boolean).join(", ")}
+            </small>
+          </Link>
+          <div className="grid grid-cols-3 gap-2">
+            <Quadradinho href={hrefDaLista(periodo, "despesas")} rotulo="Saiu" valor={m0(saiu)} />
+            <Quadradinho href={hrefDaLista(periodo, "lucro")} rotulo={recibo.sobrou < 0 ? "Prejuízo" : "Lucro"} valor={m0(Math.abs(recibo.sobrou))} />
+            {atual ? (
+              <Quadradinho href={hrefDaLista(periodo, "impostos")} rotulo={dados.config?.tipo === "MEI" ? "Guia" : "Impostos"} valor={m0(recibo.impostos)} />
+            ) : (
+              <Quadradinho href={`/empresa/salario?mes=${chaveDoMes(mes)}`} rotulo={pago !== null ? "Salário pago" : "Seu salário"} valor={m0(seuSalario)} />
+            )}
+          </div>
+        </HeroiDoTema>
+      ) : (
+        children
+      )}
+      {mes && pedacos.length > 1 && (
+        <Cartao className="flex flex-col gap-3 p-4" data-para-onde-foi>
+          <p className="text-sm text-ink-muted">Para onde foi o que entrou</p>
+          <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={pedacos.map((p) => `${p.nome} ${Math.round((p.valor / recibo.entrou) * 100)}%`).join(", ")}>
+            {pedacos.map((p) => (
+              <i key={p.nome} style={{ flexGrow: p.valor, background: p.cor }} />
+            ))}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {pedacos.map((p) => (
+              <span key={p.nome} className="flex items-center gap-2 text-sm text-ink">
+                <i className="size-2.5 shrink-0 rounded-full" style={{ background: p.cor }} />
+                {p.nome}
+                <b className="ml-auto font-medium tabular-nums">{Math.round((p.valor / recibo.entrou) * 100)}%</b>
+              </span>
+            ))}
+          </div>
+        </Cartao>
+      )}
       {mes && !atual && pago === null && salario > 0 && (
         <Link href={`/empresa/salario?mes=${chaveDoMes(mes)}`} className={BOTAO_PRINCIPAL}>
           Ver meu holerite
         </Link>
       )}
+      {atual && mes && <p className="text-center text-sm text-ink-muted">O salário sai quando o mês fecha.</p>}
       <h2 className="mt-2 flex items-center justify-between gap-2 px-1 text-lg font-medium text-ink">
         Pede sua atenção <span className="flex min-w-6 items-center justify-center rounded-full bg-ink px-2 text-sm tabular-nums text-canvas">{itens.length}</span>
       </h2>
-      {/* Protótipo: um cartão por coisa, com a faixa colorida na esquerda e o ícone tingido. */}
       <div className="flex flex-col gap-2" data-pede-atencao>
         {itens.length ? itens : <Cartao className="px-4"><p className="py-4 text-sm text-ink-muted">Nada por agora.</p></Cartao>}
       </div>
@@ -222,23 +264,28 @@ function AbaResumo({ dados, R, mes, periodo, recibo, atual, m0, money, children 
   );
 }
 
-function AbaVendas({ R, doPeriodo, periodo, quando, recibo, m0 }: { R: ResumoDaEmpresa; doPeriodo: LancamentoDaEmpresa[]; periodo: PeriodoDaEmpresa; quando: string; recibo: Recibo; m0: Fmt }) {
-  const vendas = doPeriodo.filter((l) => ehVenda(l));
+/** Entradas (15/10/2026, a Dani: "entradas ao invés de vendas"), agrupadas por quem pagou. */
+function AbaEntradas({ R, RP, periodo, quando, recibo, m0 }: { R: ResumoDaEmpresa; RP: ResumoDoPeriodo; periodo: PeriodoDaEmpresa; quando: string; recibo: Recibo; m0: Fmt }) {
   const comForma = Object.values(recibo.porForma).reduce((s, v) => s + (v ?? 0), 0);
   const formas = (Object.keys(recibo.porForma) as Forma[]).sort((a, b) => (recibo.porForma[b] ?? 0) - (recibo.porForma[a] ?? 0));
   const aReceber = R.semanas.reduce((s, w) => s + w.total, 0);
+  const origens = [
+    ...RP.clientes.slice(0, 5).map((c) => ({ chave: `cliente:${c.nome}`, nome: c.nome, valor: c.valor, n: c.n, semNome: false })),
+    ...(RP.semNome.valor > 0 ? [{ chave: "cliente:", nome: "Balcão e sem nome", valor: RP.semNome.valor, n: RP.semNome.n, semNome: true }] : []),
+  ].sort((a, b) => b.valor - a.valor);
+  const maior = Math.max(1, ...origens.map((o) => o.valor));
   return (
     <>
       <HeroiDoTema>
-        <p className="text-sm text-heroi-suave">Vendeu {quando}</p>
+        <p className="text-sm text-heroi-suave">Entrou {quando}</p>
         <ValorDestaque texto={m0(recibo.entrou)} />
         <div className="grid grid-cols-2 gap-2">
           <div className="heroi-veu rounded-2xl px-3 py-2.5">
-            <small className="block text-xs text-heroi-suave">Vendas</small>
+            <small className="block text-xs text-heroi-suave">Entradas</small>
             <b className="text-lg font-medium tabular-nums">{recibo.nVendas}</b>
           </div>
           <div className="heroi-veu rounded-2xl px-3 py-2.5">
-            <small className="block text-xs text-heroi-suave">Por venda</small>
+            <small className="block text-xs text-heroi-suave">Média por entrada</small>
             <b className="text-lg font-medium tabular-nums">{recibo.nVendas ? m0(recibo.entrou / recibo.nVendas) : "-"}</b>
           </div>
         </div>
@@ -261,19 +308,23 @@ function AbaVendas({ R, doPeriodo, periodo, quando, recibo, m0 }: { R: ResumoDaE
           </div>
         </Cartao>
       )}
-      {vendas.length > 0 && (
+      {origens.length > 0 && (
         <>
-          <h2 className="mt-2 px-1 text-lg font-medium text-ink">Quem pagou</h2>
-          <Cartao className="divide-y divide-border px-4">
-            {vendas.slice(0, 4).map((v) => (
-              <div key={v.id} className="flex min-h-16 items-center gap-3 py-2">
-                {v.cliente ? <Iniciais nome={v.cliente} /> : <LogoDaForma forma={v.forma ?? null} size={40} />}
+          <h2 className="mt-2 px-1 text-lg font-medium text-ink">De onde veio</h2>
+          <Cartao className="divide-y divide-border px-4" data-de-onde-veio>
+            {origens.map((o) => (
+              <Link key={o.chave} href={hrefDaLista(periodo, o.chave as `cliente:${string}`)} className="flex min-h-16 items-center gap-3 py-2.5">
+                {o.semNome ? <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-muted shadow-[inset_0_0_0_1px_var(--color-border)]"><Users size={16} aria-hidden /></span> : <Iniciais nome={o.nome} />}
                 <span className="min-w-0 flex-1">
-                  <b className="block truncate text-[15px] font-medium text-ink">{v.cliente || v.description || "Venda"}</b>
-                  <small className="text-xs text-ink-muted">{[v.forma ? NOME_DA_FORMA[v.forma] : null, v.entryDate ? diaCurto(v.entryDate).replace(" ", "/") : null].filter(Boolean).join(", ")}</small>
+                  <b className="block break-words text-[15px] font-medium text-ink">{o.nome}</b>
+                  <small className="text-xs text-ink-muted">{o.n} {o.n === 1 ? "entrada" : "entradas"}</small>
+                  <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface-2">
+                    <i className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(2, Math.round((o.valor / maior) * 100))}%` }} />
+                  </span>
                 </span>
-                <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{m0(v.amount)}</b>
-              </div>
+                <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{m0(o.valor)}</b>
+                <ChevronRight size={16} className="shrink-0 text-ink-muted" aria-hidden />
+              </Link>
             ))}
           </Cartao>
         </>
@@ -289,76 +340,87 @@ function AbaVendas({ R, doPeriodo, periodo, quando, recibo, m0 }: { R: ResumoDaE
         </Link>
       )}
       <Link href={hrefDaLista(periodo, "entradas")} className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm text-ink-muted">
-        Ver e editar as vendas <ChevronRight size={16} aria-hidden />
+        Ver e editar as entradas <ChevronRight size={16} aria-hidden />
       </Link>
     </>
   );
 }
 
-function AbaDespesas({ doPeriodo, periodo, quando, recibo, m0 }: { doPeriodo: LancamentoDaEmpresa[]; periodo: PeriodoDaEmpresa; quando: string; recibo: Recibo; m0: Fmt }) {
-  const grupos = new Map<string, { nome: string; valor: number; sobe: boolean; parent: string | null }>();
-  for (const l of doPeriodo) {
-    // Só o que sobe com a venda (protótipo): as contas de todo mês moram na aba Contas, e a maquininha tem o cartão dela.
-    if (tipoDaSaida(l) !== "variavel" || ehMaquininha(l)) continue;
-    const t = "variavel";
-    const nome = nomeDaSaida(l);
-    const g = grupos.get(nome) ?? { nome, valor: 0, sobe: t === "variavel", parent: l.parentCategory };
-    g.valor += l.amount;
-    grupos.set(nome, g);
+/** O anel das despesas: as 5 maiores categorias e "Outras", com o total no meio. */
+function AnelDasDespesas({ fatias, total, m0 }: { fatias: { nome: string; valor: number; cor: string }[]; total: number; m0: Fmt }) {
+  // Onde cada fatia começa: a soma das anteriores.
+  const inicios = fatias.map((_, i) => fatias.slice(0, i).reduce((s, f) => s + (f.valor / total) * 100, 0));
+  return (
+    <svg viewBox="0 0 42 42" className="size-32 shrink-0" role="img" aria-label={fatias.map((f) => `${f.nome} ${Math.round((f.valor / total) * 100)}%`).join(", ")}>
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--color-surface-2)" strokeWidth="6" />
+      {fatias.map((f, i) => {
+        const pct = (f.valor / total) * 100;
+        // Um respiro de 0,6 entre as fatias, sem sumir com a fatia pequena.
+        const folga = fatias.length > 1 ? 0.6 : 0;
+        return <circle key={f.nome} cx="21" cy="21" r="15.9" fill="none" stroke={f.cor} strokeWidth="6" pathLength={100} strokeDasharray={`${Math.max(0.4, pct - folga)} ${100 - pct + folga}`} strokeDashoffset={25 - inicios[i]} />;
+      })}
+      <text x="21" y="19.5" textAnchor="middle" fontSize="3.4" fill="var(--color-ink-muted)">saiu</text>
+      <text x="21" y="25" textAnchor="middle" fontSize="5" fill="var(--color-ink)">{m0(total).replace(/^R\$\s*/, "")}</text>
+    </svg>
+  );
+}
+
+type FiltroDespesa = "todas" | "variaveis" | "fixas";
+
+function AbaDespesas({ doPeriodo, periodo, quando, recibo, custom, m0 }: { doPeriodo: LancamentoDaEmpresa[]; periodo: PeriodoDaEmpresa; quando: string; recibo: Recibo; custom: Record<string, { nome: string; icone: string }>; m0: Fmt }) {
+  const { categorias } = useProfileTheme();
+  const [filtro, setFiltro] = useState<FiltroDespesa>("todas");
+  const todas = useMemo(() => categoriasDasDespesas(doPeriodo, categorias, custom), [doPeriodo, categorias, custom]);
+  const total = todas.reduce((s, c) => s + c.valor, 0);
+  const lista = filtro === "todas" ? todas : todas.filter((c) => (filtro === "variaveis" ? c.tipo === "variavel" : c.tipo === "fixa"));
+  const fatias = todas.length > 6 ? [...todas.slice(0, 5), { nome: "Outras", valor: todas.slice(5).reduce((s, c) => s + c.valor, 0), cor: "var(--color-border-strong)" }] : todas;
+  if (todas.length === 0) {
+    return (
+      <Cartao className="flex flex-col items-center gap-2 px-6 py-8 text-center">
+        <p className="text-[15px] font-medium text-ink">Nenhuma despesa {quando}</p>
+        <Link href={hrefDaLista(periodo, "despesas")} className="min-h-11 px-3 pt-2 text-sm font-medium text-accent-strong">Ver lançamentos</Link>
+      </Cartao>
+    );
   }
-  const lista = [...grupos.values()].filter((g) => g.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 8);
-  const maior = Math.max(1, ...lista.map((g) => g.valor));
-  const saiu = recibo.variaveis + recibo.fixas + recibo.impostos;
   return (
     <>
-      <HeroiDoTema>
-        <p className="text-sm text-heroi-suave">Saiu {quando}</p>
-        <ValorDestaque texto={m0(saiu)} />
-        <div className="grid grid-cols-2 gap-2">
-          <div className="heroi-veu rounded-2xl px-3 py-2.5">
-            <small className="block text-xs text-heroi-suave">Sobe com a venda</small>
-            <b className="text-lg font-medium tabular-nums">{m0(recibo.variaveis)}</b>
-          </div>
-          <div className="heroi-veu rounded-2xl px-3 py-2.5">
-            <small className="block text-xs text-heroi-suave">Todo mês</small>
-            <b className="text-lg font-medium tabular-nums">{m0(recibo.fixas + recibo.impostos)}</b>
-          </div>
+      <Cartao className="flex items-center gap-4 p-4" data-anel-despesas>
+        <AnelDasDespesas fatias={fatias} total={total} m0={m0} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          {fatias.map((f) => (
+            <span key={f.nome} className="flex items-center gap-2 text-sm text-ink">
+              <i className="size-2.5 shrink-0 rounded-full" style={{ background: f.cor }} />
+              <span className="min-w-0 break-words leading-snug">{f.nome}</span>
+              <b className="ml-auto pl-1 font-medium tabular-nums">{Math.round((f.valor / total) * 100)}%</b>
+            </span>
+          ))}
         </div>
-      </HeroiDoTema>
-      {recibo.maquininha > 0 && (
-        <Cartao className="flex min-h-16 items-center gap-3 px-4 py-3">
-          <LogoDoLancamento descricao={null} icon={ReceiptText} size={40} />
-          <span className="min-w-0 flex-1">
-            <b className="block text-[15px] font-medium text-ink">Maquininha</b>
-            <small className="text-xs text-ink-muted">{recibo.entrou > 0 ? `${((recibo.maquininha / recibo.entrou) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do que entrou` : "taxas do mês"}</small>
-          </span>
-          <b className="shrink-0 text-[15px] font-medium tabular-nums text-danger">{m0(recibo.maquininha)}</b>
-        </Cartao>
-      )}
-      {lista.length > 0 && (
-        <>
-          <h2 className="mt-2 px-1 text-lg font-medium text-ink">Para onde foi</h2>
-          <Cartao className="divide-y divide-border px-4">
-            {lista.map((g) => {
-              const Icone = (g.parent && ICONE_DA_SAIDA[g.parent]) || Tag;
-              return (
-                <Link key={g.nome} href={hrefDaLista(periodo, `saida:${g.nome}`)} className="flex min-h-16 items-center gap-3 py-2.5">
-                  <LogoDoLancamento descricao={null} icon={Icone} size={40} />
-                  <span className="min-w-0 flex-1">
-                    <b className="block truncate text-[15px] font-medium text-ink">{g.nome}</b>
-                    <small className="text-xs text-ink-muted">{g.sobe ? "sobe com a venda" : "todo mês"}</small>
-                    <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface-2">
-                      <i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round((g.valor / maior) * 100)}%` }} />
-                    </span>
-                  </span>
-                  <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{m0(g.valor)}</b>
-                  <ChevronRight size={16} className="shrink-0 text-ink-muted" aria-hidden />
-                </Link>
-              );
-            })}
-          </Cartao>
-        </>
-      )}
+      </Cartao>
+      {recibo.entrou > 0 && <p className="-mt-1 px-1 text-sm text-ink-muted">Saiu {quando}: {Math.round((total / recibo.entrou) * 100)}% do que entrou.</p>}
+      <div className="flex gap-1 rounded-full bg-surface-2 p-1" role="group" aria-label="Quais despesas">
+        {([["todas", "Todas"], ["variaveis", "Variáveis"], ["fixas", "Fixas"]] as const).map(([k, t]) => (
+          <button key={k} type="button" aria-pressed={filtro === k} onClick={() => setFiltro(k)} className={`min-h-10 flex-1 rounded-full text-sm ${filtro === k ? "bg-surface font-medium text-ink shadow-[0_1px_3px_rgba(0,0,0,.08)]" : "text-ink-muted"}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <Cartao className="divide-y divide-border px-4" data-categorias-despesas>
+        {lista.length === 0 && <p className="py-4 text-sm text-ink-muted">Nada aqui {quando}.</p>}
+        {lista.map((c) => (
+          <Link key={c.chave} href={hrefDaLista(periodo, `cat:${c.chave}`)} className="flex min-h-16 items-center gap-3 py-2.5">
+            <IconeTingido icon={c.Icone} cor={c.cor} />
+            <span className="min-w-0 flex-1">
+              <b className="block break-words text-[15px] font-medium leading-snug text-ink">{c.nome}</b>
+              <small className="block break-words text-xs text-ink-muted">{c.dentro.length ? `${c.dentro.slice(0, 3).join(", ")}${c.dentro.length > 3 ? ` e mais ${c.dentro.length - 3}` : ""}` : `${c.n} ${c.n === 1 ? "lançamento" : "lançamentos"}`}</small>
+            </span>
+            <span className="shrink-0 text-right">
+              <b className="block text-[15px] font-medium tabular-nums text-ink">{m0(c.valor)}</b>
+              <small className="text-xs tabular-nums text-ink-muted">{Math.round((c.valor / total) * 100)}%</small>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-ink-muted" aria-hidden />
+          </Link>
+        ))}
+      </Cartao>
       <Link href={hrefDaLista(periodo, "despesas")} className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm text-ink-muted">
         Ver e editar as despesas <ChevronRight size={16} aria-hidden />
       </Link>
@@ -366,82 +428,32 @@ function AbaDespesas({ doPeriodo, periodo, quando, recibo, m0 }: { doPeriodo: La
   );
 }
 
-function AbaContas({ dados, money, m0 }: { dados: DadosDaEmpresa; money: (v: number) => string; m0: Fmt }) {
-  const contas = contasDoMes(dados);
-  const estimada = guiaDoMeiDaEmpresa(dados)?.origem === "estimada";
-  const total = contas.reduce((s, c) => s + (c.valor ?? 0), 0);
-  const pago = contas.filter((c) => c.paga).reduce((s, c) => s + (c.valor ?? 0), 0);
-  const nPagas = contas.filter((c) => c.paga).length;
-  const dias = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(Date.parse(`${dados.hoje}T12:00:00Z`) + i * 86_400_000);
-    const iso = d.toISOString().slice(0, 10);
-    return { iso, dia: d.getUTCDate(), sem: ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][d.getUTCDay()], tem: contas.some((c) => !c.paga && c.dia === iso) };
-  });
-  if (contas.length === 0) {
-    return (
-      <Cartao className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-        <p className="text-[15px] font-medium text-ink">Sem contas neste mês</p>
-        <p className="text-sm text-ink-muted">Cadastre as contas fixas da empresa nas Recorrentes.</p>
-        <Link href="/orcamento/contas" className="min-h-11 px-3 pt-2 text-sm font-medium text-accent-strong">
-          Adicionar conta
-        </Link>
-      </Cartao>
-    );
-  }
+/** As contas da Empresa (15/10/2026): o quanto falta pagar e, embaixo, a semana e as contas das Recorrentes. */
+export type ContasDaTela = { abertas: ContaSerial[]; pagas: ContaSerial[]; vencimentos: ContaDaSemana[]; hoje: string };
+
+function AbaContas({ dados, contas, m0 }: { dados: DadosDaEmpresa; contas: ContasDaTela; m0: Fmt }) {
+  const doMes = contasDoMes(dados);
+  const total = doMes.reduce((s, c) => s + (c.valor ?? 0), 0);
+  const pago = doMes.filter((c) => c.paga).reduce((s, c) => s + (c.valor ?? 0), 0);
+  const nPagas = doMes.filter((c) => c.paga).length;
+  // A guia do MEI ainda no valor da tabela: o selo "estimado pelo app" na conta dela.
+  const selos: Record<string, string> = guiaDoMeiDaEmpresa(dados)?.origem === "estimada" ? Object.fromEntries(contas.abertas.filter((c) => c.nome === "Guia do MEI").map((c) => [c.id, "estimado pelo app"])) : {};
   return (
-    <>
-      <HeroiDoTema>
-        <p className="text-sm text-heroi-suave">Contas d{dados.negocio.com.startsWith("o ") ? "o" : "a"} {dados.negocio.sem} em {MESES[dados.mesAtual.mes - 1]}</p>
-        <ValorDestaque texto={m0(total)} />
-        <span className="block h-2 overflow-hidden rounded-full heroi-veu">
-          <i className="block h-full rounded-full bg-[var(--color-heroi-tinta)]" style={{ width: `${total > 0 ? Math.round((pago / total) * 100) : 0}%` }} />
-        </span>
-        <div className="flex justify-between text-sm">
-          <span>
-            {nPagas} de {contas.length} {nPagas === 1 ? "paga" : "pagas"}
+    <FolhaDasContas hoje={contas.hoje} abrirNova={false}>
+      {doMes.length > 0 && (
+        <HeroiDoTema>
+          <p className="text-sm text-heroi-suave">{total - pago > 0 ? `Falta pagar em ${MESES[dados.mesAtual.mes - 1]}` : `Contas de ${MESES[dados.mesAtual.mes - 1]}`}</p>
+          <ValorDestaque texto={m0(total - pago > 0 ? total - pago : total)} />
+          <span className="block h-2 overflow-hidden rounded-full heroi-veu">
+            <i className="block h-full rounded-full bg-[var(--color-heroi-tinta)]" style={{ width: `${total > 0 ? Math.round((pago / total) * 100) : 0}%` }} />
           </span>
-          <span className="text-heroi-suave">falta {m0(total - pago)}</span>
-        </div>
-      </HeroiDoTema>
-      <Cartao className="grid grid-cols-7 gap-1 p-2">
-        {dias.map((d, i) => (
-          <span key={d.iso} className={`flex flex-col items-center rounded-2xl py-2 ${i === 0 ? "bg-pill text-on-pill" : "text-ink"}`}>
-            <small className={`text-xs ${i === 0 ? "opacity-80" : "text-ink-muted"}`}>{d.sem}</small>
-            <b className="text-[16px] font-medium tabular-nums">{d.dia}</b>
-            <i className={`mt-0.5 size-1.5 rounded-full ${d.tem ? "bg-accent" : "bg-transparent"}`} aria-hidden />
-          </span>
-        ))}
-      </Cartao>
-      <Cartao className="divide-y divide-border px-4">
-        {contas.map((c) => {
-          const diasAte = c.dia ? Math.round((Date.parse(c.dia) - Date.parse(dados.hoje)) / 86_400_000) : null;
-          return (
-            <div key={c.id} className="flex min-h-16 items-center gap-3 py-2">
-              {c.paga ? (
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success" aria-hidden>
-                  <Check size={18} strokeWidth={2} />
-                </span>
-              ) : (
-                <LogoDoLancamento descricao={c.nome} icon={c.nome === "Guia do MEI" ? FileText : ReceiptText} size={40} />
-              )}
-              <span className="min-w-0 flex-1">
-                <b className="block truncate text-[15px] font-medium text-ink">{c.nome}</b>
-                <small className="text-xs text-ink-muted">
-                  {c.paga ? `paga em ${Number(c.pagaEm!.slice(8))}/${MESES_CURTOS[Number(c.pagaEm!.slice(5, 7)) - 1]}` : diasAte !== null && diasAte < 0 ? `venceu dia ${Number(c.dia!.slice(8))}` : `dia ${Number(c.dia!.slice(8))}`}
-                  {!c.paga && estimada && c.nome === "Guia do MEI" ? ", estimado pelo app" : ""}
-                  {!c.paga && diasAte !== null && diasAte >= 0 && diasAte <= 15 && (
-                    <em className="ml-2 rounded-md bg-[var(--color-atencao-fundo)] px-1.5 py-0.5 text-xs font-medium uppercase not-italic text-[var(--color-atencao)]">{diasAte === 0 ? "hoje" : `em ${diasAte} ${diasAte === 1 ? "dia" : "dias"}`}</em>
-                  )}
-                </small>
-              </span>
-              <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{c.valor !== null ? money(c.valor) : "varia"}</b>
-            </div>
-          );
-        })}
-      </Cartao>
-      <Link href="/orcamento/contas" className="mx-auto inline-flex min-h-11 items-center gap-1 px-3 text-sm text-ink-muted">
-        Editar contas <ChevronRight size={16} aria-hidden />
-      </Link>
-    </>
+          <p className="text-sm text-heroi-suave">
+            {nPagas === doMes.length ? "Todas pagas" : `${nPagas} de ${doMes.length} ${nPagas === 1 ? "paga" : "pagas"}, de ${m0(total)}`}
+          </p>
+        </HeroiDoTema>
+      )}
+      <SemanaDasContas contas={contas.vencimentos} hoje={contas.hoje} />
+      <ContasAPagar contas={contas.abertas} pagas={contas.pagas} hoje={contas.hoje} selos={selos} />
+    </FolhaDasContas>
   );
 }
