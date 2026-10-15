@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectRecurring, installmentCanonical, installmentDescription, parseInstallment, type RecurrenceEntry } from "../recurrence";
+import { descricaoComparavel, detectRecurring, installmentCanonical, installmentDescription, parseInstallment, type RecurrenceEntry } from "../recurrence";
 
 const e = (year: number, month: number, day: number, patch: Partial<RecurrenceEntry> = {}): RecurrenceEntry => ({
   year,
@@ -78,5 +78,13 @@ describe("parseInstallment", () => {
     // O separador fica: é ele que decide se parseInstallment tem certeza.
     expect(installmentCanonical("LOJA 2 de 6")).not.toBe(installmentCanonical("LOJA 2/6"));
     expect(installmentCanonical("IFOOD")).toBe("IFOOD");
+  });
+});
+
+describe("descricaoComparavel: a mesma parcela escrita por formatos diferentes", () => {
+  it("'Loja (2/8)' e 'Loja - Parcela 2/8' são a mesma; parcelas diferentes não", () => {
+    expect(descricaoComparavel("Clínica Exemplo (2/8)")).toBe(descricaoComparavel("Clínica Exemplo - Parcela 2/8"));
+    expect(descricaoComparavel("CLINICA EXEMPLO PARC 02/08")).toBe(descricaoComparavel("Clinica Exemplo (2/8)"));
+    expect(descricaoComparavel("Clínica Exemplo (2/8)")).not.toBe(descricaoComparavel("Clínica Exemplo - Parcela 3/8"));
   });
 });

@@ -336,6 +336,8 @@ function linhasDoGrupo(segs: Segmento[]): Linha[] {
 
 function limparNome(nome: string): string {
   return nome
+    // O OCR lê "Líneas" como "LÍneas": a letra acentuada entre a maiúscula e as minúsculas volta a ser minúscula.
+    .replace(/(\p{Lu})([ÁÉÍÓÚÂÊÔÃÕÀÇ])(?=\p{Ll})/gu, (_, a: string, b: string) => a + b.toLowerCase())
     .replace(/[|•·]/g, " ")
     .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}).]+$/gu, "")
     .replace(/\s{2,}/g, " ")

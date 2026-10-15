@@ -272,3 +272,18 @@ describe("prepararPixels", () => {
     expect(escalaDoPrint(1179)).toBe(1);
   });
 });
+
+/** Cartão do BTG/EQI com o nome lido pelo OCR com a letra acentuada em maiúscula ("LÍneas"). */
+describe("lerPrint: letra acentuada maiúscula do OCR", () => {
+  const s = (texto: string, x0: number, y0: number, x1: number, y1: number): Segmento => ({ texto, x0, y0, x1, y1 });
+  const segs = [
+    s("Compra no crédito parcelada", 242, 2400, 760, 2432),
+    s("Aérea LÍneas Exemplo (6/10)", 244, 2470, 800, 2512),
+    s("Viagem", 241, 2550, 380, 2582),
+    s("- R$ 312,40", 860, 2548, 1110, 2591),
+  ];
+
+  it("'LÍneas' volta a ser 'Líneas'", () => {
+    expect(lerPrint(segs, "2026-10-14").linhas[0]?.nome).toBe("Aérea Líneas Exemplo");
+  });
+});
