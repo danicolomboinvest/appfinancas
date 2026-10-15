@@ -7,6 +7,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { buildBudgetAlerts, buildGoalAlerts, chaveDaMetaAtingida, metasQueChegaramLa, type Alert, type MetaAtingida } from "@/lib/insights/alerts";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
+import { calcularLivreDoMes } from "@/lib/planning/livre-do-mes";
 import { sendPushToUser, isPushConfigured } from "@/lib/push/send";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { alertEmail, metaAtingidaEmail } from "@/lib/email/templates";
@@ -98,7 +99,11 @@ export async function GET(request: Request) {
           outras: planosProprios
             .filter((p) => p.customCategoryId && nomeProprio.has(p.customCategoryId))
             .map((p) => ({ key: p.customCategoryId!, label: nomeProprio.get(p.customCategoryId!)!, planejado: Number(p.plannedAmount), gasto: gastoProprio.get(p.customCategoryId) ?? 0, essencial: essenciais.has(p.customCategoryId!) })),
-          livre: planejadoTotal > 0 ? planejadoTotal - Number(totalGasto._sum.amount ?? 0) : null,
+          // O livre do mês pela regra única (lib/planning/livre-do-mes): o mesmo número das telas.
+          livre: (() => {
+            const l = calcularLivreDoMes({ ano: year, mes: month, planejado: planejadoTotal, gasto: Number(totalGasto._sum.amount ?? 0) });
+            return l.tipo === "plano" ? l.valor : null;
+          })(),
         }),
       );
     }

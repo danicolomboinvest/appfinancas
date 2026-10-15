@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     const pref = preferenciaDeModo(user.theme);
     const corpo = numerosDoWidget({
       livre: d.foco.livre,
+      livreDoMes: d.livreDoMes,
       agora: nowInBrazil(),
       instante: new Date(),
       moeda: user.currency,

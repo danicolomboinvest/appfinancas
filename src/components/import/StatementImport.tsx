@@ -2140,8 +2140,8 @@ export function StatementImport({
               )}
               {dados.livre !== null && (
                 <div className="rounded-xl bg-accent-soft px-3 py-2">
-                  <p className="text-caption text-ink-muted">{t.impRevelaLivre}</p>
-                  <p className="text-lg font-semibold tabular-nums text-ink">{money(dados.livre)}</p>
+                  <p className="text-caption text-ink-muted">{dados.livre >= 0 ? t.impRevelaLivre : "Acima do plano no mês"}</p>
+                  <p className="text-lg font-semibold tabular-nums text-ink">{money(Math.abs(dados.livre), { round: true })}</p>
                   <p className="text-caption text-ink-muted">{t.impRevelaLivreSub(money(dados.planejado))}</p>
                 </div>
               )}

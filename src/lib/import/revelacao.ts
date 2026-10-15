@@ -1,3 +1,5 @@
+import { valorDoLivre } from "@/lib/planning/livre-do-mes";
+
 /**
  * A tela que aparece logo depois de importar: o mês montado.
  *
@@ -27,7 +29,7 @@ export type Revelacao = {
   guardou: number;
   /** As 3 categorias com mais gasto; `fracao` é a parte do que saiu (0 a 1), pra barrinha. */
   maiores: { rotulo: string; valor: number; fracao: number }[];
-  /** Quanto ainda cabe no orçamento do mês; null quando ela ainda não tem orçamento. */
+  /** O livre do mês (planejado − o que saiu, em reais inteiros; negativo passou do plano). Null sem orçamento. */
   livre: number | null;
   planejado: number;
 };
@@ -52,15 +54,11 @@ export function montarRevelacao(linhas: LinhaDoMes[], orcamentos: OrcamentoDoMes
     .slice(0, 3)
     .map((c) => ({ ...c, fracao: saiu > 0 ? Math.min(1, c.valor / saiu) : 0 }));
 
-  // O "livre" é o MESMO do Foco no fechamento do mês (lib/decisoes/foco.ts): o que sobra em cada
-  // categoria planejada, mas nunca mais do que o mês inteiro comporta — o que estourou numa
-  // categoria e o que foi gasto fora do orçamento saem do mesmo bolso. Dois números diferentes
-  // pro mesmo "livre" em duas telas era pedir pra ela desconfiar dos dois.
+  // O "livre" é o MESMO de todas as telas (lib/planning/livre-do-mes, 15/10/2026): o plano do mês
+  // menos tudo o que saiu, com ou sem categoria. Negativo: passou do plano.
   const planejado = orcamentos.reduce((s, o) => s + Math.max(0, o.planejado), 0);
   if (planejado <= 0) return { entrou, saiu, guardou, maiores, livre: null, planejado: 0 };
-  const gastoNoOrcamento = orcamentos.reduce((s, o) => s + Math.max(0, porCategoria.get(o.chave)?.valor ?? 0), 0);
-  const somaSobras = orcamentos.reduce((s, o) => s + Math.max(0, o.planejado - Math.max(0, porCategoria.get(o.chave)?.valor ?? 0)), 0);
-  const livre = Math.min(somaSobras, Math.max(0, planejado - Math.max(saiu, gastoNoOrcamento)));
+  const livre = valorDoLivre(planejado, soma("EXPENSE"));
   return { entrou, saiu, guardou, maiores, livre, planejado };
 }
 
