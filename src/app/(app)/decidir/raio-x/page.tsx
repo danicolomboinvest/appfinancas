@@ -19,7 +19,7 @@ export default async function RaioXPage() {
   if (ehEmpresa(ctx.profileKind)) redirect("/mensal/foco");
   const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
   const now = nowInBrazil();
-  const { itens, decididos } = await carregarRaioX(ctx, now.getFullYear(), now.getMonth() + 1);
+  const { itens, decididos, canceladas } = await carregarRaioX(ctx, now.getFullYear(), now.getMonth() + 1);
   const jaDecidido = Object.fromEntries([...decididos.entries()].map(([k, v]) => [k, v.tipo])) as Record<string, EscolhaDoRaioX>;
   const pergunta = PERGUNTAS_DO_DECIDIR.find((p) => p.chave === "raiox")!;
 
@@ -40,7 +40,7 @@ export default async function RaioXPage() {
           <p className="text-sm text-ink-muted">{t.raioxVazio}</p>
         </Card>
       ) : (
-        <RaioX itens={itens} decididos={jaDecidido} />
+        <RaioX itens={itens} decididos={jaDecidido} canceladas={[...canceladas]} />
       )}
       <ReportarErro tela="Raio-X dos pequenos gastos" regra="mesmo estabelecimento em 3+ meses; fora moradia, saúde, educação e impostos" />
     </div>

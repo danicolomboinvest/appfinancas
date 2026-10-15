@@ -131,6 +131,10 @@ export type AssinaturaDaTela = {
   /** Já saiu no extrato deste mês (só a dela, que tem comerciante aprendido ou nome). */
   pagaEsteMes: boolean;
   categoria: string | null;
+  /** As marcas da regra única (lib/assinaturas): a mesma assinatura no Raio-X e no Dinheiro perdido. */
+  marcas?: string[];
+  /** Ela disse que vai cancelar (em qualquer tela): o selo "Para cancelar". */
+  paraCancelar?: boolean;
 };
 
 type Achada = { chave: string; nome: string; mensal: number; comerciante?: string | null };

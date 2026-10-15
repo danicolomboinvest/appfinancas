@@ -2,6 +2,8 @@ import type { AuthContext } from "@/lib/auth/session";
 import { cacarDinheiroPerdido, estornoCaiu, type Achado, type ResultadoDaCaca } from "@/lib/dinheiro-perdido/detectar";
 import { ateAgora, type EstadoDoAchado } from "@/lib/dinheiro-perdido/placar";
 import { chavesDasAssinaturasDela, lancamentosParaCacar, listarAchadosGuardados, type AchadoGuardado } from "@/lib/repositories/dinheiro-perdido.repo";
+import { carregarRespostasDeAssinatura, estadoPara } from "@/lib/assinaturas/respostas";
+import { cartaComARegraUnica } from "@/lib/assinaturas/regra";
 
 /** Uma carta pronta para a tela: o achado (sem a lista de lançamentos), o estado e se é novo. */
 export type CartaDaTela = Omit<Achado, "lancamentos"> & { estado: EstadoDoAchado; novo: boolean };
@@ -54,7 +56,7 @@ export type DinheiroPerdido = {
  * agora". Só lê; quem grava é a importação (o "novo") e as escolhas dela.
  */
 export async function carregarDinheiroPerdido(ctx: AuthContext): Promise<DinheiroPerdido> {
-  const [lancamentos, guardados, assinaturasDela] = await Promise.all([lancamentosParaCacar(ctx), listarAchadosGuardados(ctx), chavesDasAssinaturasDela(ctx)]);
+  const [lancamentos, guardados, assinaturasDela, respostas] = await Promise.all([lancamentosParaCacar(ctx), listarAchadosGuardados(ctx), chavesDasAssinaturasDela(ctx), carregarRespostasDeAssinatura(ctx)]);
   const resultado = cacarDinheiroPerdido(lancamentos, { assinaturasDela });
   const porChave = new Map(guardados.map((g) => [g.chave, g]));
   const vivas = new Set(resultado.achados.map((a) => a.chave));
@@ -70,11 +72,19 @@ export async function carregarDinheiroPerdido(ctx: AuthContext): Promise<Dinheir
     return g.estado;
   };
 
-  const doExtrato: CartaDaTela[] = resultado.achados.map((a) => {
-    const g = porChave.get(a.chave);
-    return { ...semLancamentos(a), estado: estadoDe(g), novo: Boolean(g && g.vistoEm === null && g.estado === "aberto") };
-  });
-  const soGuardadas: CartaDaTela[] = guardados.filter((g) => !vivas.has(g.chave) && g.estado !== "aberto").map((g) => ({ ...daFotografia(g), estado: estadoDe(g), novo: false }));
+  // A carta de assinatura segue a regra única (lib/assinaturas): a última resposta sobre ela, em
+  // qualquer tela, decide "Uso", "Não uso" ou aberta; a que ela disse que não é assinatura sai.
+  const comARegraUnica = (c: CartaDaTela) => cartaComARegraUnica(c, (marcas) => estadoPara(respostas, marcas));
+  const doExtrato: CartaDaTela[] = resultado.achados
+    .map((a) => {
+      const g = porChave.get(a.chave);
+      return comARegraUnica({ ...semLancamentos(a), estado: estadoDe(g), novo: Boolean(g && g.vistoEm === null && g.estado === "aberto") });
+    })
+    .filter((c): c is CartaDaTela => c !== null);
+  const soGuardadas: CartaDaTela[] = guardados
+    .filter((g) => !vivas.has(g.chave))
+    .map((g) => comARegraUnica({ ...daFotografia(g), estado: estadoDe(g), novo: false }))
+    .filter((c): c is CartaDaTela => c !== null && c.estado !== "aberto");
   const todas = [...doExtrato, ...soGuardadas];
   const decididas = todas.filter((c) => c.estado !== "aberto");
   return {

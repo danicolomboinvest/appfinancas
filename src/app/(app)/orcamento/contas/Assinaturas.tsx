@@ -17,6 +17,10 @@ import { adicionarDosLancamentosAction, escreverAssinaturaAction, listarParaEsco
  * coisa que é recorrente. Ou ela poder escrever algo"). A seção aparece mesmo vazia, com o
  * "+ Adicionar". A folha faz uma coisa por vez: escolher dos lançamentos OU escrever.
  * Tocar numa assinatura abre editar e remover (a achada sozinha: "Não é assinatura").
+ *
+ * Regra única (15/10/2026, lib/assinaturas): a lista segue a última resposta dela em qualquer tela.
+ * "Não uso" no Dinheiro perdido ou "Cancelar" no Raio-X põem o selo "para cancelar"; a cancelada
+ * e a que não é assinatura saem.
  */
 
 type Folha =
@@ -65,7 +69,7 @@ export function Assinaturas({ itens, rotulos }: { itens: AssinaturaDaTela[]; rot
                   <span className="block truncate text-[16px] text-ink">{a.nome}</span>
                   <span className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-muted">
                     {a.dia ? `Todo dia ${a.dia}` : "Mensal"}
-                    {a.origem === "extrato" ? <SeloPequeno>do extrato</SeloPequeno> : a.pagaEsteMes ? <SeloPequeno forte>pago este mês</SeloPequeno> : null}
+                    {a.paraCancelar ? <SeloPequeno forte>para cancelar</SeloPequeno> : a.origem === "extrato" ? <SeloPequeno>do extrato</SeloPequeno> : a.pagaEsteMes ? <SeloPequeno forte>pago este mês</SeloPequeno> : null}
                   </span>
                 </span>
                 <span className="shrink-0 text-[16px] tabular-nums text-ink">{money(a.mensal)}</span>
@@ -298,11 +302,12 @@ function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoE
   function naoE() {
     iniciar(async () => {
       try {
-        await naoEAssinaturaAction(item.nome);
+        const alvo = { nome: item.nome, marcas: item.marcas };
+        await naoEAssinaturaAction(alvo);
         // Tem Desfazer: pílula curta (14/10/2026).
         showToast("Não é assinatura", {
           label: "Desfazer",
-          onClick: () => void desfazerNaoEAssinaturaAction(item.nome).then(() => router.refresh(), () => showError("Não desfez. Tente de novo.")),
+          onClick: () => void desfazerNaoEAssinaturaAction(alvo).then(() => router.refresh(), () => showError("Não desfez. Tente de novo.")),
         });
         router.refresh();
         onFeito();
@@ -322,6 +327,7 @@ function DaAssinatura({ item, aoEditar, onFeito }: { item: AssinaturaDaTela; aoE
           </p>
           <p className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-muted">
             {item.dia ? `Todo dia ${item.dia}` : "Mensal"}
+            {item.paraCancelar && <SeloPequeno forte>para cancelar</SeloPequeno>}
             {sua ? item.pagaEsteMes && <SeloPequeno forte>pago este mês</SeloPequeno> : <span className="rounded-full bg-surface px-2 py-px text-xs text-ink-muted">o app achou no extrato</span>}
           </p>
         </div>

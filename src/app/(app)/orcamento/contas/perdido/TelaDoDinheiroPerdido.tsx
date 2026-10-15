@@ -126,7 +126,17 @@ export function TelaDoDinheiroPerdido({ abertas, todas, conferidos, precoDoSpi, 
   function desfazer(c: CartaDaTela) {
     setEstados((e) => ({ ...e, [c.chave]: "aberto" }));
     setFila((f) => (f.includes(c.chave) ? f : [...f, c.chave]));
-    gravar(c.chave, "aberto");
+    iniciar(async () => {
+      const r: { ok: boolean; estado?: EstadoDoAchado } = await decidirAchadoAction({ chave: c.chave, estado: "aberto" }).catch(() => ({ ok: false }));
+      if (!r.ok) return showError("Não guardou. Atualize a tela.");
+      // Assinatura: volta à resposta de antes, que pode ter sido dada em outra tela (o "Manter" do
+      // Raio-X). Aí a carta não volta para a fila: já tem resposta.
+      if (r.estado && r.estado !== "aberto") {
+        const volta = r.estado;
+        setEstados((e) => ({ ...e, [c.chave]: volta }));
+        setFila((f) => f.filter((k) => k !== c.chave));
+      }
+    });
   }
 
   const algumaDecididaNaRodada = feitas > 0;

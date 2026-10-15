@@ -21,9 +21,11 @@ import { economiaAnual, resumoDasEscolhas, valorFuturo, type EscolhaDoRaioX, typ
  * - "Manter": o item desce para "Você decidiu manter", recolhido.
  * - Hábito (o iFood de toda semana) não se cancela: corta pela metade.
  * - Terminou todos: "Pronto. R$ X por ano a menos".
- * A escolha é salva na hora (a mesma decisão que o Resumo e o fechamento leem).
+ * A escolha é salva na hora e vale em todo lugar (lib/assinaturas, 15/10/2026): "Cancelar" aqui é
+ * "Não uso" no Dinheiro perdido e o selo "Para cancelar" em Recorrentes; o Desfazer volta à
+ * resposta de antes, de qualquer tela.
  */
-export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Record<string, EscolhaDoRaioX> }) {
+export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[]; decididos: Record<string, EscolhaDoRaioX>; canceladas?: string[] }) {
   const { voz } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
@@ -32,15 +34,19 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
   const { showToast, showError } = useToast();
   const [escolhas, setEscolhas] = useState<Record<string, EscolhaDoRaioX | undefined>>(decididos);
   const [lembrar, setLembrar] = useState(false);
+  // "Cancelada" é o "Cancelei mesmo"; qualquer resposta nova aqui troca o selo.
+  const [canceladasAqui, setCanceladas] = useState(() => new Set(canceladas));
+  const tirarCancelada = (chave: string) => setCanceladas((c) => (c.has(chave) ? new Set([...c].filter((x) => x !== chave)) : c));
   const [, iniciar] = useTransition();
   const r = resumoDasEscolhas(itens, escolhas);
   const totalMensal = itens.reduce((s, i) => s + i.mensal, 0);
 
   const decidir = (item: RaioXItem, decisao: EscolhaDoRaioX) => {
     setEscolhas((e) => ({ ...e, [item.chave]: decisao }));
+    tirarCancelada(item.chave);
     iniciar(async () => {
       try {
-        await decidirRaioXAction({ chave: item.chave, nome: item.nome, decisao, economiaAnual: economiaAnual(item, decisao) });
+        await decidirRaioXAction({ chave: item.chave, nome: item.nome, decisao, economiaAnual: economiaAnual(item, decisao), descricao: item.descricao });
       } catch {
         setEscolhas((e) => ({ ...e, [item.chave]: undefined }));
         showError("Não salvou. Tente de novo.");
@@ -50,9 +56,12 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
   const desfazer = (item: RaioXItem) => {
     const antes = escolhas[item.chave];
     setEscolhas((e) => ({ ...e, [item.chave]: undefined }));
+    tirarCancelada(item.chave);
     iniciar(async () => {
       try {
-        await desfazerRaioXAction(item.chave);
+        // Volta à resposta de antes (pode ser a de outra tela, como o "Uso" do Dinheiro perdido).
+        const { escolha } = await desfazerRaioXAction(item.chave, item.nome);
+        setEscolhas((e) => ({ ...e, [item.chave]: escolha ?? undefined }));
       } catch {
         setEscolhas((e) => ({ ...e, [item.chave]: antes }));
         showError("Não salvou. Tente de novo.");
@@ -70,7 +79,7 @@ export function RaioX({ itens, decididos }: { itens: RaioXItem[]; decididos: Rec
           <p className={`truncate text-[15px] font-semibold ${estado === "cortado" ? "text-ink-muted line-through decoration-1" : "text-ink"}`}>{item.nome}</p>
           {estado ? (
             <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${estado === "cortado" ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}>
-              {estado === "mantido" ? "Mantido" : e === "raiox_metade" ? "Vou cortar pela metade" : "Vou cancelar"}
+              {estado === "mantido" ? "Mantido" : e === "raiox_metade" ? "Vou cortar pela metade" : canceladasAqui.has(item.chave) ? "Cancelada" : "Vou cancelar"}
             </span>
           ) : (
             <p className="text-caption tabular-nums text-ink-muted">

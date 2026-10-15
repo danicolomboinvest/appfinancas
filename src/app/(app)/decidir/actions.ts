@@ -8,6 +8,8 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { registrarDecisaoUnica } from "@/lib/repositories/decisao.repo";
 import { chaveDaSemana } from "@/app/(app)/mensal/foco/ritmo";
 import { ehEmpresa } from "@/lib/profiles/empresa";
+import { desfazerAssinatura, revalidarAssinaturas } from "@/lib/assinaturas/respostas";
+import { noRaioX } from "@/lib/assinaturas/regra";
 
 /**
  * As respostas da pilha do Decidir (rodadas 38 e 49) que ainda não tinham uma ação pronta, e o
@@ -151,12 +153,16 @@ export async function apagarAporteDaPilhaAction(entryId: string) {
   revalidarDecisoes();
 }
 
-/** Desfazer no Raio-X: o gasto volta para os abertos. */
-export async function desfazerRaioXAction(chave: string) {
+/**
+ * Desfazer no Raio-X: a última resposta sobre a assinatura sai (lib/assinaturas) e ela volta ao
+ * estado de antes, em todo lugar. Devolve a escolha que o Raio-X mostra agora (null = aberto).
+ */
+export async function desfazerRaioXAction(chave: string, nome?: string): Promise<{ escolha: "raiox_manter" | "raiox_cancelar" | null }> {
   const k = z.string().min(1).max(200).parse(chave);
   const ctx = await getRequiredSession();
-  await prisma.decisao.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, chave: k, tipo: { in: ["raiox_cancelar", "raiox_metade", "raiox_manter"] } } });
-  revalidatePath("/decidir/raio-x");
-  revalidatePath("/decidir");
-  revalidatePath("/mensal/foco");
+  // O "Cortar pela metade" (hábito) não é resposta sobre assinatura: sai daqui mesmo.
+  await prisma.decisao.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, chave: k, tipo: "raiox_metade" } });
+  const estado = await desfazerAssinatura(ctx, { raiox: k, nome: nome ? z.string().max(80).parse(nome) : null });
+  revalidarAssinaturas();
+  return { escolha: noRaioX(estado).escolha };
 }

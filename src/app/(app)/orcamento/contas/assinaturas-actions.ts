@@ -4,13 +4,20 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
-import type { ComercianteParaEscolher } from "@/lib/contas/assinaturas";
-import { adicionarDosLancamentos, desfazerRecusaDeAssinatura, escreverAssinatura, listarParaEscolher, recusarAssinatura, removerAssinatura, sugerirCategoria } from "@/lib/repositories/assinaturas.repo";
+import { chaveDoComercianteDe, type ComercianteParaEscolher } from "@/lib/contas/assinaturas";
+import { adicionarDosLancamentos, escreverAssinatura, listarAssinaturasDela, listarParaEscolher, removerAssinatura, sugerirCategoria } from "@/lib/repositories/assinaturas.repo";
+import { desfazerAssinatura, responderAssinatura, revalidarAssinaturas } from "@/lib/assinaturas/respostas";
 
+/**
+ * Toda resposta sobre assinatura aqui passa pela regra única (lib/assinaturas, 15/10/2026): o
+ * "+ Adicionar", o "Não é assinatura" e o "Remover" valem também no Raio-X e no Dinheiro perdido.
+ */
 function revalidar() {
   revalidatePath("/orcamento", "layout");
-  revalidatePath("/mensal/foco");
+  revalidarAssinaturas();
 }
+
+const marcasSchema = z.array(z.string().min(3).max(120)).max(12);
 
 /** "Escolher dos meus lançamentos": um item por comerciante, dos últimos 3 meses. */
 export async function listarParaEscolherAction(): Promise<ComercianteParaEscolher[]> {
@@ -24,6 +31,7 @@ export async function adicionarDosLancamentosAction(chave: string): Promise<{ ok
   const ctx = await getRequiredSession();
   const r = await adicionarDosLancamentos(ctx, c.data, hojeEmBrasilia());
   if (!r) return { ok: false };
+  await responderAssinatura(ctx, { comerciante: c.data, nome: r.nome }, "lista_adicionar");
   revalidar();
   return { ok: true, nome: r.nome };
 }
@@ -43,6 +51,11 @@ export async function escreverAssinaturaAction(input: z.input<typeof escritaSche
   const { id, ...d } = r.data;
   const feito = await escreverAssinatura(ctx, d, hojeEmBrasilia(), id);
   if (!feito) return { ok: false, erro: "Não achei essa assinatura." };
+  // Escrever uma nova é dizer "isto é assinatura" (editar a que já está na lista não muda nada).
+  if (!id) {
+    const salva = (await listarAssinaturasDela(ctx)).find((a) => a.id === feito.id);
+    await responderAssinatura(ctx, { comerciante: salva?.chaveDoHistorico ?? chaveDoComercianteDe(d.nome), nome: d.nome }, "lista_adicionar");
+  }
   revalidar();
   return { ok: true };
 }
@@ -57,20 +70,28 @@ export async function sugerirCategoriaAction(nome: string): Promise<string | nul
 
 export async function removerAssinaturaAction(id: string): Promise<void> {
   const ctx = await getRequiredSession();
-  await removerAssinatura(ctx, z.string().min(1).parse(id));
+  const i = z.string().min(1).parse(id);
+  const antes = (await listarAssinaturasDela(ctx)).find((a) => a.id === i);
+  if (await removerAssinatura(ctx, i)) {
+    if (antes) await responderAssinatura(ctx, { comerciante: antes.chaveDoHistorico, nome: antes.nome }, "lista_remover");
+  }
   revalidar();
 }
 
-/** "Não é assinatura" numa achada sozinha: some para sempre. */
-export async function naoEAssinaturaAction(nome: string): Promise<void> {
+const naoESchema = z.object({ nome: z.string().trim().min(1).max(80), marcas: marcasSchema.optional() });
+
+/** "Não é assinatura" numa achada sozinha: sai da lista, do Raio-X e das cartas de assinatura. */
+export async function naoEAssinaturaAction(input: z.input<typeof naoESchema>): Promise<void> {
+  const d = naoESchema.parse(input);
   const ctx = await getRequiredSession();
-  await recusarAssinatura(ctx, z.string().trim().min(1).max(80).parse(nome));
+  await responderAssinatura(ctx, { nome: d.nome, marcas: d.marcas }, "lista_nao_e");
   revalidar();
 }
 
-/** Desfazer o "Não é assinatura": ela volta para a lista. */
-export async function desfazerNaoEAssinaturaAction(nome: string): Promise<void> {
+/** Desfazer o "Não é assinatura": volta a resposta de antes (de qualquer tela), em todo lugar. */
+export async function desfazerNaoEAssinaturaAction(input: z.input<typeof naoESchema>): Promise<void> {
+  const d = naoESchema.parse(input);
   const ctx = await getRequiredSession();
-  await desfazerRecusaDeAssinatura(ctx, z.string().trim().min(1).max(80).parse(nome));
+  await desfazerAssinatura(ctx, { nome: d.nome, marcas: d.marcas });
   revalidar();
 }

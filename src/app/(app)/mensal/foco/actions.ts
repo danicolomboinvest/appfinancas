@@ -14,6 +14,8 @@ import { carregarViradaDoAno } from "./ano/dados";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { MESES } from "./dados";
 import { chaveRaioX } from "@/lib/decisoes/raio-x";
+import { responderAssinatura, revalidarAssinaturas } from "@/lib/assinaturas/respostas";
+import { chaveDoComercianteDe } from "@/lib/contas/assinaturas";
 import { contasFixasQueFaltam } from "@/lib/decisoes/virada-ano";
 import { acharCompraDoEstorno, classificarAntigo, type TipoRevisao } from "@/lib/decisoes/revisao-antigos";
 import { classify, type LearnedRule } from "@/lib/import/classify";
@@ -267,19 +269,28 @@ const raioxSchema = z.object({
   nome: z.string().max(80),
   decisao: z.enum(["raiox_cancelar", "raiox_metade", "raiox_manter"]),
   economiaAnual: z.number().min(0).max(10_000_000),
+  /** A descrição da cobrança (RaioXItem.descricao): dá o comerciante, a marca das outras telas. */
+  descricao: z.string().max(300).optional(),
 });
 
-/** Uma decisão do Raio-X por gasto recorrente: mudar de ideia substitui a anterior. */
+/**
+ * Uma decisão do Raio-X por gasto recorrente: mudar de ideia substitui a anterior. "Cancelar" e
+ * "Manter" são respostas sobre a assinatura e passam pela regra única (lib/assinaturas): valem
+ * também em Recorrentes e no Dinheiro perdido. "Cortar pela metade" é do hábito, fica só aqui.
+ */
 export async function decidirRaioXAction(input: z.infer<typeof raioxSchema>) {
   const d = raioxSchema.parse(input);
   const ctx = await getRequiredSession();
-  await registrarDecisaoUnica(
-    ctx,
-    { tipo: d.decisao, chave: d.chave, valor: d.economiaAnual, descricao: d.nome },
-    ["raiox_cancelar", "raiox_metade", "raiox_manter"],
-  );
-  revalidatePath("/decidir/raio-x");
-  revalidatePath("/mensal/foco");
+  if (d.decisao === "raiox_metade") {
+    await registrarDecisaoUnica(ctx, { tipo: d.decisao, chave: d.chave, valor: d.economiaAnual, descricao: d.nome }, ["raiox_cancelar", "raiox_metade", "raiox_manter"]);
+  } else {
+    await responderAssinatura(
+      ctx,
+      { raiox: d.chave, nome: d.nome, comerciante: d.descricao ? chaveDoComercianteDe(d.descricao) : null, valorRaioX: d.economiaAnual },
+      d.decisao === "raiox_manter" ? "raiox_manter" : "raiox_cancelar",
+    );
+  }
+  revalidarAssinaturas();
 }
 
 /** Casal: a renda deste perfil é a do casal inteira, ou só o que cada um põe na conta conjunta? */
@@ -318,11 +329,13 @@ export async function confirmarCancelamentoRaioXAction(chave: string, cancelou: 
       .map((e) => e.id);
     if (apagar.length > 0) await prisma.monthlyEntry.deleteMany({ where: { id: { in: apagar }, userId: ctx.userId, profileId: ctx.profileId } });
     await registrarDecisaoUnica(ctx, { tipo: "raiox_confirmacao", chave: `${k}|sim`, descricao: `${apagar.length} cobranças futuras removidas` });
+    // "Cancelei mesmo": a assinatura está cancelada em todo lugar (lib/assinaturas).
+    await responderAssinatura(ctx, { raiox: k }, "raiox_cancelei");
   } else {
     await registrarDecisaoUnica(ctx, { tipo: "raiox_confirmacao", chave: `${k}|nao|${ano}-${String(mes).padStart(2, "0")}` });
   }
   revalidatePath("/mensal", "layout");
-  revalidatePath("/decidir/raio-x");
+  revalidarAssinaturas();
 }
 
 /**

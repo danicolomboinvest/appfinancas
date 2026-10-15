@@ -11,12 +11,14 @@ import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
-import { contarGastosReaisDoMes, getUltimoGastoAte, listEntriesForMonths, somarGastosPreCriados } from "@/lib/repositories/monthly-entry.repo";
+import { contarGastosReaisDoMes, getUltimoGastoAte, somarGastosPreCriados } from "@/lib/repositories/monthly-entry.repo";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { prisma } from "@/lib/db/prisma";
 import { contarParaRevisar } from "./revisar/dados";
 import { lerFechamento } from "@/lib/repositories/fechamento.repo";
-import { existeDecisao, lerDecisao, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarDecisoesRaioX, listarTetosDoMes } from "@/lib/repositories/decisao.repo";
+import { existeDecisao, lerDecisao, listarCancelamentosPraConfirmar, listarCompraAmanhaPendentes, listarTetosDoMes, type TipoDecisao } from "@/lib/repositories/decisao.repo";
+import { carregarRespostasDeAssinatura, estadoPara, itensDoRaioX } from "@/lib/assinaturas/respostas";
+import { raioXComARegraUnica } from "@/lib/assinaturas/regra";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { gastoDepoisDoCombinado, montarFoco } from "@/lib/decisoes/foco";
@@ -29,7 +31,6 @@ import { listarLancamentosParcelaveis } from "@/lib/repositories/monthly-entry.r
 import { ehDoAno, pagaNoMes } from "@/lib/contas/recorrentes";
 import { ehDoCartao } from "@/lib/cartao/limite";
 import { doDono } from "@/lib/auth/session";
-import { acharRecorrentes } from "@/lib/decisoes/raio-x";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
 import { carregarRespostasDoMes } from "@/lib/avisos/respostas";
 
@@ -38,30 +39,15 @@ const DIA_MS = 86_400_000;
 /** Quantos gastos a lista de um aviso tem ao todo, e quanto somam (ela mostra só os maiores). */
 export type ResumoDaLista = { n: number; total: number };
 
-/** Os últimos N meses antes do atual (pra achar o que se repete). */
-function mesesAnteriores(ano: number, mes: number, n: number) {
-  return Array.from({ length: n }, (_, i) => {
-    const d = new Date(ano, mes - 2 - i, 1);
-    return { year: d.getFullYear(), month: d.getMonth() + 1 };
-  });
-}
-
 /**
- * Tudo que o Raio-X precisa: os gastos recorrentes e o que a pessoa já decidiu sobre cada um.
- * Só meses fechados: o mês corrente pela metade puxaria a média dos hábitos pra baixo.
+ * Tudo que o Raio-X precisa: as assinaturas que se repetem e o estado de cada uma pela regra única
+ * (lib/assinaturas): a última resposta dela, em qualquer tela (Raio-X, Recorrentes, Dinheiro
+ * perdido), vale aqui. A que ela disse que não é assinatura não aparece.
  */
 export async function carregarRaioX(ctx: AuthContext, ano: number, mes: number) {
-  const meses = mesesAnteriores(ano, mes, 5);
-  const [entradas, decididos] = await Promise.all([listEntriesForMonths(ctx, meses), listarDecisoesRaioX(ctx)]);
-  const itens = acharRecorrentes(
-    entradas
-      .filter((e) => e.category === "EXPENSE")
-      .map((e) => ({ description: e.description, amount: Number(e.amount), year: e.year, month: e.month, parentCategory: e.parentCategory, subcategory: e.subcategory })),
-  );
-  // Só as assinaturas (protótipo, "Que pequenos gastos posso cortar?": Netflix, Spotify, iCloud).
-  // Uber e iFood são hábitos de vários valores, não uma cobrança fixa para cancelar, e somados
-  // inflavam o "por ano" do Decidir (auditoria de 11/10/2026).
-  return { itens: itens.filter((i) => i.tipo === "assinatura"), decididos };
+  const [todos, respostas] = await Promise.all([itensDoRaioX(ctx, ano, mes), carregarRespostasDeAssinatura(ctx)]);
+  const r = raioXComARegraUnica(todos, (marcas) => estadoPara(respostas, marcas));
+  return { itens: r.itens, decididos: r.decididos as Map<string, { tipo: TipoDecisao; valor: number }>, canceladas: r.canceladas };
 }
 
 /**

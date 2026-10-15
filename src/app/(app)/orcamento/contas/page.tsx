@@ -30,7 +30,9 @@ import { EntradaDoDinheiroPerdido } from "./perdido/Entrada";
 import { AvisoDasContas } from "./AvisoDasContas";
 import { listarContasNovasDoHistorico, sincronizarContasDoHistorico } from "@/lib/repositories/contas-do-historico.repo";
 import { juntarAssinaturas } from "@/lib/contas/assinaturas";
-import { gastosDoMesParaAssinaturas, listarAssinaturasDela, listarRecusasDeAssinatura } from "@/lib/repositories/assinaturas.repo";
+import { gastosDoMesParaAssinaturas, listarAssinaturasDela } from "@/lib/repositories/assinaturas.repo";
+import { carregarRespostasDeAssinatura, estadoPara } from "@/lib/assinaturas/respostas";
+import { assinaturasComARegraUnica } from "@/lib/assinaturas/regra";
 import { categoryLabel } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { Assinaturas } from "./Assinaturas";
@@ -77,7 +79,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas] = await Promise.all([
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, respostas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -90,7 +92,8 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     empresa ? Promise.resolve(null) : carregarDinheiroPerdido(ctx),
     listarContasNovasDoHistorico(ctx),
     listarAssinaturasDela(ctx),
-    listarRecusasDeAssinatura(ctx),
+    // A regra única das assinaturas (lib/assinaturas): a última resposta, em qualquer tela.
+    carregarRespostasDeAssinatura(ctx),
     gastosDoMesParaAssinaturas(ctx, ano, mes),
     getRendaMedia(ctx),
     listarLancamentosParcelaveis(ctx, { year: ano, month: mes }),
@@ -116,18 +119,25 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     naoParcelas,
   );
   // Assinaturas: as dela primeiro; as achadas (Raio-X e Dinheiro perdido, que acha o ManyChat que o
-  // Raio-X chama de "hábito") entram sem repetir pelo nome, sem a que virou conta (a academia) e
-  // sem a que ela disse "Não é assinatura".
-  const assinaturas = juntarAssinaturas({
-    dela,
-    achadas: [
-      ...raiox.itens.filter((i) => i.tipo === "assinatura").map((i) => ({ chave: `rx:${i.chave}`, nome: i.nome, mensal: i.mensal })),
-      ...(perdido?.vivos ?? []).filter((a) => a.tipo === "assinatura" && a.mensal).map((a) => ({ chave: `dp:${a.chave}`, nome: a.nome, mensal: a.mensal as number, comerciante: a.comerciante.split("#")[0] })),
-    ],
-    contas: abertas,
-    recusas,
-    lancamentosDoMes: gastosDoMes,
-  });
+  // Raio-X chama de "hábito") entram sem repetir pelo nome e sem a que virou conta (a academia).
+  // O que ela respondeu sobre cada uma, em qualquer tela, decide se aparece (regra única,
+  // lib/assinaturas): a que não é assinatura e a cancelada saem; a que ela vai cancelar fica com o
+  // selo. O Raio-X já vem sem as que ela disse que não são assinatura.
+  const vivosDeAssinatura = (perdido?.vivos ?? []).filter((a) => a.tipo === "assinatura" && a.mensal);
+  const assinaturas = assinaturasComARegraUnica(
+    juntarAssinaturas({
+      dela,
+      achadas: [
+        ...raiox.itens.filter((i) => i.tipo === "assinatura").map((i) => ({ chave: `rx:${i.chave}`, nome: i.nome, mensal: i.mensal })),
+        ...vivosDeAssinatura.map((a) => ({ chave: `dp:${a.chave}`, nome: a.nome, mensal: a.mensal as number, comerciante: a.comerciante.split("#")[0] })),
+      ],
+      contas: abertas,
+      recusas: new Set(),
+      lancamentosDoMes: gastosDoMes,
+    }),
+    { dela, raiox: raiox.itens, achados: vivosDeAssinatura },
+    (marcas) => estadoPara(respostas, marcas),
+  );
   const rotulos = Object.fromEntries((["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS"] as ParentCategory[]).map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
   const planejado = plano.reduce((s, b) => s + Number(b.plannedAmount), 0);
