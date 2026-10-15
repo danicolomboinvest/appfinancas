@@ -1042,8 +1042,7 @@ async function marcarPagueiNoExtrato(ctx: AuthContext, items: ReviewItem[], cont
   const perfis = [...new Set(items.map((it) => it.profileId ?? ctx.profileId))];
   const pagueis = await prisma.monthlyEntry.findMany({
     where: {
-      userId: ctx.userId,
-      profileId: { in: perfis },
+      userId: ctx.userId, profileId: { in: perfis },
       importBatchId: null,
       contaAPagarId: { not: null },
       category: "EXPENSE",
@@ -1745,8 +1744,7 @@ export async function importTransactionsAction(
     await prisma.$transaction([
       prisma.monthlyEntry.create({
         data: {
-          userId: ctx.userId,
-          profileId,
+          userId: ctx.userId, profileId,
           year: ym.year,
           month: ym.month,
           category: "EXPENSE",
