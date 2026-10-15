@@ -85,10 +85,14 @@ function vencimentoNaLinhaDeBaixo(texto: string): string | null {
  */
 function vencimentoSemAno(texto: string): string | null {
   const t = semAcento(texto);
-  const m = t.match(new RegExp(String.raw`${ROTULO}(\d{1,2})\/(\d{1,2})(?![\d/])`, "i"));
+  // Planilha da fatura do BTG: "Vencimento;;17/06" (o rótulo e a data em células vizinhas).
+  const m = t.match(new RegExp(String.raw`${ROTULO}[;\t]*(\d{1,2})\/(\d{1,2})(?![\d/])`, "i"));
   if (!m) return null;
   const mes = Number(m[2]);
-  const daFatura = t.match(/\bfatura\s+de\s+([a-z]+)\s+de\s+(\d{4})\b/i);
+  // "fatura de Junho de 2026" (PDF) ou "Fatura Cartão de Crédito;;;;;Junho/2026" (planilha).
+  const daFatura =
+    t.match(/\bfatura\s+de\s+([a-z]+)\s+de\s+(\d{4})\b/i) ??
+    (/^fatura\b/im.test(t) ? t.match(/(?:^|[;\t])\s*([a-z]+)\/(\d{4})\s*(?:[;\t]|$)/im) : null);
   if (daFatura && MESES_LONGOS[daFatura[1].toLowerCase()]) {
     // A fatura de dezembro vence em janeiro do ano seguinte.
     const ano = Number(daFatura[2]) + (mes < MESES_LONGOS[daFatura[1].toLowerCase()] - 1 ? 1 : 0);

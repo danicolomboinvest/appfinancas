@@ -188,6 +188,11 @@ function detectInstitution(text: string): string | null {
   // O extrato do BB não diz "Banco do Brasil" em lugar nenhum, só "BB Rende Fácil"; um boleto
   // pago ao "BANCO C6 S.A." fazia a tela chamar o arquivo de C6.
   if (isBancoDoBrasilStatement(text)) return "Banco do Brasil";
+  // Arquivos que não escrevem o nome do banco: o molde diz. A planilha da fatura do BTG só cita
+  // bancos nas compras ("Mercado Pago (2/6)" fazia a tela dizer Mercado Pago), e o CSV do Noh
+  // (conta do casal) idem.
+  if (/^Fatura Cart[ãa]o de Cr[ée]dito;/i.test(text) && /C[óo]digo de autoriza[çc][ãa]o;Final Cart[ãa]o/i.test(text)) return "BTG Pactual";
+  if (/^Data,Iniciador,M[ée]todo,Descri[çc][ãa]o,Valor,Tipo\s*$/im.test(text.slice(0, 300))) return "Noh";
   const head = text.slice(0, 2500);
   let best: { name: string; score: number } | null = null;
   for (const [re, name] of INSTITUTIONS) {
@@ -316,6 +321,16 @@ export function profileDocument(text: string, fileName?: string | null): DocProf
   if (/extrato de cust[óo]dia/i.test(text) && /posi[çc][ãa]o consolidada/i.test(text)) {
     kind = "position";
     reason = "extrato de custódia (saldo dos investimentos)";
+  }
+
+  // Extrato das caixinhas do Nubank ("Extrato de Rendimentos", aplicação, resgate, rendimento):
+  // é o vaivém DENTRO do banco. Lido como extrato da conta, cada resgate virava gasto (dezenas de
+  // milhares de reais de "saídas" num trimestre).
+  if (/extrato de rendimentos/i.test(text) && /caixinhas/i.test(text) && /compra por\s+aplica[çc][ãa]o|resgate/i.test(text)) {
+    kind = "position";
+    reason = "extrato das caixinhas (aplicações e resgates)";
+    const i = contents.indexOf("movements");
+    if (i >= 0) contents.splice(i, 1);
   }
 
   // Relatório mensal do Safra: posição sem código de ativo, e "vencimento" em todo canto (do CDB,

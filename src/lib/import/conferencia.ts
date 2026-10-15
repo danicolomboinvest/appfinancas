@@ -22,11 +22,12 @@ export type Conferencia =
   | { status: "nao-fechou"; lido: number; esperado: number }
   | { status: "sem-referencia" };
 
-const VALOR = String.raw`(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})`;
+// O (?!\d) impede ler "R$ 30,178.46" (planilha com vírgula de milhar) como R$ 30,17.
+const VALOR = String.raw`(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)`;
 
 const TOTAL_EM_REAL = new RegExp(String.raw`total\s+da\s+fatura\s+em\s+real[\s.]*${VALOR}`, "i");
 
-const TOTAL_DE_COMPRAS_NUBANK = new RegExp(String.raw`total\s+de\s+compras[^\n]*?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})`, "i");
+const TOTAL_DE_COMPRAS_NUBANK = new RegExp(String.raw`total\s+de\s+compras[^\n]*?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)`, "i");
 
 /** Totais de COMPRAS que as faturas imprimem, além do total a pagar (que mistura saldo anterior e pagamento). */
 const TOTAIS_DE_COMPRAS: RegExp[] = [
