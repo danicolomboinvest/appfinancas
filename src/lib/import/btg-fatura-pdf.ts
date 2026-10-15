@@ -42,6 +42,10 @@ export function parseBtgInvoice(texto: string, refYear: number = new Date().getF
   const fatura = texto.match(FATURA_DE_RE);
   const mesFatura = fatura ? NOMES_DOS_MESES.indexOf(fatura[1].toLowerCase()) + 1 || null : null;
   const anoFatura = fatura ? Number(fatura[2]) : refYear;
+  // Compra de depois do vencimento é do ano anterior: "Loja (12/12) 18 Ago" na fatura que vence
+  // em 17/08/2026 foi comprada em 18/08/2025 (antes entrava em 2026, um dia depois do vencimento).
+  const venc = texto.match(/^Vencimento:\s*(\d{2})\/(\d{2})\b/m);
+  const limite = venc && mesFatura !== null && Number(venc[2]) === mesFatura ? `${String(mesFatura).padStart(2, "0")}-${venc[1]}` : null;
   const out: ParsedTransaction[] = [];
   // Compras em outra moeda esperando o valor em real, e todos os números soltos ("R$ 5,27",
   // "R$ 190,07", subtotais) na ordem em que aparecem. A cotação e o valor em real de uma compra
@@ -66,7 +70,8 @@ export function parseBtgInvoice(texto: string, refYear: number = new Date().getF
       if (/^Pagamento de fatura\b/i.test(descricao.trim())) continue;
       const mm = MESES[mesNome.toLowerCase()];
       // Parcela comprada no ano anterior ("Cativa (10/12) 18 Ago" na fatura de junho).
-      const ano = mesFatura !== null && Number(mm) > mesFatura ? anoFatura - 1 : anoFatura;
+      const anoAnterior = limite ? `${mm}-${dd}` > limite : mesFatura !== null && Number(mm) > mesFatura;
+      const ano = anoAnterior ? anoFatura - 1 : anoFatura;
       const sinal = menos ? -1 : 1;
       const valor = parseBrazilianNumber(valorTxt);
       const txn: ParsedTransaction = { date: `${ano}-${mm}-${dd}`, description: descricao.trim(), amount: sinal * valor };

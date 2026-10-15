@@ -75,6 +75,63 @@ describe("fatura do cartão BTG Pactual / EQI (PDF)", () => {
   });
 });
 
+describe("fatura BTG: moeda estrangeira com a conversão fora do lugar", () => {
+  // Layout de quando a página vira: a conversão da compra em dólar vai para o topo da página
+  // seguinte, depois de outras compras em dólar. E o subtotal do cartão aparece antes da cotação.
+  const VIRADA = [
+    "Fulana Exemplo | fatura de Agosto de 2026 | cartão final 0000",
+    "Vencimento: 17/08",
+    "Lançamentos do cartão virtual | Fulana Exemplo | Final 1111 Total do cartão: R$ 1.000,00",
+    "Total de créditos recebidos",
+    "EUR 10,00\tLocadora Exemplo\t01 Ago",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 6,20",
+    "-R$ 62,00",
+    "-R$ 62,00",
+    "Total de compras e despesas",
+    "R$ 100,00\tLoja Exemplo (12/12)\t18 Ago",
+    "US$ 20,00\tServiço Exemplo A\t01 Ago",
+    "R$ 300,00",
+    "US$ 100,00\tServiço Exemplo B\t30 Jul",
+    "R$ 50,00\tMercado Exemplo\t01 Ago",
+    "US$ 5,00\tServiço Exemplo C\t06 Ago",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,50",
+    "R$ 27,50",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,40",
+    "R$ 108,00",
+    "-- 3 of 4 --",
+    "Cotação da moeda -",
+    "Conversão para Real -",
+    "R$ 5,48",
+    "R$ 548,00",
+    "BTG Pactual S.A",
+  ].join("\n");
+
+  it("cada compra fica com a conversão cuja conta fecha, e o subtotal não vira cotação", () => {
+    const txns = parseBtgInvoice(VIRADA, 2026);
+    const porNome = Object.fromEntries(txns.map((t) => [t.description, t.amount]));
+    expect(porNome["Serviço Exemplo A"]).toBe(108);
+    expect(porNome["Serviço Exemplo B"]).toBe(548);
+    expect(porNome["Serviço Exemplo C"]).toBe(27.5);
+  });
+
+  it("estorno em outra moeda sai negativo mesmo com o '-' só no valor em real", () => {
+    const txns = parseBtgInvoice(VIRADA, 2026);
+    expect(txns.find((t) => t.description === "Locadora Exemplo")?.amount).toBe(-62);
+  });
+
+  it("parcela com data depois do vencimento é do ano anterior", () => {
+    const txns = parseBtgInvoice(VIRADA, 2026);
+    expect(txns.find((t) => t.description === "Loja Exemplo (12/12)")?.date).toBe("2025-08-18");
+    expect(txns.find((t) => t.description === "Mercado Exemplo")?.date).toBe("2026-08-01");
+  });
+});
+
 describe("fatura BTG/EQI: conversão em outra moeda fora do lugar", () => {
   // Layout da quebra de página: a compra em dólar fica numa página e o bloco "Cotação / Conversão"
   // dela desce para depois do cabeçalho da página seguinte, DEPOIS da conversão de outra compra.
