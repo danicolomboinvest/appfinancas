@@ -11,6 +11,7 @@ import { descricaoComparavel, installmentDescription, mesmaParcela, parseInstall
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { MOTIVO_MOVIMENTACAO_B3, profileDocument } from "@/lib/import/profile";
 import { veioDeImagem } from "@/lib/import/ocr-marca";
+import { acharParcelaExistente, controleDeProjecao, type ParcelaDoArquivo } from "@/lib/import/parcela-repetida";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import { conferirLeitura, leituraIncompleta, type Conferencia } from "@/lib/import/conferencia";
@@ -40,7 +41,7 @@ import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { type LearnedRule } from "@/lib/import/classify";
 import { chaveDoComerciante, chaveUtil, ehLojaDeTudo } from "@/lib/import/comerciante";
 import { categoriaDaLinha, type ConfiancaDaCategoria, type MotivoDaCategoria } from "@/lib/import/motor";
-import { pareceEstorno } from "@/lib/import/estorno";
+import { estornoClaroNaFatura, pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
 import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
@@ -526,7 +527,10 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   // "Cuidado pessoal" dela, criada abaixo se faltar (lib/import/cuidado-pessoal.ts).
   const deCuidadoPessoal = new Set<number>();
   const items: ReviewItem[] = parsed.map((txn, index) => {
-    const isExpense = docType === "fatura" ? (comprasSaoPositivas ? txn.amount > 0 : txn.amount < 0) : txn.amount < 0;
+    const sinalDeGasto = docType === "fatura" ? (comprasSaoPositivas ? txn.amount > 0 : txn.amount < 0) : txn.amount < 0;
+    // Fatura que imprime o estorno sem o sinal de crédito ("ESTORNO LOJA 120,00"): o leitor
+    // devolvia como compra e o mês ficava mais caro. Só quando o texto não deixa dúvida.
+    const isExpense = sinalDeGasto && !(docType === "fatura" && estornoClaroNaFatura(txn.description));
     // Estorno: na fatura, todo crédito que não é linha de resumo é dinheiro de compra voltando
     // (antes virava RENDA e inflava o mês); no extrato, a entrada que diz que é estorno.
     const estorno = !isExpense && (docType === "fatura" || pareceEstorno(txn.description));
@@ -903,7 +907,8 @@ async function pagamentosComFaturaNoApp(ctx: AuthContext, items: ConfirmedItem[]
   );
   if (pagamentos.length === 0) return new Set();
   const lancamentosDeFatura = await comprasDeFaturaEmVolta(ctx, pagamentos.map((p) => p.date));
-  return new Set(pagamentos.filter((p) => pagamentoTemFatura(p.date, lancamentosDeFatura)));
+  const outrasDatas = pagamentos.map((p) => p.date);
+  return new Set(pagamentos.filter((p) => pagamentoTemFatura(p.date, lancamentosDeFatura, { valor: p.amount, outrasDatas })));
 }
 
 /**
@@ -912,10 +917,12 @@ async function pagamentosComFaturaNoApp(ctx: AuthContext, items: ConfirmedItem[]
  * oferecido para ela tirar (findCardPaymentCandidates).
  */
 async function tirarPagamentosDaFatura(ctx: AuthContext, mesesDasCompras: { year: number; month: number }[]): Promise<CardPaymentCandidate[]> {
-  // O pagamento vem no mês da compra ou no seguinte (até 30 dias depois dela).
+  // O pagamento vem no mês da compra ou no seguinte (até 30 dias depois dela). No modo antigo
+  // (tudo no mês escolhido, sem dia) ela podia escolher o mês seguinte ao das compras: o
+  // pagamento fica um mês antes (ver pagamentoTemFatura).
   const meses = new Map<string, { year: number; month: number }>();
   for (const m of mesesDasCompras) {
-    for (const d of [0, 1]) {
+    for (const d of [-1, 0, 1]) {
       const v = somarMeses(m, d);
       meses.set(chaveDoMes(v), v);
     }
@@ -967,7 +974,7 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
       } else if (parecePagamentoDeFatura(item.description)) {
         // Com a fatura no app, o pagamento é dinheiro mudando de conta: as compras já contam uma
         // a uma. Sem ela, é o gasto do cartão inteiro numa linha, já separado (não vira pergunta).
-        Object.assign(item, pagamentoDoCartao(item.date, lancamentosDeFatura));
+        Object.assign(item, pagamentoDoCartao(item.date, lancamentosDeFatura, { valor: item.amount, outrasDatas: pagamentos }));
       } else if (pareceContaPropria(item.description, usuario?.name)) {
         item.duvida = "conta_propria";
       }
@@ -1508,22 +1515,20 @@ export async function importTransactionsAction(
    * Primeiro no mês certo; se não achar, a parcela que outra fatura PROJETOU no mês vizinho. É o
    * caso do mês escolhido um mês fora (o seletor começa no mês de hoje): setembro projetou a
    * 04/10 em outubro, a fatura de outubro foi lançada em novembro, e a 04/10 e as seguintes
-   * ficavam todas em dobro. Só projeção no vizinho: parcela que veio de verdade numa fatura
-   * daquele mês é de outra compra igual, não desta.
+   * ficavam todas em dobro. Por último (15/10/2026), a parcela que veio DE VERDADE em outra
+   * fatura no mês vizinho: o modo antigo punha a fatura inteira no mês escolhido e o novo põe a
+   * parcela k no mês da compra + (k - 1), e a mesma parcela entrava de novo um mês ao lado. A
+   * ordem e a regra estão em lib/import/parcela-repetida.ts (acharParcelaExistente).
    */
   const parcelaJaLancada = (k: string, valor: number, total: number): ParcelaExistente | null => {
-    const pegar = (chave: string, aceita: (p: ParcelaExistente) => boolean) => {
-      const existentes = parcelasExistentes.get(chave) ?? [];
-      const i = existentes.findIndex((p) => mesmaParcela(p.valor, valor, total) && aceita(p));
-      return i === -1 ? null : existentes.splice(i, 1)[0];
-    };
     const [profileId, ym, ...resto] = k.split("|");
     const [year, month] = ym.split("/").map(Number);
     const vizinho = (delta: number) => {
+      if (delta === 0) return k;
       const v = shiftMonth(year, month, delta);
       return [profileId, `${v.year}/${v.month}`, ...resto].join("|");
     };
-    return pegar(k, () => true) ?? pegar(vizinho(-1), ehProjecao) ?? pegar(vizinho(1), ehProjecao);
+    return acharParcelaExistente((delta) => parcelasExistentes.get(vizinho(delta)), valor, total, ehProjecao);
   };
   /** Parcela de fatura usa SÓ a comparação por parcela (que já cobre o valor exato); o resto usa
    * a chave exata. Como os dois lados decidem pela mesma descrição, um lançamento do banco nunca
@@ -1566,6 +1571,19 @@ export async function importTransactionsAction(
   for (const [i, casamento] of soltas) if (casamento.tipo === "mesmo") pular.add(i);
 
   /**
+   * A compra de cada linha parcelada do arquivo (15/10/2026): a mesma compra com duas parcelas no
+   * arquivo (a 03/10 e a 04/10) projeta o rabo uma vez só (ver lib/import/parcela-repetida). O mês
+   * da compra sai da data da linha, nos dois modos: no do mês escolhido todas caem no mesmo mês e
+   * a 03/10 e a 04/10 pareceriam compras de meses diferentes.
+   */
+  const parcelaDoArquivo = (item: ConfirmedItem): ParcelaDoArquivo | null => {
+    if (!item.installment?.confident || item.estorno || !(item.amount > 0)) return null;
+    const m = destinoPelaCompra(item)?.mes ?? monthOf(item);
+    return { perfil: profileIdOf(item), descricao: item.description, atual: item.installment.current, total: item.installment.total, valor: item.amount, mes: m.year * 12 + (m.month - 1) };
+  };
+  const projecaoUnica = controleDeProjecao(ehFatura ? items.flatMap((i) => parcelaDoArquivo(i) ?? []) : []);
+
+  /**
    * Compra parcelada: as parcelas que ainda vêm entram nos meses seguintes, no mesmo lote
    * (desfazer o lote leva todas). "03/10" em setembro vira 04/10 em outubro… até 10/10.
    * `confident`: "POSTO SHELL 03/09" é data de compra, não parcela 3 de 9 — sem essa checagem
@@ -1590,7 +1608,10 @@ export async function importTransactionsAction(
     // Loja de tudo (Amazon, Mercado Livre) com a categoria que o app pôs sozinho: as próximas não
     // herdam o palpite, ficam para ela dizer. A que ela escolheu vale para todas.
     const herda = item.learn || !ehLojaDeTudo(item.description);
+    const daCompra = parcelaDoArquivo(item);
     for (let n = current + 1; n <= total; n += 1) {
+      // O arquivo já traz esta parcela, ou outra linha da mesma compra já projetou ela.
+      if (daCompra && !projecaoUnica.projetar(daCompra, n)) continue;
       const offset = n - current;
       const d = new Date(ym.year, ym.month - 1 + offset, 1);
       const mesDaParcela = { year: d.getFullYear(), month: d.getMonth() + 1 };

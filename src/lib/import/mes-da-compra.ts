@@ -292,10 +292,64 @@ export function mesesDaMesmaFaturaAntiga(itens: { valor: number; descricao: stri
 // ---------------------------------------------------------------------------------------------
 // Pagamento da fatura no extrato
 
-export type LancamentoDeFatura = { year: number; month: number; entryDate: string | null; descricao: string | null };
+export type LancamentoDeFatura = {
+  year: number;
+  month: number;
+  entryDate: string | null;
+  descricao: string | null;
+  /** Valor da linha, quando quem chama tem (serve de teto para o mês vizinho, ver pagamentoTemFatura). */
+  valor?: number;
+};
+
+/** O que mais se sabe do pagamento: o valor dele e as datas dos OUTROS pagamentos de fatura dela. */
+export type ContextoDoPagamento = { valor?: number; outrasDatas?: string[] };
 
 /** Compra com dia entre 30 e 8 dias antes do pagamento: é do ciclo que ele paga (ver pagamentoTemFatura). */
 const CICLO_PAGO = { de: 30 * DIA_MS, ate: 8 * DIA_MS };
+
+const ehAVista = (l: LancamentoDeFatura) => !parseInstallment(l.descricao)?.confident;
+const noCicloPago = (pagoEm: number, entryDate: string) => {
+  const antes = pagoEm - instante(entryDate);
+  return antes >= CICLO_PAGO.ate && antes <= CICLO_PAGO.de;
+};
+/** O máximo que as compras de um ciclo explicam: 10% e R$ 10 de folga (IOF, juros, encargos). */
+const tetoDoCiclo = (total: number) => total * 1.1 + 10;
+
+/**
+ * Os meses de fatura SEM dia (modelo antigo) que este pagamento paga. O mês do pagamento, o
+ * vizinho na virada (até 7 dias da troca de mês) e, desde 15/10/2026, o vizinho de qualquer dia:
+ * no modo antigo ela escolhia o mês ("a fatura que vence em setembro é de agosto"), e o
+ * pagamento de 12/09 não achava a fatura gravada em agosto e contava como gasto (77 linhas,
+ * R$ 65,6 mil em 12 contas). O vizinho de qualquer dia só vale quando nenhum outro pagamento de
+ * fatura dela cai naquele mês (senão a fatura de lá já tem o pagamento dela) e, com os valores à
+ * mão, quando o pagamento cabe no total daquele mês.
+ */
+function mesesSemDiaPagos(dataPagamento: string, lancamentos: LancamentoDeFatura[], ctx: ContextoDoPagamento = {}): Set<string> {
+  const pago = mesDaData(dataPagamento);
+  if (!pago) return new Set();
+  const dia = Number(dataPagamento.slice(8, 10));
+  const semDia = lancamentos.filter((l) => !l.entryDate);
+  const comCompraAVista = new Set(semDia.filter(ehAVista).map((l) => chaveDoMes(l)));
+  const naVirada = new Set([chaveDoMes(pago)]);
+  if (dia <= 7) naVirada.add(chaveDoMes(somarMeses(pago, -1)));
+  if (dia >= 24) naVirada.add(chaveDoMes(somarMeses(pago, 1)));
+  const meses = new Set([...naVirada].filter((k) => comCompraAVista.has(k)));
+  const mesesDeOutrosPagamentos = new Set(
+    (ctx.outrasDatas ?? []).filter((d) => d !== dataPagamento).flatMap((d) => {
+      const m = mesDaData(d);
+      return m ? [chaveDoMes(m)] : [];
+    }),
+  );
+  for (const vizinho of [somarMeses(pago, -1), somarMeses(pago, 1)].map(chaveDoMes)) {
+    if (naVirada.has(vizinho) || !comCompraAVista.has(vizinho) || mesesDeOutrosPagamentos.has(vizinho)) continue;
+    const doMes = semDia.filter((l) => chaveDoMes(l) === vizinho);
+    if (ctx.valor !== undefined && doMes.every((l) => l.valor !== undefined)) {
+      if (ctx.valor > tetoDoCiclo(doMes.reduce((s, l) => s + (l.valor ?? 0), 0))) continue;
+    }
+    meses.add(vizinho);
+  }
+  return meses;
+}
 
 /**
  * A fatura que este pagamento paga já está no app? Só compra à vista conta (a parcela projetada
@@ -304,26 +358,16 @@ const CICLO_PAGO = { de: 30 * DIA_MS, ate: 8 * DIA_MS };
  * fechou mais de um mês antes). A última semana antes do pagamento fica de fora: a fatura fecha
  * uns 7 dias antes do vencimento, e a compra desses dias já é da fatura SEGUINTE (14/10/2026: com
  * a fatura de agosto no app, o pagamento de 08/08, que é da fatura de julho, sumia por causa das
- * compras de 1 a 8/08, e agosto ficava R$ 1.815 mais barato do que foi). Sem dia (modelo antigo, tudo no mês do
- * vencimento): o mês do pagamento, ou o vizinho quando ele foi pago na virada (até 7 dias da troca
- * de mês).
+ * compras de 1 a 8/08, e agosto ficava R$ 1.815 mais barato do que foi). Sem dia (modelo antigo,
+ * tudo num mês só): ver mesesSemDiaPagos.
+ *
+ * Pagamento sem nenhuma fatura no app em volta continua sendo gasto: é o cartão inteiro numa linha.
  */
-export function pagamentoTemFatura(dataPagamento: string, lancamentos: LancamentoDeFatura[]): boolean {
-  const pago = mesDaData(dataPagamento);
-  if (!pago) return false;
+export function pagamentoTemFatura(dataPagamento: string, lancamentos: LancamentoDeFatura[], ctx: ContextoDoPagamento = {}): boolean {
+  if (!mesDaData(dataPagamento)) return false;
   const t = instante(dataPagamento);
-  const dia = Number(dataPagamento.slice(8, 10));
-  const meses = new Set([chaveDoMes(pago)]);
-  if (dia <= 7) meses.add(chaveDoMes(somarMeses(pago, -1)));
-  if (dia >= 24) meses.add(chaveDoMes(somarMeses(pago, 1)));
-  return lancamentos.some((l) => {
-    if (parseInstallment(l.descricao)?.confident) return false;
-    if (l.entryDate) {
-      const antes = t - instante(l.entryDate);
-      return antes >= CICLO_PAGO.ate && antes <= CICLO_PAGO.de;
-    }
-    return meses.has(chaveDoMes({ year: l.year, month: l.month }));
-  });
+  if (lancamentos.some((l) => l.entryDate && ehAVista(l) && noCicloPago(t, l.entryDate))) return true;
+  return mesesSemDiaPagos(dataPagamento, lancamentos, ctx).size > 0;
 }
 
 /** Pagamento do cartão no extrato, com a fatura dele já no app: só mudou de conta. */
@@ -342,10 +386,11 @@ export const NOTA_PAGAMENTO_SEM_FATURA =
 export function pagamentoDoCartao(
   dataPagamento: string,
   lancamentosDeFatura: LancamentoDeFatura[],
+  ctx: ContextoDoPagamento = {},
 ):
   | { ignorar: true; nota: string }
   | { parentCategory: "OUTROS"; customCategoryId: null; subcategory: string; autoClassified: true; nota: string } {
-  return pagamentoTemFatura(dataPagamento, lancamentosDeFatura)
+  return pagamentoTemFatura(dataPagamento, lancamentosDeFatura, ctx)
     ? { ignorar: true, nota: NOTA_PAGAMENTO_COM_FATURA }
     : { parentCategory: "OUTROS", customCategoryId: null, subcategory: "Cartão de crédito", autoClassified: true, nota: NOTA_PAGAMENTO_SEM_FATURA };
 }
@@ -359,26 +404,41 @@ export type PagamentoNoApp = { id: string; data: string; valor: number };
  * oferecia "tirar", e o /comecar e o lote de vários arquivos perdiam a oferta: o mês contava a
  * fatura duas vezes ("R$ 4.856 saíram" com R$ 2.976 de verdade, 14/10/2026).
  *
- * No máximo UM por mês de pagamento, o de valor mais perto das compras do ciclo que ele paga: com
- * dois cartões e só uma fatura no app, o pagamento do outro cartão continua sendo gasto (e a tela
- * ainda oferece tirar, quando aparece).
+ * Mais de um pagamento no mesmo mês sai quando as compras do ciclo explicam a soma (15/10/2026):
+ * antes saía no máximo UM por mês, e o pagamento parcelado (dois Pix para a mesma fatura) ou o
+ * segundo cartão com a fatura também no app ficavam como gasto. Em ordem, o de valor mais perto
+ * das compras do ciclo que ele paga sai sempre; os seguintes saem enquanto a soma dos pagamentos
+ * cabe no total das faturas desses ciclos (parcelas inclusive, com 10% e R$ 10 de folga). Com dois
+ * cartões e só uma fatura no app, o pagamento do outro cartão estoura o teto e continua sendo
+ * gasto (e a tela ainda oferece tirar, quando aparece).
  */
 export function pagamentosDaFatura(pagamentos: PagamentoNoApp[], lancamentos: (LancamentoDeFatura & { valor: number })[]): Set<string> {
-  const porMes = new Map<string, { id: string; distancia: number }>();
+  const outrasDatas = pagamentos.map((p) => p.data);
+  const porMes = new Map<string, { id: string; valor: number; distancia: number; ciclo: number[] }[]>();
   for (const p of pagamentos) {
     const mes = mesDaData(p.data);
-    if (!mes || !pagamentoTemFatura(p.data, lancamentos)) continue;
+    if (!mes) continue;
     const t = instante(p.data);
-    const doCiclo = lancamentos.filter((l) => {
-      if (parseInstallment(l.descricao)?.confident) return false;
-      if (!l.entryDate) return l.year === mes.year && l.month === mes.month;
-      const antes = t - instante(l.entryDate);
-      return antes >= CICLO_PAGO.ate && antes <= CICLO_PAGO.de;
-    });
-    const distancia = Math.abs(doCiclo.reduce((s, l) => s + l.valor, 0) - p.valor);
+    const semDia = mesesSemDiaPagos(p.data, lancamentos, { valor: p.valor, outrasDatas });
+    const ciclo = lancamentos.flatMap((l, i) => ((l.entryDate ? noCicloPago(t, l.entryDate) : semDia.has(chaveDoMes(l))) ? [i] : []));
+    const aVista = ciclo.filter((i) => ehAVista(lancamentos[i]));
+    // O mesmo critério de pagamentoTemFatura: sem compra à vista do ciclo, a fatura não está no app.
+    if (aVista.length === 0) continue;
+    const distancia = Math.abs(aVista.reduce((s, i) => s + lancamentos[i].valor, 0) - p.valor);
     const k = chaveDoMes(mes);
-    const atual = porMes.get(k);
-    if (!atual || distancia < atual.distancia) porMes.set(k, { id: p.id, distancia });
+    porMes.set(k, [...(porMes.get(k) ?? []), { id: p.id, valor: p.valor, distancia, ciclo }]);
   }
-  return new Set([...porMes.values()].map((v) => v.id));
+  const ids = new Set<string>();
+  for (const candidatos of porMes.values()) {
+    candidatos.sort((a, b) => a.distancia - b.distancia);
+    const linhas = new Set(candidatos.flatMap((c) => c.ciclo));
+    const teto = tetoDoCiclo([...linhas].reduce((s, i) => s + lancamentos[i].valor, 0));
+    let soma = 0;
+    candidatos.forEach((c, n) => {
+      if (n > 0 && soma + c.valor > teto) return;
+      ids.add(c.id);
+      soma += c.valor;
+    });
+  }
+  return ids;
 }

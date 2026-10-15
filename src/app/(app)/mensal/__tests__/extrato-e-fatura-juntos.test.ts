@@ -245,12 +245,14 @@ describe("extrato e fatura do mesmo mês: o pagamento da fatura não conta duas 
     expect(r.cardPaymentCandidates).toEqual([]);
   });
 
-  it("fatura que fecha em outro mês: o pagamento feito no mês seguinte também aparece pra remover", async () => {
-    // Compras de agosto, fatura escolhida como agosto, paga em 08/09.
+  it("fatura que fecha em outro mês: o pagamento feito no mês seguinte sai sozinho", async () => {
+    // Compras de agosto, fatura escolhida como agosto (modo antigo, sem dia), paga em 08/09.
+    // Antes só aparecia para remover; desde 15/10/2026 o mês vizinho vale (ver pagamentoTemFatura).
     await importar("extrato", extratoSetembro);
     const r = await importar("fatura", ["20/07/2026;MERCADO EXTRA;1500,00", "02/08/2026;FARMACIA;1300,00"], "2026-08");
     if (!r.ok) throw new Error(r.error);
-    expect(r.cardPaymentCandidates.map((c) => c.date)).toEqual(["2026-09-08"]);
+    expect(r.pagamentosTirados?.map((c) => c.date)).toEqual(["2026-09-08"]);
+    expect(r.cardPaymentCandidates).toEqual([]);
   });
 
   // ERA DEFEITO (corrigido em set/2026): o extrato do Banco do Brasil escreve "Pagto cartão crédito" (ver
@@ -487,6 +489,15 @@ describe("parcelas e estornos na fatura", () => {
   it("a fatura lida do arquivo: crédito vira estorno negativo na categoria, e a compra e o estorno se anulam", async () => {
     await importar("fatura", ["01/09/2026;RENNER;199,90", "03/09/2026;RENNER;-199,90", "05/09/2026;PADARIA;20,00"], "2026-09");
     expect(gastouNoMes(2026, 9)).toBe(20);
+  });
+
+  it("estorno impresso SEM o sinal de crédito ('ESTORNO RENNER 199,90') vira estorno, não compra (15/10/2026)", async () => {
+    const linhas = ["01/09/2026;RENNER;199,90", "03/09/2026;ESTORNO RENNER;199,90", "05/09/2026;PADARIA;20,00", "06/09/2026;BAR CANCELADO;30,00"];
+    const items = await ler("fatura", linhas, "2026-09");
+    expect(items.find((i) => i.description === "ESTORNO RENNER")).toMatchObject({ estorno: true, category: "EXPENSE" });
+    expect(items.find((i) => i.description === "BAR CANCELADO")).toMatchObject({ estorno: false });
+    await importar("fatura", linhas, "2026-09");
+    expect(gastouNoMes(2026, 9)).toBe(50);
   });
 
   it("parcela na fatura lida do arquivo ('Parcela 3/6') projeta 4/6..6/6 com o mesmo jeito de escrever", async () => {
