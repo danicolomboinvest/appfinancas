@@ -40,6 +40,7 @@ import { resumoDoMesImportadoAction, type RevelacaoDoImport } from "@/app/(app)/
 import { pegarArquivoParaOMes } from "@/components/shell/registrar-eventos";
 import { OfertaDeAvisos } from "@/components/push/OfertaDeAvisos";
 import { ProtegerSaida } from "./ProtegerSaida";
+import { contextoDaFatura, mesDaCompra } from "@/lib/import/mes-da-compra";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import { FitText } from "@/components/ui/FitText";
 import { Modal } from "@/components/ui/Modal";
@@ -109,7 +110,9 @@ const A_CONFERIR = "A conferir";
 
 function tituloDaTransferencia(it: { description: string; category: string; duvida?: string | null }): string {
   const n = nomeNaTela(it.description);
-  const pix = /pix/i.test(n.meio ?? it.description);
+  // Pelo texto do banco, não pela etiqueta: "Transferência recebida" (TED) não é Pix, e a etiqueta
+  // de nomeNaTela chama toda transferência de "Pix".
+  const pix = /\bpix\b/i.test(it.description);
   const entrada = it.category === "INCOME";
   const como = it.duvida === "resgate" ? (entrada ? "Resgate de" : "Aplicação em") : pix ? (entrada ? "Pix de" : "Pix para") : entrada ? "Transferência de" : "Transferência para";
   return `${como} ${n.nome}${it.duvida === "conta_propria" ? " (conta sua)" : ""}`;
@@ -807,6 +810,12 @@ export function StatementImport({
     for (const it of items) {
       if (it.ignorar || !it.jaNoApp?.faturaAberta) continue;
       confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: it.estorno ?? false, resgate: false, adotar: it.jaNoApp.id });
+    }
+    // A parcela que já estava no mês também vai: a gravação a reconhece (não grava de novo) e
+    // confirma a projeção que a fatura anterior tinha feito, como antes de a tela separá-la.
+    for (const it of items) {
+      if (it.ignorar || !it.jaNoApp?.parcela) continue;
+      confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: false, resgate: false });
     }
     // Compra em dólar do print: só entra a que ela preencheu com o valor em real.
     confirmed.push(...confirmadasDaMoedaDeFora(stats?.semValorEmReal ?? [], reaisDoDolar));
@@ -1577,7 +1586,10 @@ export function StatementImport({
     // "Faltou coisa": a mesma régua do relatório diário (conferencia.ts). Contar linhas sozinho
     // acusava fatura lida perfeita — simulação de parcela e tabela de juros também têm número.
     const lowCoverage = stats?.leituraIncompleta ?? false;
-    const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - expenseSum) * 100) / 100 : 0;
+    // A conferência com o total da fatura é sobre a LEITURA: conta também o que já estava no app
+    // (sem isso, os prints com quase tudo já lançado diziam que faltava quase o total inteiro).
+    const somaDaLeitura = Math.round((items.filter((it) => !it.ignorar && it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0) + doDolar) * 100) / 100;
+    const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - somaDaLeitura) * 100) / 100 : 0;
     // O que o app separou sozinho (regra dela, comunidade, banco ou dicionário): entra classificado,
     // e o "Revisar" mostra só essas linhas, todas, pra ela conferir e trocar o que quiser.
     const listaBase = separadosEmRevisao ? importable.filter((it) => separadosEmRevisao.has(it.key)) : importable;
@@ -1662,8 +1674,17 @@ export function StatementImport({
             sozinho; corrigir fica escondido no "…". */}
         {(() => {
           const entrou = importable.filter((it) => it.category === "INCOME").reduce((s2, it) => s2 + it.amount, 0);
-          const meses = [...new Set(importable.map((it) => it.date.slice(0, 7)))].sort();
-          const mesCurto = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+          // Fatura: o mês em que cada compra CONTA, não a data da compra original da parcela (a
+          // fatura de junho dizia "jul a mai", do julho do ano passado da parcela 12/12 até maio).
+          const contexto = docType === "fatura" ? contextoDaFatura({ vencimento: stats?.vencimento ?? null, fechamento: stats?.fechamento ?? null }, importable.map((it) => it.date)) : null;
+          const mesDoItem = (it: ReviewItem) => {
+            if (!contexto) return it.date.slice(0, 7);
+            const m = mesDaCompra({ date: it.date, description: it.description, installment: it.installment }, contexto).mes;
+            return `${m.year}-${String(m.month).padStart(2, "0")}`;
+          };
+          const meses = [...new Set(importable.map(mesDoItem))].sort();
+          const variosAnos = meses.length > 1 && meses[0].slice(0, 4) !== meses[meses.length - 1].slice(0, 4);
+          const mesCurto = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "") + (variosAnos ? `/${ym.slice(2, 4)}` : "");
           const textoMeses = meses.length === 0 ? "" : meses.length === 1 ? new Date(Number(meses[0].slice(0, 4)), Number(meses[0].slice(5, 7)) - 1, 1).toLocaleDateString("pt-BR", { month: "long" }) : `${mesCurto(meses[0])} a ${mesCurto(meses[meses.length - 1])}`;
           const aberta = stats?.faturaAberta === true;
           const deOnde = aberta ? `Fatura aberta${stats?.banco ? ` ${stats.banco}` : ""}` : stats?.banco ? `${docType === "fatura" ? "Fatura" : "Extrato"} ${stats.banco}` : docType === "fatura" ? "Fatura do cartão" : "Extrato da conta";
@@ -1891,11 +1912,12 @@ export function StatementImport({
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block break-words text-sm font-medium text-ink">{nomeNaTela(it.description).nome}</span>
-                    <span className="block truncate text-caption text-ink-muted">
+                    {/* Sem reticências (regra dela): a etiqueta do porquê desce para a linha de baixo. */}
+                    <span className="block break-words text-caption text-ink-muted">
                       {formatDate(it.date)}, {it.estorno && `${t.impTipoDevolucao}, `}
                       <span className={gastoSemCategoria(it) && !it.duvida ? "font-medium text-accent-strong" : undefined}>{rotuloDaLinha(it)}</span>
                       {/* O porquê (Revisar, caminho B): "investimento", "devolução", "você já disse antes". */}
-                      {porqueDaLinha(it) && <span className="ml-1 rounded-full bg-surface-2 px-1.5 py-px">{porqueDaLinha(it)!.motivo}</span>}
+                      {porqueDaLinha(it) && !porqueDaLinha(it)!.motivo.toLowerCase().startsWith(String(rotuloDaLinha(it)).toLowerCase()) && <span className="ml-1 inline-block rounded-full bg-surface-2 px-1.5 py-px">{porqueDaLinha(it)!.motivo}</span>}
                       {it.profileId && `, ${t.impMoverPra(otherProfiles.find((p) => p.id === it.profileId)?.name ?? "")}`}
                     </span>
                   </span>
