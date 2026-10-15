@@ -60,7 +60,7 @@ export function UsarValorDaGuia({ origem }: { origem: ValorDaGuia["origem"] }) {
             comSimbolo
             max={100_000}
             autoFocus
-            placeholder="R$ 0,00"
+            placeholder="0,00"
             aria-label="Valor da sua guia do MEI, em reais"
             className="w-32 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none"
           />
