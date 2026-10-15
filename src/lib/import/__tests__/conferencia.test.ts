@@ -87,6 +87,24 @@ describe("conferirLeitura: extrato", () => {
   it("sem os dois totais, não inventa referência (saldo muda de nome e sinal a cada banco)", () => {
     expect(conferirLeitura("Saldo anterior 10,00\nSaldo final 20,00", "extrato", [t(10)]).status).toBe("sem-referencia");
   });
+
+  it("'Saidas: R$ 0,00' é total de verdade: conta que só rendeu no período fecha (Mercado Pago)", () => {
+    const texto = "Saldo inicial: R$ 1.000,00 Entradas: R$ 2,50\nSaidas: R$ 0,00\n01-10-2026 Rendimentos 123 R$ 1,25 R$ 1.001,25\n02-10-2026 Rendimentos 124 R$ 1,25 R$ 1.002,50";
+    expect(conferirLeitura(texto, "extrato", [t(1.25, "Rendimentos"), t(1.25, "Rendimentos")]).status).toBe("fechou");
+    expect(conferirLeitura(texto, "extrato", [t(1.25, "Rendimentos")]).status).toBe("nao-fechou");
+  });
+
+  it("sem total impresso, o saldo de cada linha confirma a leitura, e nunca acusa", () => {
+    const texto = [
+      "Data Descrição Valor Saldo",
+      "07/10/26 às 15:42:58 Rendimento automático R$ 0,16 R$ 500,16",
+      "06/10/26 às 10:00:00 Pix enviado para Loja Exemplo -R$ 100,00 R$ 500,00",
+      "05/10/26 às 09:00:00 Pix recebido de Pessoa Exemplo R$ 600,00 R$ 600,00",
+    ].join("\n");
+    const certas = [t(0.16, "Rendimento"), t(-100, "Pix enviado"), t(600, "Pix recebido")];
+    expect(conferirLeitura(texto, "extrato", certas)).toEqual({ status: "fechou", lido: 700.16, esperado: 700.16 });
+    expect(conferirLeitura(texto, "extrato", certas.slice(0, 2)).status).toBe("sem-referencia");
+  });
 });
 
 describe("leituraIncompleta: a régua única", () => {
