@@ -226,6 +226,19 @@ export const CUSTOM_CATEGORY_ICON_MAP: Record<string, LucideIcon> = Object.fromE
 );
 
 /** true se `key` for um dos 7 valores fixos de ParentCategory (em vez do id de uma CustomCategory). */
+/**
+ * A chave do gasto sem categoria, a mesma em todas as telas: o Orçamento e Gastos mostram
+ * "Sem categoria", e o Resumo jogava esse gasto em "Outros" (Outros R$ 530 no Resumo de outubro e
+ * R$ 320 no Orçamento, 15/10/2026).
+ */
+export const CHAVE_SEM_CATEGORIA = "SEM";
+export const NOME_SEM_CATEGORIA = "Sem categoria";
+
+/** A chave de um gasto: a categoria dela, a mãe, ou "SEM". */
+export function chaveDoGasto(g: { customCategoryId: string | null; parentCategory: string | null }): string {
+  return g.customCategoryId ?? g.parentCategory ?? CHAVE_SEM_CATEGORIA;
+}
+
 export function isParentCategoryKey(key: string): key is ParentCategory {
   return (PARENT_CATEGORIES as string[]).includes(key);
 }

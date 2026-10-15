@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { comFiltro, lancamentosDosTotais } from "@/lib/casa/regras";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey } from "@/lib/categories";
+import { CHAVE_SEM_CATEGORIA, NOME_SEM_CATEGORIA, chaveDoGasto, CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey } from "@/lib/categories";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { mesesAte, valoresDosMeses } from "@/lib/consolidation/seis-meses";
 import { sobrouDoMes } from "@/lib/consolidation/sobrou";
@@ -183,10 +183,11 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     if (isParentCategoryKey(chave)) {
       return { chave, nome: categoryLabel(categoriasDoPerfil, chave as ParentCategory), icone: categoryIcon(categoriasDoPerfil, chave as ParentCategory), cor: colorForCategorySlice({ kind: "parent", value: chave }, categoriasDoPerfil) };
     }
+    if (chave === CHAVE_SEM_CATEGORIA) return { chave, nome: NOME_SEM_CATEGORIA, icone: CUSTOM_CATEGORY_ICON_MAP.tag, cor: colorForCategorySlice({ kind: "custom", value: chave }, categoriasDoPerfil) };
     const c = nomePersonalizada.get(chave);
     return { chave, nome: c?.name ?? "Outros", icone: CUSTOM_CATEGORY_ICON_MAP[c?.icon ?? "tag"] ?? CUSTOM_CATEGORY_ICON_MAP.tag, cor: colorForCategorySlice({ kind: "custom", value: chave }, categoriasDoPerfil) };
   };
-  const chaveDe = (g: { customCategoryId: string | null; parentCategory: string | null }) => g.customCategoryId ?? g.parentCategory ?? "OUTROS";
+  const chaveDe = chaveDoGasto;
 
   // O dia de cada gasto dentro do mês dele. Sem data: o dia em que entrou no app, se foi naquele
   // mês (a fatura sem dia por compra vale pelo dia da importação); senão, desde o dia 1.
@@ -352,7 +353,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     // Orçamento, "Foi pontual", "Deixar assim" no Decidir, "Agora não" aqui) fica de fora pela
     // regra única (lib/avisos): 14/10/2026, "tirei de outras e coloquei em Cuidado pessoal, e o
     // Resumo continuou igual".
-    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram.filter((c) => !categoriaResolvida(respostas, "categoria-subiu", c.categoria))) : null;
+    const subiu = caso === "dia-a-dia" ? categoriaQueSubiu(mudaram.filter((c) => c.categoria !== CHAVE_SEM_CATEGORIA && !categoriaResolvida(respostas, "categoria-subiu", c.categoria))) : null;
     if (subiu) {
       const nome = info(subiu.categoria).nome;
       const meses = mesesAte(passado.ano, passado.mes, 3).map((mm) =>

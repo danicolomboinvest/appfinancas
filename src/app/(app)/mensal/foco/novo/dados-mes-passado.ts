@@ -2,7 +2,7 @@ import type { ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { comFiltro, lancamentosDosTotais } from "@/lib/casa/regras";
-import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey } from "@/lib/categories";
+import { CHAVE_SEM_CATEGORIA, NOME_SEM_CATEGORIA, chaveDoGasto, CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey } from "@/lib/categories";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { mesesAte, valoresDosMeses } from "@/lib/consolidation/seis-meses";
 import { CATEGORIAS_FIXAS } from "@/lib/decisoes/semana-fixa";
@@ -42,7 +42,7 @@ export async function carregarMesPassado(ctx: AuthContext, mes: Mes, agora: Mes)
   const heroi = heroiDoMesPassado(mes, valorDe);
 
   // Um "gasto" por categoria com a soma, e as compras contadas à parte (o groupBy já soma).
-  const chaveDe = (g: { customCategoryId: string | null; parentCategory: string | null }) => g.customCategoryId ?? g.parentCategory ?? "OUTROS";
+  const chaveDe = chaveDoGasto;
   const doMes = (m: Mes) => gastos.filter((g) => g.year === m.ano && g.month === m.mes);
   const compras = new Map<string, number>();
   for (const g of doMes(mes)) compras.set(chaveDe(g), (compras.get(chaveDe(g)) ?? 0) + g._count._all);
@@ -55,6 +55,7 @@ export async function carregarMesPassado(ctx: AuthContext, mes: Mes, agora: Mes)
     if (isParentCategoryKey(chave)) {
       return { chave, nome: categoryLabel(doPerfil, chave as ParentCategory), icone: categoryIcon(doPerfil, chave as ParentCategory), cor: colorForCategorySlice({ kind: "parent", value: chave }, doPerfil) };
     }
+    if (chave === CHAVE_SEM_CATEGORIA) return { chave, nome: NOME_SEM_CATEGORIA, icone: CUSTOM_CATEGORY_ICON_MAP.tag, cor: colorForCategorySlice({ kind: "custom", value: chave }, doPerfil) };
     const c = nomePersonalizada.get(chave);
     return { chave, nome: c?.name ?? "Outros", icone: CUSTOM_CATEGORY_ICON_MAP[c?.icon ?? "tag"] ?? CUSTOM_CATEGORY_ICON_MAP.tag, cor: colorForCategorySlice({ kind: "custom", value: chave }, doPerfil) };
   };
