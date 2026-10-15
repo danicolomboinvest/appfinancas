@@ -156,6 +156,11 @@ async function semearEdu() {
   });
   const perfil = await prisma.financialProfile.create({ data: { userId: edu.id, name: "Pessoal", kind: "PESSOAL", theme: "girly", isDefault: true } });
   await prisma.monthlyEntry.create({ data: { userId: edu.id, profileId: perfil.id, year: 2026, month: 10, category: "INCOME", description: "Salário", amount: 4800, externalId: "jornada:edu:s10", entryDate: new Date(Date.UTC(2026, 9, 5)) } });
+  // O plano de outubro e novembro: a compra no cartão aparece no Orçamento do mês da fatura.
+  for (const month of [10, 11]) {
+    await prisma.budget.createMany({ data: ([["LAZER", 400], ["ALIMENTACAO", 900]] as const).map(([parentCategory, plannedAmount]) => ({ userId: edu.id, profileId: perfil.id, year: 2026, month, parentCategory, plannedAmount })) });
+    await prisma.monthlyPlan.create({ data: { userId: edu.id, profileId: perfil.id, year: 2026, month, plannedIncome: 4800, plannedInvestment: 400 } });
+  }
 }
 
 main()

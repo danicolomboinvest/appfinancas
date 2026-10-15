@@ -3,7 +3,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import { Caderno, dia, exigirSemAchados, novaPagina, passo, testeDosAvisos } from "./comum";
 import { entrar, pularTutoriais } from "./acoes";
-import { conferirTextoELayout } from "./telas";
+import { conferirTextoELayout, lerOrcamento, lerResumo } from "./telas";
+import { conferirGastoPorCategoria } from "./conferir";
+import { textoVisivel } from "./texto";
 import { bate, brl } from "./dinheiro";
 import { URL_DO_BANCO } from "./config";
 import { totalDaFatura } from "../../src/lib/planning/faturas-do-cartao";
@@ -96,6 +98,8 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
       await d.getByRole("button", { name: "Hoje", exact: true }).click();
       await expect(d.getByText("Entra na fatura de", { exact: false })).toContainText("novembro");
       await expect(d.getByRole("button", { name: /Cartão Nubank/ })).toContainText("Fatura de novembro, vence 22/nov");
+      // Decisão da Dani (15/10/2026): o gasto no cartão conta no mês da fatura.
+      await expect(d.locator("[data-conta-no-orcamento]")).toHaveText("Conta no orçamento de novembro");
       await conferirTextoELayout(p, c, "Digitar com cartão");
       await d.getByRole("button", { name: "Salvar", exact: true }).click();
       await expect(d).toBeHidden({ timeout: 20_000 });
@@ -126,11 +130,26 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
       if (!linhaNov.test(texto)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "Seu cartão", esperado: "Fatura de novembro: R$ 89,90, vence 22/nov", visto: texto.split("\n").filter((l) => /Fatura de/.test(l)).join(" | ") });
       if (!linhaOut.test(texto)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "Seu cartão", esperado: "Fatura de outubro: R$ 40,00, vence 22/out", visto: texto.split("\n").filter((l) => /Fatura de/.test(l)).join(" | ") });
       await expect(p.getByText("Melhor dia para comprar: dia 15")).toBeVisible();
-      // O orçamento continua no mês da compra: as duas em outubro, as duas no cartão.
+      // O orçamento conta no mês da fatura (15/10/2026): a de 15/10 em novembro, a de 14/10 em outubro.
       for (const l of linhas) {
-        if (l.year !== 2026 || l.month !== 10 || l.noCartao !== true)
-          await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "mês do orçamento", esperado: "outubro de 2026, no cartão", visto: `${l.month}/${l.year}, noCartao ${l.noCartao}` });
+        const esperado = l.amount === 89.9 ? 11 : 10;
+        if (l.year !== 2026 || l.month !== esperado || l.noCartao !== true)
+          await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "mês do orçamento", esperado: `${esperado}/2026, no cartão`, visto: `${l.month}/${l.year}, noCartao ${l.noCartao}` });
       }
+    });
+
+    await passo(c, "a compra do dia do fechamento conta em novembro no Orçamento e no Resumo", async () => {
+      const nov = { ano: 2026, mes: 11 };
+      const orcNov = await lerOrcamento(p, c, nov, false);
+      if (!bate(orcNov.categorias.LAZER?.gasto ?? 0, 89.9)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (cartão, 15/10)", telaErrada: "Orçamento de novembro", esperado: "Lazer R$ 89,90", visto: orcNov.categorias.LAZER?.texto ?? "sem Lazer" });
+      const orcOut = await lerOrcamento(p, c, { ano: 2026, mes: 10 });
+      if (!bate(orcOut.categorias.LAZER?.gasto ?? 0, 0)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (cartão, 15/10)", telaErrada: "Orçamento de outubro", esperado: "Lazer sem gasto (a compra é da fatura de novembro)", visto: orcOut.categorias.LAZER?.texto ?? "" });
+      if (!bate(orcOut.categorias.ALIMENTACAO?.gasto ?? 0, 40)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (cartão, 14/10)", telaErrada: "Orçamento de outubro", esperado: "Alimentação R$ 40", visto: orcOut.categorias.ALIMENTACAO?.texto ?? "sem Alimentação" });
+      const resumoNov = await lerResumo(p, c, nov);
+      const texto = await textoVisivel(p);
+      if (!/89,90|R\$\s?90\b/.test(`${resumoNov.heroi} ${texto}`)) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Digitar (cartão, 15/10)", telaErrada: "Resumo de novembro", esperado: "o gasto de R$ 89,90 em novembro", visto: resumoNov.heroi || "nada" });
+      await conferirTextoELayout(p, c, "Resumo de novembro");
+      await conferirGastoPorCategoria(p, c, nov, "cartão em novembro", { atual: false });
     });
 
     await passo(c, "fatura do Nubank importada: as compras vão para o cartão", async () => {
@@ -164,6 +183,33 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
         const linha = texto.split("\n").find((l) => l.startsWith(`Fatura de ${nome}:`))?.replace(/\s/g, " ") ?? "";
         if (!linha.includes(valor)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "fatura importada", telaErrada: "Seu cartão", esperado: `Fatura de ${nome}: ${valor} (soma dos lançamentos ligados)`, visto: linha || "não está" });
       }
+    });
+
+    await passo(c, "a fatura traz a compra do dia 15: a lançada à mão é reconhecida e não dobra", async () => {
+      await p.goto("/mensal/foco");
+      await pularTutoriais(p);
+      await p.getByRole("button", { name: "Registrar" }).first().click();
+      await p.getByRole("dialog").getByText("Extrato ou fatura", { exact: true }).click();
+      await p.locator("input[type=file]").first().setInputFiles(path.join(__dirname, "arquivos", "edu-fatura-nubank.csv"));
+      await p.locator("[data-confirmacao-do-arquivo]").waitFor({ timeout: 90_000 });
+      const pronto = p.getByRole("button", { name: /^Pronto, anotar/ });
+      if (await pronto.count()) await pronto.click();
+      else await p.getByRole("button", { name: /Pular e anotar/ }).click();
+      await p.waitForTimeout(1500);
+      const agoraNao = p.getByRole("button", { name: "Agora não" });
+      if (await agoraNao.count()) await agoraNao.first().click().catch(() => undefined);
+      await p.keyboard.press("Escape").catch(() => undefined);
+      // Todos os gastos de R$ 89,90 dela, ligados ao cartão ou não: a fatura não pode ter criado outro.
+      const db = new PrismaClient({ datasourceUrl: `${URL_DO_BANCO}?connection_limit=1` });
+      const cinema = (
+        await db.monthlyEntry
+          .findMany({ where: { user: { email: EMAIL }, category: "EXPENSE" }, select: { year: true, month: true, description: true, amount: true } })
+          .finally(() => db.$disconnect())
+      ).filter((l) => Math.abs(Number(l.amount) - 89.9) < 0.001);
+      if (cinema.length !== 1 || cinema[0].year !== 2026 || cinema[0].month !== 11)
+        await c.anotar(p, { tipo: "numero", telaDeOrigem: "fatura com a compra de 15/10", telaErrada: "lançamentos", esperado: "uma compra de R$ 89,90, em novembro", visto: cinema.map((l) => `${l.description ?? ""} ${l.month}/${l.year}`).join(" | ") || "nenhuma" });
+      const orcNov = await lerOrcamento(p, c, { ano: 2026, mes: 11 }, false);
+      if (!bate(orcNov.categorias.LAZER?.gasto ?? 0, 89.9)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "fatura com a compra de 15/10", telaErrada: "Orçamento de novembro", esperado: "Lazer R$ 89,90 (sem dobrar)", visto: orcNov.categorias.LAZER?.texto ?? "sem Lazer" });
     });
   } finally {
     c.salvar();
