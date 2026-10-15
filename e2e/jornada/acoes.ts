@@ -52,6 +52,7 @@ export async function peloMenu(p: Page, nome: string) {
 
 async function abrirRegistrar(p: Page) {
   if (!(await p.getByRole("button", { name: "Registrar" }).count())) await p.goto("/mensal/foco");
+  await pularTutoriais(p);
   await p.getByRole("button", { name: "Registrar" }).first().click();
 }
 
@@ -159,20 +160,31 @@ export async function abrirOQueFazer(p: Page, ano: number, chave: string) {
   await p.locator("[data-o-que-fazer]").waitFor();
 }
 
-export async function foiPontual(p: Page, ano: number, chave: string) {
+/** Toca no "Desfazer" da pílula que acabou de aparecer. */
+async function desfazerNaPilula(p: Page, texto: string | RegExp) {
+  const t = pilula(p, texto);
+  await t.waitFor({ timeout: 15_000 });
+  await t.getByRole("button", { name: "Desfazer" }).click();
+  await p.waitForTimeout(1500);
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+}
+
+export async function foiPontual(p: Page, ano: number, chave: string, desfazer = false) {
   await abrirOQueFazer(p, ano, chave);
   await p.locator("[data-o-que-fazer]").getByRole("button", { name: /Foi pontual/ }).click();
+  if (desfazer) return desfazerNaPilula(p, "Foi pontual");
   await pilula(p, "Foi pontual").waitFor({ timeout: 15_000 }).catch(() => undefined);
   await p.waitForLoadState("networkidle").catch(() => undefined);
 }
 
-export async function cobrirCom(p: Page, ano: number, chave: string, de?: string) {
+export async function cobrirCom(p: Page, ano: number, chave: string, de?: string, desfazer = false) {
   await abrirOQueFazer(p, ano, chave);
   const f = p.locator("[data-o-que-fazer]");
   await f.getByRole("button", { name: /Cobrir com outra categoria/ }).click();
   const c = p.locator("[data-cobrir]");
   if (de) await c.getByRole("button", { name: new RegExp(`^${de} ·`) }).click();
   await c.getByRole("button", { name: /^Cobrir R\$|R\$ .* de / }).last().click();
+  if (desfazer) return desfazerNaPilula(p, /coberta/);
   await pilula(p, /coberta/).waitFor({ timeout: 15_000 }).catch(() => undefined);
   await p.waitForLoadState("networkidle").catch(() => undefined);
 }
@@ -322,9 +334,18 @@ export async function fecharMes(p: Page, nomeDoMes: string) {
   await p.getByRole("button", { name: /Voltar ao Resumo/ }).or(p.getByRole("link", { name: /Voltar ao Resumo/ })).first().waitFor({ timeout: 20_000 });
 }
 
+/** O tutorial do casal aparece uma vez (na titular, quando o par entra): ela toca em Pular. */
+export async function pularTutoriais(p: Page) {
+  const t = p.locator("[data-tutorial-casal]");
+  await t.first().waitFor({ timeout: 800 }).catch(() => undefined);
+  if (await t.count()) await t.getByRole("button", { name: /Pular|Agora não|Entendi/ }).first().click().catch(() => undefined);
+}
+
 /** Foto do topo → "Perfil" → toca no perfil. */
 export async function trocarPerfil(p: Page, nome: string) {
   await p.goto("/mensal/foco");
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await pularTutoriais(p);
   await p.getByRole("button", { name: "Abrir perfil e conta" }).click();
   const d = p.getByRole("dialog", { name: "Perfil" });
   await d.getByRole("button", { name: new RegExp(nome) }).first().click();

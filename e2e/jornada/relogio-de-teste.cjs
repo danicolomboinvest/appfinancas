@@ -5,6 +5,7 @@
 // O arquivo guarda {"base": <ms do dia simulado>, "real": <ms reais em que foi escrito>}. O relógio
 // anda normal a partir dali: agora = base + (agora real - real). O teste troca o dia reescrevendo
 // o arquivo; o servidor lê de novo no máximo a cada 50 ms.
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- carregado com node --require, antes de qualquer módulo
 const fs = require("fs");
 const ARQUIVO = process.env.SPI_RELOGIO_DE_TESTE;
 // Só com banco local: se alguém carregar isto apontando para outro banco, o relógio fica o real.

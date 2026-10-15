@@ -99,3 +99,20 @@ export function exigirSemAchados(perfil: string, tipos: TipoDeAchado[]) {
 }
 
 export { Caderno };
+
+/**
+ * O teste de avisos de cada jornada. Avisos que não somem (ou somem sem motivo) são do módulo
+ * único de avisos (src/lib/avisos/, branch avisos-regra-unica), que outra frente está
+ * reescrevendo: os já conhecidos entram em `conhecidos` (a chave do achado) e o teste fica
+ * marcado como esperado-falhar, com o motivo. Quando o módulo resolver, o Playwright avisa
+ * ("passou, mas devia falhar") e é só tirar a chave da lista. Aviso novo, fora da lista, falha.
+ */
+export function testeDosAvisos(perfil: string, conhecidos: string[]) {
+  test(`${perfil}: avisos respondidos somem em todas as telas (módulo de avisos)`, async () => {
+    const avisos = lerAchados(perfil).filter((a) => a.tipo === "aviso");
+    const novos = avisos.filter((a) => !conhecidos.includes(a.chave));
+    expect(novos, `Aviso novo (fora da lista do módulo de avisos):\n${resumoDosAchados(novos)}`).toEqual([]);
+    test.fail(conhecidos.length > 0, "Esperado falhar: inconsistência de aviso que o módulo único de avisos (src/lib/avisos/) vai resolver.");
+    expect(avisos.map((a) => a.chave)).toEqual([]);
+  });
+}

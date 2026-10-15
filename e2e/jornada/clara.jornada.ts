@@ -1,13 +1,12 @@
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { test } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
-import { Caderno, conferirTelaVelha, dia, exigirSemAchados, novaPagina, passo, visitarPeloApp } from "./comum";
+import { Caderno, testeDosAvisos, conferirTelaVelha, dia, exigirSemAchados, novaPagina, passo, visitarPeloApp } from "./comum";
 import { agoraNaoNoResumo, comecarComExtrato, criarConta, foiPontual, importarArquivo, lancarAMao, montarPlano } from "./acoes";
 import { conferirAvisoDaCategoria, conferirGastoPorCategoria, conferirLivre, conferirMesPassado, conferirMetas, definirMesAtual } from "./conferir";
 import { lerOrcamento, lerResumo } from "./telas";
 import { bate, brl } from "./dinheiro";
 import { URL_DO_BANCO } from "./config";
-import { lerAchados, resumoDosAchados } from "./achados";
 
 /**
  * Clara, conta nova do zero: comprou, cria a conta, começa pelo extrato, monta o plano, manda o
@@ -70,12 +69,49 @@ test("Clara: conta nova do zero, números e telas iguais em todo lugar", async (
     });
 
     await dia(c, "2026-10-18 21:00", [p]);
+    await passo(c, "Lazer corre rápido: Segurar em, no Decidir", async () => {
+      const orc = await lerOrcamento(p, c, OUT);
+      const lazer = orc.categorias.LAZER;
+      // Até 80% do plano: o Decidir avisa "correndo rápido" e o Resumo diz que subiu contra setembro.
+      const ate80 = Math.floor((lazer?.plano ?? 0) * 0.8 - (lazer?.gasto ?? 0));
+      if (ate80 > 0) await lancarAMao(p, { valor: ate80, categoria: "Lazer", descricao: "Cinema e jantar" });
+      const r = await lerResumo(p, c);
+      test.info().annotations.push({ type: "Resumo com Lazer a 80%", description: `${r.sugestao?.tipo}: ${r.sugestao?.texto}` });
+      await p.goto("/decidir");
+      let achou = false;
+      for (let i = 0; i < 6; i++) {
+        const cartao = p.locator('[data-cartao="ritmo-LAZER"]');
+        if (await cartao.count()) {
+          await cartao.getByRole("button", { name: /^Segurar em/ }).first().click();
+          await p.waitForLoadState("networkidle").catch(() => undefined);
+          await p.waitForTimeout(700);
+          achou = true;
+          break;
+        }
+        const pular = p.getByRole("button", { name: "Pular este" });
+        if (!(await pular.count())) break;
+        await pular.first().click();
+        await p.waitForTimeout(600);
+      }
+      test.info().annotations.push({ type: "Segurar em", description: achou ? "respondido no cartão ritmo-LAZER" : "sem cartão de ritmo de Lazer" });
+      if (achou) {
+        await p.goto("/decidir");
+        if (await p.locator('[data-cartao="ritmo-LAZER"]').count()) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Decidir (Segurar em)", telaErrada: "Decidir", esperado: "o cartão de Lazer some", visto: "continua" });
+        const depois = await lerResumo(p, c);
+        if (r.sugestao?.texto?.startsWith("Lazer") && depois.sugestao?.texto?.startsWith("Lazer")) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Decidir (Segurar em)", telaErrada: "Resumo (sugestão)", esperado: "a sugestão de Lazer some depois de segurar", visto: depois.sugestao.texto });
+      }
+      await conferirGastoPorCategoria(p, c, OUT, "segurar");
+    });
+
     await passo(c, "Lazer passa do plano e ela diz que foi pontual", async () => {
       const orc = await lerOrcamento(p, c, OUT);
       const lazer = orc.categorias.LAZER;
       const falta = Math.max(0, (lazer?.plano ?? 0) - (lazer?.gasto ?? 0)) + 40;
       await lancarAMao(p, { valor: Math.ceil(falta), categoria: "Lazer", descricao: "Show de stand-up" });
       await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", true, "Lazer passou");
+      // Primeiro ela responde e desfaz: o aviso tem que voltar em todo lugar.
+      await foiPontual(p, OUT.ano, "LAZER", true);
+      await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", true, "Lazer pontual desfeito");
       await foiPontual(p, OUT.ano, "LAZER");
       await conferirAvisoDaCategoria(p, c, "LAZER", "Lazer", false, "Lazer pontual");
       await conferirGastoPorCategoria(p, c, OUT, "lazer pontual");
@@ -96,7 +132,5 @@ test("Clara: conta nova do zero, números e telas iguais em todo lugar", async (
   exigirSemAchados(PERFIL, ["numero", "texto", "tela", "sumiu"]);
 });
 
-test("Clara: avisos respondidos somem em todas as telas (módulo de avisos)", async () => {
-  const avisos = lerAchados(PERFIL).filter((a) => a.tipo === "aviso");
-  expect(avisos, resumoDosAchados(avisos)).toEqual([]);
-});
+// Avisos de Clara que o módulo de avisos ainda não resolve: nenhum nesta rodada (ver o relatório).
+testeDosAvisos(PERFIL, []);

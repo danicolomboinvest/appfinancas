@@ -2,6 +2,7 @@ import type { Page, APIRequestContext } from "@playwright/test";
 import { reais, todosOsReais } from "./dinheiro";
 import { problemasDeLayout, problemasNoTexto, textoVisivel } from "./texto";
 import type { Caderno } from "./achados";
+import { pularTutoriais } from "./acoes";
 
 /**
  * O retrato de cada tela: os números e avisos que ela mostra, lidos do jeito que a cliente vê.
@@ -20,6 +21,7 @@ async function esperarTela(p: Page) {
 export async function abrir(p: Page, rota: string, caderno: Caderno, nomeDaTela: string) {
   await p.goto(rota);
   await esperarTela(p);
+  await pularTutoriais(p);
   await conferirTextoELayout(p, caderno, nomeDaTela);
 }
 
@@ -97,7 +99,8 @@ export async function lerTransacoes(p: Page, caderno: Caderno, m: Mes): Promise<
   const c = t.match(/(\d+)\s+lan[çc]amentos?/);
   const r: RetratoDasTransacoes = { contagem: c ? Number(c[1]) : null, linhas: [] };
   for (const el of await p.locator("[data-linha-transacao]").all()) {
-    const ls = linhas(await el.innerText());
+    // No casal a linha começa com a bolinha de quem lançou ("B", "C"): não é a descrição.
+    const ls = linhas(await el.innerText()).filter((l, i) => !(i === 0 && l.length <= 2));
     const valorTxt = ls.find((l) => /R\$/.test(l)) ?? "";
     const v = reais(valorTxt) ?? 0;
     r.linhas.push({ descricao: ls[0] ?? "", categoria: (ls[1] ?? "").replace(/ · .*$/, ""), valor: /^\+/.test(valorTxt) ? Math.abs(v) : v });
@@ -221,9 +224,11 @@ export async function lerMetas(p: Page, caderno: Caderno) {
 }
 
 // ------------------------------------------------------------------ Widget
-let chaveDoWidget: string | null = null;
+// Uma chave por navegador (cada um é uma pessoa logada).
+const chaves = new WeakMap<object, string>();
 export async function lerWidget(p: Page, base: string, request?: APIRequestContext) {
   const ctx = request ?? p.request;
+  let chaveDoWidget = chaves.get(p.context()) ?? null;
   if (!chaveDoWidget) {
     const r = await p.evaluate(async () => {
       const x = await fetch("/api/widget/token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ aparelho: "jornada-teste-aparelho-0001" }) });
@@ -231,6 +236,7 @@ export async function lerWidget(p: Page, base: string, request?: APIRequestConte
     });
     chaveDoWidget = r.corpo?.chave ?? null;
     if (!chaveDoWidget) return { erro: `sem chave (${r.status})` } as const;
+    chaves.set(p.context(), chaveDoWidget);
   }
   const r = await ctx.get(`${base}/api/widget`, { headers: { authorization: `Bearer ${chaveDoWidget}` } });
   if (!r.ok()) return { erro: `HTTP ${r.status()}` } as const;
@@ -240,6 +246,6 @@ export async function lerWidget(p: Page, base: string, request?: APIRequestConte
     metas: { nome: string; atual: number; alvo: number }[];
   };
 }
-export function esquecerWidget() {
-  chaveDoWidget = null;
+export function esquecerWidget(p: Page) {
+  chaves.delete(p.context());
 }

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { Caderno, conferirTelaVelha, dia, exigirSemAchados, novaPagina, passo, visitarPeloApp } from "./comum";
+import { Caderno, testeDosAvisos, conferirTelaVelha, dia, exigirSemAchados, novaPagina, passo, visitarPeloApp } from "./comum";
 import {
   agoraNaoNoResumo,
   aporteNaMeta,
@@ -16,7 +16,6 @@ import {
   lapis,
   moverParaPerfil,
   prepararVoz,
-  responderNoDecidir,
   tocarNaSugestao,
   trocarPerfil,
   vendiNaEmpresa,
@@ -32,7 +31,6 @@ import {
 import { abrir, lerDecidir, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
 import { bate, brl } from "./dinheiro";
 import { BASE } from "./config";
-import { lerAchados, resumoDosAchados } from "./achados";
 import { textoVisivel } from "./texto";
 
 /**
@@ -91,6 +89,17 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
 
     // ------------------------------------------------------------------ sexta 16/10
     await dia(c, "2026-10-16 20:00", [p]);
+    await passo(c, "O que fazer? Saúde → cobrir com Outros e Desfazer", async () => {
+      const antes = await lerOrcamento(p, c, OUT);
+      await cobrirCom(p, OUT.ano, "SAUDE", "Outros", true);
+      const { orc } = await conferirGastoPorCategoria(p, c, OUT, "desfazer cobrir");
+      for (const k of ["SAUDE", "OUTROS"]) {
+        if (!bate(orc.categorias[k]?.plano, antes.categorias[k]?.plano)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Desfazer (cobrir)", telaErrada: "Orçamento", esperado: `${k} de ${brl(antes.categorias[k]?.plano)} de novo`, visto: orc.categorias[k]?.texto ?? "(sem linha)" });
+      }
+      // Desfeito, o aviso volta (a categoria continua passando do plano).
+      await conferirAvisoDaCategoria(p, c, "SAUDE", "Saúde", true, "desfazer cobrir Saúde");
+    });
+
     await passo(c, "O que fazer? Saúde → cobrir com Outros", async () => {
       await visitarPeloApp(p, ["Resumo", "Orçamento"]);
       await cobrirCom(p, OUT.ano, "SAUDE", "Outros");
@@ -148,12 +157,35 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirGastoPorCategoria(p, c, OUT, "uber");
     });
 
+    await passo(c, "Impostos sem plano: IPTU R$ 300 e ela cria o limite no lápis", async () => {
+      await lancarAMao(p, { valor: 300, categoria: "Impostos", descricao: "IPTU" });
+      const antes = await lerResumo(p, c);
+      test.info().annotations.push({ type: "Resumo depois do IPTU", description: `${antes.sugestao?.tipo}: ${antes.sugestao?.texto}` });
+      await lapis(p, OUT.ano, "Impostos", 400);
+      const o = await lerOrcamento(p, c, OUT);
+      if (!bate(o.categorias.IMPOSTOS?.plano, 400) || !bate(o.categorias.IMPOSTOS?.gasto, 300)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "lápis (Impostos)", telaErrada: "Orçamento", esperado: "Impostos R$ 300 de R$ 400", visto: o.categorias.IMPOSTOS?.texto ?? "(sem linha)" });
+      const r = await lerResumo(p, c);
+      if (r.sugestao?.texto?.startsWith("Impostos")) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "lápis (criou o limite de Impostos)", telaErrada: "Resumo (sugestão)", esperado: "a sugestão de Impostos some (o limite foi criado)", visto: r.sugestao.texto });
+      await conferirAvisoDaCategoria(p, c, "IMPOSTOS", "Impostos", false, "limite de Impostos");
+      await conferirGastoPorCategoria(p, c, OUT, "IPTU");
+    });
+
     await passo(c, "Decidir: responder o cartão do topo (Segurar em, se houver)", async () => {
-      const dec = await lerDecidir(p, c);
+      // A pilha mostra um cartão por vez: "Pular este" até chegar no de ritmo (ou acabar).
+      let dec = await lerDecidir(p, c);
+      for (let i = 0; i < 5 && dec.cartoes.length && !dec.cartoes.some((x) => x.id.startsWith("ritmo-")); i++) {
+        const pular = p.getByRole("button", { name: "Pular este" });
+        if (!(await pular.count())) break;
+        await pular.first().click();
+        await p.waitForTimeout(700);
+        dec = { ...dec, cartoes: await Promise.all((await p.locator("[data-cartao]").all()).map(async (el) => ({ id: (await el.getAttribute("data-cartao")) ?? "", texto: (await el.innerText()).split("\n").slice(0, 3).join(" | ") }))) };
+      }
       const ritmo = dec.cartoes.find((x) => x.id.startsWith("ritmo-"));
       if (ritmo) {
         const chave = ritmo.id.slice("ritmo-".length);
-        await responderNoDecidir(p, ritmo.id, /^Segurar em/);
+        await p.locator(`[data-cartao="${ritmo.id}"]`).getByRole("button", { name: /^Segurar em/ }).first().click();
+        await p.waitForLoadState("networkidle").catch(() => undefined);
+        await p.waitForTimeout(700);
         const depois = await lerDecidir(p, c);
         if (depois.cartoes.some((x) => x.id === ritmo.id)) await c.anotar(p, { tipo: "aviso", telaDeOrigem: "Decidir (Segurar em)", telaErrada: "Decidir", esperado: `cartão ${ritmo.id} some`, visto: "continua" });
         const r = await lerResumo(p, c);
@@ -245,7 +277,10 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await abrir(p, "/empresa", c, "Empresa");
       await vendiNaEmpresa(p, 300);
       await abrir(p, "/empresa", c, "Empresa (depois da venda)");
+      // Lançamentos abre no último mês fechado (o padrão da Empresa): a venda de hoje não está lá.
       await abrir(p, "/empresa/lancamentos", c, "Empresa: lançamentos");
+      if (!/Venda[\s\S]{0,80}300,00/.test(await textoVisivel(p))) await c.anotar(p, { tipo: "decisao", telaDeOrigem: "Empresa (Vendi)", telaErrada: "Empresa: Lançamentos (abre no mês passado)", esperado: "a venda que ela acabou de registrar à vista", visto: `abre em ${(await textoVisivel(p)).match(/Mês passado · \w+ \d{4}/)?.[0] ?? "outro mês"}` });
+      await abrir(p, "/empresa/lancamentos?periodo=mes", c, "Empresa: lançamentos do mês");
       const lista = await textoVisivel(p);
       if (!/Venda[\s\S]{0,80}300,00/.test(lista)) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Empresa (Vendi)", telaErrada: "Empresa: lançamentos", esperado: "a venda de R$ 300 na lista", visto: "não aparece" });
       await trocarPerfil(p, "Pessoal");
@@ -291,8 +326,5 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
   exigirSemAchados(PERFIL, ["numero", "texto", "tela", "sumiu"]);
 });
 
-test("Ana: avisos respondidos somem em todas as telas (módulo de avisos)", async () => {
-  const avisos = lerAchados(PERFIL).filter((a) => a.tipo === "aviso");
-  test.fail(avisos.length > 0, `Esperado falhar até o módulo único de avisos (src/lib/avisos/, branch avisos-regra-unica):\n${resumoDosAchados(avisos)}`);
-  expect(avisos, resumoDosAchados(avisos)).toEqual([]);
-});
+// Avisos de Ana que o módulo de avisos ainda não resolve: nenhum nesta rodada (ver o relatório).
+testeDosAvisos(PERFIL, []);
