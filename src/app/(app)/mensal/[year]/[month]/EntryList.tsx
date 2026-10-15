@@ -70,6 +70,7 @@ export type ListEntry = {
   doCasal?: boolean | null;
   /** Conta no limite do cartão (marcado "no cartão" ou linha de fatura). */
   noCartao?: boolean;
+  cartaoId?: string | null;
   /** Casal simples: de quem é (a bolinha), se é meu e está escondido do par (o cadeado) e o Só meu. */
   dono?: "eu" | "outro" | null;
   /** Casal simples: o gasto é da casa (entra no acerto) ou da pessoa. */
@@ -930,6 +931,7 @@ export function EntryList({
             defaultPessoa={editing.pessoa}
             defaultDoCasal={editing.doCasal}
             defaultNoCartao={editing.noCartao}
+            defaultCartaoId={editing.cartaoId ?? null}
             defaultCliente={empresa && editing.category === "INCOME" ? (editing.cliente ?? "") : undefined}
           />
         )}

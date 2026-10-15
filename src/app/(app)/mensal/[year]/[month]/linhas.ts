@@ -68,6 +68,7 @@ export function linhasDaLista(entries: Linha[], ocultos: boolean, quem?: QuemLe,
     pessoa: entry.pessoa,
     doCasal: entry.doCasal,
     noCartao: ehDoCartao(entry),
+    cartaoId: entry.cartaoId ?? null,
     cliente: entry.cliente,
     ...(entry.originalCurrency && entry.originalAmount !== null && isCurrencyCode(entry.originalCurrency)
       ? {

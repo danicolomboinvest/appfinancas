@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/Card";
 import { useSuccessToast } from "@/components/ui/useSuccessToast";
 import { CategoryFields } from "@/components/forms/CategoryFields";
 import { CasalFields } from "@/components/forms/CasalFields";
+import { CartaoNoDigitar, type EscolhaDoCartao } from "@/components/entries/CartaoNoDigitar";
 import { defaultEntryDateValue } from "@/lib/date/entry-date-default";
 import type { TipoDoLancamento } from "@/lib/profiles/textos/shell";
 import { createMonthlyEntryAction, updateMonthlyEntryAction, type MonthlyEntryState } from "./actions";
@@ -56,6 +57,7 @@ export function EntryForm({
   defaultPessoa,
   defaultDoCasal,
   defaultNoCartao,
+  defaultCartaoId,
   defaultCliente,
 }: {
   year: number;
@@ -95,6 +97,8 @@ export function EntryForm({
   defaultDoCasal?: boolean | null;
   /** Edição: o gasto conta no limite do cartão (marcado ou linha de fatura). */
   defaultNoCartao?: boolean;
+  /** Edição: o cartão cadastrado do gasto (null = nenhum). Mudar o cartão ou a data muda o mês da fatura. */
+  defaultCartaoId?: string | null;
   /** Empresa, editando uma venda: o cliente ("" = sem nome). Ausente: o campo nem aparece e nada muda. */
   defaultCliente?: string;
 }) {
@@ -135,6 +139,10 @@ export function EntryForm({
   // escolha; a edição, com o que o gasto já é. O formulário só existe dentro de um modal aberto
   // pela pessoa, então ler o aparelho aqui não desencontra do servidor.
   const [noCartao, setNoCartao] = useState<boolean>(() => (isEditing ? Boolean(defaultNoCartao) : lerUltimoNoCartao()));
+  // Edição de um gasto (15/10/2026): o cartão cadastrado e a data dizem a fatura e o mês em que ele
+  // conta. A data é acompanhada aqui só para a linha "Entra na fatura de" mudar junto.
+  const [cartao, setCartao] = useState<EscolhaDoCartao>({ id: defaultCartaoId ?? null, temCartoes: false });
+  const [dataDoGasto, setDataDoGasto] = useState(() => defaultEntryDateValue({ defaultEntryDate, isEditing, year, month, today: new Date() }));
   // "Esse dinheiro é para as contas do mês seguinte" (ver aplicarMesSeguinte em actions.ts). O mês
   // de base é o da DATA: na edição de uma entrada já empurrada, a página é a do mês seguinte e a
   // data continua no mês em que o dinheiro caiu, e é isso que diz que ela já está marcada.
@@ -257,8 +265,15 @@ export function EntryForm({
         name="entryDate"
         type="date"
         defaultValue={defaultEntryDateValue({ defaultEntryDate, isEditing, year, month, today: new Date() })}
+        onChange={(e) => setDataDoGasto(e.target.value)}
         className={stacked ? "w-full" : "w-36"}
       />
+      {isEditing && tipo === "EXPENSE" && (
+        <div className={stacked ? "w-full" : ""}>
+          <CartaoNoDigitar data={dataDoGasto ?? ""} escolha={cartao} onEscolha={setCartao} inicial={defaultCartaoId ?? null} />
+          {cartao.temCartoes && <input type="hidden" name="cartaoId" value={cartao.id ?? ""} />}
+        </div>
+      )}
       {goals.length > 0 && (
         <label className={`flex flex-col gap-1.5 ${stacked ? "w-full" : ""}`}>
           <span className="text-xs font-medium text-ink-muted">{t.formLancMetaVinculada}</span>

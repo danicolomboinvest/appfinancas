@@ -17,12 +17,24 @@ export type EscolhaDoCartao = { id: string | null; temCartoes: boolean };
  * "Como pagou?" no Digitar (15/10/2026, a linha da fatura da versão B do mockup): os cartões
  * cadastrados, cada um com a fatura em que a compra entra pela data escolhida, "Outro jeito" e
  * "Novo cartão" (o cadastro abre por cima, e o cartão novo já fica escolhido). Com um cartão
- * escolhido aparece "Entra na fatura de [mês]", que muda quando a data muda.
+ * escolhido aparece "Entra na fatura de [mês]", que muda quando a data muda, e "Conta no
+ * orçamento de [mês]": desde 15/10/2026 o gasto no cartão conta no mês da fatura.
  *
  * Fica num componente próprio para o Digitar mudar o mínimo: ele só guarda a escolha e manda o
  * `cartaoId` junto. Lembra o último cartão escolhido neste aparelho, como o "No cartão" já fazia.
  */
-export function CartaoNoDigitar({ data, escolha, onEscolha }: { data: string; escolha: EscolhaDoCartao; onEscolha: (e: EscolhaDoCartao) => void }) {
+export function CartaoNoDigitar({
+  data,
+  escolha,
+  onEscolha,
+  inicial,
+}: {
+  data: string;
+  escolha: EscolhaDoCartao;
+  onEscolha: (e: EscolhaDoCartao) => void;
+  /** Edição: o cartão que o gasto já tem (null = nenhum). Sem ele, vale o último escolhido no aparelho. */
+  inicial?: string | null;
+}) {
   const [cartoes, setCartoes] = useState<CartaoNaTela[] | null>(null);
   const [novo, setNovo] = useState(false);
 
@@ -32,10 +44,12 @@ export function CartaoNoDigitar({ data, escolha, onEscolha }: { data: string; es
       .then((lista) => {
         if (!vivo) return;
         setCartoes(lista);
-        let ultimo: string | null = null;
-        try {
-          ultimo = window.localStorage.getItem(ULTIMO_CARTAO);
-        } catch {}
+        let ultimo: string | null = inicial === undefined ? null : inicial;
+        if (inicial === undefined) {
+          try {
+            ultimo = window.localStorage.getItem(ULTIMO_CARTAO);
+          } catch {}
+        }
         const lembrado = lista.find((c) => c.id === ultimo);
         onEscolha({ id: lembrado?.id ?? null, temCartoes: lista.length > 0 });
       })
@@ -137,9 +151,15 @@ export function CartaoNoDigitar({ data, escolha, onEscolha }: { data: string; es
       {botaoNovo}
       {faturaEscolhida && (
         <p key={faturaEscolhida.chave} className="animate-fade-in flex items-center gap-2 rounded-2xl bg-accent-soft px-4 py-3 text-[15px] text-ink" aria-live="polite" data-fatura={faturaEscolhida.chave}>
-          <CalendarDays size={18} className="shrink-0 text-accent-strong" aria-hidden />
-          <span className="min-w-0">
-            Entra na fatura de <b className="font-semibold">{nomeDaFatura(faturaEscolhida, anoDaCompra)}</b>
+          <CalendarDays size={18} className="mt-0.5 shrink-0 self-start text-accent-strong" aria-hidden />
+          <span className="flex min-w-0 flex-col">
+            <span>
+              Entra na fatura de <b className="font-semibold">{nomeDaFatura(faturaEscolhida, anoDaCompra)}</b>
+            </span>
+            {/* Decisão da Dani (15/10/2026): o gasto no cartão conta no mês da fatura. */}
+            <span className="text-sm text-ink-muted" data-conta-no-orcamento={faturaEscolhida.chave}>
+              Conta no orçamento de {nomeDaFatura(faturaEscolhida, anoDaCompra)}
+            </span>
           </span>
         </p>
       )}
