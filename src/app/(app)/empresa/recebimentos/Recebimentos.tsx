@@ -25,7 +25,7 @@ export function Recebimentos({ nome, semanas, devendo }: { nome: string; semanas
     <>
       <Voltar>{nome}</Voltar>
       <Titulo>Recebimentos</Titulo>
-      <Heroi rotulo="Vai entrar em 4 semanas" valor={m0(total)} ajuda="Soma as vendas em que você disse o dia em que o dinheiro cai: o cartão, os boletos e o Pix combinados." />
+      <Heroi rotulo="Vai entrar em 4 semanas" valor={m0(total)} ajuda="Soma as entradas em que você disse o dia em que o dinheiro cai: o cartão, os boletos e o Pix combinados." />
       {total > 0 && (
         <Cartao className="px-4 py-2">
           {semanas.map((w, i) => (
@@ -82,7 +82,7 @@ export function Recebimentos({ nome, semanas, devendo }: { nome: string; semanas
           </div>
         );
       })}
-      {total === 0 && devendo.length === 0 && <Cartao className="px-5 py-6 text-center text-sm text-ink-muted">Nada a receber agora. Na venda, diga o dia em que o dinheiro cai.</Cartao>}
+      {total === 0 && devendo.length === 0 && <Cartao className="px-5 py-6 text-center text-sm text-ink-muted">Nada a receber agora. Na entrada, diga o dia em que o dinheiro cai.</Cartao>}
     </>
   );
 }
