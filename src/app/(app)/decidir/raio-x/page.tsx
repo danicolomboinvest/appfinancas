@@ -11,6 +11,7 @@ import { ReportarErro } from "@/components/decisoes/ReportarErro";
 import { carregarRaioX } from "@/app/(app)/mensal/foco/dados";
 import { PERGUNTAS_DO_DECIDIR, tituloDaEsfera } from "@/lib/decisoes/esferas";
 import type { EscolhaDoRaioX } from "@/lib/decisoes/raio-x";
+import { lembretesDoRaioX } from "@/lib/assinaturas/lembretes";
 import { RaioX } from "./RaioX";
 
 export default async function RaioXPage() {
@@ -19,7 +20,10 @@ export default async function RaioXPage() {
   if (ehEmpresa(ctx.profileKind)) redirect("/mensal/foco");
   const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
   const now = nowInBrazil();
-  const { itens, decididos, canceladas } = await carregarRaioX(ctx, now.getFullYear(), now.getMonth() + 1);
+  const { itens, decididos, canceladas, respostas } = await carregarRaioX(ctx, now.getFullYear(), now.getMonth() + 1);
+  // O lembrete de cancelar no dia da cobrança: só das que estão para cancelar, e só de quem pediu.
+  const paraCancelar = itens.filter((i) => decididos.get(i.chave)?.tipo === "raiox_cancelar" && !canceladas.has(i.chave));
+  const lembretes = paraCancelar.length > 0 ? await lembretesDoRaioX(ctx, paraCancelar, respostas) : {};
   const jaDecidido = Object.fromEntries([...decididos.entries()].map(([k, v]) => [k, v.tipo])) as Record<string, EscolhaDoRaioX>;
   const pergunta = PERGUNTAS_DO_DECIDIR.find((p) => p.chave === "raiox")!;
 
@@ -40,7 +44,7 @@ export default async function RaioXPage() {
           <p className="text-sm text-ink-muted">{t.raioxVazio}</p>
         </Card>
       ) : (
-        <RaioX itens={itens} decididos={jaDecidido} canceladas={[...canceladas]} />
+        <RaioX itens={itens} decididos={jaDecidido} canceladas={[...canceladas]} lembretes={lembretes} />
       )}
       <ReportarErro tela="Raio-X dos pequenos gastos" regra="mesmo estabelecimento em 3+ meses; fora moradia, saúde, educação e impostos" />
     </div>

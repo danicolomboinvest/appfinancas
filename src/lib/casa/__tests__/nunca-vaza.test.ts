@@ -48,6 +48,10 @@ const PODEM_LER_A_CASA = [
   "lib/recap/monthly.ts",
   "app/api/cron/monthly-recap/route.ts",
   "app/api/cron/alerts/route.ts",
+  // O cron do lembrete de cancelar (15/10/2026): a casa só entra para o estado único da
+  // assinatura (o "Cancelei mesmo" do outro para o lembrete). Lembretes e lançamentos lidos são só
+  // de quem pediu.
+  "lib/assinaturas/lembretes-envio.ts",
 ];
 
 /** As leituras que nunca podem ver a casa, uma por uma, com o porquê. */

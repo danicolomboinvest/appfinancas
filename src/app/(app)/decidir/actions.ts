@@ -10,6 +10,7 @@ import { chaveDaSemana } from "@/app/(app)/mensal/foco/ritmo";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { desfazerAssinatura, revalidarAssinaturas } from "@/lib/assinaturas/respostas";
 import { noRaioX } from "@/lib/assinaturas/regra";
+import { definirDiaDoLembrete, desligarLembretes, ligarLembretes, type LembreteNaTela } from "@/lib/assinaturas/lembretes";
 
 /**
  * As respostas da pilha do Decidir (rodadas 38 e 49) que ainda não tinham uma ação pronta, e o
@@ -165,4 +166,38 @@ export async function desfazerRaioXAction(chave: string, nome?: string): Promise
   const estado = await desfazerAssinatura(ctx, { raiox: k, nome: nome ? z.string().max(80).parse(nome) : null });
   revalidarAssinaturas();
   return { escolha: noRaioX(estado).escolha };
+}
+
+/* ---------------------------------------------------------------- lembrete de cancelar */
+
+const chavesDoRaioX = z.array(z.string().min(1).max(200)).max(50);
+
+/**
+ * "Lembrar de cancelar no dia da cobrança" (lib/assinaturas/lembrete.ts): grava o pedido de cada
+ * assinatura marcada para cancelar, com o dia tirado do histórico. Devolve o que cada uma mostra.
+ */
+export async function ligarLembretesAction(chaves: string[]): Promise<Record<string, LembreteNaTela>> {
+  const ks = chavesDoRaioX.parse(chaves);
+  const ctx = await getRequiredSession();
+  const out = await ligarLembretes(ctx, ks);
+  revalidatePath("/decidir/raio-x");
+  return out;
+}
+
+/** Desfazer: tira o lembrete. */
+export async function desligarLembretesAction(chaves: string[]) {
+  const ks = chavesDoRaioX.parse(chaves);
+  const ctx = await getRequiredSession();
+  await desligarLembretes(ctx, ks);
+  revalidatePath("/decidir/raio-x");
+}
+
+/** "Que dia ela cobra?" */
+export async function definirDiaDoLembreteAction(chave: string, dia: number): Promise<LembreteNaTela | null> {
+  const k = z.string().min(1).max(200).parse(chave);
+  const d = z.number().int().min(1).max(31).parse(dia);
+  const ctx = await getRequiredSession();
+  const out = await definirDiaDoLembrete(ctx, k, d);
+  revalidatePath("/decidir/raio-x");
+  return out;
 }

@@ -10,8 +10,10 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
-import { decidirRaioXAction } from "@/app/(app)/mensal/foco/actions";
-import { desfazerRaioXAction } from "@/app/(app)/decidir/actions";
+import { Selinho } from "@/components/ui/Selinho";
+import { confirmarCancelamentoRaioXAction, decidirRaioXAction } from "@/app/(app)/mensal/foco/actions";
+import { definirDiaDoLembreteAction, desfazerRaioXAction, desligarLembretesAction, ligarLembretesAction } from "@/app/(app)/decidir/actions";
+import type { LembreteNaTela } from "@/lib/assinaturas/lembrete";
 import { economiaAnual, resumoDasEscolhas, valorFuturo, type EscolhaDoRaioX, type RaioXItem } from "@/lib/decisoes/raio-x";
 
 /**
@@ -24,8 +26,22 @@ import { economiaAnual, resumoDasEscolhas, valorFuturo, type EscolhaDoRaioX, typ
  * A escolha é salva na hora e vale em todo lugar (lib/assinaturas, 15/10/2026): "Cancelar" aqui é
  * "Não uso" no Dinheiro perdido e o selo "Para cancelar" em Recorrentes; o Desfazer volta à
  * resposta de antes, de qualquer tela.
+ * - "Lembrar de cancelar no dia da cobrança" grava o lembrete de cada uma marcada para cancelar
+ *   (lib/assinaturas/lembrete.ts): vira o selinho "lembrete dia 12" no item. Sem dia confiável no
+ *   histórico, o item pergunta "Que dia ela cobra?". Tocar de novo desliga. Se o dia passou e a
+ *   cobrança não veio, o item pergunta "Cancelou?" ("Cancelei mesmo" ou "Ainda não").
  */
-export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[]; decididos: Record<string, EscolhaDoRaioX>; canceladas?: string[] }) {
+export function RaioX({
+  itens,
+  decididos,
+  canceladas = [],
+  lembretes = {},
+}: {
+  itens: RaioXItem[];
+  decididos: Record<string, EscolhaDoRaioX>;
+  canceladas?: string[];
+  lembretes?: Record<string, LembreteNaTela>;
+}) {
   const { voz } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
@@ -33,7 +49,9 @@ export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[
   const router = useRouter();
   const { showToast, showError } = useToast();
   const [escolhas, setEscolhas] = useState<Record<string, EscolhaDoRaioX | undefined>>(decididos);
-  const [lembrar, setLembrar] = useState(false);
+  const [lembretesAqui, setLembretes] = useState<Record<string, LembreteNaTela | undefined>>(lembretes);
+  const tirarLembrete = (chave: string) => setLembretes((l) => (l[chave] ? { ...l, [chave]: undefined } : l));
+  const [diaDigitado, setDiaDigitado] = useState<Record<string, string>>({});
   // "Cancelada" é o "Cancelei mesmo"; qualquer resposta nova aqui troca o selo.
   const [canceladasAqui, setCanceladas] = useState(() => new Set(canceladas));
   const tirarCancelada = (chave: string) => setCanceladas((c) => (c.has(chave) ? new Set([...c].filter((x) => x !== chave)) : c));
@@ -41,9 +59,68 @@ export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[
   const r = resumoDasEscolhas(itens, escolhas);
   const totalMensal = itens.reduce((s, i) => s + i.mensal, 0);
 
+  // As que podem ter lembrete: marcadas para cancelar, ainda não canceladas.
+  const comLembrete = r.cortados.filter((i) => escolhas[i.chave] === "raiox_cancelar" && !canceladasAqui.has(i.chave));
+  const todosLigados = comLembrete.length > 0 && comLembrete.every((i) => lembretesAqui[i.chave]);
+  const semDia = comLembrete.filter((i) => lembretesAqui[i.chave] && lembretesAqui[i.chave]!.dia === null).length;
+
+  const alternarLembrete = () => {
+    const antes = lembretesAqui;
+    if (todosLigados) {
+      setLembretes((l) => ({ ...l, ...Object.fromEntries(comLembrete.map((i) => [i.chave, undefined])) }));
+      iniciar(async () => {
+        try {
+          await desligarLembretesAction(comLembrete.map((i) => i.chave));
+        } catch {
+          setLembretes(antes);
+          showError("Não salvou. Tente de novo.");
+        }
+      });
+      return;
+    }
+    const faltam = comLembrete.filter((i) => !lembretesAqui[i.chave]).map((i) => i.chave);
+    iniciar(async () => {
+      try {
+        const novos = await ligarLembretesAction(faltam);
+        setLembretes((l) => ({ ...l, ...novos }));
+      } catch {
+        showError("Não salvou. Tente de novo.");
+      }
+    });
+  };
+  const salvarDia = (item: RaioXItem) => {
+    const dia = Number(diaDigitado[item.chave]);
+    if (!Number.isInteger(dia) || dia < 1 || dia > 31) return;
+    iniciar(async () => {
+      try {
+        const novo = await definirDiaDoLembreteAction(item.chave, dia);
+        if (novo) setLembretes((l) => ({ ...l, [item.chave]: novo }));
+      } catch {
+        showError("Não salvou. Tente de novo.");
+      }
+    });
+  };
+  const responderCancelou = (item: RaioXItem, cancelou: boolean) => {
+    const antes = lembretesAqui[item.chave];
+    if (cancelou) {
+      setCanceladas((c) => new Set([...c, item.chave]));
+      tirarLembrete(item.chave);
+    } else setLembretes((l) => (l[item.chave] ? { ...l, [item.chave]: { ...l[item.chave]!, perguntar: false } } : l));
+    iniciar(async () => {
+      try {
+        await confirmarCancelamentoRaioXAction(item.chave, cancelou);
+      } catch {
+        if (cancelou) tirarCancelada(item.chave);
+        setLembretes((l) => ({ ...l, [item.chave]: antes }));
+        showError("Não salvou. Tente de novo.");
+      }
+    });
+  };
+
   const decidir = (item: RaioXItem, decisao: EscolhaDoRaioX) => {
     setEscolhas((e) => ({ ...e, [item.chave]: decisao }));
     tirarCancelada(item.chave);
+    tirarLembrete(item.chave);
     iniciar(async () => {
       try {
         await decidirRaioXAction({ chave: item.chave, nome: item.nome, decisao, economiaAnual: economiaAnual(item, decisao), descricao: item.descricao });
@@ -57,6 +134,7 @@ export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[
     const antes = escolhas[item.chave];
     setEscolhas((e) => ({ ...e, [item.chave]: undefined }));
     tirarCancelada(item.chave);
+    tirarLembrete(item.chave);
     iniciar(async () => {
       try {
         // Volta à resposta de antes (pode ser a de outra tela, como o "Uso" do Dinheiro perdido).
@@ -72,6 +150,7 @@ export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[
   const linha = (item: RaioXItem, estado?: "cortado" | "mantido") => {
     const e = escolhas[item.chave];
     const metade = item.tipo === "habito";
+    const lembrete = estado === "cortado" && e === "raiox_cancelar" && !canceladasAqui.has(item.chave) ? lembretesAqui[item.chave] : undefined;
     return (
       <div key={item.chave} className="flex items-start gap-3 py-3.5" data-guia="raiox-item">
         <LogoDoLancamento descricao={item.nome} icon={Repeat} size={36} />
@@ -87,6 +166,40 @@ export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[
               {metade ? ` · ${t.raioxVezesPorMes(Math.round(item.vezesPorMes)).toLowerCase()}` : ""}
             </p>
           )}
+          {lembrete?.dia ? (
+            <Selinho className="ml-1.5 mt-1 gap-1" data-lembrete={lembrete.dia}>
+              <Bell size={11} aria-hidden /> lembrete dia {lembrete.dia}
+            </Selinho>
+          ) : null}
+          {lembrete && lembrete.dia === null ? (
+            <form
+              className="mt-2 flex items-center gap-2"
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                salvarDia(item);
+              }}
+            >
+              <label htmlFor={`dia-${item.chave}`} className="text-sm text-ink">Que dia ela cobra?</label>
+              <input
+                id={`dia-${item.chave}`}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={31}
+                value={diaDigitado[item.chave] ?? ""}
+                onChange={(ev) => setDiaDigitado((d) => ({ ...d, [item.chave]: ev.target.value }))}
+                className="h-10 w-16 rounded-xl bg-surface-2 px-2 text-center text-base tabular-nums text-ink"
+              />
+              <button type="submit" className="min-h-10 rounded-full bg-surface-2 px-3 text-sm font-medium text-ink">Pronto</button>
+            </form>
+          ) : null}
+          {lembrete?.perguntar ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2" data-cancelou>
+              <span className="text-sm text-ink">Cancelou?</span>
+              <button type="button" onClick={() => responderCancelou(item, true)} className="min-h-10 rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">Cancelei mesmo</button>
+              <button type="button" onClick={() => responderCancelou(item, false)} className="min-h-10 rounded-full bg-surface-2 px-4 text-sm font-medium text-ink">Ainda não</button>
+            </div>
+          ) : null}
           {estado ? (
             <button type="button" onClick={() => desfazer(item)} className="mt-1.5 block min-h-9 text-sm text-ink-muted underline underline-offset-4">
               Desfazer
@@ -139,15 +252,16 @@ export function RaioX({ itens, decididos, canceladas = [] }: { itens: RaioXItem[
         </div>
       )}
 
-      {r.cortados.length > 0 && (
+      {comLembrete.length > 0 && (
         <button
           type="button"
-          aria-pressed={lembrar}
-          onClick={() => setLembrar((l) => !l)}
-          className={`flex min-h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium ${lembrar ? "bg-ink text-canvas" : "bg-surface-2 text-ink"}`}
+          aria-pressed={todosLigados}
+          onClick={alternarLembrete}
+          data-lembrar
+          className={`flex min-h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium ${todosLigados ? "bg-ink text-canvas" : "bg-surface-2 text-ink"}`}
         >
           <Bell size={16} aria-hidden />
-          {lembrar ? "Vou te lembrar no dia de cada uma" : "Lembrar de cancelar no dia da cobrança"}
+          {!todosLigados ? "Lembrar de cancelar no dia da cobrança" : semDia > 0 ? "Falta o dia da cobrança" : "Vou te lembrar no dia de cada uma"}
         </button>
       )}
 

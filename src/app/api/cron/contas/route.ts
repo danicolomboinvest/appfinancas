@@ -9,6 +9,7 @@ import { contasEmail } from "@/lib/email/templates";
 import { makeMoneyFormatter, toCurrencyCode } from "@/lib/money";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { contasQueUsamOApp, normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
+import { enviarLembretesDeAssinatura } from "@/lib/assinaturas/lembretes-envio";
 
 export const maxDuration = 60;
 
@@ -19,6 +20,9 @@ const DIA_MS = 86_400_000;
  * amanhã e a que vence hoje, das que ela marcou "Me lembrar". Cada lembrete tem chave com o
  * vencimento e sai uma vez só (NotificationLog). Vai pro celular de quem ligou as notificações;
  * quem não ligou (o app de iPhone e Android não recebe push) ganha um e-mail com todas as do dia.
+ *
+ * Na mesma passada, o lembrete de cancelar assinatura que ela pediu no Raio-X (véspera ou dia da
+ * cobrança, e o "Cancelou?" quando a cobrança não veio): lib/assinaturas/lembretes-envio.ts.
  *
  * `?dryRun=1` mostra o que sairia sem mandar nada; `?onlyEmail=` restringe a uma pessoa.
  */
@@ -113,5 +117,16 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, dryRun, hoje: hoje.toISOString().slice(0, 10), contas: contas.length, pushed, mailed, preview: dryRun ? preview : preview.length });
+  const assinaturas = await enviarLembretesDeAssinatura({ hoje, dryRun, onlyEmail, baseUrl });
+
+  return NextResponse.json({
+    ok: true,
+    dryRun,
+    hoje: hoje.toISOString().slice(0, 10),
+    contas: contas.length,
+    pushed,
+    mailed,
+    preview: dryRun ? preview : preview.length,
+    assinaturas: { pessoas: assinaturas.pessoas, pushed: assinaturas.pushed, mailed: assinaturas.mailed, preview: dryRun ? assinaturas.preview : assinaturas.preview.length },
+  });
 }

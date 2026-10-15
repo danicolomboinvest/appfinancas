@@ -18,6 +18,7 @@ import {
   naoEAssinatura,
   prepararVoz,
   tocarNaSugestao,
+  tocarNoLembrar,
   tocarNoRaioX,
   trocarPerfil,
   vendiNaEmpresa,
@@ -31,7 +32,7 @@ import {
   conferirMetas,
   definirMesAtual,
 } from "./conferir";
-import { abrir, lerDecidir, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
+import { abrir, lerDecidir, lerLembreteNoRaioX, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
 import { bate, brl } from "./dinheiro";
 import { BASE } from "./config";
 import { textoVisivel } from "./texto";
@@ -77,6 +78,17 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirAssinaturaNasTres(p, c, "Netflix", { raiox: "aberto", recorrentes: "na lista", perdido: "Para conferir" }, "partida");
       await tocarNoRaioX(p, "Netflix", "Cancelar");
       await conferirAssinaturaNasTres(p, c, "Netflix", { raiox: "Vou cancelar", recorrentes: "para cancelar", perdido: "Não uso" }, "Raio-X");
+    });
+
+    // O lembrete de cancelar (15/10/2026): o botão grava de verdade e vira o selinho do dia em
+    // que a Netflix cobra (dia 1 no extrato da Ana). Tocar de novo desliga.
+    await passo(c, "Raio-X: Lembrar de cancelar liga o selinho da Netflix, e tocar de novo tira", async () => {
+      await tocarNoLembrar(p);
+      const visto = await lerLembreteNoRaioX(p, c, "Netflix");
+      if (visto !== "lembrete dia 1") await c.anotar(p, { tipo: "texto", telaDeOrigem: "Raio-X (Lembrar)", telaErrada: "Raio-X", esperado: "lembrete dia 1", visto });
+      expect(visto).toBe("lembrete dia 1");
+      await tocarNoLembrar(p);
+      expect(await lerLembreteNoRaioX(p, c, "Netflix")).toBe("sem lembrete");
     });
 
     await passo(c, "Raio-X: Desfazer a Netflix volta as três telas", async () => {

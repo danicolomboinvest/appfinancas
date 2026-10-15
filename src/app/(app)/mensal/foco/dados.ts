@@ -48,7 +48,7 @@ export type ResumoDaLista = { n: number; total: number };
 export async function carregarRaioX(ctx: AuthContext, ano: number, mes: number) {
   const [todos, respostas] = await Promise.all([itensDoRaioX(ctx, ano, mes), carregarRespostasDeAssinatura(ctx)]);
   const r = raioXComARegraUnica(todos, (marcas) => estadoPara(respostas, marcas));
-  return { itens: r.itens, decididos: r.decididos as Map<string, { tipo: TipoDecisao; valor: number }>, canceladas: r.canceladas };
+  return { itens: r.itens, decididos: r.decididos as Map<string, { tipo: TipoDecisao; valor: number }>, canceladas: r.canceladas, respostas };
 }
 
 /**

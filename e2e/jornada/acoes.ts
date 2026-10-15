@@ -459,3 +459,11 @@ export async function naoEAssinatura(p: Page, nome: string) {
   await comAcao(p, () => p.getByRole("dialog").getByRole("button", { name: "Não é assinatura" }).click());
   return pilula(p, "Não é assinatura");
 }
+
+/** Raio-X: o botão "Lembrar de cancelar no dia da cobrança" (liga; tocar de novo desliga). */
+export async function tocarNoLembrar(p: Page) {
+  await p.goto("/decidir/raio-x");
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await pularTutoriais(p);
+  await comAcao(p, () => p.locator("[data-lembrar]").click());
+}
