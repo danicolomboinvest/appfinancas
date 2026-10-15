@@ -30,6 +30,8 @@ import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { serverMoney } from "@/lib/money-server";
 import type { z } from "zod";
+import { casaAtiva } from "@/lib/casa/regras";
+import { lerEscolhasDoFormulario } from "@/lib/casa/escolhas";
 
 /** `aviso`: o texto do toast quando não é o "Lançado" de sempre (gasto no cartão com limite). */
 export type MonthlyEntryState = { error?: string; aviso?: string };
@@ -86,7 +88,23 @@ function parseEntryForm(formData: FormData) {
     pessoa: formData.get("pessoa") ?? undefined,
     tipoCasal: formData.get("tipoCasal") ?? undefined,
     noCartao: formData.get("noCartao") ?? undefined,
+    casaDeQuem: formData.get("casaDeQuem") ?? undefined,
+    casaPagou: formData.get("casaPagou") ?? undefined,
+    casaDivisao: formData.get("casaDivisao") ?? undefined,
+    casaParte: formData.get("casaParte") ?? undefined,
   });
+}
+
+/**
+ * Casal simples (15/10/2026): as três escolhas do Digitar (de quem é, quem pagou, como divide).
+ * Só valem num gasto e dentro de uma casa; fora disso o formulário nem manda. O que entra no
+ * acerto nunca fica no "Só meu".
+ */
+function aplicarEscolhasDoCasal(ctx: Sessao, data: z.output<typeof monthlyEntrySchema>, entry: MonthlyEntryInput) {
+  if (entry.category !== "EXPENSE" || !casaAtiva(ctx)) return;
+  const e = lerEscolhasDoFormulario(data);
+  if (!e) return;
+  Object.assign(entry, e, e.doPar || e.pagouOPar ? { soMeu: false } : {});
 }
 
 type ConversionError = { error: string };
@@ -161,6 +179,7 @@ export async function createMonthlyEntryAction(
     await registrarFalhaDaAcao("lancar", entry.error);
     return entry;
   }
+  aplicarEscolhasDoCasal(ctx, parsed.data, entry);
   try {
     if (parsed.data.repeatMonthly) {
       await createRecurringMonthlyEntries(ctx, entry);
@@ -227,6 +246,7 @@ export async function updateMonthlyEntryAction(
   if (trocouDePerfil(formData.get("profileId"), ctx.profileId)) return { error: MSG_TROCOU_DE_PERFIL };
   const entry = await toEntryInput(parsed.data);
   if ("error" in entry) return entry;
+  aplicarEscolhasDoCasal(ctx, parsed.data, entry);
   // Empresa: o cliente da venda (só vem quando a folha mostra o campo; vazio limpa).
   const cliente = formData.get("cliente");
   if (typeof cliente === "string" && entry.category === "INCOME") entry.cliente = cliente.trim().slice(0, 80) || null;

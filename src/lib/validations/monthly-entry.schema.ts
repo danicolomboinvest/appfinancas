@@ -56,6 +56,11 @@ export const monthlyEntrySchema = z
   pessoa: z.union([z.literal("A"), z.literal("B"), z.literal("")]).optional(),
   /** Perfil Casal: gasto da casa (entra no acerto) ou pessoal. */
   tipoCasal: z.union([z.literal("casa"), z.literal("pessoal"), z.literal("so_meu"), z.literal("")]).optional(),
+  /** Casal simples (15/10/2026, lib/casa/escolhas.ts): de quem é, quem pagou e a divisão própria. */
+  casaDeQuem: z.union([z.literal("meu"), z.literal("casa"), z.literal("par"), z.literal("")]).optional(),
+  casaPagou: z.union([z.literal("eu"), z.literal("par"), z.literal("")]).optional(),
+  casaDivisao: z.union([z.literal("renda"), z.literal("meio"), z.literal("outra"), z.literal("")]).optional(),
+  casaParte: z.string().trim().max(8).optional(),
   /** Gasto no cartão de crédito (limite do cartão): "sim"/"nao". Só o gasto manda; ausente não mexe. */
   noCartao: z.union([z.literal("sim"), z.literal("nao"), z.literal("")]).optional(),
 })
