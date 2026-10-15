@@ -19,6 +19,7 @@ import { carregarFoco, MESES } from "../dados";
 import { chaveDaSemana } from "../ritmo";
 import { ondeMostrarFechamento } from "../fechamento/quando-mostrar";
 import { categoriaResolvida, escolherSugestaoDoMes } from "@/lib/avisos/respostas";
+import { quantosNoDecidir } from "@/lib/decisoes/pilha";
 import { parcelasProjetadas } from "@/lib/import/total-do-lote";
 import { detalharONumero, type DetalheDoNumero, type LancamentoDoNumero } from "./detalhe-do-numero";
 import {
@@ -420,7 +421,9 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     categorias: caso === "dia-a-dia" && comDado(valorDe(passado)) ? categorias : [],
     sugestao,
     marca,
-    maisNoDecidir: foco.empresa ? 0 : foco.foco.atencao.length,
+    // A mesma lista que o Decidir desenha (lib/decisoes/pilha): nunca "1 decisão no Decidir" com o
+    // Decidir dizendo "Tudo resolvido".
+    maisNoDecidir: foco.empresa ? 0 : quantosNoDecidir(foco.foco, foco.metas.map((x) => x.id)),
     dataDoDado,
     foco,
   };

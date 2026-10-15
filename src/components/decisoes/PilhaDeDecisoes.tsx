@@ -44,6 +44,14 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
   const [pulos, setPulos] = useState<Record<string, number>>({});
   // O que ela já resolveu nesta visita: some na hora, sem esperar o servidor (o Desfazer devolve).
   const [feitos, setFeitos] = useState<Set<string>>(new Set());
+  // A lista que veio do servidor é a verdade (15/10/2026): quando chega uma nova (router.refresh,
+  // voltar para a tela), o "já resolvi" local some. Sem isso, um cartão que o servidor ainda tem
+  // ficava escondido e a tela dizia "Tudo resolvido" enquanto o Resumo contava "1 no Decidir".
+  const [daVez, setDaVez] = useState(pilha);
+  if (daVez !== pilha) {
+    setDaVez(pilha);
+    setFeitos(new Set());
+  }
   const [saindo, setSaindo] = useState<{ id: string; lado: "sai" | "pula" } | null>(null);
   // O total do "1 de 3" não encolhe enquanto ela resolve: conta todos que passaram pela pilha.
   const [vistos, setVistos] = useState<Set<string>>(() => new Set(pilha.map((c) => c.id)));
@@ -178,9 +186,15 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
   };
 
   const esperam = depois.filter((c) => !feitos.has(c.id) && !visiveis.some((v) => v.id === c.id));
+  const linhaDaEspera =
+    esperam.length > 0 ? (
+      <p className="dc-espera" data-esperam={esperam.length}>
+        Mais {esperam.length} {esperam.length === 1 ? "pode" : "podem"} esperar: <b>{juntarComE(esperam.map((c) => c.curto))}</b>
+      </p>
+    ) : null;
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="dc-hoje" data-tour="pilha">
+    <section className="flex flex-col gap-3" aria-labelledby="dc-hoje" data-tour="pilha" data-na-pilha={visiveis.length}>
       <div className="dc-cab">
         <b id="dc-hoje">Para decidir hoje</b>
         {frente && (
@@ -250,20 +264,20 @@ export function PilhaDeDecisoes({ pilha, depois }: { pilha: CartaoDaPilha[]; dep
               </button>
             </p>
           )}
-          {esperam.length > 0 && (
-            <p className="dc-espera">
-              Mais {esperam.length} {esperam.length === 1 ? "pode" : "podem"} esperar: <b>{juntarComE(esperam.map((c) => c.curto))}</b>
-            </p>
-          )}
+          {linhaDaEspera}
         </>
       ) : (
-        <div className="dc-zero" role="status">
-          <span className="dc-zero-c" aria-hidden>
-            <Check size={22} strokeWidth={1.8} />
-          </span>
-          <b>Tudo resolvido por hoje</b>
-          <small>Volto a chamar quando algo mudar.</small>
-        </div>
+        <>
+          <div className="dc-zero" role="status">
+            <span className="dc-zero-c" aria-hidden>
+              <Check size={22} strokeWidth={1.8} />
+            </span>
+            {/* Com algo esperando, não é "tudo resolvido": é nada urgente, e o que espera continua à vista. */}
+            <b>{esperam.length > 0 ? "Nada urgente por hoje" : "Tudo resolvido por hoje"}</b>
+            <small>Volto a chamar quando algo mudar.</small>
+          </div>
+          {linhaDaEspera}
+        </>
       )}
     </section>
   );

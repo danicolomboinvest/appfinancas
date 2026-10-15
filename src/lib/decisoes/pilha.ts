@@ -273,6 +273,41 @@ export function cartaoDaPilha(item: FocoItem, d: DadosDaPilha): CartaoDaPilha | 
   return null;
 }
 
+/** Quantos cartões a pilha mostra de uma vez (o resto "pode esperar"); o mesmo do motor do Foco. */
+export const MAX_NA_PILHA = 3;
+
+/**
+ * O aviso vira cartão? A mesma condição em que `cartaoDaPilha` não volta null, sem precisar dos
+ * números: o Resumo usa para contar, o Decidir para desenhar.
+ */
+export function cabeNaPilha(item: FocoItem, metaIds: ReadonlySet<string>): boolean {
+  const det = item.detalhe;
+  if (!det) return false;
+  if (det.tipo === "meta") return metaIds.has(det.metaId);
+  return ["estouro", "ritmo", "fora", "aporte", "reserva", "raiox"].includes(det.tipo);
+}
+
+/**
+ * A lista ÚNICA do Decidir (15/10/2026): o que vai para a pilha "Para decidir hoje" e o que "pode
+ * esperar". O Resumo conta o "Mais N no Decidir" desta lista e o Decidir desenha esta lista. Antes o
+ * Resumo contava o `atencao` cru do motor e o Decidir jogava fora o que não sabia desenhar: o
+ * Resumo dizia "1 decisão no Decidir" e o Decidir, "Tudo resolvido".
+ *
+ * O que já foi respondido (lib/avisos) o motor do Foco já tirou. O Raio-X sempre espera.
+ */
+export function listaDoDecidir(foco: { atencao: FocoItem[]; depois: FocoItem[] }, metaIds: Iterable<string>): { pilha: FocoItem[]; depois: FocoItem[] } {
+  const ids = new Set(metaIds);
+  const todos = [...foco.atencao, ...foco.depois].filter((i) => cabeNaPilha(i, ids));
+  const urgentes = todos.filter((i) => i.detalhe?.tipo !== "raiox");
+  const esperam = todos.filter((i) => i.detalhe?.tipo === "raiox");
+  return { pilha: urgentes.slice(0, MAX_NA_PILHA), depois: [...urgentes.slice(MAX_NA_PILHA), ...esperam] };
+}
+
+/** O "Mais N no Decidir" do Resumo: os cartões da pilha, nem um a mais nem um a menos. */
+export function quantosNoDecidir(foco: { atencao: FocoItem[]; depois: FocoItem[] }, metaIds: Iterable<string>): number {
+  return listaDoDecidir(foco, metaIds).pilha.length;
+}
+
 /**
  * A ordem da pilha: a do motor, e quem foi pulado ("Pular este", ou deslizar) vai para o fim.
  * Pular duas vezes não volta para a frente.

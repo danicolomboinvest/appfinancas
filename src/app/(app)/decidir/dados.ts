@@ -2,7 +2,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { serverMoney } from "@/lib/money-server";
 import { categoriasEssenciais } from "@/lib/categories";
 import { previsaoDoMes } from "@/lib/decisoes/foco-semana";
-import { cartaoDaPilha, type CartaoDaPilha, type DadosDaPilha, type MetaDaPilha } from "@/lib/decisoes/pilha";
+import { cartaoDaPilha, listaDoDecidir, type CartaoDaPilha, type DadosDaPilha, type MetaDaPilha } from "@/lib/decisoes/pilha";
 import type { DadosDasPilulas } from "@/lib/decisoes/esferas";
 import { extraDeInicio } from "@/lib/decisoes/fluxos";
 import { estouGastandoDemais, melhoreiDoMesPassado, porqueAcabouMaisRapido } from "@/lib/decisoes/respostas";
@@ -116,9 +116,11 @@ export async function carregarDecidir(ctx: AuthContext) {
     },
   };
 
+  // A mesma lista que o Resumo conta no "Mais N no Decidir" (lib/decisoes/pilha).
+  const lista = listaDoDecidir(d.foco, metas.map((x) => x.id));
   return {
-    pilha: cartoes(d.foco.atencao),
-    depois: cartoes(d.foco.depois),
+    pilha: cartoes(lista.pilha),
+    depois: cartoes(lista.depois),
     pilulas,
     // Para a folha "Resolver agora" das respostas (Onde estou exagerando?).
     remanejo: dados.remanejo,

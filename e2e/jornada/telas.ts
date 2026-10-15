@@ -158,23 +158,40 @@ export async function lerResumo(p: Page, caderno: Caderno, m?: Mes): Promise<Ret
       }
     }
   }
-  const mais = (await textoVisivel(p)).match(/Mais (\d+) no Decidir/);
+  // "Mais 2 no Decidir" (com a sugestão) ou "1 decisão no Decidir" / "2 decisões no Decidir" (sem).
+  const texto = await textoVisivel(p);
+  const mais = texto.match(/Mais (\d+) no Decidir/) ?? texto.match(/(\d+) decis(?:ão|ões) no Decidir/);
   const n = heroi.match(/R\$\s*([\d.]+(?:,\d+)?)/);
   return { caso, heroi, gastoNoHeroi: n ? reais(`R$ ${n[1]}`) : null, categorias, sugestao, semana, maisNoDecidir: mais ? Number(mais[1]) : null };
 }
 
 // ------------------------------------------------------------------ Decidir
-export type RetratoDoDecidir = { cartoes: { id: string; texto: string }[]; livres: number | null; porDia: number | null; acima: string | null };
+export type RetratoDoDecidir = {
+  cartoes: { id: string; texto: string }[];
+  /** Quantos cartões a pilha tem ("1 de 3" conta estes), e quantos "podem esperar". */
+  naPilha: number;
+  esperam: number;
+  /** O que a tela diz quando a pilha está vazia ("Tudo resolvido por hoje", "Nada urgente por hoje"). */
+  zero: string | null;
+  livres: number | null;
+  porDia: number | null;
+  acima: string | null;
+};
 
 export async function lerDecidir(p: Page, caderno: Caderno): Promise<RetratoDoDecidir> {
   await abrir(p, "/decidir", caderno, "Decidir");
   const cartoes: { id: string; texto: string }[] = [];
   for (const el of await p.locator("[data-cartao]").all()) cartoes.push({ id: (await el.getAttribute("data-cartao")) ?? "", texto: linhas(await el.innerText()).slice(0, 3).join(" | ") });
+  const naPilha = Number((await p.locator("[data-na-pilha]").first().getAttribute("data-na-pilha").catch(() => "0")) ?? 0);
+  const espera = p.locator("[data-esperam]");
+  const esperam = (await espera.count()) ? Number(await espera.first().getAttribute("data-esperam")) : 0;
+  const zeroEl = p.locator(".dc-zero b");
+  const zero = (await zeroEl.count()) ? (await zeroEl.first().innerText()).trim() : null;
   const pilulas = await p.locator(".ob-c").allInnerTexts();
   const livres = pilulas.find((x) => /livres/.test(x));
   const porDia = pilulas.find((x) => /por dia/.test(x));
   const acima = pilulas.find((x) => /acima/.test(x)) ?? null;
-  return { cartoes, livres: reais(livres), porDia: reais(porDia), acima: acima ? acima.replace(/\n+/g, " ") : null };
+  return { cartoes, naPilha, esperam, zero, livres: reais(livres), porDia: reais(porDia), acima: acima ? acima.replace(/\n+/g, " ") : null };
 }
 
 // ------------------------------------------------------------------ Posso comprar

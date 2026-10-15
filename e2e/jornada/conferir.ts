@@ -137,6 +137,7 @@ export async function conferirAvisoDaCategoria(p: Page, c: Caderno, chave: strin
     ["Decidir (pílula acima)", !!dec.acima && dec.acima.includes(nome), dec.acima ?? "(nenhuma)"],
     ["Resumo (sugestão)", !!res.sugestao && res.sugestao.texto.startsWith(nome), res.sugestao?.texto ?? "(nenhuma)"],
   ];
+  await conferirContagemDoDecidir(p, c, res, dec, origem);
   for (const [tela, aparece, visto] of lugares) {
     // Antes da resposta só exigimos o aviso onde ele é regra (Orçamento e Decidir); o Resumo
     // mostra uma sugestão por vez e pode estar mostrando outra.
@@ -154,6 +155,28 @@ export async function conferirAvisoDaCategoria(p: Page, c: Caderno, chave: strin
     }
   }
   return { orc, dec, res };
+}
+
+/**
+ * O "Mais N no Decidir" do Resumo conta exatamente os cartões da pilha do Decidir (15/10/2026: o
+ * Resumo dizia "Mais 1 no Decidir" e o Decidir, "Tudo resolvido"). E o Decidir não diz "Tudo
+ * resolvido" com algo esperando ("Mais 1 pode esperar: assinaturas" sumia).
+ */
+export async function conferirContagemDoDecidir(p: Page, c: Caderno, res: Awaited<ReturnType<typeof lerResumo>>, dec: Awaited<ReturnType<typeof lerDecidir>>, origem: string) {
+  // Resumo sem a linha (primeiros passos, primeira vez) não promete nada: só confere quando ela existe.
+  if (res.maisNoDecidir !== null && res.maisNoDecidir !== dec.naPilha) {
+    await c.anotar(p, {
+      tipo: "numero",
+      telaDeOrigem: "Decidir",
+      telaErrada: "Resumo (Mais N no Decidir)",
+      esperado: dec.naPilha === 0 ? "nada chamando para o Decidir (a pilha está vazia)" : `${dec.naPilha} no Decidir (cartões da pilha)`,
+      visto: `${res.maisNoDecidir} no Decidir`,
+      chave: `${c.perfil}|mais-no-decidir|${origem}`,
+    });
+  }
+  if (dec.naPilha === 0 && dec.esperam > 0 && dec.zero === "Tudo resolvido por hoje") {
+    await c.anotar(p, { tipo: "texto", telaDeOrigem: "Decidir", telaErrada: "Decidir (pilha vazia)", esperado: `"Nada urgente por hoje" e os ${dec.esperam} que esperam à vista`, visto: dec.zero, chave: `${c.perfil}|tudo-resolvido-com-espera|${origem}` });
+  }
 }
 
 let mesDaJornada: Mes = { ano: 2026, mes: 10 };
