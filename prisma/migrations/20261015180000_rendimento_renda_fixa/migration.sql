@@ -21,3 +21,15 @@ ALTER TABLE "Asset" ADD COLUMN "rendimentoComo" VARCHAR(12);
 ALTER TABLE "Asset" ADD COLUMN "rendimentoEstimado" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "Asset" ADD COLUMN "valorInformado" DECIMAL(18,2);
 ALTER TABLE "Asset" ADD COLUMN "valorInformadoEm" TIMESTAMP(3);
+
+-- Renda fixa e Tesouro que já existiam: quando o app não sabe de onde partir (sem a data da
+-- compra) ou o valor de hoje pode ter sido digitado por ela (sem taxa e diferente do investido),
+-- o valor de hoje vira o "valor informado", na data da última mudança. O cálculo parte dele e
+-- nunca troca por uma estimativa um número que ela digitou. Só preenche as colunas novas.
+UPDATE "Asset"
+SET "valorInformado" = "currentValue", "valorInformadoEm" = "updatedAt"
+WHERE "assetClass" IN ('RENDA_FIXA', 'TESOURO_DIRETO')
+  AND (
+    "acquisitionDate" IS NULL
+    OR ("taxaCompra" IS NULL AND ("investedValue" IS NULL OR "investedValue" <> "currentValue"))
+  );
