@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contasNoMes, fraseDoQueAcaba, montarMesPrevisto, rendaMedia, type ContaPrevista } from "../proximos-meses";
+import { cartaoNoMes, contasNoMes, fraseDoQueAcaba, montarMesPrevisto, rendaMedia, type ContaPrevista } from "../proximos-meses";
 
 const conta = (c: Partial<ContaPrevista> & { nome: string; valor: number; vencimento: string }): ContaPrevista => ({
   repete: true,
@@ -50,5 +50,26 @@ describe("Próximos meses: o que já está comprometido", () => {
   it("a parcela que acaba vira frase de sobra", () => {
     expect(fraseDoQueAcaba("dezembro", [{ nome: "Amazon", valor: 89 }], real)).toBe("Em dezembro sai a parcela de Amazon: sobram R$ 89 a mais.");
     expect(fraseDoQueAcaba("dezembro", [], real)).toBeNull();
+  });
+});
+
+describe("o que já está no cartão no mês que ainda não chegou (15/10/2026)", () => {
+  const ehParcela = (d: string | null) => /\(\d+\/\d+\)/.test(d ?? "");
+  const gastos = [
+    { year: 2026, month: 11, amount: 89.9, description: null, cartao: "Cartão Nubank" },
+    { year: 2026, month: 11, amount: -10, description: "Estorno", cartao: "Cartão Nubank" },
+    { year: 2026, month: 11, amount: 200, description: "Loja (2/3)", cartao: "Cartão Nubank" },
+    { year: 2026, month: 11, amount: 50, description: "Fatura sem cartão cadastrado", cartao: null },
+    { year: 2026, month: 12, amount: 30, description: "Dezembro", cartao: "Cartão Nubank" },
+  ];
+  it("um item por cartão, sem a parcela (que já está em Parcelas), com o estorno descontando", () => {
+    expect(cartaoNoMes(gastos, { ano: 2026, mes: 11 }, ehParcela)).toEqual([
+      { nome: "Cartão Nubank", valor: 79.9 },
+      { nome: "No cartão", valor: 50 },
+    ]);
+  });
+  it("entra no total do mês", () => {
+    const m = montarMesPrevisto({ ano: 2026, mes: 11 }, { parcelas: [], contas: [], assinaturas: [], acabaram: [], rendaMedia: null, cartao: cartaoNoMes(gastos, { ano: 2026, mes: 11 }, ehParcela) });
+    expect(m.total).toBe(129.9);
   });
 });

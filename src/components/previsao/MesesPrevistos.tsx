@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, CreditCard, Receipt, Repeat } from "lucide-react";
+import { ChevronRight, CreditCard, Receipt, Repeat, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
@@ -115,12 +115,14 @@ export function MesPrevistoNaTela({ m, money }: { m: MesPrevisto; money: Money }
               {m.pct}% da renda média de <b className="font-semibold">{money(m.rendaMedia)}</b>.
             </>
           ) : (
-            "Parcelas, contas e assinaturas que você já tem."
+            m.cartao.length > 0 ? "O cartão, as parcelas, as contas e as assinaturas que você já tem." : "Parcelas, contas e assinaturas que você já tem."
           )}
         </p>
         {m.rendaMedia !== null && <Barra pct={m.pct} grossa />}
         {acaba && <p className="text-[14px] font-medium">{acaba}</p>}
       </HeroiDoTema>
+      {/* Gasto que já aconteceu e conta no mês da fatura (15/10/2026): o cartão vem primeiro. */}
+      <Grupo titulo="Já no cartão" Icone={Wallet} itens={m.cartao} money={money} />
       <Grupo titulo="Parcelas" Icone={CreditCard} itens={m.parcelas} money={money} />
       <Grupo titulo="Contas" Icone={Receipt} itens={m.contas} money={money} />
       <Grupo titulo="Assinaturas" Icone={Repeat} itens={m.assinaturas} money={money} />

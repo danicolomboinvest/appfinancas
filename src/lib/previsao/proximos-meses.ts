@@ -47,6 +47,10 @@ export type MesPrevisto = Mes & {
   parcelas: ItemPrevisto[];
   contas: ItemPrevisto[];
   assinaturas: ItemPrevisto[];
+  /** O que já está no cartão para o mês (15/10/2026): a compra lançada à mão num cartão cadastrado
+   * e a fatura importada contam no mês da fatura, que pode ainda não ter chegado. Um item por
+   * cartão. Não é previsão: é gasto que já aconteceu e conta neste mês. */
+  cartao: ItemPrevisto[];
   total: number;
   rendaMedia: number | null;
   /** O comprometido em % da renda média (null sem renda). */
@@ -59,11 +63,12 @@ const soma = (xs: ItemPrevisto[]) => xs.reduce((s, x) => s + x.valor, 0);
 
 export function montarMesPrevisto(
   m: Mes,
-  e: { parcelas: ItemPrevisto[]; contas: ItemPrevisto[]; assinaturas: ItemPrevisto[]; acabaram: ItemPrevisto[]; rendaMedia: number | null },
+  e: { parcelas: ItemPrevisto[]; contas: ItemPrevisto[]; assinaturas: ItemPrevisto[]; acabaram: ItemPrevisto[]; rendaMedia: number | null; cartao?: ItemPrevisto[] },
 ): MesPrevisto {
-  const total = Math.round((soma(e.parcelas) + soma(e.contas) + soma(e.assinaturas)) * 100) / 100;
+  const cartao = e.cartao ?? [];
+  const total = Math.round((soma(e.parcelas) + soma(e.contas) + soma(e.assinaturas) + soma(cartao)) * 100) / 100;
   const renda = e.rendaMedia && e.rendaMedia > 0 ? e.rendaMedia : null;
-  return { ...m, ...e, rendaMedia: renda, total, pct: renda ? Math.round((total / renda) * 100) : null };
+  return { ...m, ...e, cartao, rendaMedia: renda, total, pct: renda ? Math.round((total / renda) * 100) : null };
 }
 
 /** A renda média dos meses fechados que tiveram entrada (até 3). Null: nenhuma entrada. */
@@ -79,4 +84,20 @@ export function fraseDoQueAcaba(nomeDoMes: string, acabaram: ItemPrevisto[], mon
   const valor = money(soma(acabaram));
   if (acabaram.length === 1) return `Em ${nomeDoMes} sai a parcela de ${acabaram[0].nome}: sobram ${valor} a mais.`;
   return `Em ${nomeDoMes} saem ${acabaram.length} parcelas: sobram ${valor} a mais.`;
+}
+
+export type GastoNoCartao = { year: number; month: number; amount: number; description: string | null; cartao: string | null };
+
+/**
+ * O que já está no cartão em cada mês, um item por cartão ("Cartão Nubank"; sem cartão cadastrado,
+ * "No cartão"). A parcela fica de fora: ela já entra em Parcelas (parcelasDoMes). Estorno desconta.
+ */
+export function cartaoNoMes(gastos: GastoNoCartao[], m: Mes, ehParcela: (descricao: string | null) => boolean): ItemPrevisto[] {
+  const porCartao = new Map<string, number>();
+  for (const g of gastos) {
+    if (g.year !== m.ano || g.month !== m.mes || ehParcela(g.description)) continue;
+    const nome = g.cartao ?? "No cartão";
+    porCartao.set(nome, (porCartao.get(nome) ?? 0) + g.amount);
+  }
+  return [...porCartao].flatMap(([nome, valor]) => (Math.abs(valor) >= 0.005 ? [{ nome, valor: Math.round(valor * 100) / 100 }] : []));
 }
