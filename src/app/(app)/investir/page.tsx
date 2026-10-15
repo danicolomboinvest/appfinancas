@@ -3,9 +3,8 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { vozDoTema } from "@/lib/profiles/voice";
-import { dadosDaEmpresa } from "@/lib/profiles/empresa-dados";
-import { getYearlySummary } from "@/lib/consolidation/yearly";
-import { sumExpensesByParentCategoryForYear, sumExpensesByCustomCategoryForYear } from "@/lib/repositories/budget.repo";
+import { lancamentosDaEmpresa } from "@/lib/repositories/empresa.repo";
+import { margemDoRecibo, reciboDosMeses } from "@/lib/empresa/regras";
 import { listReferenceRates } from "@/lib/repositories/reference-rate.repo";
 import { escolherTaxaDeReferencia } from "@/lib/finance/taxa-de-referencia";
 import { nowInBrazil } from "@/lib/date/brazil-now";
@@ -15,9 +14,9 @@ import { InvestirCalculadora } from "./InvestirCalculadora";
 const TAXA_PADRAO = 0.1;
 
 /**
- * "Vale a pena investir na empresa?" — só existe no perfil Empresa. A margem de contribuição
- * vem da DRE do ano (o app já sabe quanto sobra de cada venda) e a taxa de comparação vem
- * das taxas de referência da pessoa, se tiver.
+ * "Vale a pena investir na empresa?": só existe no perfil Empresa. A margem de contribuição
+ * vem do recibo do ano (a mesma regra do /empresa) e a taxa de comparação vem das taxas de
+ * referência da pessoa, se tiver.
  */
 export default async function InvestirPage() {
   const ctx = await getRequiredSession();
@@ -26,23 +25,12 @@ export default async function InvestirPage() {
 
   const now = nowInBrazil();
   const year = now.getFullYear();
-  const [summary, porMae, porPersonalizada, taxas] = await Promise.all([
-    getYearlySummary(ctx, year),
-    sumExpensesByParentCategoryForYear(ctx, year),
-    sumExpensesByCustomCategoryForYear(ctx, year),
-    listReferenceRates(ctx),
-  ]);
-  const dados = await dadosDaEmpresa(
-    ctx,
-    {
-      receita: summary.totalIncome,
-      retido: summary.totalInvestment,
-      gastoPorCategoria: porMae.map((r) => ({ parentCategory: r.parentCategory, spent: r.spent })),
-      gastoPersonalizado: porPersonalizada.reduce((s, r) => s + r.spent, 0),
-    },
-    { year, month: now.getMonth() + 1 },
-  );
-  const margem = dados.dre.margemContribuicaoPct !== null && dados.dre.margemContribuicaoPct > 0 ? dados.dre.margemContribuicaoPct : 0.4;
+  const [lancamentos, taxas] = await Promise.all([lancamentosDaEmpresa(ctx, { ano: year, mes: 1 }), listReferenceRates(ctx)]);
+  // A margem do ano pela mesma regra do recibo do /empresa (margemDoRecibo): o mesmo número que o
+  // ponto de equilíbrio usa, sem o rendimento do caixa como venda nem a aplicação como custo.
+  const meses = Array.from({ length: now.getMonth() + 1 }, (_, i) => ({ ano: year, mes: i + 1 }));
+  const doAno = margemDoRecibo(reciboDosMeses(lancamentos, meses));
+  const margem = doAno !== null && doAno > 0 ? doAno : 0.4;
   // A taxa que ela cadastrou ganha da global do sistema (ver escolherTaxaDeReferencia).
   const cdi = escolherTaxaDeReferencia(taxas, ctx.userId, /cdi|selic/i);
   const taxa = cdi ? Number(cdi.rateValue) : TAXA_PADRAO;

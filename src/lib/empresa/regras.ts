@@ -162,6 +162,31 @@ export function lucrosParaOSalario(lancamentos: LancamentoDaEmpresa[], hoje: Mes
 }
 
 /**
+ * A margem de contribuição: quanto sobra de cada R$ 1 vendido depois do imposto e do que sobe com
+ * a venda. Uma conta só para o ponto de equilíbrio do /empresa e para a calculadora "Vale a pena
+ * investir na empresa?" (/investir), que antes usava a DRE do ano com outra regra: contava o
+ * "Rendimento do caixa" como venda e aplicação ou pagamento de fatura como custo, e a margem dela
+ * saía diferente da do recibo. Nula sem venda.
+ */
+export function margemDoRecibo(r: Pick<Recibo, "entrou" | "variaveis" | "impostos">): number | null {
+  if (r.entrou <= 0) return null;
+  return (r.entrou - r.impostos - r.variaveis) / r.entrou;
+}
+
+/** O recibo de vários meses somado (a margem do ano, na calculadora do /investir). */
+export function reciboDosMeses(lancamentos: LancamentoDaEmpresa[], meses: Mes[]): Pick<Recibo, "entrou" | "variaveis" | "impostos" | "fixas"> {
+  const soma = { entrou: 0, variaveis: 0, impostos: 0, fixas: 0 };
+  for (const m of meses) {
+    const r = reciboDoMes(lancamentos, m);
+    soma.entrou += r.entrou;
+    soma.variaveis += r.variaveis;
+    soma.impostos += r.impostos;
+    soma.fixas += r.fixas;
+  }
+  return soma;
+}
+
+/**
  * Ponto de equilíbrio (plano 3.6): o que precisa vender no mês para pagar as contas e o salário,
  * pela margem do mês de referência, arredondado PARA CIMA. É a conta do calcularDRE do app: o imposto
  * sai da venda antes da margem.
@@ -169,9 +194,8 @@ export function lucrosParaOSalario(lancamentos: LancamentoDaEmpresa[], hoje: Mes
  * Nulo quando a margem não é positiva (cada venda perde dinheiro) ou não houve venda.
  */
 export function pontoDeEquilibrio(r: Pick<Recibo, "entrou" | "variaveis" | "impostos" | "fixas">, salario: number): number | null {
-  if (r.entrou <= 0) return null;
-  const margem = (r.entrou - r.impostos - r.variaveis) / r.entrou;
-  if (margem <= 0) return null;
+  const margem = margemDoRecibo(r);
+  if (margem === null || margem <= 0) return null;
   return Math.ceil((r.fixas + Math.max(0, salario)) / margem - 1e-9);
 }
 
