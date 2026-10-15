@@ -5,7 +5,11 @@ import { z } from "zod";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia, lerData } from "@/lib/contas/contas";
 import { fecharAvisoDasContas } from "@/lib/repositories/contas-do-historico.repo";
-import { apagarContaAPagar, criarContaAPagar, desfazerContaPaga, editarContaAPagar, historicoDaConta, marcarContaPaga } from "@/lib/repositories/conta-a-pagar.repo";
+import { apagarContaAPagar, criarContaAPagar, desfazerContaPaga, editarContaAPagar, historicoDaConta, pagarContaComGasto } from "@/lib/repositories/conta-a-pagar.repo";
+import { diaValido, origemValida } from "@/lib/contas/paguei";
+import { acertarGuiaDepoisDoPaguei } from "@/lib/empresa/acertar-guia";
+import { ehEmpresa } from "@/lib/profiles/empresa";
+import { prisma } from "@/lib/db/prisma";
 
 const dataSchema = z.string().transform((s, c) => {
   const d = lerData(s);
@@ -40,6 +44,13 @@ function revalidar() {
   revalidatePath("/mensal/foco");
 }
 
+/** O "Paguei" cria gasto: o Resumo, o mês e o Orçamento mudam junto. */
+function revalidarComGasto() {
+  revalidar();
+  revalidatePath("/mensal", "layout");
+  revalidatePath("/empresa", "layout");
+}
+
 export async function salvarContaAction(input: z.input<typeof contaSchema>): Promise<{ ok: true } | { ok: false; erro: string }> {
   const r = contaSchema.safeParse(input);
   if (!r.success) return { ok: false, erro: r.error.issues[0]?.message ?? "Confira os campos." };
@@ -55,21 +66,45 @@ export async function salvarContaAction(input: z.input<typeof contaSchema>): Pro
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Devolve o vencimento pago (pra desfazer) e o próximo, se a conta repete. */
-export async function pagarContaAction(id: string): Promise<{ antes: string; antesParcela: number | null; proxima: string | null } | null> {
+export type ResultadoDoPaguei =
+  | { ok: true; antes: string; antesParcela: number | null; proxima: string | null; lancamentoId: string }
+  | { ok: false; erro: string };
+
+/**
+ * "Paguei" (versão B): cria o gasto com o valor, o dia e a origem que a linha mandou, marca a conta
+ * como paga e passa o vencimento. Devolve o vencimento pago e o id do gasto (para o Desfazer).
+ */
+export async function pagarContaAction(id: string, escolha: { valor: number; dia: string; origem: string }): Promise<ResultadoDoPaguei> {
   const ctx = await getRequiredSession();
-  const r = await marcarContaPaga(ctx, z.string().min(1).parse(id));
-  revalidar();
-  if (!r) return null;
-  return { antes: iso(r.antes), antesParcela: r.antesParcela, proxima: r.quitada ? null : iso(r.vencimento) };
+  const valor = typeof escolha?.valor === "number" && Number.isFinite(escolha.valor) ? Math.round(escolha.valor * 100) / 100 : 0;
+  if (!(valor > 0) || valor > 100_000_000) return { ok: false, erro: "Falta o valor" };
+  if (!diaValido(escolha?.dia, iso(hojeEmBrasilia()))) return { ok: false, erro: "Escolha o dia" };
+  if (!origemValida(escolha?.origem)) return { ok: false, erro: "Escolha de onde saiu" };
+  const r = await pagarContaComGasto(ctx, z.string().min(1).parse(id), { valor, dia: escolha.dia, origem: escolha.origem });
+  if (r) await acertarGuiaDepoisDoPaguei(ctx, r.nome);
+  revalidarComGasto();
+  if (!r) return { ok: false, erro: "Essa conta já estava paga" };
+  return { ok: true, antes: iso(r.antes), antesParcela: r.antesParcela, proxima: r.quitada ? null : iso(r.vencimento), lancamentoId: r.lancamentoId };
 }
 
-export async function desfazerPagamentoAction(id: string, antes: string, antesParcela?: number | null) {
+/** Desfazer o "Paguei": volta o vencimento e apaga o gasto que ele criou. */
+export async function desfazerPagamentoAction(id: string, antes: string, antesParcela?: number | null, lancamentoId?: string | null) {
   const ctx = await getRequiredSession();
   const d = lerData(antes);
   if (!d) return;
-  await desfazerContaPaga(ctx, z.string().min(1).parse(id), d, antesParcela === undefined ? undefined : z.number().int().min(1).max(48).nullable().parse(antesParcela));
-  revalidar();
+  await desfazerContaPaga(
+    ctx,
+    z.string().min(1).parse(id),
+    d,
+    antesParcela === undefined ? undefined : z.number().int().min(1).max(48).nullable().parse(antesParcela),
+    lancamentoId ? z.string().min(1).max(40).parse(lancamentoId) : null,
+  );
+  // A guia do MEI desfeita: a conta volta a seguir a guia paga antes desta.
+  if (ehEmpresa(ctx.profileKind)) {
+    const c = await prisma.contaAPagar.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, select: { nome: true } });
+    if (c) await acertarGuiaDepoisDoPaguei(ctx, c.nome);
+  }
+  revalidarComGasto();
 }
 
 /** "Nos últimos 3 meses a luz deu em média R$ 128": o que a conta deu no extrato, para sugerir. */

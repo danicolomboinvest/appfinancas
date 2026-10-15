@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Check, Plus } from "lucide-react";
+import { Banknote, CalendarClock, Check, CreditCard, Landmark, Plus } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { useToast } from "@/components/ui/toast-context";
 import { Explica } from "@/components/ui/Explica";
@@ -11,7 +11,9 @@ import { lerData } from "@/lib/contas/contas";
 import { guardePorMes, mesesAte, regraDaConta, textoDaRegra } from "@/lib/contas/frequencia";
 import { ehDoAno, faltaNoMes, pagaNoMes } from "@/lib/contas/recorrentes";
 import { vibrar } from "@/lib/celebrar";
-import { desfazerPagamentoAction, pagarContaAction } from "./actions";
+import { brilharQuandoAparecer } from "@/lib/ui/brilho";
+import { desfazerPagamentoAction } from "./actions";
+import { PagueiDaConta, type DadosDoPagueiNaTela, type PagueiFeito } from "./PagueiDaConta";
 import { useAbrirConta } from "./folha-contexto";
 import { iconeDaConta } from "./icone-da-conta";
 import type { ContaSerial } from "./LinhaDaConta";
@@ -31,12 +33,9 @@ function Valor({ c, riscado = false }: { c: ContaSerial; riscado?: boolean }) {
   return <span className={`shrink-0 text-[16px] tabular-nums ${riscado ? "text-ink-muted line-through" : "text-ink"}`}>{`${c.aproximado ? "~" : ""}${money(c.valor, { round: c.aproximado })}`}</span>;
 }
 
-/** Uma conta do mês: logo ou ícone, nome, quando vence, o valor e o círculo do "paguei". */
-function LinhaDoMes({ c, hoje, selo }: { c: ContaSerial; hoje: string; selo?: string }) {
+/** Uma conta do mês: logo ou ícone, nome, quando vence, o valor e o círculo do "Paguei". */
+function LinhaDoMes({ c, hoje, selo, onPaguei }: { c: ContaSerial; hoje: string; selo?: string; onPaguei: () => void }) {
   const abrir = useAbrirConta();
-  const router = useRouter();
-  const { showToast, showError } = useToast();
-  const [pagando, iniciar] = useTransition();
   const hojeD = lerData(hoje)!;
   const paga = pagaNoMes(c, hojeD);
   const venc = lerData(c.vencimento)!;
@@ -50,18 +49,8 @@ function LinhaDoMes({ c, hoje, selo }: { c: ContaSerial; hoje: string; selo?: st
       ? `Venceu dia ${venc.getUTCDate()}`
       : `${SEMANA[venc.getUTCDay()]}, dia ${venc.getUTCDate()}${naoMensal ? ` · ${textoDaRegra(regra)}` : ""}`;
 
-  function pagar() {
-    iniciar(async () => {
-      const r = await pagarContaAction(c.id);
-      if (!r) return showError("Não marcou. Atualize a tela.");
-      vibrar("sucesso");
-      showToast(`${c.nome} paga`, { label: "Desfazer", onClick: () => void desfazerPagamentoAction(c.id, r.antes, r.antesParcela).then(() => router.refresh()) });
-      router.refresh();
-    });
-  }
-
   return (
-    <li className="flex items-center gap-2.5 py-3">
+    <li className="flex items-center gap-2.5 rounded-xl py-3" data-brilho={`conta-${c.id}`}>
       <button type="button" onClick={() => abrir({ conta: c })} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
         <LogoDoLancamento descricao={c.nome} icon={iconeDaConta(c.nome)} cor="var(--color-ink-muted)" />
         <span className="min-w-0 flex-1">
@@ -82,13 +71,36 @@ function LinhaDoMes({ c, hoje, selo }: { c: ContaSerial; hoje: string; selo?: st
       ) : (
         <button
           type="button"
-          onClick={pagar}
-          disabled={pagando}
+          onClick={onPaguei}
           aria-label={`Marcar ${c.nome} como paga`}
-          className="relative flex size-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-border-strong before:absolute before:-inset-1 before:content-[''] disabled:opacity-50"
+          data-paguei={c.id}
+          className="relative flex size-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-border-strong before:absolute before:-inset-1 before:content-['']"
         />
       )}
     </li>
+  );
+}
+
+/** "Entrou nos gastos": o gasto que o "Paguei" acabou de criar, com de onde saiu e o dia. */
+function EntrouNosGastos({ feito }: { feito: PagueiFeito }) {
+  const money = useMoney();
+  const I = feito.origem?.tipo === "cartao" ? CreditCard : feito.origem?.tipo === "dinheiro" ? Banknote : Landmark;
+  const dia = `${Number(feito.dia.slice(8, 10))}/${feito.dia.slice(5, 7)}`;
+  return (
+    <div className="flex flex-col gap-2 aviso-sobe" data-entrou-nos-gastos>
+      <p className="px-1 text-[14px] font-medium text-ink">Entrou nos gastos</p>
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-3">
+        <LogoDoLancamento descricao={feito.nome} icon={iconeDaConta(feito.nome)} cor="var(--color-ink-muted)" />
+        <span className="min-w-0 flex-1">
+          <span className="block break-words text-[15px] font-medium leading-snug text-ink">{feito.nome}</span>
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[13px] text-ink-muted">
+            <I size={13} strokeWidth={1.8} className="shrink-0" aria-hidden />
+            {feito.origem ? `${feito.origem.rotulo} · ${dia}` : dia}
+          </span>
+        </span>
+        <span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{money(feito.valor)}</span>
+      </div>
+    </div>
   );
 }
 
@@ -97,11 +109,31 @@ function LinhaDoMes({ c, hoje, selo }: { c: ContaSerial; hoje: string; selo?: st
  * as que faltam com o dia da semana e o círculo para marcar como paga. As contas do ano moram na
  * seção delas.
  */
-export function ContasAPagar({ contas, pagas, hoje, selos }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string; /** Um selo a mais por conta (id → texto): a guia do MEI "estimado pelo app". */ selos?: Record<string, string> }) {
+export function ContasAPagar({ contas, pagas, hoje, selos, paguei }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string; /** Um selo a mais por conta (id → texto): a guia do MEI "estimado pelo app". */ selos?: Record<string, string>; paguei: DadosDoPagueiNaTela }) {
   const money = useMoney();
   const abrir = useAbrirConta();
   const router = useRouter();
+  const { showToast } = useToast();
   const [, iniciar] = useTransition();
+  // A linha aberta no "Paguei" (uma por vez) e o último gasto que ele criou.
+  const [aberta, setAberta] = useState<string | null>(null);
+  const [feito, setFeito] = useState<PagueiFeito | null>(null);
+
+  function pago(r: PagueiFeito) {
+    setAberta(null);
+    setFeito(r);
+    vibrar("sucesso");
+    // A linha volta paga e acende; a pílula curta traz o Desfazer (o gasto saiu desta tela).
+    brilharQuandoAparecer(`conta-${r.contaId}`);
+    showToast(`${r.nome} paga`, {
+      label: "Desfazer",
+      onClick: () => {
+        setFeito((f) => (f?.lancamentoId === r.lancamentoId ? null : f));
+        void desfazerPagamentoAction(r.contaId, r.antes, r.antesParcela, r.lancamentoId).then(() => router.refresh());
+      },
+    });
+    router.refresh();
+  }
   const hojeD = lerData(hoje)!;
   const doMes = contas.filter((c) => !ehDoAno(c));
   const falta = faltaNoMes(doMes, hojeD);
@@ -132,11 +164,18 @@ export function ContasAPagar({ contas, pagas, hoje, selos }: { contas: ContaSeri
         </button>
       ) : (
         <ul className="divide-y divide-border rounded-3xl border border-border bg-surface px-3">
-          {ordem.map((c) => (
-            <LinhaDoMes key={c.id} c={c} hoje={hoje} selo={selos?.[c.id]} />
-          ))}
+          {ordem.map((c) =>
+            aberta === c.id ? (
+              <li key={c.id} className="py-2">
+                <PagueiDaConta conta={c} dados={paguei} hoje={hoje} onPago={pago} onFechar={() => setAberta(null)} />
+              </li>
+            ) : (
+              <LinhaDoMes key={c.id} c={c} hoje={hoje} selo={selos?.[c.id]} onPaguei={() => setAberta(c.id)} />
+            ),
+          )}
         </ul>
       )}
+      {feito && <EntrouNosGastos feito={feito} />}
       {pagas.length > 0 && (
         <details className="rounded-2xl border border-border bg-surface px-4">
           <summary className="flex min-h-11 cursor-pointer items-center text-sm text-ink-muted">Pagas há pouco</summary>

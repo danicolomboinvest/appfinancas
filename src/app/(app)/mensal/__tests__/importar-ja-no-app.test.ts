@@ -25,6 +25,8 @@ type Linha = {
   importBatch: Lote | null;
   externalId: string | null;
   soMeu: boolean;
+  /** "Paguei" vira gasto (15/10/2026): nulo no lançado à mão de sempre. */
+  contaAPagarId: string | null;
 };
 
 const banco: Linha[] = [];
@@ -82,6 +84,7 @@ function lancar(description: string, amount: number, dia: string | null, extra: 
     importBatch: null,
     externalId: null,
     soMeu: false,
+    contaAPagarId: null,
     ...extra,
   });
 }

@@ -761,6 +761,16 @@ model MonthlyEntry {
   divididoCom        String?                  @db.VarChar(40)
   parteDeOutro       Decimal?                 @db.Decimal(18, 2)
   devolvidoEm        DateTime?                @db.Date
+  /// "Paguei" de uma conta das Recorrentes (15/10/2026): a conta que este gasto paga. O "Paguei"
+  /// cria o gasto com esta ligação; quando o extrato traz o mesmo pagamento, a linha do extrato
+  /// fica com a ligação e o lançamento do "Paguei" sai (ver lib/import/paguei-no-extrato.ts).
+  /// SetNull: apagar a conta nunca apaga o gasto que já aconteceu.
+  contaAPagarId      String?
+  contaAPagar        ContaAPagar?             @relation(fields: [contaAPagarId], references: [id], onDelete: SetNull)
+  /// De onde saiu o dinheiro no "Paguei": a chave da conta ou do cartão como a importação a
+  /// conhece ("conta:nubank", "cartao:itau", ver chaveDaConta em lib/casa/regras), o genérico
+  /// ("conta", "cartao") ou "dinheiro". É o que casa o "Paguei" com o extrato da mesma conta.
+  origemDoPagamento  String?                  @db.VarChar(60)
   /// O cartão cadastrado em que a compra foi feita (15/10/2026). Nulo = sem cartão escolhido (o
   /// `noCartao` continua valendo sozinho, como antes). Com cartão, `noCartao` é gravado true. A
   /// fatura em que a compra entra sai da data e dos dias do cartão (lib/cartao/fatura.ts); o mês
@@ -775,6 +785,7 @@ model MonthlyEntry {
   @@index([userId, parentCategory])
   @@index([userId, customCategoryId])
   @@index([importBatchId])
+  @@index([contaAPagarId])
   @@index([cartaoId])
 }
 
@@ -1431,6 +1442,8 @@ model ContaAPagar {
   tipo              String?           @db.VarChar(12)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+  /// Os gastos que o "Paguei" criou (ou que vieram do extrato no lugar dele).
+  lancamentos       MonthlyEntry[]
 
   @@index([userId, profileId, vencimento])
 }

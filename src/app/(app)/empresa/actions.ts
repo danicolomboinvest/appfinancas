@@ -7,12 +7,12 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { HORAS_POR_MES_PADRAO, PRAZOS_DO_CREDITO, RAMOS, TIPOS_DE_EMPRESA, ehForma, lerConfigEmpresa, type ConfigEmpresa, type Forma, type Ramo, type TipoDeEmpresa } from "@/lib/empresa/config";
 import { mesAntes, somarDias, type Mes } from "@/lib/empresa/regras";
-import { guiaDoMeiDaEmpresa, MESES } from "@/lib/empresa/resumo";
+import { MESES } from "@/lib/empresa/resumo";
 import { ehAtividadeDoMei } from "@/lib/empresa/legal";
-import type { AuthContext } from "@/lib/auth/session";
-import { garantirContaDaGuia, lancamentosDaEmpresa, lerPerfilDaEmpresa, marcarRecebida, registrarPagamento, registrarVenda, salvarConfigDaEmpresa, transferirSalario } from "@/lib/repositories/empresa.repo";
-import { marcarContaPaga } from "@/lib/repositories/conta-a-pagar.repo";
-import { parametrosDoMei } from "@/lib/repositories/parametro-legal.repo";
+import { lerPerfilDaEmpresa, marcarRecebida, registrarPagamento, registrarVenda, salvarConfigDaEmpresa, transferirSalario } from "@/lib/repositories/empresa.repo";
+import { pagarContaComGasto } from "@/lib/repositories/conta-a-pagar.repo";
+import { ORIGEM_CONTA } from "@/lib/contas/paguei";
+import { acertarContaDaGuia, acertarGuiaDepoisDoPaguei } from "@/lib/empresa/acertar-guia";
 
 type Resultado = { ok: true; mensagem?: string } | { ok: false; erro: string };
 
@@ -30,20 +30,6 @@ function hojeIso(): string {
 function valorValido(v: unknown, max = 10_000_000): number | null {
   const n = typeof v === "number" ? v : NaN;
   return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n * 100) / 100 : null;
-}
-
-/**
- * A conta "Guia do MEI" das Recorrentes com o valor da fonte única (valorDaGuia): o digitado, a
- * última guia paga ou a estimativa pela atividade. Cria a conta se ainda não existe.
- */
-async function acertarContaDaGuia(ctx: AuthContext, config: ConfigEmpresa) {
-  if (config.tipo !== "MEI") return;
-  const hoje = hojeIso();
-  const mesAtual = { ano: Number(hoje.slice(0, 4)), mes: Number(hoje.slice(5, 7)) };
-  const [legal, lancamentos] = await Promise.all([parametrosDoMei(hoje), lancamentosDaEmpresa(ctx, mesAntes(mesAtual, 12))]);
-  if (!legal.diaDoDas) return;
-  const guia = guiaDoMeiDaEmpresa({ config, legal, lancamentos });
-  if (guia) await garantirContaDaGuia(ctx, { valor: guia.valor, dia: legal.diaDoDas.valor, lembrar: config.lembreteDas, hoje });
 }
 
 function atualizar() {
@@ -156,21 +142,12 @@ export async function pagueiAction(p: { valor: number; tipo?: string; contaId?: 
   if (!valor) return { ok: false, erro: "Digite o valor pago." };
   const hoje = hojeIso();
   if (p.contaId) {
-    const ehGuia = p.contaNome === "Guia do MEI";
-    const paga = await marcarContaPaga(ctx, p.contaId);
+    // Uma conta das Recorrentes: o mesmo "Paguei" das Recorrentes (gasto ligado à conta, categoria
+    // da conta, a Guia do MEI em Impostos). A tela usa o PagueiDaConta; isto fica para quem chama sem ela.
+    const paga = await pagarContaComGasto(ctx, p.contaId, { valor, dia: hoje, origem: ORIGEM_CONTA });
     if (!paga) return { ok: false, erro: "Essa conta já estava paga." };
-    await registrarPagamento(ctx, {
-      valor,
-      parentCategory: ehGuia ? "IMPOSTOS" : "MORADIA",
-      subcategory: ehGuia ? "DAS (Simples Nacional)" : null,
-      descricao: (p.contaNome ?? "Conta").slice(0, 80),
-      hoje,
-    });
     // A guia paga agora é a mais recente: a conta da próxima fica com o valor dela.
-    if (ehGuia) {
-      const config = (await lerPerfilDaEmpresa(ctx)).config;
-      if (config) await acertarContaDaGuia(ctx, config);
-    }
+    await acertarGuiaDepoisDoPaguei(ctx, p.contaNome ?? "");
   } else {
     const t = TIPOS_DE_PAGAMENTO[p.tipo ?? ""];
     if (!t) return { ok: false, erro: "Escolha o que você pagou." };

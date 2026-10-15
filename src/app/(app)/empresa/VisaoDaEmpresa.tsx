@@ -9,6 +9,8 @@ import { ContasAPagar } from "@/app/(app)/orcamento/contas/ContasAPagar";
 import { FolhaDasContas } from "@/app/(app)/orcamento/contas/folha-contexto";
 import { SemanaDasContas } from "@/app/(app)/orcamento/contas/SemanaDasContas";
 import type { ContaSerial } from "@/app/(app)/orcamento/contas/LinhaDaConta";
+import { ORIGEM_CONTA, origensDoPaguei } from "@/lib/contas/paguei";
+
 import type { ContaDaSemana } from "@/lib/contas/semana-das-contas";
 import { useMoney } from "@/components/money/MoneyProvider";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
@@ -431,6 +433,9 @@ function AbaDespesas({ doPeriodo, periodo, quando, recibo, custom, m0 }: { doPer
 /** As contas da Empresa (15/10/2026): o quanto falta pagar e, embaixo, a semana e as contas das Recorrentes. */
 export type ContasDaTela = { abertas: ContaSerial[]; pagas: ContaSerial[]; vencimentos: ContaDaSemana[]; hoje: string };
 
+/** Sem o palpite carregado: as origens genéricas (Pix ou débito, Cartão, Dinheiro). */
+const PAGUEI_SEM_DADOS = { origens: origensDoPaguei([]), origem: ORIGEM_CONTA, antes: {} };
+
 function AbaContas({ dados, contas, m0 }: { dados: DadosDaEmpresa; contas: ContasDaTela; m0: Fmt }) {
   const doMes = contasDoMes(dados);
   const total = doMes.reduce((s, c) => s + (c.valor ?? 0), 0);
@@ -453,7 +458,8 @@ function AbaContas({ dados, contas, m0 }: { dados: DadosDaEmpresa; contas: Conta
         </HeroiDoTema>
       )}
       <SemanaDasContas contas={contas.vencimentos} hoje={contas.hoje} />
-      <ContasAPagar contas={contas.abertas} pagas={contas.pagas} hoje={contas.hoje} selos={selos} />
+      {/* O mesmo "Paguei" das Recorrentes (versão B): a linha abre o palpite e o Pronto cria o gasto. */}
+      <ContasAPagar contas={contas.abertas} pagas={contas.pagas} hoje={contas.hoje} selos={selos} paguei={dados.paguei ?? PAGUEI_SEM_DADOS} />
     </FolhaDasContas>
   );
 }

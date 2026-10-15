@@ -121,14 +121,14 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       // dia e saber quando cada um aconteceu e quando entrou no app.
       prisma.monthlyEntry.findMany({
         where: comFiltro(lancamentosDosTotais(ctx), { year, month, category: "EXPENSE" }),
-        select: { amount: true, entryDate: true, createdAt: true, parentCategory: true, customCategoryId: true, recurrenceId: true, description: true, subcategory: true, importBatchId: true, externalId: true },
+        select: { amount: true, entryDate: true, createdAt: true, parentCategory: true, customCategoryId: true, recurrenceId: true, description: true, subcategory: true, importBatchId: true, externalId: true, contaAPagarId: true },
         take: 5000,
       }),
       // As contas da lista (Recorrentes): as em aberto e as pagas neste mês, para reservar a que
       // ainda não saiu e reconhecer a que já apareceu nos lançamentos.
       prisma.contaAPagar.findMany({
         where: { ...doDono(ctx), OR: [{ quitada: false }, { pagaEm: { gte: inicioDoMes } }] },
-        select: { nome: true, valor: true, vencimento: true, pagaEm: true, repete: true, intervalo: true, unidade: true, mesesEscolhidos: true, parcelas: true, categoria: true, quitada: true, tipo: true, chaveDoHistorico: true },
+        select: { id: true, nome: true, valor: true, vencimento: true, pagaEm: true, repete: true, intervalo: true, unidade: true, mesesEscolhidos: true, parcelas: true, categoria: true, quitada: true, tipo: true, chaveDoHistorico: true },
         take: 300,
       }),
       // O último gasto no cartão (marcado ou de fatura) nos últimos 75 dias: o aviso "falta o cartão".
@@ -241,7 +241,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
   // fatura), marcada para repetir, parcela ("LOJA 03/10") ou o pagamento de uma conta da lista.
   const hojeIso = `${year}-${String(month).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
   const lista = contasDaLista.map((c) => ({
-    id: "",
+    id: c.id,
     nome: c.nome,
     valor: c.valor === null ? null : Number(c.valor),
     vencimento: c.vencimento.toISOString().slice(0, 10),
@@ -271,7 +271,8 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
     // Primeiro reconhece a conta da lista que este lançamento paga (o "Curso de inglês" lançado no
     // dia 2 com vencimento no dia 20 não fica reservado de novo), inclusive nas categorias fixas.
     const doLancamento = { descricao: g.description, subcategoria: g.subcategory, valor, categoria: (g.parentCategory as string | null) ?? null, comerciante: temComerciante ? chaveDoComercianteDe(g.description) : null };
-    const daLista = lista.findIndex((c, i) => !contaPaga.has(i) && lancamentoDaConta(doLancamento, c));
+    // O gasto do "Paguei" (ou a linha do extrato que ficou no lugar dele) diz a conta pela ligação.
+    const daLista = g.contaAPagarId ? lista.findIndex((c) => c.id === g.contaAPagarId) : lista.findIndex((c, i) => !contaPaga.has(i) && lancamentoDaConta(doLancamento, c));
     if (daLista >= 0) contaPaga.add(daLista);
     if (chave && fixasComOrcamento.has(chave)) continue; // já está no planejado inteiro da fixa
     const ehConta =

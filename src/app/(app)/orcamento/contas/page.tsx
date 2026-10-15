@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
-import { listarContasAPagar, listarQuitadasRecentes } from "@/lib/repositories/conta-a-pagar.repo";
+import { carregarDadosDoPaguei, listarContasAPagar, listarQuitadasRecentes } from "@/lib/repositories/conta-a-pagar.repo";
 import { listBudgets } from "@/lib/repositories/budget.repo";
 import { listarDividas, selicAnual } from "@/lib/repositories/divida.repo";
 import { saudeDe, SELIC_DE_RESERVA } from "@/lib/dividas/saude";
@@ -106,6 +106,8 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
   const contas = abertas.map(serializarConta);
+  // O palpite do "Paguei" (versão B): as origens, a última usada e os valores de antes da que varia.
+  const paguei = await carregarDadosDoPaguei(ctx, abertas, hojeD);
   // A renda do plano do mês; sem plano, a média dos últimos 12 meses fechados (antes era o que
   // entrou no mês até hoje: no dia 3, sem o salário, a "renda com dono" passava de 100%).
   const ref = rendaDeReferencia(planoDoMes?.plannedIncome, rendaMedia?.valor, resumo.totalIncome);
@@ -173,7 +175,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
         )}
         {novasDoHistorico.length > 0 && <AvisoDasContas contas={novasDoHistorico} />}
         <SemanaDasContas contas={vencimentos} hoje={hoje} />
-        <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} />
+        <ContasAPagar contas={contas} pagas={pagas.map(serializarConta)} hoje={hoje} paguei={paguei} />
       </div>
       <div className="flex min-w-0 flex-col gap-5">
         <Parcelas itens={parcelas.itens} total={m(parcelas.total)} hoje={{ year: ano, month: mes }} rotulos={rotulos} />

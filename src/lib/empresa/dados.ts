@@ -3,7 +3,8 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { listAssets } from "@/lib/repositories/asset.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
-import { listarContasAPagar, type ContaDaTela } from "@/lib/repositories/conta-a-pagar.repo";
+import { carregarDadosDoPaguei, listarContasAPagar, type ContaDaTela, type DadosDoPaguei } from "@/lib/repositories/conta-a-pagar.repo";
+import { hojeEmBrasilia } from "@/lib/contas/contas";
 import { parametrosDoMei } from "@/lib/repositories/parametro-legal.repo";
 import { lancamentosDaEmpresa, lerPerfilDaEmpresa, perfilPessoal } from "@/lib/repositories/empresa.repo";
 import { caixaDaEmpresa } from "@/lib/profiles/empresa";
@@ -16,7 +17,7 @@ import { mesAntes, type LancamentoDaEmpresa, type Mes } from "./regras";
  * mais o mês de hoje, as contas, os números legais valendo hoje e o caixa. As contas em cima disso
  * moram em `resumo.ts` (sem banco).
  */
-export type ContaDaEmpresa = { id: string; nome: string; valor: number | null; vencimento: string; pagaEm: string | null; lembrar: boolean; repete: boolean };
+export type ContaDaEmpresa = { id: string; nome: string; valor: number | null; vencimento: string; pagaEm: string | null; lembrar: boolean; repete: boolean; aproximado?: boolean };
 
 export type DadosDaEmpresa = {
   nome: string;
@@ -35,13 +36,15 @@ export type DadosDaEmpresa = {
   /** O primeiro nome dela (o "Para" do holerite e o "Ir para Ana, pessoal"). */
   primeiroNome: string;
   nomeCompleto: string;
+  /** O palpite do "Paguei" das contas (o mesmo das Recorrentes): origens, a última e os valores de antes. */
+  paguei?: DadosDoPaguei;
 };
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 function contaParaTela(c: ContaDaTela): ContaDaEmpresa {
   // O "pago em" é um instante: vira o dia de Brasília.
-  return { id: c.id, nome: c.nome, valor: c.valor, vencimento: iso(c.vencimento), pagaEm: c.pagaEm ? iso(new Date(c.pagaEm.getTime() - 3 * 3_600_000)) : null, lembrar: c.lembrar, repete: c.repete };
+  return { id: c.id, nome: c.nome, valor: c.valor, vencimento: iso(c.vencimento), pagaEm: c.pagaEm ? iso(new Date(c.pagaEm.getTime() - 3 * 3_600_000)) : null, lembrar: c.lembrar, repete: c.repete, aproximado: c.aproximado };
 }
 
 export async function carregarEmpresa(ctx: AuthContext): Promise<DadosDaEmpresa> {
@@ -61,6 +64,7 @@ export async function carregarEmpresa(ctx: AuthContext): Promise<DadosDaEmpresa>
   // O caixa: a mesma conta das outras telas da Empresa (o digitado na tela do caixa ou a reserva da carteira).
   const naCarteira = ativos.filter((a) => a.objective === "RESERVA_EMERGENCIA").reduce((s, a) => s + Number(a.currentValue), 0);
   const nomeCompleto = user.name?.trim() || user.email.split("@")[0];
+  const paguei = await carregarDadosDoPaguei(ctx, contas, hojeEmBrasilia());
   return {
     nome: perfil.nome,
     negocio: nomeDoNegocio(perfil.nome),
@@ -76,5 +80,6 @@ export async function carregarEmpresa(ctx: AuthContext): Promise<DadosDaEmpresa>
     pessoal,
     primeiroNome: nomeCompleto.split(" ")[0],
     nomeCompleto,
+    paguei,
   };
 }

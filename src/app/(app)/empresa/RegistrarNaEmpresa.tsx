@@ -16,6 +16,8 @@ import { MESES, contasDoMes } from "@/lib/empresa/resumo";
 import type { ResumoDaEmpresa } from "@/lib/empresa/resumo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { pagueiAction, recebiAction, vendiAction } from "./actions";
+import { PagueiDaConta, type PagueiFeito } from "../orcamento/contas/PagueiDaConta";
+import { desfazerPagamentoAction } from "../orcamento/contas/actions";
 import { BOTAO_PRINCIPAL, Chip, Iniciais, LinhaDoRecibo } from "./partes";
 import { FileUp } from "lucide-react";
 
@@ -40,7 +42,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
   const simbolo = currencySymbol(useCurrency());
   const m0 = (v: number) => money(v, { round: true });
   const router = useRouter();
-  const { showError } = useToast();
+  const { showError, showToast } = useToast();
   const [salvando, iniciar] = useTransition();
   const [modo, setModo] = useState<Modo>(null);
   const [valor, setValor] = useState<number | null>(null);
@@ -97,6 +99,14 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
       const r = await pagueiAction({ valor: valorNum, ...gasto });
       if (!r.ok) return showError(r.erro);
       pronto();
+    });
+  }
+  /** A conta paga pelo mesmo "Paguei" das Recorrentes: a folha fecha e a pílula traz o Desfazer. */
+  function contaPaga(r: PagueiFeito) {
+    pronto();
+    showToast(`${r.nome} paga`, {
+      label: "Desfazer",
+      onClick: () => void desfazerPagamentoAction(r.contaId, r.antes, r.antesParcela, r.lancamentoId).then(() => router.refresh()),
     });
   }
   function receber(id: string) {
@@ -229,10 +239,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
               <Chip
                 key={c.id}
                 on={gasto?.contaId === c.id}
-                onClick={() => {
-                  setGasto({ contaId: c.id, contaNome: c.nome });
-                  if (c.valor !== null) setValor(c.valor);
-                }}
+                onClick={() => setGasto({ contaId: c.id, contaNome: c.nome })}
               >
                 {c.nome}
               </Chip>
@@ -243,12 +250,33 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
               </Chip>
             ))}
           </div>
-          <div className="mt-6">{campoValor("Valor pago")}</div>
-          <div className="mt-6">
-            <button type="button" className={BOTAO_PRINCIPAL} disabled={salvando || valorNum <= 0 || !gasto} onClick={salvarPagamento}>
-              {salvando ? "Registrando..." : "Registrar"}
-            </button>
-          </div>
+          {(() => {
+            // Uma conta das Recorrentes: a linha do palpite, igual à das Recorrentes (um jeito só).
+            const conta = gasto?.contaId ? contasAbertas.find((c) => c.id === gasto.contaId) : null;
+            if (conta && dados.paguei) {
+              return (
+                <PagueiDaConta
+                  key={conta.id}
+                  className="mt-5"
+                  conta={{ id: conta.id, nome: conta.nome, valor: conta.valor, aproximado: conta.aproximado, vencimento: conta.vencimento }}
+                  dados={dados.paguei}
+                  hoje={dados.hoje}
+                  onPago={contaPaga}
+                  onFechar={() => setGasto(null)}
+                />
+              );
+            }
+            return (
+              <>
+                <div className="mt-6">{campoValor("Valor pago")}</div>
+                <div className="mt-6">
+                  <button type="button" className={BOTAO_PRINCIPAL} disabled={salvando || valorNum <= 0 || !gasto} onClick={salvarPagamento}>
+                    {salvando ? "Registrando..." : "Registrar"}
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 

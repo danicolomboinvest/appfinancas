@@ -153,12 +153,14 @@ export async function lancarPorVoz(p: Page, frase: string) {
 }
 
 /** O "+" → "Extrato ou fatura" → arquivo → anotar. */
-export async function importarArquivo(p: Page, caminho: string | string[]) {
+export async function importarArquivo(p: Page, caminho: string | string[], naConferencia?: (p: Page) => Promise<void>) {
   await abrirRegistrar(p);
   await p.getByRole("dialog").getByText("Extrato ou fatura", { exact: true }).click();
   await p.locator('input[type=file]').first().setInputFiles(caminho);
   const confirmar = p.locator("[data-confirmacao-do-arquivo]");
   await confirmar.waitFor({ timeout: 90_000 });
+  // O que o passo quer ler na conferência antes de anotar ("1 já estava no app").
+  if (naConferencia) await naConferencia(p);
   const pular = p.getByRole("button", { name: /Pular e anotar/ });
   const pronto = p.getByRole("button", { name: /^Pronto, anotar/ });
   if (await pronto.count()) await pronto.click();
@@ -523,4 +525,21 @@ export async function tocarNoLembrar(p: Page) {
   await p.waitForLoadState("networkidle").catch(() => undefined);
   await pularTutoriais(p);
   await comAcao(p, () => p.locator("[data-lembrar]").click());
+}
+
+/**
+ * Recorrentes: o "Paguei" da conta (versão B, 15/10/2026). O círculo abre a linha com o palpite
+ * (valor, Hoje, de onde saiu) e "Pronto" cria o gasto. Devolve o que os chips diziam.
+ */
+export async function pagueiNaConta(p: Page, nome: string) {
+  await p.goto("/orcamento/contas");
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await pularTutoriais(p);
+  await p.getByRole("button", { name: `Marcar ${nome} como paga` }).click();
+  const linha = p.locator("[data-paguei-aberto]");
+  await linha.waitFor();
+  const chips = { dia: (await linha.locator("[data-paguei-dia]").innerText()).trim(), origem: (await linha.locator("[data-paguei-origem]").innerText()).trim() };
+  await comAcao(p, () => linha.locator("[data-paguei-pronto]").click());
+  await linha.waitFor({ state: "detached", timeout: 15_000 });
+  return chips;
 }

@@ -47,6 +47,8 @@ import { estornoClaroNaFatura, pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
 import { casarComLancadosAMao, semNomeUtil, type LinhaDoArquivo } from "@/lib/import/parecido-manual";
+import { casarComPaguei, confirmaOPaguei, type PagueiNoApp } from "@/lib/import/paguei-no-extrato";
+import { contaVaria, origemDoArquivo } from "@/lib/contas/paguei";
 import { casarJaNoApp, TOLERANCIA_JA_NO_APP, type JaNoApp, type LinhaNova } from "@/lib/import/ja-no-app";
 import { casaAtiva, chaveDaConta, comFiltro, doOutroVisivel } from "@/lib/casa/regras";
 import { lidasEmDobro } from "@/lib/import/repetidos";
@@ -129,6 +131,9 @@ export type ReviewItem = {
     /** Lançamento à mão: o id e o valor dele. Com "é o mesmo", ele fica com o valor e a data do extrato. */
     id?: string;
     valor?: number;
+    /** O lançamento é o de um "Paguei" das Recorrentes (lib/import/paguei-no-extrato): com "é o
+     * mesmo", fica a linha do arquivo com a categoria e a ligação da conta, e o do "Paguei" sai. */
+    paguei?: boolean;
     /** Alta chance de já estar no app (lib/import/ja-no-app): a pergunta "Essa movimentação parece
      * já estar no app. Importar mesmo assim?", agrupada com as outras iguais. */
     altaChance?: boolean;
@@ -149,6 +154,9 @@ export type ReviewItem = {
     /** Parcela que já está no mês (ver marcarParcelasJaNoApp). Vai junto para a gravação, que a
      * reconhece e confirma a projeção da fatura anterior, mas não conta como compra nova. */
     parcela?: boolean;
+    /** É o gasto de um "Paguei" (o `id`): vai junto para a gravação, que grava a linha do arquivo
+     * com a categoria e a ligação da conta e tira o do "Paguei". A tela diz "já estava no app (Paguei)". */
+    paguei?: boolean;
   } | null;
   /** Fica de fora da importação (pagamento de fatura de quem importa a fatura, "só mudei de conta"). */
   ignorar?: boolean;
@@ -670,6 +678,9 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
   // Antes de tudo: a compra que já entrou pelo print da fatura aberta (quase certo, sem pergunta).
   if (docType === "fatura") await marcarJaNaFaturaAberta(ctx, items);
+  // O pagamento de uma conta que ela já marcou como "Paguei" (antes da busca do lançado à mão, que
+  // não olha os "Paguei"): vira "já estava no app (Paguei)" ou a pergunta "É o mesmo?".
+  await marcarPagueiNoExtrato(ctx, items, origemDoArquivo(docType, uploadedName));
   await marcarPossiveisDuplicatas(ctx, items);
   // Fatura com a data da compra também tem a chave solta (dia + valor): a mesma compra que já
   // veio de outro arquivo pergunta "é o mesmo?". Parcela fica de fora: a data dela é a da compra
@@ -744,6 +755,9 @@ export type ConfirmedItem = {
   /** Compra em dólar/euro/libra do print da fatura: o valor de fora, guardado nos campos de outra
    * moeda do lançamento. `amount` é o valor em real que ela digitou. */
   moedaDeFora?: { moeda: MoedaDeFora; valor: number } | null;
+  /** O gasto do "Paguei" que esta linha é (jaNoApp.paguei): a linha entra com a categoria e a
+   * ligação da conta, e o do "Paguei" sai. Conferido de novo aqui. */
+  paguei?: string | null;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -1047,6 +1061,55 @@ async function marcarJaNaFaturaAberta(ctx: AuthContext, items: ReviewItem[]) {
 }
 
 /**
+ * O "Paguei" das Recorrentes (15/10/2026) que o extrato ou a fatura traz de novo (critério em
+ * lib/import/paguei-no-extrato): o quase certo vira `jaNoApp.paguei` ("já estava no app
+ * (Paguei)", com "Anotar também"), a dúvida vira a pergunta "É o mesmo?". Nada sai sem ela ver: na
+ * gravação, a linha do arquivo fica com a categoria e a ligação da conta e o do "Paguei" sai.
+ */
+async function marcarPagueiNoExtrato(ctx: AuthContext, items: ReviewItem[], contaDoArquivo: string) {
+  const linhas = items.filter((it) => !it.ignorar && !it.jaNoApp && !it.possivelDuplicata && !it.installment && it.category === "EXPENSE" && !it.estorno && it.amount > 0);
+  const datas = linhas.map((i) => Date.parse(`${i.date}T12:00:00Z`)).filter((t) => Number.isFinite(t));
+  if (datas.length === 0) return;
+  const perfis = [...new Set(items.map((it) => it.profileId ?? ctx.profileId))];
+  const pagueis = await prisma.monthlyEntry.findMany({
+    where: {
+      userId: ctx.userId, profileId: { in: perfis },
+      importBatchId: null,
+      contaAPagarId: { not: null },
+      category: "EXPENSE",
+      entryDate: { gte: new Date(Math.min(...datas) - 6 * DIA_MS), lte: new Date(Math.max(...datas) + 6 * DIA_MS) },
+    },
+    select: { id: true, amount: true, entryDate: true, origemDoPagamento: true, contaAPagarId: true, contaAPagar: { select: { nome: true, valor: true, aproximado: true } } },
+  });
+  if (pagueis.length === 0) return;
+  const noApp: PagueiNoApp[] = pagueis.flatMap((p) =>
+    p.entryDate && p.contaAPagarId
+      ? [{
+          id: p.id,
+          contaAPagarId: p.contaAPagarId,
+          nomeDaConta: p.contaAPagar?.nome ?? "",
+          amount: Number(p.amount),
+          date: p.entryDate.toISOString().slice(0, 10),
+          origem: p.origemDoPagamento,
+          varia: p.contaAPagar ? contaVaria({ valor: p.contaAPagar.valor === null ? null : Number(p.contaAPagar.valor), aproximado: p.contaAPagar.aproximado }) : false,
+        }]
+      : [],
+  );
+  const casados = casarComPaguei(
+    linhas.map((it) => ({ key: it.key, date: it.date, description: it.description, valor: it.amount, category: it.category })),
+    noApp,
+    contaDoArquivo,
+  );
+  for (const item of items) {
+    const c = casados.get(item.key);
+    if (!c) continue;
+    const par = { descricao: c.paguei.nomeDaConta || "(sem descrição)", data: c.paguei.date, id: c.paguei.id, valor: c.paguei.amount, paguei: true };
+    if (c.tipo === "certo") item.jaNoApp = par;
+    else item.possivelDuplicata = par;
+  }
+}
+
+/**
  * Lançamento que a pessoa JÁ fez à mão e que agora vem no extrato/fatura (critério em
  * lib/import/parecido-manual): o quase certo vira `jaNoApp` (não entra de novo, a tela só mostra
  * "N já estavam no app"); o caso duvidoso de verdade (valor igual, data perto, nome diferente)
@@ -1062,11 +1125,12 @@ async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) 
     meses.push({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 });
   }
   const manuais = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, externalId: null, OR: meses },
+    // O gasto do "Paguei" tem a regra dele (marcarPagueiNoExtrato), com a origem e a conta que varia.
+    where: { userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, externalId: null, contaAPagarId: null, OR: meses },
     select: { id: true, category: true, amount: true, entryDate: true, description: true, year: true, month: true },
   });
   const linhas: LinhaDoArquivo[] = items.flatMap((item) =>
-    item.ignorar || item.jaNoApp || !Number.isFinite(Date.parse(`${item.date}T12:00:00Z`))
+    item.ignorar || item.jaNoApp || item.possivelDuplicata || !Number.isFinite(Date.parse(`${item.date}T12:00:00Z`))
       ? []
       : [{ key: item.key, date: item.date, description: item.description, valor: item.estorno ? -item.amount : item.amount, category: item.category }],
   );
@@ -1096,7 +1160,8 @@ export async function conciliarJaNoAppAction(lista: { id: string; valor: number;
     const dia = new Date(`${l?.data}T12:00:00`);
     if (typeof l?.id !== "string" || !Number.isFinite(valor) || valor === 0 || Math.abs(valor) > 1e8 || Number.isNaN(dia.getTime())) continue;
     const atual = await prisma.monthlyEntry.findFirst({
-      where: { id: l.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null },
+      // O gasto do "Paguei" junta na gravação (juntarComPaguei), nunca aqui.
+      where: { id: l.id, userId: ctx.userId, profileId: ctx.profileId, importBatchId: null, contaAPagarId: null },
       select: { amount: true, description: true },
     });
     if (!atual) continue;
@@ -1774,6 +1839,59 @@ export async function importTransactionsAction(
     }
   };
 
+  /**
+   * O pagamento de uma conta que ela marcou como "Paguei" (ConfirmedItem.paguei, ver
+   * lib/import/paguei-no-extrato): os dois viram um só. Fica a linha do arquivo (o valor, o dia e
+   * o nome do banco, neste lote) com a categoria, a ligação da conta e o casal do "Paguei", e o
+   * lançamento do "Paguei" sai, na mesma transação. O id é conferido de novo: tem de ser um
+   * "Paguei" dela, ainda sem lote, que casa com a linha. Senão a linha entra como nova e nada sai.
+   */
+  const origemDesteArquivo = origemDoArquivo(docType, fileName ?? null);
+  const juntarComPaguei = async (item: ConfirmedItem, ym: { year: number; month: number }, dia: string | null, profileId: string): Promise<boolean> => {
+    if (item.category !== "EXPENSE" || item.estorno || item.installment) return false;
+    const p = await prisma.monthlyEntry.findFirst({
+      where: { id: item.paguei!, userId: ctx.userId, profileId, importBatchId: null, contaAPagarId: { not: null }, category: "EXPENSE", entryDate: { not: null } },
+      select: {
+        id: true, year: true, month: true, amount: true, entryDate: true, parentCategory: true, customCategoryId: true, subcategory: true,
+        contaAPagarId: true, pessoa: true, doCasal: true, soMeu: true, autorUserId: true, contaAPagar: { select: { valor: true, aproximado: true } },
+      },
+    });
+    if (!p || !p.entryDate) return false;
+    const valor = valorGravado(item);
+    const varia = p.contaAPagar ? contaVaria({ valor: p.contaAPagar.valor === null ? null : Number(p.contaAPagar.valor), aproximado: p.contaAPagar.aproximado }) : false;
+    if (!confirmaOPaguei({ date: item.date, valor }, { amount: Number(p.amount), date: p.entryDate.toISOString().slice(0, 10), varia })) return false;
+    await prisma.$transaction([
+      prisma.monthlyEntry.create({
+        data: {
+          userId: ctx.userId, profileId,
+          year: ym.year,
+          month: ym.month,
+          category: "EXPENSE",
+          parentCategory: p.parentCategory,
+          customCategoryId: p.customCategoryId,
+          subcategory: p.subcategory,
+          description: item.description,
+          amount: valor,
+          entryDate: dia ? new Date(`${dia}T12:00:00`) : null,
+          importBatchId: batch.id,
+          pessoa: pessoaPara(profileId) ?? p.pessoa,
+          doCasal: p.doCasal,
+          soMeu: p.soMeu,
+          autorUserId: p.autorUserId,
+          contaAPagarId: p.contaAPagarId,
+          origemDoPagamento: origemDesteArquivo,
+        },
+      }),
+      prisma.monthlyEntry.delete({ where: { id: p.id } }),
+    ]);
+    adotados += 1;
+    skipped += 1;
+    touchedMonths.add(`${p.year}/${p.month}`);
+    touchedMonths.add(`${ym.year}/${ym.month}`);
+    if (ehFatura) mesesDasComprasCriadas.set(`${ym.year}/${ym.month}`, ym);
+    return true;
+  };
+
   // O que ela ensinou nesta importação, por perfil + comerciante (pra aplicar nos outros meses).
   const aprendidas = new Map<string, { profileId: string; regra: { pattern: string; parentCategory: ParentCategory; subcategory?: string; customCategoryId: string | null } }>();
   for (const [indice, item] of items.entries()) {
@@ -1801,6 +1919,7 @@ export async function importTransactionsAction(
     // de duplicata usa o MESMO mês e o MESMO dia que vão pro banco (ver `chaveExata`/`diaDe`).
     const ym = monthOf(item);
     const dia = diaDe(item);
+    if (item.paguei && (await juntarComPaguei(item, ym, dia, profileId))) continue;
     if (item.adotar && ehFatura && (await adotarDoPrint(item, ym, dia))) {
       // A fatura fechada projeta as parcelas seguintes da compra que veio do print (o print não projeta).
       await lancarParcelasFuturas(item, ym, profileId, parentCategory, customCategoryId, null);

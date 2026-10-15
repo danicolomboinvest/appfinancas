@@ -1,14 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Bell, Repeat } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { useMoney } from "@/components/money/MoneyProvider";
-import { useToast } from "@/components/ui/toast-context";
 import { diasAte, lerData, situacao, type Situacao } from "@/lib/contas/contas";
-import { desfazerPagamentoAction, pagarContaAction } from "./actions";
-import { vibrar } from "@/lib/celebrar";
 
 /** A conta como chega no cliente: datas em texto ("2026-10-12"), pra atravessar a fronteira. */
 export type ContaSerial = {
@@ -48,39 +43,18 @@ const COR_DA_DATA: Record<Situacao, string> = {
 
 /**
  * Uma conta: a data num quadradinho de calendário, o nome, quando vence e o "Paguei". Tocar no
- * resto da linha abre a edição (quando a tela passa `onAbrir`). Usada na tela das contas e no
- * cartão do Foco.
+ * resto da linha abre a edição (quando a tela passa `onAbrir`). O "Paguei" só aparece com
+ * `onPaguei`: ele abre a linha do palpite (PagueiDaConta), que é quem cria o gasto.
  */
-export function LinhaDaConta({ conta, hoje, onAbrir }: { conta: ContaSerial; hoje: string; onAbrir?: () => void }) {
+export function LinhaDaConta({ conta, hoje, onAbrir, onPaguei }: { conta: ContaSerial; hoje: string; onAbrir?: () => void; onPaguei?: () => void }) {
   const { voz } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
-  const { showToast, showError } = useToast();
-  const router = useRouter();
-  const [pagando, startTransition] = useTransition();
 
   const venc = lerData(conta.vencimento)!;
   const hojeD = lerData(hoje)!;
   const sit = situacao(venc, hojeD);
   const dias = diasAte(venc, hojeD);
-
-  function pagar() {
-    startTransition(async () => {
-      const r = await pagarContaAction(conta.id);
-      if (!r) {
-        showError("Não marcou. Atualize a tela.");
-        return;
-      }
-      vibrar("sucesso");
-      showToast(t.contasPagaToast(conta.nome, r.proxima ? diaMes(r.proxima) : null), {
-        label: t.contasDesfazer,
-        onClick: () => {
-          void desfazerPagamentoAction(conta.id, r.antes, r.antesParcela).then(() => router.refresh());
-        },
-      });
-      router.refresh();
-    });
-  }
 
   const corpo = (
     <>
@@ -115,14 +89,15 @@ export function LinhaDaConta({ conta, hoje, onAbrir }: { conta: ContaSerial; hoj
           {conta.valor === null ? t.contasValorVaria : money(conta.valor)}
         </span>
         {/* Compacto por fora (cabe embaixo do valor), 44px de toque por dentro (o ::before). */}
+        {onPaguei && (
         <button
           type="button"
-          onClick={pagar}
-          disabled={pagando}
+          onClick={onPaguei}
           className="relative rounded-full border border-border-strong px-3 py-1 text-caption font-semibold text-ink transition-colors before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:bg-surface-hover active:scale-95 disabled:opacity-50"
         >
           {t.contasPaguei}
         </button>
+        )}
       </div>
     </li>
   );
