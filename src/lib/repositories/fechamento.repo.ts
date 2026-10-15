@@ -6,7 +6,7 @@ import { estadoDoFechamento, proximoEstado, type AcaoDoFechamento } from "@/app/
  * O estado do fechamento de um mês do perfil ativo (tabela FechamentoDoMes, seção 3.12).
  * Perfil é obrigatório: o fechamento é de um dinheiro, não da conta.
  */
-export async function lerFechamento(ctx: Pick<AuthContext, "userId" | "profileId">, ano: number, mes: number) {
+export async function lerFechamento(ctx: { userId: string; profileId: string | null }, ano: number, mes: number) {
   if (!ctx.profileId) return estadoDoFechamento(null);
   const linha = await prisma.fechamentoDoMes.findUnique({
     where: { profileId_ano_mes: { profileId: ctx.profileId, ano, mes } },
