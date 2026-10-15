@@ -3,7 +3,7 @@ import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { rendaDeReferencia } from "@/lib/simulators/worth-it";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
-import { sobrouDoResumo } from "@/lib/consolidation/sobrou";
+import { sobrouDoResumo, sobrouEmReais } from "@/lib/consolidation/sobrou";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listarDividas, selicAnual } from "@/lib/repositories/divida.repo";
 import { SELIC_DE_RESERVA } from "@/lib/dividas/saude";
@@ -35,7 +35,8 @@ export default async function DividasPage(props: PageProps<"/dividas">) {
   // fechados; sem histórico, a que entrou.
   const ref = rendaDeReferencia(plano?.plannedIncome, rendaMedia?.valor, resumo.totalIncome);
   const renda = ref.valor;
-  const sobrou = Math.max(0, Math.floor(sobrouDoResumo(resumo)));
+  // O mesmo sobrou do Resumo, em reais inteiros pelo mesmo arredondamento (sobrouEmReais).
+  const sobrou = Math.max(0, sobrouEmReais(sobrouDoResumo(resumo)));
 
   return (
     <DividasTela

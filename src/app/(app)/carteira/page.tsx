@@ -17,6 +17,7 @@ import { atualizarTaxasSeVelhas } from "@/lib/indicadores/indicadores";
 import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { guardadoDoMes } from "@/lib/consolidation/guardado";
 import { AllocateContributionCard } from "./AllocateContributionCard";
 import { evolucaoDoPatrimonio, precosDosTitulos, proventosDaCarteira, taxasDeReferencia, titulosParaABusca } from "./dados";
 import { MeusAtivos, type AtivoDaTela, type SugestaoDeAporte } from "./MeusAtivos";
@@ -95,7 +96,8 @@ export default async function CarteiraPage() {
 
   // Aportes (rodada 16): o que ela guardou no mês pelo orçamento e, só como sugestão, onde pôr.
   // A reserva segue a regra dos aportes (3.11): menos de 3 meses, 100% para ela.
-  const guardouNoMes = Math.max(resumoDoMes.totalInvestment, aporteDoMes.contributions.reduce((s, c) => s + c.amount, 0));
+  // O Guardou do Resumo (guardadoDoMes): a soma líquida dos aportes do mês, resgate descontado.
+  const guardouNoMes = guardadoDoMes(resumoDoMes);
   const baseDoAporte = guardouNoMes > 0 ? guardouNoMes : contexto.plannedAmount;
   const reserva = alvos.find((t) => t.kind === "reserva");
   const regra = reserva ? regraDosAportes(reserva.monthsCovered ?? null, reserva.remaining <= 0) : null;

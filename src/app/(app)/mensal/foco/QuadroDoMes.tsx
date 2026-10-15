@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Explica } from "@/components/ui/Explica";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { lerSobrou, mesSemLancamento, sobrouDoResumo } from "@/lib/consolidation/sobrou";
+import { guardadoDoMes } from "@/lib/consolidation/guardado";
 
 type Resumo = { totalIncome: number; totalExpense: number; totalInvestment: number };
 
@@ -43,7 +44,7 @@ export function QuadroDoMes({
   const quadro = [
     { rotulo: rotulos.entrou, texto: money(resumo.totalIncome), cor: "var(--color-dinheiro-entrou)", fundo: "", corDoValor: "var(--quadro-cor-entrou, var(--color-ink))" },
     { rotulo: rotulos.gastou, texto: money(resumo.totalExpense), cor: "var(--color-dinheiro-gastou)", fundo: "", corDoValor: "var(--color-ink)" },
-    { rotulo: "Guardou", texto: money(resumo.totalInvestment), cor: "var(--color-dinheiro-guardou)", fundo: "", corDoValor: "var(--quadro-cor-guardou, var(--color-ink))" },
+    { rotulo: "Guardou", texto: money(guardadoDoMes(resumo)), cor: "var(--color-dinheiro-guardou)", fundo: "", corDoValor: "var(--quadro-cor-guardou, var(--color-ink))" },
     ultimo,
   ];
   return (

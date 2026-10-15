@@ -20,6 +20,16 @@ export function sobrouDoMes({ entrou, gastou, guardou }: ValoresDoMes): number {
   return centavos(entrou - gastou - guardou);
 }
 
+/**
+ * O sobrou em reais inteiros, para quem usa o número fora do formatador (o atalho "O que sobrou"
+ * das Dívidas). Math.round, como o Resumo mostra (money com round: true arredonda para o mais
+ * perto). Antes as Dívidas cortavam com Math.floor: sobrou R$ 199,60 era R$ 200 no Resumo e
+ * R$ 199 nas Dívidas.
+ */
+export function sobrouEmReais(valor: number): number {
+  return Math.round(centavos(valor)) || 0;
+}
+
 /** "vazio": o mês não tem lançamento nenhum (não é um empate, é um mês que ainda não começou). */
 export type SituacaoDoSobrou = "sobrou" | "empatou" | "faltou" | "vazio";
 
