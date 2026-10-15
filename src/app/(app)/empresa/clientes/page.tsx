@@ -32,7 +32,7 @@ export default async function ClientesPage() {
       <Voltar>{dados.nome}</Voltar>
       <Titulo nota={`${MESES[ini.mes - 1]} a ${MESES[fim.mes - 1]}`}>Seus clientes</Titulo>
       {!q ? (
-        <Cartao className="px-5 py-6 text-sm text-ink-muted">Na hora de registrar a venda, diga de quem foi. Os clientes aparecem aqui.</Cartao>
+        <Cartao className="px-5 py-6 text-sm text-ink-muted">Na hora de registrar uma entrada, diga de quem foi. Os clientes aparecem aqui.</Cartao>
       ) : (
         <>
           <Cartao className="flex flex-col gap-2 p-4">
@@ -62,7 +62,7 @@ export default async function ClientesPage() {
                 <Iniciais nome={c.nome} />
                 <span className="min-w-0 flex-1">
                   <b className="block truncate text-[15px] font-medium text-ink">{c.nome}</b>
-                  <small className="text-xs text-ink-muted">{c.pct}% das vendas</small>
+                  <small className="text-xs text-ink-muted">{c.pct}% das entradas</small>
                 </span>
                 <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{m0(c.valor)}</b>
               </div>

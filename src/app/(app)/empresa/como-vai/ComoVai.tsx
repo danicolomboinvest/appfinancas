@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChartLine, Check, Clock, TriangleAlert, Users } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
@@ -14,6 +15,7 @@ import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { Cartao, Iniciais, Voltar } from "../partes";
 import { SeletorDePeriodo } from "../SeletorDePeriodo";
 import { PainelDoPeriodo } from "../PainelDoPeriodo";
+import { Acumulado, type Janela } from "./Acumulado";
 
 const ord = (m: Mes) => m.ano * 12 + m.mes;
 const nomeDoMes = (m: Mes, cap = false) => {
@@ -70,7 +72,28 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
   const money = useMoney();
   // Com um período escolhido (13/10/2026), o painel do período entra no lugar do gráfico de 3, 6 e 12 meses.
   const RP = useMemo(() => (periodo ? resumoDoPeriodo(antigos ?? dados.lancamentos, periodo, dados.hoje) : null), [periodo, antigos, dados]);
-  const seletor = <SeletorDePeriodo periodo={periodo} hoje={dados.hoje} caminho="/empresa/como-vai" semPeriodo={{ nome: "Ver por período", sub: "" }} />;
+  const seletor = <SeletorDePeriodo periodo={periodo} hoje={dados.hoje} caminho="/empresa/como-vai" semPeriodo={{ nome: "Escolher datas", sub: "" }} />;
+  // 15/10/2026, a Dani: 3M, 6M e 12M mudam a tela INTEIRA para o acumulado (antes só o gráfico
+  // mudava e os cartões ficavam no último mês). "Mês" é a tela de sempre, do último mês fechado.
+  const router = useRouter();
+  const [janela, setJanela] = useState<Janela | "mes">("6m");
+  const chips = (
+    <div className="flex gap-1 rounded-full bg-surface-2 p-1" role="group" aria-label="Quanto tempo" data-janelas>
+      {([["mes", "Mês"], ["3m", "3M"], ["6m", "6M"], ["12m", "12M"], ["ano", "Ano"]] as const).map(([k, t]) => (
+        <button
+          key={k}
+          type="button"
+          aria-pressed={!periodo && janela === k}
+          onClick={() => {
+            setJanela(k);
+            // Com datas escolhidas no endereço, voltar para a tela sem datas.
+            if (periodo) router.push("/empresa/como-vai", { scroll: false });
+          }} className={`min-h-10 flex-1 rounded-full text-sm ${!periodo && janela === k ? "bg-surface font-medium text-ink shadow-[0_1px_3px_rgba(0,0,0,.08)]" : "text-ink-muted"}`}>
+          {t}
+        </button>
+      ))}
+    </div>
+  );
   const m0 = (v: number) => money(v, { round: true });
   const R = useMemo(() => resumoDaEmpresa(dados), [dados]);
   const serie = useMemo(() => {
@@ -84,12 +107,26 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
       return { m, fat: r.entrou, luc: r.sobrou, n: r.nVendas, parcial: ord(m) === ord(dados.mesAtual) };
     });
   }, [dados]);
-  const [n, setN] = useState(6);
+  const n = 6;
   const vis = serie.slice(-n);
   const [sel, setSel] = useState<number | null>(null);
   const iSel = sel !== null && sel < vis.length ? sel : Math.max(0, vis.length - (vis.length > 1 ? 2 : 1));
   const x = vis[iSel];
   const antX = x ? serie[serie.indexOf(x) - 1] : undefined;
+
+  if (!periodo && janela !== "mes") {
+    return (
+      <>
+        <Voltar>{dados.nome}</Voltar>
+        {chips}
+        <Acumulado dados={dados} janela={janela} custom={custom} />
+        {seletor}
+        <Link href="/empresa/relatorios" className="mx-auto inline-flex min-h-11 items-center px-3 text-sm text-ink-muted">
+          Ver a DRE do mês
+        </Link>
+      </>
+    );
+  }
 
   if (!x) {
     return (
@@ -97,11 +134,12 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
         <Voltar>{dados.nome}</Voltar>
         {RP && periodo ? (
           <>
+            {chips}
             {seletor}
             <PainelDoPeriodo r={RP} periodo={periodo} hoje={dados.hoje} ehMei={dados.config?.tipo === "MEI"} custom={custom} caminho="/empresa/como-vai" />
           </>
         ) : (
-          <Cartao className="px-6 py-8 text-center text-sm text-ink-muted">Registre as primeiras vendas para ver como vai a empresa.</Cartao>
+          <Cartao className="px-6 py-8 text-center text-sm text-ink-muted">Registre as primeiras entradas para ver como vai a empresa.</Cartao>
         )}
       </>
     );
@@ -124,8 +162,8 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
   const maisVendas = doAno.length > 1 ? doAno.reduce((a, b) => (b.n > a.n ? b : a)) : null;
   const pensar = [
     melhor && `${nomeDoMes(melhor.m, true)} foi o melhor mês do ano: ${m0(melhor.fat)}.`,
-    maisVendas && maisVendas.n > 1 && `${nomeDoMes(maisVendas.m, true)} teve ${maisVendas.n} vendas, o maior número do ano.`,
-    qc && qc.clientes[0] && `${qc.clientes[0].nome} é ${qc.clientes[0].pct}% das vendas dos últimos 3 meses.`,
+    maisVendas && maisVendas.n > 1 && `${nomeDoMes(maisVendas.m, true)} teve ${maisVendas.n} entradas, o maior número do ano.`,
+    qc && qc.clientes[0] && `${qc.clientes[0].nome} é ${qc.clientes[0].pct}% das entradas dos últimos 3 meses.`,
     R.reciboFechado.maquininha > 0 && `A maquininha levou ${m0(R.reciboFechado.maquininha)} em ${nomeDoMes(R.ultimoFechado)}.`,
   ].filter(Boolean) as string[];
 
@@ -139,6 +177,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
     <>
       <Voltar>{dados.nome}</Voltar>
 
+      {chips}
       {seletor}
       {RP && periodo ? (
         <PainelDoPeriodo r={RP} periodo={periodo} hoje={dados.hoje} ehMei={dados.config?.tipo === "MEI"} custom={custom} caminho="/empresa/como-vai" />
@@ -147,15 +186,8 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm text-heroi-suave">Faturamento e lucro</p>
             <Explica noHeroi rotulo="Como ler o gráfico?">
-              As colunas são o quanto vendeu em cada mês. A linha é o lucro, antes do seu salário. O mês de hoje está listrado porque ainda não acabou. Toque numa coluna para ver o mês.
+              As colunas são o quanto entrou em cada mês. A linha é o lucro, antes do seu salário. O mês de hoje está listrado porque ainda não acabou. Toque numa coluna para ver o mês.
             </Explica>
-          </div>
-          <div className="heroi-veu flex w-fit gap-1 rounded-full p-1" role="group" aria-label="Período">
-            {[3, 6, 12].map((k) => (
-              <button key={k} type="button" aria-pressed={n === k} onClick={() => { setN(k); setSel(null); }} className={`min-h-9 rounded-full px-4 text-sm ${n === k ? "bg-surface font-medium text-ink" : ""}`}>
-                {k}M
-              </button>
-            ))}
           </div>
           <div aria-live="polite">
             <b className="text-[17px] font-medium">
@@ -164,7 +196,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
             </b>
             <div className="mt-1 grid grid-cols-3 gap-2">
               <span>
-                <small className="block text-xs text-heroi-suave">faturou</small>
+                <small className="block text-xs text-heroi-suave">entrou</small>
                 <ValorDestaque texto={m0(x.fat)} className="text-[1.35rem] font-light tabular-nums" />
               </span>
               <span>
@@ -185,7 +217,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
                   key={`${z.m.ano}-${z.m.mes}`}
                   type="button"
                   aria-pressed={i === iSel}
-                  aria-label={`${nomeDoMes(z.m, true)}${z.parcial ? " até hoje" : ""}: faturou ${m0(z.fat)}`}
+                  aria-label={`${nomeDoMes(z.m, true)}${z.parcial ? " até hoje" : ""}: entrou ${m0(z.fat)}`}
                   onClick={() => setSel(i)}
                   className="flex h-full min-w-0 flex-1 flex-col justify-end"
                 >
@@ -212,12 +244,12 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
           <div className="flex gap-1.5">
             {vis.map((z, i) => (
               <small key={`${z.m.ano}-${z.m.mes}`} className={`min-w-0 flex-1 text-center text-xs ${i === iSel ? "font-semibold" : "text-heroi-suave"}`}>
-                {n === 12 ? MESES_CURTOS[z.m.mes - 1][0].toUpperCase() : MESES_CURTOS[z.m.mes - 1]}
+                {MESES_CURTOS[z.m.mes - 1]}
               </small>
             ))}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-heroi-suave">
-            <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-accent" />faturou</span>
+            <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-accent" />entrou</span>
             <span className="flex items-center gap-1.5"><i className="h-0.5 w-3 bg-success" />lucro</span>
             <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-[repeating-linear-gradient(135deg,var(--color-accent)_0_2px,transparent_2px_4px)]" />até hoje</span>
           </div>
@@ -227,7 +259,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
       {ult && (
         <div className="grid grid-cols-2 gap-2.5">
           <div className={kpi}>
-            <span className={kt}>Lucro e margem <Explica>O que sobrou depois de insumos, contas e guia, antes do seu salário. {`A margem é o lucro de cada ${m0(100)} vendidos.`}</Explica></span>
+            <span className={kt}>Lucro e margem <Explica>O que sobrou depois de insumos, contas e guia, antes do seu salário. {`A margem é o lucro de cada ${m0(100)} que entram.`}</Explica></span>
             <ValorDestaque texto={ult.luc < 0 ? `−${m0(-ult.luc)}` : m0(ult.luc)} className="text-[1.6rem] font-light tabular-nums text-ink" />
             <Linhazinha valores={u6.map((z) => z.luc)} cor="var(--color-success)" />
             {penult && <Comparacao a={ult.luc} b={penult.luc} />}
@@ -235,12 +267,12 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
           </div>
           {ult.n > 0 && (
             <div className={kpi}>
-              <span className={kt}>Venda média <Explica>{`O valor médio de cada venda de ${nomeDoMes(ult.m)}, e quantas vendas foram.`}</Explica></span>
+              <span className={kt}>Média por entrada <Explica>{`O valor médio de cada entrada de ${nomeDoMes(ult.m)}, e quantas foram.`}</Explica></span>
               <ValorDestaque texto={m0(ult.fat / ult.n)} className="text-[1.6rem] font-light tabular-nums text-ink" />
               <Linhazinha valores={u6.filter((z) => z.n > 0).map((z) => z.fat / z.n)} cor="var(--color-info)" />
               {penult && penult.n > 0 && <Comparacao a={ult.fat / ult.n} b={penult.fat / penult.n} />}
               <small className="text-xs text-ink-muted">
-                {ult.n} {ult.n === 1 ? "venda" : "vendas"}
+                {ult.n} {ult.n === 1 ? "entrada" : "entradas"}
                 {penult && penult.n !== ult.n ? `, ${Math.abs(ult.n - penult.n)} a ${ult.n > penult.n ? "mais" : "menos"}` : ""}
               </small>
             </div>
@@ -259,7 +291,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
           )}
           {prazo !== null && (
             <div className={kpi}>
-              <span className={kt}>Para receber <Explica>{`Em média, o dinheiro cai ${prazo} dias depois da venda (nas vendas em que você disse o dia). O cartão puxa para cima.`}</Explica></span>
+              <span className={kt}>Para receber <Explica>{`Em média, o dinheiro cai ${prazo} dias depois da entrada (nas que você disse o dia). O cartão puxa para cima.`}</Explica></span>
               <b className="text-[1.6rem] font-light tabular-nums text-ink">{prazo} {prazo === 1 ? "dia" : "dias"}</b>
               <small className={`mt-auto text-xs ${atrasado > 0 ? "font-medium text-danger" : "text-ink-muted"}`}>{atrasado > 0 ? `${m0(atrasado)} atrasado` : "nada atrasado"}</small>
             </div>
@@ -271,7 +303,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
         <Cartao className="flex flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2 text-sm text-ink-muted">
             <span>Para pagar tudo em {nomeDoMes(dados.mesAtual)}</span>
-            <Explica>{`A linha de chegada é ${m0(R.pe)}: com isso de vendas no mês, ${dados.negocio.com} paga insumos, contas, guia e o seu salário. O tracinho é onde estaria hoje vendendo igual todos os dias.`}</Explica>
+            <Explica>{`A linha de chegada é ${m0(R.pe)}: com isso de entradas no mês, ${dados.negocio.com} paga insumos, contas, guia e o seu salário. O tracinho é onde estaria hoje entrando igual todos os dias.`}</Explica>
           </div>
           <b className="text-[1.35rem] font-medium text-ink">{R.falta > 0 ? `faltam ${m0(R.falta)}` : "já pagou tudo"}</b>
           <div className="relative mt-3 h-3 rounded-full bg-surface-2">
@@ -279,7 +311,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
             <i className="absolute -top-1.5 h-6 w-0.5 bg-ink" style={{ left: `${Math.min(100, (ideal / R.pe) * 100)}%` }} aria-hidden />
           </div>
           <div className="flex justify-between text-sm">
-            <span><b className="font-medium tabular-nums text-ink">{m0(R.reciboAtual.entrou)}</b> <small className="text-ink-muted">vendeu</small></span>
+            <span><b className="font-medium tabular-nums text-ink">{m0(R.reciboAtual.entrou)}</b> <small className="text-ink-muted">entrou</small></span>
             <span><b className="font-medium tabular-nums text-ink">{m0(R.pe)}</b> <small className="text-ink-muted">paga tudo</small></span>
           </div>
           <p className={`flex items-center gap-1.5 text-sm ${R.falta <= 0 || frente ? "text-success" : "text-[var(--color-atencao)]"}`}>
@@ -292,7 +324,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
       {cem && (
         <Cartao className="flex flex-col gap-3 p-4">
           <div className="flex items-start justify-between gap-2 text-sm text-ink-muted">
-            <span>Para onde vai cada {m0(100)} vendido</span>
+            <span>Para onde vai cada {m0(100)} que entra</span>
             <Explica>{`De cada ${m0(100)} que entraram em ${nomeDoMes(R.ultimoFechado)}, para onde foi cada pedaço. O último é o que ficou depois de pagar tudo, inclusive você.`}</Explica>
           </div>
           <div className="flex h-4 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={cem.map((p) => `${p.nome} ${m0(p.cem)}`).join(", ")}>
@@ -316,7 +348,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
         <Cartao className="flex flex-col gap-1 p-4">
           <div className="mb-1 flex items-start justify-between gap-2 text-sm text-ink-muted">
             <span>Quem compra <small>3 meses</small></span>
-            <Explica>Quanto cada cliente comprou nos últimos 3 meses. Se um cliente passa de 30% das vendas, a empresa fica dependente dele.</Explica>
+            <Explica>Quanto cada cliente comprou nos últimos 3 meses. Se um cliente passa de 30% das entradas, a empresa fica dependente dele.</Explica>
           </div>
           {[...qc.clientes.map((c) => ({ nome: c.nome, valor: c.valor, pct: c.pct, outros: false })), { nome: "Balcão e outros", valor: qc.outros.valor, pct: qc.outros.pct, outros: true }].map((c) => (
             <div key={c.nome} className="flex min-h-14 items-center gap-3">
@@ -339,7 +371,7 @@ export function ComoVai({ dados, periodo = null, antigos = null, custom = {} }: 
           ))}
           <p className={`mt-1 flex items-center gap-1.5 text-sm ${qc.dependente ? "text-[var(--color-atencao)]" : "text-success"}`}>
             {qc.dependente ? <TriangleAlert size={14} aria-hidden /> : <Check size={14} aria-hidden />}
-            {qc.dependente ? `${qc.dependente.nome} passa de 30% das vendas: atenção à dependência.` : "Nenhum cliente passa de 30% das vendas."}
+            {qc.dependente ? `${qc.dependente.nome} passa de 30% das entradas: atenção à dependência.` : "Nenhum cliente passa de 30% das entradas."}
           </p>
         </Cartao>
       )}

@@ -9,7 +9,7 @@
  */
 export const CARTOES_DO_RESUMO = ["hoje", "mes", "cats", "semana", "proximos"] as const;
 /** Os cartões quadrados que a pessoa pode adicionar (nenhum vem ligado). */
-export const CARTOES_NOVOS = ["guardado", "reserva", "divida", "contas", "cartao", "assin"] as const;
+export const CARTOES_NOVOS = ["guardado", "reserva", "divida", "contas", "cartao", "assin", "carteira"] as const;
 export type CartaoDoResumo = (typeof CARTOES_DO_RESUMO)[number] | (typeof CARTOES_NOVOS)[number];
 /** Uma meta no Resumo: "meta:" mais o id dela. A pessoa escolhe qual ao adicionar. */
 export const PREFIXO_DA_META = "meta:";
@@ -29,6 +29,7 @@ export const NOMES_DOS_CARTOES: Record<(typeof CARTOES_DO_RESUMO)[number] | (typ
   contas: { nome: "Contas desta semana", desc: "Quantas vencem e quanto soma" },
   cartao: { nome: "Gasto no cartão", desc: "O que foi no cartão neste mês" },
   assin: { nome: "Assinaturas", desc: "Quanto custam por mês" },
+  carteira: { nome: "Carteira e rendimento", desc: "Quanto vale e quanto rendeu no mês" },
 };
 
 const ID_DE_META = /^meta:[A-Za-z0-9_-]{6,40}$/;
