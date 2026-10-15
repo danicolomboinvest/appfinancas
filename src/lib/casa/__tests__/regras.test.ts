@@ -162,4 +162,38 @@ describe("Da casa", () => {
     const aprendidas = new Map([["renner", true]]);
     expect(ehDaCasa(g({ parentCategory: "VESTUARIO", description: "RENNER" }), aprendidas)).toBe(true);
   });
+  it("o gasto do par (\"Do Lucas\") nunca é da casa, nem no aluguel nem com a regra aprendida", () => {
+    expect(ehDaCasa(g({ parentCategory: "MORADIA", doPar: true }))).toBe(false);
+    expect(ehDaCasa(g({ parentCategory: "VESTUARIO", description: "RENNER", doPar: true }), new Map([["renner", true]]))).toBe(false);
+  });
+});
+
+describe("Casal simples (15/10/2026): o que entra no acerto por quem pagou os dois veem", () => {
+  // As escolhas novas são colunas do lançamento; a leitura continua sendo a de sempre. Por isso o
+  // "Do Lucas" e o "Meu" que o Lucas pagou aparecem para os dois e entram no acerto, e o Só meu não.
+  type ComEscolha = Linha & { doPar?: boolean; pagouOPar?: boolean };
+  const mais: ComEscolha[] = [
+    L("ana-presente-do-lucas", { doPar: true } as Partial<Linha>),
+    L("ana-roupa-lucas-pagou", { pagouOPar: true } as Partial<Linha>),
+    L("lucas-tenis-da-ana", { userId: LUCAS, profileId: PESSOAL_LUCAS, doPar: true } as Partial<Linha>),
+  ];
+  const idsCom = (where: Prisma.MonthlyEntryWhereInput) =>
+    [...BANCO, ...mais]
+      .filter((l) => bate(l as unknown as Record<string, unknown>, where as Record<string, unknown>))
+      .map((l) => l.id)
+      .sort();
+
+  it("o Lucas vê o que a Ana lançou para ele e o que ele pagou por ela; a Ana vê o tênis dela que ele lançou", () => {
+    expect(idsCom(lancamentosParaVer(LUCAS_LOGADO))).toEqual(expect.arrayContaining(["ana-presente-do-lucas", "ana-roupa-lucas-pagou"]));
+    expect(idsCom(lancamentosParaVer(ANA_LOGADA))).toContain("lucas-tenis-da-ana");
+  });
+
+  it("os três entram no acerto, igual nos dois logins; o Só meu continua fora", () => {
+    const daAna = idsCom(lancamentosDoAcertoDaCasa(CASA_DA_ANA));
+    expect(daAna).toEqual(idsCom(lancamentosDoAcertoDaCasa(CASA_DO_LUCAS)));
+    expect(daAna).toEqual(expect.arrayContaining(["ana-presente-do-lucas", "ana-roupa-lucas-pagou", "lucas-tenis-da-ana"]));
+    expect(daAna).not.toContain("ana-consulta-so-meu");
+    expect(daAna).not.toContain("lucas-presente-so-meu");
+    expect(idsCom(lancamentosParaVer(LUCAS_LOGADO))).not.toContain("ana-consulta-so-meu");
+  });
 });

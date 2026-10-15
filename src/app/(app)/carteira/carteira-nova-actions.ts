@@ -7,6 +7,10 @@ import { prisma } from "@/lib/db/prisma";
 import { trocarClassificacaoDoAtivo, trocarObjetivoDoAtivo } from "@/lib/repositories/asset.repo";
 import { ehOnde, ehTipo } from "@/lib/portfolio/classificacao";
 import { estadoDaAssessoria, proximoEstado } from "@/lib/assessoria/estado";
+import { lerSeries } from "@/lib/indicadores/series";
+import { rendimentoDoAtivo, serieEmFracao } from "@/lib/portfolio/rendimento-renda-fixa";
+import { dataDoDia, dia, diaDe } from "@/lib/portfolio/calendario-anbima";
+import { brazilTodayUtc } from "@/lib/date/brazil-day";
 
 function revalidarCarteira() {
   revalidatePath("/carteira");
@@ -90,4 +94,38 @@ export async function cotacaoDoNovoAtivoAction(ticker: string, exterior: boolean
   }
   if (!/^[A-Z]{4}\d{1,2}$/.test(t)) return { preco: null, dolar: null, em };
   return { preco: await fetchTickerPrice(t).catch(() => null), dolar: null, em };
+}
+
+export type EstimativaDoNovoAtivo = { valor: number; como: string; referenteA: string; estimado: boolean; semTaxa: boolean };
+
+/**
+ * "Vale hoje" do Novo ativo pela MESMA conta que a Carteira usa depois (rendimento-renda-fixa.ts),
+ * com o CDI e o IPCA dia a dia do Banco Central: o número da confirmação é o mesmo que aparece na
+ * lista ao salvar. Null quando não dá (séries ainda não carregadas, data no futuro): a tela usa a
+ * conta aproximada de antes.
+ */
+export async function estimarRendaFixaAction(input: { investido: number; data: string; indexador: "cdi" | "ipca" | "pre"; taxa: number; naoSei: boolean }): Promise<EstimativaDoNovoAtivo | null> {
+  await getRequiredSession();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(input.data));
+  if (!m || !(Number(input.investido) > 0)) return null;
+  const compra = dia(Number(m[1]), Number(m[2]), Number(m[3]));
+  const hoje = diaDe(brazilTodayUtc());
+  if (compra >= hoje) return null;
+  const lidas = await lerSeries(dataDoDia(compra - 7));
+  const r = rendimentoDoAtivo({
+    ativo: {
+      name: "Renda fixa",
+      assetClass: "RENDA_FIXA",
+      fixedIncomeIndex: input.indexador === "ipca" ? "IPCA" : input.indexador === "pre" ? "PREFIXADO" : "POS_FIXADO",
+      taxaCompra: input.naoSei || !(input.taxa > 0) ? null : input.taxa / 100,
+      investedValue: Number(input.investido),
+    },
+    compra,
+    informado: null,
+    movimentos: [],
+    series: { cdi: serieEmFracao(lidas.cdi), ipca: serieEmFracao(lidas.ipca) },
+    ate: hoje,
+  });
+  if (!r) return null;
+  return { valor: r.valor, como: r.como, referenteA: dataDoDia(r.referenteA).toISOString(), estimado: r.estimado, semTaxa: input.naoSei || !(input.taxa > 0) };
 }

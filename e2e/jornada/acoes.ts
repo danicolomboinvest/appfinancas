@@ -65,7 +65,15 @@ async function teclar(p: Page, valor: number) {
   for (const ch of centavos) await d.getByRole("button", { name: ch, exact: true }).click();
 }
 
-export type Lancamento = { valor: number; categoria: string; descricao?: string; entrada?: boolean; ontem?: boolean };
+export type Lancamento = {
+  valor: number;
+  categoria: string;
+  descricao?: string;
+  entrada?: boolean;
+  ontem?: boolean;
+  /** Casal simples (versão A): "De quem é?" ("Meu", "Da casa", "De Caio"), "Quem pagou?" ("Eu" ou o nome) e "Outra" com a minha parte em %. */
+  casal?: { deQuem?: string; pagou?: string; parte?: number };
+};
 
 /** "+" → Digitar → valor no teclado → categoria → (descrição) → Salvar. */
 export async function lancarAMao(p: Page, l: Lancamento) {
@@ -76,6 +84,12 @@ export async function lancarAMao(p: Page, l: Lancamento) {
   await teclar(p, l.valor);
   await d.getByRole("button", { name: l.categoria, exact: true }).click();
   if (l.ontem) await d.getByRole("button", { name: "Ontem", exact: true }).click();
+  if (l.casal?.deQuem) await d.getByRole("group", { name: "De quem é?" }).getByRole("button", { name: new RegExp(`^${l.casal.deQuem}`) }).click();
+  if (l.casal?.pagou) await d.getByRole("group", { name: "Quem pagou?" }).getByRole("button", { name: l.casal.pagou, exact: true }).click();
+  if (l.casal?.parte !== undefined) {
+    await d.getByRole("group", { name: "Como divide?" }).getByRole("button", { name: "Outra", exact: true }).click();
+    await d.getByLabel("Sua parte").fill(String(l.casal.parte));
+  }
   if (l.descricao) {
     await d.getByText("Mais opções", { exact: true }).click();
     await d.locator("#digitar-mais input").first().fill(l.descricao);

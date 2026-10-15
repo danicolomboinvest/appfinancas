@@ -7,7 +7,24 @@ import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { definirDivisaoAction, marcarAcertadoAction } from "./actions";
 
 /** O jeito de dividir (pela renda ou meio a meio) e o "Marcar como acertado". Os dois mexem. */
-export function Escolhas({ divisao, rotuloRenda, ano, mes, acertado, temValor }: { divisao: "renda" | "meio" | "combinado"; rotuloRenda: string; ano: number; mes: number; acertado: boolean; temValor: boolean }) {
+export function Escolhas({
+  divisao,
+  rotuloRenda,
+  rotuloCombinado,
+  ano,
+  mes,
+  acertado,
+  temValor,
+}: {
+  divisao: "renda" | "meio" | "combinado";
+  rotuloRenda: string;
+  /** "Combinado 60% e 40%" quando a casa já combinou uma parte (Configurações › Casa). */
+  rotuloCombinado: string | null;
+  ano: number;
+  mes: number;
+  acertado: boolean;
+  temValor: boolean;
+}) {
   const [jeito, setJeito] = useState(divisao);
   const [feito, setFeito] = useState(acertado);
   const [pendente, startTransition] = useTransition();
@@ -17,7 +34,7 @@ export function Escolhas({ divisao, rotuloRenda, ano, mes, acertado, temValor }:
   const opcoes = [
     { valor: "renda" as const, rotulo: rotuloRenda },
     { valor: "meio" as const, rotulo: "Meio a meio" },
-    ...(divisao === "combinado" ? [{ valor: "combinado" as const, rotulo: "Combinado" }] : []),
+    ...(rotuloCombinado ? [{ valor: "combinado" as const, rotulo: rotuloCombinado }] : []),
   ];
   return (
     <div className="flex flex-col gap-4">
@@ -28,7 +45,6 @@ export function Escolhas({ divisao, rotuloRenda, ano, mes, acertado, temValor }:
           opcoes={opcoes}
           valor={jeito}
           aoEscolher={(v) => {
-            if (v === "combinado") return;
             erroDoJeito.limpar();
             const antes = jeito;
             setJeito(v);

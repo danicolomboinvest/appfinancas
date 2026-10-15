@@ -12,7 +12,7 @@ function startOfDay(date: Date) {
  * anteriores). É a única forma de reconstruir "quanto o patrimônio cresceu" no futuro,
  * já que Asset só guarda o valor atual.
  */
-export async function recordPatrimonySnapshotIfNeeded(ctx: AuthContext, totalValue: number) {
+export async function recordPatrimonySnapshotIfNeeded(ctx: Pick<AuthContext, "userId" | "profileId">, totalValue: number) {
   const today = startOfDay(nowInBrazil());
   await prisma.patrimonySnapshot.upsert({
     where: { userId_profileId_date: { userId: ctx.userId, profileId: ctx.profileId, date: today } },

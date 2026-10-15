@@ -47,6 +47,10 @@ export type AtivoDaTela = {
   ondeEscolhido: string | null;
   /** Taxa da compra em fração, lida com o indexador (ver lib/portfolio/taxa-compra.ts). */
   taxaCompra: number | null;
+  /** Data da compra (AAAA-MM-DD), para corrigir no Editar. */
+  acquisitionDate?: string | null;
+  /** Renda fixa e Tesouro calculados pelo app (atualizar-renda-fixa.ts): como, até quando e se é estimativa. */
+  rendimento?: { como: string; referenteA: string | null; estimado: boolean } | null;
   /** "Renda fixa pós · Brasil". */
   classificacao: string;
   classificacaoEscolhida: boolean;

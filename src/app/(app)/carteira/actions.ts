@@ -17,6 +17,10 @@ import { isCurrencyCode, toCurrencyCode } from "@/lib/money";
 import { getExchangeRate } from "@/lib/fx/rates";
 import { fetchUsPrice } from "@/lib/analysis/us-price";
 import { CONTA_BRASIL, TICKER_EUA, ehDoExterior, naMoedaDoApp } from "@/lib/portfolio/conta-exterior";
+import { valorInformadoAoSalvar } from "@/lib/portfolio/valor-informado";
+import { recalcularUmAtivo } from "@/lib/portfolio/atualizar-renda-fixa";
+import { prisma } from "@/lib/db/prisma";
+import type { AssetInput } from "@/lib/repositories/asset.repo";
 
 export type AssetFormState = { error?: string };
 
@@ -119,6 +123,11 @@ async function parseAssetForm(formData: FormData) {
   });
 }
 
+/** Renda fixa e Tesouro na conta Brasil: os que o app acompanha pelo rendimento (atualizar-renda-fixa.ts). */
+function ehRendaFixaEmReais(d: { assetClass: string; currency?: string }): boolean {
+  return (d.assetClass === "RENDA_FIXA" || d.assetClass === "TESOURO_DIRETO") && (d.currency ?? CONTA_BRASIL) === CONTA_BRASIL;
+}
+
 export async function createAssetAction(_prevState: AssetFormState, formData: FormData): Promise<AssetFormState> {
   const parsed = await parseAssetForm(formData);
   if (!parsed.success) {
@@ -126,7 +135,21 @@ export async function createAssetAction(_prevState: AssetFormState, formData: Fo
   }
 
   const ctx = await getRequiredSession();
-  await createAsset(ctx, parsed.data);
+  const agora = new Date();
+  const informado = valorInformadoAoSalvar({
+    rendaFixa: ehRendaFixaEmReais(parsed.data),
+    criando: true,
+    estimadoPeloApp: formData.get("valorEstimado") === "1",
+    valor: parsed.data.currentValue,
+    original: null,
+    investido: parsed.data.investedValue ?? null,
+    temData: Boolean(parsed.data.acquisitionDate),
+    mudouABase: false,
+    agora,
+  });
+  const criado = await createAsset(ctx, { ...parsed.data, ...(informado ?? {}) });
+  // O rendimento da renda fixa sai na hora (a lista já mostra o valor calculado), não amanhã.
+  if (ehRendaFixaEmReais(parsed.data)) await recalcularUmAtivo(ctx, criado.id, agora);
   // Busca o calendário de dividendos DEPOIS de responder — a pessoa não espera o scraping pra
   // ver o ativo criado; se achar proventos, aparecem na próxima vez que ela abrir a Carteira.
   if (parsed.data.ticker) after(() => refreshDividendsForTicker(parsed.data.ticker!));
@@ -146,7 +169,38 @@ export async function updateAssetAction(
   }
 
   const ctx = await getRequiredSession();
-  await updateOwnAsset(ctx, id, parsed.data);
+  const agora = new Date();
+  const rendaFixa = ehRendaFixaEmReais(parsed.data);
+  let informado: Partial<AssetInput> = {};
+  if (rendaFixa) {
+    const antes = await prisma.asset.findFirst({
+      where: { id, userId: ctx.userId, profileId: ctx.profileId },
+      select: { acquisitionDate: true, taxaCompra: true, investedValue: true, fixedIncomeIndex: true },
+    });
+    const d = parsed.data;
+    const mudou = (a: unknown, b: unknown) => b !== undefined && String(a ?? "") !== String(b ?? "");
+    const mudouABase =
+      Boolean(antes) &&
+      ((d.acquisitionDate !== undefined && antes!.acquisitionDate?.getTime() !== d.acquisitionDate.getTime()) ||
+        mudou(antes!.taxaCompra === null ? null : Number(antes!.taxaCompra), d.taxaCompra) ||
+        mudou(antes!.investedValue === null ? null : Number(antes!.investedValue), d.investedValue) ||
+        mudou(antes!.fixedIncomeIndex, d.fixedIncomeIndex));
+    const original = String(formData.get("originalCurrentValue") ?? "").trim();
+    informado =
+      valorInformadoAoSalvar({
+        rendaFixa,
+        criando: false,
+        estimadoPeloApp: false,
+        valor: d.currentValue,
+        original: original === "" ? null : Number(original),
+        investido: d.investedValue ?? null,
+        temData: Boolean(d.acquisitionDate ?? antes?.acquisitionDate),
+        mudouABase,
+        agora,
+      }) ?? {};
+  }
+  await updateOwnAsset(ctx, id, { ...parsed.data, ...informado });
+  if (rendaFixa) await recalcularUmAtivo(ctx, id, agora);
   revalidatePath("/carteira");
   revalidatePath("/carteira/por-objetivo");
   return {};

@@ -12,6 +12,7 @@ import { ErroNoBotao, TENTAR_DE_NOVO } from "@/components/ui/ErroNoBotao";
 import { vibrar } from "@/lib/celebrar";
 import { CurrencySwitch, ExchangeRateLine } from "@/components/forms/CurrencySwitch";
 import { CasalFields } from "@/components/forms/CasalFields";
+import { CasalNoDigitar, type CasalDaFala } from "@/components/casa/CasalNoDigitar";
 import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/mensal/[year]/[month]/actions";
 import { NovaCategoria } from "./NovaCategoria";
 import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
@@ -63,9 +64,11 @@ export function Digitar({
     chaveDaFala?: string;
     /** "Ontem" ou "anteontem" dito na frase. */
     quando?: "ontem" | "anteontem";
+    /** Casal simples: de quem é, quem pagou e como divide, quando a frase disse. */
+    casal?: CasalDaFala;
   };
 }) {
-  const { voz, profileId, cartaoComLimite, kind, categorias } = useProfileTheme();
+  const { voz, profileId, cartaoComLimite, kind, categorias, casa } = useProfileTheme();
   const t = voz.titulos;
   const money = useMoney();
   const moedaDoApp = useCurrency();
@@ -341,6 +344,11 @@ export function Digitar({
       </div>
       {outraData && (
         <input type="date" aria-label="Outra data" defaultValue={chip === "hoje" || chip === "ontem" ? dataDoChip("ontem", hoje) : chip} onChange={(e) => e.target.value && setChip(e.target.value)} className="box-border min-h-12 w-full min-w-0 max-w-full rounded-2xl border border-border bg-surface-2 px-3 text-[15px] text-ink" />
+      )}
+
+      {/* Casal simples (versão A, 15/10/2026): de quem é, quem pagou e como divide, já marcados. */}
+      {casa && ehGasto && (
+        <CasalNoDigitar casa={casa} ano={year} mes={month} valor={centavos / 100} categoria={categoria} descricao={descricao} money={money} daFala={inicial?.casal} />
       )}
 
       <div className="flex flex-col divide-y divide-border">

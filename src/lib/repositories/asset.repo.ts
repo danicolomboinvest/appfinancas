@@ -28,6 +28,9 @@ export type AssetInput = {
   ondeEscolhido?: string;
   /** Taxa da compra em fração, com o indexador (ver lib/portfolio/taxa-compra.ts). null apaga. */
   taxaCompra?: number | null;
+  /** O valor que ela informou e quando (rendimento da renda fixa parte daqui). null apaga. */
+  valorInformado?: number | null;
+  valorInformadoEm?: Date | null;
 };
 
 export async function listAssets(ctx: AuthContext) {

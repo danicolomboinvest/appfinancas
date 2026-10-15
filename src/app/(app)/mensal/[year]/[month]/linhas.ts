@@ -35,6 +35,16 @@ export function linhasDaLista(entries: Linha[], ocultos: boolean, quem?: QuemLe,
     dono,
     // Casal simples: o gasto é da casa (entra no acerto) ou meu. Só existe dentro de uma casa.
     daCasa: dono && daCasa ? daCasa(entry) : null,
+    // Casal simples (versão A, 15/10/2026): do par, quem pagou e a divisão própria, do ponto de
+    // vista de quem lançou (lib/casa/escolhas.ts). Só dentro de uma casa.
+    casal: dono
+      ? {
+          doPar: Boolean(entry.doPar),
+          pagouOPar: Boolean(entry.pagouOPar),
+          divisaoPropria: entry.divisaoPropria ?? null,
+          parteDeQuemLancou: entry.parteDeQuemLancou === null || entry.parteDeQuemLancou === undefined ? null : Number(entry.parteDeQuemLancou),
+        }
+      : null,
     // O que é meu e está escondido do par (Só meu, ou a conta desligada) mostra o cadeado. O do
     // par nunca chega aqui escondido: a leitura já tirou.
     escondido: dono === "eu" && (entry.soMeu || Boolean(entry.importBatch?.ocultoDoPar)),

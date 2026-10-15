@@ -211,8 +211,18 @@ export function outraLetra(l: Letra): Letra {
  * - doCasal = true        → casal: da casa, entra no acerto;
  * - doCasal = false       → pessoal_visivel: meu, o par vê mas não entra no acerto;
  * - doCasal = nulo        → ainda sem escolha: a regra aprendida do comerciante ou o automático.
+ * - doPar = true          → do par de quem lançou ("Do Lucas"): fora da casa (ver lib/casa/escolhas.ts).
  */
-export type LinhaDaCasa = { category: string; parentCategory: string | null; subcategory: string | null; description: string | null; doCasal: boolean | null; soMeu: boolean };
+export type LinhaDaCasa = {
+  category: string;
+  parentCategory: string | null;
+  subcategory: string | null;
+  description: string | null;
+  doCasal: boolean | null;
+  soMeu: boolean;
+  /** "Do par" (15/10/2026): o gasto é do outro, nunca da casa. */
+  doPar?: boolean;
+};
 
 /** Supermercado pelo nome, para o que veio do extrato sem subcategoria. */
 const MERCADO = /\b(super ?mercado|mercado|mercadinho|hortifruti|sacolao|atacadao|assai|carrefour|pao de acucar|extra|dia supermercado|guanabara|zaffari|savegnago|bh supermercados|st marche|oba hortifruti)\b/;
@@ -242,7 +252,7 @@ export function chaveDaRegraDaCasa(descricao: string | null | undefined): string
  * app aprendeu com o comerciante; sem isso, o automático.
  */
 export function ehDaCasa(l: LinhaDaCasa, aprendidas: ReadonlyMap<string, boolean> = new Map()): boolean {
-  if (l.category !== "EXPENSE" || l.soMeu) return false;
+  if (l.category !== "EXPENSE" || l.soMeu || l.doPar) return false;
   if (l.doCasal === true) return true;
   if (l.doCasal === false) return false;
   const chave = chaveDaRegraDaCasa(l.description);
