@@ -170,6 +170,15 @@ export function escolherCaso(e: EntradaDoTopo): CasoDoTopo {
   return "nada";
 }
 
+/**
+ * O "faltou" que vem só do que ela GUARDOU (gastou menos do que entrou, mas aplicou mais do que
+ * sobrou, com dinheiro que já estava na conta). "Saiu a mais do que entrou" era falso: em
+ * mês com entrada de R$ 5.000, gastos de R$ 3.000 e R$ 4.000 guardados.
+ */
+export function soPeloGuardado(ficou: number, guardou: number | undefined): boolean {
+  return ficou < 0 && (guardou ?? 0) > 0 && ficou + (guardou ?? 0) >= 0;
+}
+
 /** "11%" do que entrou ficou com ela. Null sem entrada (não há porcentagem de zero). */
 export function porcentagemQueFicou(entrou: number, ficou: number): number | null {
   if (entrou <= 0) return null;

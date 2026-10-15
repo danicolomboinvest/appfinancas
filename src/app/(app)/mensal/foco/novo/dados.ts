@@ -61,7 +61,7 @@ export type HeroiDiaADia = {
   curvaPassado: number[];
   diasDoMes: number;
   /** "Ficou com você em setembro", com a diferença contra agosto. Só com 2 meses ou mais. */
-  ficouPassado: { valor: number; contraRetrasado: number | null } | null;
+  ficouPassado: { valor: number; contraRetrasado: number | null; guardou: number } | null;
   /** O mês passado não tem nada: não há com o que comparar (nunca "R$ 3.140 a mais" contra zero). */
   passadoVazio: boolean;
   /** "Guardado em 2026", e a % do que entrou no ano. */
@@ -74,6 +74,8 @@ export type HeroiMesFechado = {
   mes: Mes;
   entrou: number;
   ficou: number;
+  /** O que foi guardado no mês (aplicações menos resgates). */
+  guardou: number;
   pct: number | null;
   pctAnterior: number | null;
   /** As 6 barras de "quanto ficou", em %, do mais antigo ao mês que fechou. */
@@ -286,7 +288,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       curvaPassado: curvaAcumulada(gastosPassado, diasNoMes(passado)),
       diasDoMes: diasNoMes(mes),
       // "Ficou com você" só de mês com entrada (mês só com a fatura não tem o que ficou).
-      ficouPassado: mesesComDado >= 2 && valorDe(passado).entrou > 0 ? { valor: ficouDe(passado), contraRetrasado: valorDe(retrasado).entrou > 0 ? ficouDe(passado) - ficouDe(retrasado) : null } : null,
+      ficouPassado: mesesComDado >= 2 && valorDe(passado).entrou > 0 ? { valor: ficouDe(passado), contraRetrasado: valorDe(retrasado).entrou > 0 ? ficouDe(passado) - ficouDe(retrasado) : null, guardou: valorDe(passado).guardou } : null,
       passadoVazio: !comDado(valorDe(passado)),
       guardadoNoAno: mesesComDado >= 2 && guardado > 0 ? { valor: guardado, pct: porcentagemQueFicou(entrouNoAno, guardado) } : null,
       detalhe: {
@@ -302,6 +304,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
       mes: passado,
       entrou: v.entrou,
       ficou: ficouDe(passado),
+      guardou: v.guardou,
       pct: porcentagemQueFicou(v.entrou, ficouDe(passado)),
       pctAnterior: valorDe(retrasado).entrou > 0 ? porcentagemQueFicou(valorDe(retrasado).entrou, ficouDe(retrasado)) : null,
       barras: seis.map((m) => ({ rotulo: nomeDoMes(m).slice(0, 3), pct: valorDe(m).entrou > 0 ? porcentagemQueFicou(valorDe(m).entrou, ficouDe(m)) : null })),
