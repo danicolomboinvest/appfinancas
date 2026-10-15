@@ -267,6 +267,7 @@ model User {
   fotoDaConta            FotoDaConta?
   motivosDeCancelamento  MotivoDeCancelamento[]
   pedidosAntesDeCancelar PedidoAntesDeCancelar[]
+  cartoes                Cartao[]
 }
 
 /// Ambiente financeiro independente dentro da MESMA conta: Pessoal, Empresa, Casal, Casa…
@@ -350,6 +351,7 @@ model FinancialProfile {
   membrosCasal            MembroCasal[]
   fechamentosCasal        FechamentoCasal[]
   fechamentos             FechamentoDoMes[]
+  cartoes                 Cartao[]
 
   @@index([userId, position])
 }
@@ -749,6 +751,12 @@ model MonthlyEntry {
   divididoCom        String?                  @db.VarChar(40)
   parteDeOutro       Decimal?                 @db.Decimal(18, 2)
   devolvidoEm        DateTime?                @db.Date
+  /// O cartão cadastrado em que a compra foi feita (15/10/2026). Nulo = sem cartão escolhido (o
+  /// `noCartao` continua valendo sozinho, como antes). Com cartão, `noCartao` é gravado true. A
+  /// fatura em que a compra entra sai da data e dos dias do cartão (lib/cartao/fatura.ts); o mês
+  /// que conta no orçamento continua o year/month de sempre. Apagar o cartão solta os lançamentos.
+  cartaoId           String?
+  cartao             Cartao?                  @relation(fields: [cartaoId], references: [id], onDelete: SetNull)
   createdAt          DateTime                 @default(now())
 
   @@unique([userId, profileId, externalId])
@@ -757,6 +765,7 @@ model MonthlyEntry {
   @@index([userId, parentCategory])
   @@index([userId, customCategoryId])
   @@index([importBatchId])
+  @@index([cartaoId])
 }
 
 /// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").
@@ -1714,4 +1723,32 @@ model AchadoDinheiroPerdido {
 
   @@unique([userId, profileId, chave])
   @@index([userId, profileId, estado])
+}
+
+/// Cartão de crédito cadastrado (15/10/2026): o banco, o dia em que a fatura fecha e o dia em que
+/// vence. Com ele, o Digitar diz em que fatura a compra entra e a tela "Seu cartão" soma cada
+/// fatura. Regra do fechamento (a do Nubank): compra no próprio dia do fechamento ou depois vai
+/// para a fatura seguinte; vencimento menor que o fechamento cai no mês seguinte ao fechamento.
+/// Pode ter mais de um por perfil. Os dias são opcionais só para o cartão que nasce de uma fatura
+/// importada sem as datas; o cadastro na tela sempre pede os dois.
+model Cartao {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId     String?
+  profile       FinancialProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// O slug do banco no catálogo de marcas ("nubank", "itau", "inter"...) ou "outro".
+  banco         String            @db.VarChar(24)
+  /// Como ela chama o cartão ("Nubank roxinho"). Nulo = o nome do banco.
+  apelido       String?           @db.VarChar(40)
+  /// Dia do mês (1 a 31) em que a fatura fecha e em que vence.
+  diaFechamento Int?
+  diaVencimento Int?
+  /// Os 4 últimos dígitos, quando a fatura importada traz (liga as faturas seguintes ao cartão).
+  final         String?           @db.VarChar(4)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  lancamentos   MonthlyEntry[]
+
+  @@index([userId, profileId])
 }
