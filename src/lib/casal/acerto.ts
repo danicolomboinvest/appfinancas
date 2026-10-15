@@ -99,11 +99,21 @@ export type LancamentoDoAcerto = {
   doCasal: boolean | null;
   /** O jeito desta conta (conta por conta). Ausente = o jeito geral do casal. */
   modo?: ModoDaConta;
+  /**
+   * Casal simples (15/10/2026): o gasto NÃO é da casa, é todo de uma pessoa ("Meu" ou "Do
+   * Lucas"), com doCasal false. Entra no acerto só quando quem pagou (pessoa) é o outro: aí quem
+   * pagou recebe 100% de volta. Ausente = o de sempre (doCasal false fica fora).
+   */
+  deQuem?: Pessoa;
+  /** Casal simples: a divisão própria deste gasto da casa, a fração da A (0,6 = 60%). Manda sobre o modo. */
+  fracaoA?: number;
 };
 
 export type Acerto = {
   /** Gastos da casa com dono (os que entram na conta). */
   totalDaCasa: number;
+  /** Casal simples: gastos de uma pessoa só que o outro pagou ("Meu" que o Lucas pagou). Também entram. */
+  entreVoces: number;
   pagou: Record<Pessoa, number>;
   parte: Record<Pessoa, number>;
   /** Fração da A na divisão (0,6 = 60%). */
@@ -132,25 +142,40 @@ export function calcularAcerto(lancamentos: LancamentoDoAcerto[], modo: ModoDeDi
   const caiuParaMeio = modo === "renda" && !temRendas;
 
   // Conta por conta: cada gasto da casa usa a fração do jeito dele. "Um paga tudo" sai do acerto.
+  // A divisão própria do gasto (Casal simples) manda sobre a conta e sobre o jeito geral.
   let parteA = 0;
+  let daCasa = 0;
+  let entreVoces = 0;
   for (const l of lancamentos) {
-    if (l.category !== "EXPENSE" || l.doCasal === false) continue;
+    if (l.category !== "EXPENSE") continue;
     const valor = Math.abs(Number(l.amount) || 0);
+    // De uma pessoa só: quem pagou pelo outro recebe tudo de volta; quem pagou o que é seu, nada.
+    if (l.deQuem && l.doCasal === false) {
+      if (!ehPessoa(l.pessoa) || l.pessoa === l.deQuem) continue;
+      pagou[l.pessoa] += valor;
+      if (l.deQuem === "A") parteA += valor;
+      entreVoces += valor;
+      continue;
+    }
+    if (l.doCasal === false) continue;
     if (!ehPessoa(l.pessoa)) {
       semDono.quantidade += 1;
       semDono.valor += valor;
       continue;
     }
-    if (l.modo === "um_paga") continue;
+    const propria = typeof l.fracaoA === "number" && Number.isFinite(l.fracaoA) ? Math.min(1, Math.max(0, l.fracaoA)) : null;
+    if (propria === null && l.modo === "um_paga") continue;
     pagou[l.pessoa] += valor;
-    const f = l.modo === "renda" ? fracaoRenda : l.modo === "meio" ? 0.5 : fracaoA;
+    daCasa += valor;
+    const f = propria ?? (l.modo === "renda" ? fracaoRenda : l.modo === "meio" ? 0.5 : fracaoA);
     parteA += valor * f;
   }
-  const totalDaCasa = pagou.A + pagou.B;
-  const parte = { A: parteA, B: totalDaCasa - parteA };
+  const noAcerto = pagou.A + pagou.B;
+  const parte = { A: parteA, B: noAcerto - parteA };
   const centavos = (v: number) => Math.round(v * 100) / 100;
   return {
-    totalDaCasa: centavos(totalDaCasa),
+    totalDaCasa: centavos(daCasa),
+    entreVoces: centavos(entreVoces),
     pagou: { A: centavos(pagou.A), B: centavos(pagou.B) },
     parte: { A: centavos(parte.A), B: centavos(parte.B) },
     fracaoA,
