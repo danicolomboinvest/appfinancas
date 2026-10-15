@@ -133,6 +133,19 @@ export function donoDoOrcamento(q: QuemLe): { userId: string; profileId: string 
   return { userId: titular.userId, profileId: titular.profileId };
 }
 
+/**
+ * De quem são as respostas aos avisos do orçamento da casa (14/10/2026, lib/avisos): o orçamento é
+ * um só, então "cobri Lazer" de um tira o "Lazer passou" do outro. Só os dois Pessoais da casa;
+ * quem lê guarda do outro apenas as respostas sobre categoria do orçamento (nunca meta, reserva,
+ * Dinheiro perdido ou o que é dele). Sem casa, só quem olha.
+ */
+export function donosDasRespostasDoOrcamento(q: QuemLe): { userId: string; profileId: string }[] {
+  const casa = casaAtiva(q);
+  const eu = { userId: q.userId, profileId: q.profileId };
+  if (!casa) return [eu];
+  return [eu, { userId: casa.outro.userId, profileId: casa.outro.profileId }];
+}
+
 /** Quem gastou, pelo dono do registro: "eu", "outro", ou nulo fora de uma casa. */
 export function quemGastou(q: QuemLe, linha: { userId: string }): "eu" | "outro" | null {
   const casa = casaAtiva(q);
