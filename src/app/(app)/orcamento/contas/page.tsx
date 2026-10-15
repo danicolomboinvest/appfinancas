@@ -74,6 +74,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const empresa = ehEmpresa(ctx.profileKind);
   // O livre do mês da fonte única (lib/planning/livre-do-mes), junto com as outras consultas.
   const livreDoMesP = carregarLivreDoMes(ctx, { ano, mes });
+  livreDoMesP.catch(() => {}); // a falha aparece no await lá embaixo, não como rejeição solta
   // Quem já tinha extrato antes desta versão não precisa importar de novo para ver as contas.
   try {
     await sincronizarContasDoHistorico(ctx);
