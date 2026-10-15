@@ -37,6 +37,10 @@ const PODEM_LER_A_CASA = [
   // subiu, com os mesmos totais do Resumo e do Orçamento. Do outro, lê só as respostas sobre
   // categoria do orçamento (lib/casa/regras.ts: donosDasRespostasDoOrcamento).
   "lib/avisos/respostas.ts",
+  // O cron do lembrete de cancelar (15/10/2026): a casa só entra para o estado único da
+  // assinatura (o "Cancelei mesmo" do outro para o lembrete). Lembretes e lançamentos lidos são só
+  // de quem pediu.
+  "lib/assinaturas/lembretes-envio.ts",
 ];
 
 /** As leituras que nunca podem ver a casa, uma por uma, com o porquê. */
