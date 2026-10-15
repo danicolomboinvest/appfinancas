@@ -36,9 +36,9 @@ export default async function RelatoriosPage(props: { searchParams: Promise<Reco
   const sal = mes ? (pago ?? Math.min(R.salario, Math.max(0, r.sobrou))) : P.proLabore;
   const sobraFixo = r.entrou - r.impostos - r.variaveis;
   const linhas: [string, number, boolean, Grupo][] = [
-    ["Faturou", r.entrou, false, "entradas"],
+    ["Entrou", r.entrou, false, "entradas"],
     [R.ehMei ? "Guia do MEI" : "Impostos", -r.impostos, false, "impostos"],
-    ["Sobe com a venda", -r.variaveis, false, "variaveis"],
+    ["Variáveis", -r.variaveis, false, "variaveis"],
     ["Sobra para o fixo", sobraFixo, true, "lucro"],
     ["Contas do mês", -r.fixas, false, "fixas"],
     [`Sobrou ${paraO(dados.negocio)}`, r.sobrou, true, "lucro"],

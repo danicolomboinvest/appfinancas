@@ -135,9 +135,9 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
           <div className="grid grid-cols-3 gap-2">
             {(
               [
-                ["vendi", TrendingUp, "Vendi", "entrou agora"],
+                ["vendi", TrendingUp, "Entrou", "dinheiro novo"],
                 ["paguei", TrendingDown, "Paguei", "conta ou compra"],
-                ["recebi", Check, "Recebi", "venda a prazo"],
+                ["recebi", Check, "Recebi", "o que te deviam"],
               ] as const
             ).map(([k, Icone, t, s], i) => (
               <button key={k} type="button" onClick={() => setModo(k)} className={`flex min-h-32 flex-col items-center justify-center gap-1.5 rounded-3xl border px-2 py-4 text-center ${i === 0 ? "border-accent bg-accent-soft" : "border-border bg-surface"}`}>
@@ -164,7 +164,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
             </span>
             <span className="min-w-0 flex-1">
               <b className="block text-[15px] font-medium text-ink">Importar extrato PJ</b>
-              <small className="text-xs text-ink-muted">o SPI separa vendas e contas</small>
+              <small className="text-xs text-ink-muted">o SPI separa entradas e contas</small>
             </span>
             <ChevronRight size={18} className="text-ink-muted" aria-hidden />
           </button>
@@ -174,7 +174,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
       {modo === "vendi" && (
         <div className="flex flex-col">
           {voltar}
-          {campoValor("Valor da venda")}
+          {campoValor("Quanto entrou")}
           {pergunta("Como pagou?")}
           <div className="flex flex-wrap gap-2">
             {[...formasDela, ...FORMAS.filter((f) => !formasDela.includes(f))].map((f) => (
@@ -214,7 +214,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
           )}
           <div className="mt-6">
             <button type="button" className={BOTAO_PRINCIPAL} disabled={salvando || valorNum <= 0} onClick={salvarVenda}>
-              {salvando ? "Registrando..." : "Registrar venda"}
+              {salvando ? "Registrando..." : "Registrar entrada"}
             </button>
           </div>
         </div>
@@ -260,7 +260,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
             <p className="py-4 text-sm text-ink-muted">Ninguém deve nada agora.</p>
           ) : (
             aReceber.slice(0, 8).map((v) => {
-              const nome = v.cliente || v.description || "Venda";
+              const nome = v.cliente || v.description || "Entrada";
               const atrasada = (v.recebeEm ?? "") < dados.hoje;
               return (
                 <button key={v.id} type="button" disabled={salvando} onClick={() => receber(v.id)} className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2 text-left disabled:opacity-60">

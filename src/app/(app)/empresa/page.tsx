@@ -5,11 +5,15 @@ import { clientesRecentes } from "@/lib/repositories/empresa.repo";
 import { somarDias } from "@/lib/empresa/regras";
 import { Assistente } from "./Assistente";
 import { VisaoDaEmpresa } from "./VisaoDaEmpresa";
+import { hojeEmBrasilia } from "@/lib/contas/contas";
+import { vencimentosDaJanela } from "@/lib/contas/recorrentes";
+import { listarContasAPagar, listarQuitadasRecentes } from "@/lib/repositories/conta-a-pagar.repo";
+import { iso, serializarConta } from "@/app/(app)/orcamento/contas/serializar";
 
 /**
  * A Visão geral da Empresa (versão nova, 11/10/2026, protótipo "Ateliê da Ana"). Na primeira vez, o
- * assistente de 5 telas; depois, as abas Resumo, Vendas, Despesas e Contas, com o recibo do mês e o
- * "Pede sua atenção". `?aba=vendas` abre direto. O período (13/10/2026): `?periodo=mes|mes-passado|
+ * assistente de 5 telas; depois, as abas Resumo, Entradas, Despesas e Contas, com o recibo do mês e o
+ * "Pede sua atenção". `?aba=entradas` abre direto. O período (13/10/2026): `?periodo=mes|mes-passado|
  * ano|12m` ou `?de=&ate=`; o `?mes=2026-09` de antes continua abrindo aquele mês. Sem nada: o último
  * mês fechado (ou o de hoje, se o fechado não tem lançamento), como sempre.
  */
@@ -19,8 +23,20 @@ export default async function EmpresaPage(props: PageProps<"/empresa">) {
   const dados = await carregarEmpresa(ctx);
   if (!dados.config || sp.assistente === "1") return <Assistente dados={dados} />;
   const periodo = periodoDaTela(sp, dados.hoje, () => padraoDaEmpresa(dados));
-  const [clientes, lancs, custom] = await Promise.all([clientesRecentes(ctx, somarDias(dados.hoje, -120)), lancamentosParaOPeriodo(ctx, dados, periodo), nomesDasCategorias(ctx)]);
-  const aba = typeof sp.aba === "string" && ["resumo", "vendas", "despesas", "contas"].includes(sp.aba) ? (sp.aba as "resumo" | "vendas" | "despesas" | "contas") : "resumo";
+  const [clientes, lancs, custom, abertas, quitadas] = await Promise.all([
+    clientesRecentes(ctx, somarDias(dados.hoje, -120)),
+    lancamentosParaOPeriodo(ctx, dados, periodo),
+    nomesDasCategorias(ctx),
+    // A aba Contas usa as mesmas peças das Recorrentes do Pessoal (15/10/2026): marcar paga e adicionar ali.
+    listarContasAPagar(ctx),
+    listarQuitadasRecentes(ctx),
+  ]);
+  const hojeD = hojeEmBrasilia();
+  const contas = abertas.map(serializarConta);
+  const vencimentos = vencimentosDaJanela(contas, hojeD, 30).map((v) => ({ chave: v.chave, id: v.id, nome: v.nome, valor: v.valor, aproximado: v.aproximado, vencimento: v.dia }));
+  // `?aba=vendas` (antes de 15/10/2026) continua abrindo as Entradas.
+  const pedida = sp.aba === "vendas" ? "entradas" : sp.aba;
+  const aba = typeof pedida === "string" && ["resumo", "entradas", "despesas", "contas"].includes(pedida) ? (pedida as "resumo" | "entradas" | "despesas" | "contas") : "resumo";
   return (
     <VisaoDaEmpresa
       dados={dados}
@@ -30,6 +46,7 @@ export default async function EmpresaPage(props: PageProps<"/empresa">) {
       antigos={lancs === dados.lancamentos ? null : lancs}
       custom={custom}
       abrirRegistrar={sp.registrar === "1"}
+      contas={{ abertas: contas, pagas: quitadas.map(serializarConta), vencimentos, hoje: iso(hojeD) }}
     />
   );
 }
