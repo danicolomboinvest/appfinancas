@@ -14,6 +14,7 @@ import { getSavingsTargets } from "@/lib/planning/savings-targets";
 import { regraDosAportes, splitSavings } from "@/lib/planning/savings-split";
 import { estadoDaAssessoria } from "@/lib/assessoria/estado";
 import { atualizarTaxasSeVelhas } from "@/lib/indicadores/indicadores";
+import { atualizarRendaFixaSeVelha } from "@/lib/portfolio/atualizar-renda-fixa";
 import { PARENT_CATEGORY_COLOR } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
@@ -38,6 +39,9 @@ export default async function CarteiraPage() {
   const ano = now.getFullYear();
   const mes = now.getMonth() + 1;
   const mesPassado = new Date(ano, mes - 2, 1);
+  // Renda fixa e Tesouro: o rendimento de hoje, se o cron ainda não passou por eles (uma contagem
+  // quando está em dia). Antes de ler os ativos, para a lista já vir com o valor de hoje.
+  await atualizarRendaFixaSeVelha(ctx, agora).catch((e) => console.error("[carteira] rendimento", e));
 
   const [assets, goals, user, contexto, aporteDoMes, aporteDoMesPassado, resgateDoMes, resgateDoMesPassado, comAporteRecente, alvos, serie, proventos, taxas, resumoDoMes] = await Promise.all([
     listAssets(ctx),
@@ -84,6 +88,8 @@ export default async function CarteiraPage() {
       tipoEscolhido: a.tipoEscolhido,
       ondeEscolhido: a.ondeEscolhido,
       taxaCompra: a.taxaCompra !== null ? Number(a.taxaCompra) : null,
+      acquisitionDate: a.acquisitionDate ? a.acquisitionDate.toISOString().slice(0, 10) : null,
+      rendimento: a.rendimentoComo ? { como: a.rendimentoComo, referenteA: a.rendimentoReferenteA?.toISOString() ?? null, estimado: a.rendimentoEstimado } : null,
       classificacao: `${NOME_DO_TIPO[c.tipo]} · ${c.onde === "exterior" ? "Exterior" : "Brasil"}`,
       classificacaoEscolhida: c.escolhida,
       tipo: c.tipo,

@@ -34,7 +34,8 @@ import {
   conferirMetas,
   definirMesAtual,
 } from "./conferir";
-import { abrir, lerDecidir, lerLembreteNoRaioX, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
+import { CDB_DA_ANA, valorEsperadoDoCdb } from "./rendimento";
+import { abrir, lerAtivoDaCarteira, lerDecidir, lerLembreteNoRaioX, lerOrcamento, lerRecorrentes, lerResumo, lerTransacoes, lerWidget } from "./telas";
 import { bate, brl } from "./dinheiro";
 import { BASE } from "./config";
 import { textoVisivel } from "./texto";
@@ -61,6 +62,18 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
     const d = await gastoDe(chave);
     if (!bate(d - antes, delta)) await c.anotar(p, { tipo: "numero", telaDeOrigem: tela, telaErrada: "Orçamento", esperado: `${chave} ${brl(antes + delta)}`, visto: brl(d) });
   };
+  /**
+   * Renda fixa que rende sozinha (15/10/2026): o CDB de 110% do CDI, comprado em 15/04, vale o
+   * investido × (1 + CDI × 1,1) em cada dia útil até ontem, e a linha diz o CDI de qual dia.
+   */
+  const conferirCdb = async (hoje: string, cdiDe: string, origem: string) => {
+    const r = await lerAtivoDaCarteira(p, c, CDB_DA_ANA.naLista);
+    const esperado = valorEsperadoDoCdb(hoje);
+    if (!bate(r.valor, esperado, 0.01)) await c.anotar(p, { tipo: "numero", telaDeOrigem: origem, telaErrada: "Carteira (detalhe do CDB)", esperado: brl(esperado), visto: brl(r.valor) });
+    if (!r.linha?.includes(`Estimado pelo CDI de ${cdiDe}, antes do IR`)) await c.anotar(p, { tipo: "texto", telaDeOrigem: origem, telaErrada: "Carteira (detalhe do CDB)", esperado: `Estimado pelo CDI de ${cdiDe}, antes do IR`, visto: r.linha ?? "(sem a linha)" });
+    return r.valor ?? 0;
+  };
+  let cdbOntem = 0;
   try {
     // ------------------------------------------------------------------ quinta 15/10
     await dia(c, "2026-10-15 09:00", [p]);
@@ -72,6 +85,11 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirMetas(p, c, "partida");
       await conferirAvisoDaCategoria(p, c, "SAUDE", "Saúde", true, "partida");
       await conferirMesPassado(p, c, SET, "partida");
+    });
+
+    await passo(c, "Carteira: o CDB de 110% do CDI rende sozinho", async () => {
+      cdbOntem = await conferirCdb("2026-10-15", "14/10", "abrir a Carteira");
+      expect(cdbOntem).toBeGreaterThan(CDB_DA_ANA.investido);
     });
 
     // Assinaturas (15/10/2026, "a última resposta vale em todo lugar"): marcar num lugar e
@@ -135,6 +153,11 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
 
     // ------------------------------------------------------------------ sexta 16/10
     await dia(c, "2026-10-16 20:00", [p]);
+    await passo(c, "Carteira: o CDB rendeu mais um dia, sem ela fazer nada", async () => {
+      const hoje = await conferirCdb("2026-10-16", "15/10", "o dia virou");
+      expect(hoje).toBeGreaterThan(cdbOntem);
+      cdbOntem = hoje;
+    });
     await passo(c, "O que fazer? Saúde → cobrir com Outros e Desfazer", async () => {
       const antes = await lerOrcamento(p, c, OUT);
       await cobrirCom(p, OUT.ano, "SAUDE", "Outros", true);
@@ -292,6 +315,10 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
 
     // ------------------------------------------------------------------ terça 20/10
     await dia(c, "2026-10-20 12:30", [p]);
+    await passo(c, "Carteira: o CDB não rende no fim de semana, só sexta e segunda", async () => {
+      const hoje = await conferirCdb("2026-10-20", "19/10", "o fim de semana passou");
+      expect(hoje).toBeCloseTo(cdbOntem * Math.pow(1 + 0.00055131 * 1.1, 2), 1);
+    });
     await passo(c, "criar a meta Notebook e guardar R$ 300", async () => {
       const guardadoAntes = (await lerResumo(p, c)).heroi;
       await criarMeta(p, "Notebook", 4000);

@@ -47,6 +47,8 @@ type Defaults = {
   taxaCompra?: number | null;
   /** "USD" na conta no exterior: aí investido, valor atual e preço médio vêm em dólar. */
   currency?: string;
+  /** Data da compra (AAAA-MM-DD): a renda fixa rende a partir dela. */
+  acquisitionDate?: string;
 };
 
 /** "US$ 1 = R$ 5,02 hoje", embaixo dos valores de um ativo no exterior. */
@@ -229,6 +231,18 @@ export function AssetForm({
           </span>
         </div>
       )}
+      {isFixedIncome && (
+        // Rendimento sozinho (15/10/2026): a renda fixa rende a partir deste dia. Dá para corrigir aqui.
+        <Field
+          label="Data da compra"
+          id="acquisitionDate"
+          name="acquisitionDate"
+          type="date"
+          defaultValue={defaults.acquisitionDate}
+          max={new Date().toISOString().slice(0, 10)}
+          className="w-full sm:w-44"
+        />
+      )}
       <SelectField
         label={t.formAtivoObjetivo}
         id="objective"
@@ -309,7 +323,13 @@ export function AssetForm({
             defaultValue={defaults.investedValue}
             className="w-full sm:w-40"
           />
-          {assetId && <input type="hidden" name="originalInvestedValue" value={defaults.investedValue ?? ""} />}
+          {assetId && (
+            <>
+              <input type="hidden" name="originalInvestedValue" value={defaults.investedValue ?? ""} />
+              {/* Para o servidor saber se ela digitou um valor novo ou só mexeu em outra coisa. */}
+              <input type="hidden" name="originalCurrentValue" value={defaults.currentValue ?? ""} />
+            </>
+          )}
           <CurrencyField
             label={t.formAtivoValorAtual}
             id="currentValue"

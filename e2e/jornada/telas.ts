@@ -422,3 +422,26 @@ export async function lerLembreteNoRaioX(p: Page, caderno: Caderno, nome: string
   if (await item.getByText("Que dia ela cobra?").count()) return "pede o dia";
   return "sem lembrete";
 }
+
+/**
+ * Carteira › um ativo (15/10/2026): abre o grupo do Por tipo em que ele está, toca nele e lê o
+ * valor com centavos do detalhe e a linha "Estimado pelo CDI de dd/mm, antes do IR".
+ */
+export async function lerAtivoDaCarteira(p: Page, caderno: Caderno, nomeNaLista: string) {
+  await abrir(p, "/carteira", caderno, "Carteira");
+  const secao = p.locator('section[aria-label="Por tipo"]');
+  const item = secao.locator("li li button").filter({ hasText: nomeNaLista }).first();
+  const grupos = secao.locator(":scope > ul > li > button");
+  const n = await grupos.count();
+  for (let i = 0; i < n && !(await item.isVisible()); i++) {
+    if ((await grupos.nth(i).getAttribute("aria-expanded")) === "false") await grupos.nth(i).click();
+  }
+  await item.click();
+  const valor = p.locator("[data-valor-do-ativo]");
+  await valor.waitFor();
+  const v = reais(((await valor.locator("span").first().textContent()) ?? "").replace(/R\$\s*/, "R$ "));
+  const texto = await conferirTextoELayout(p, caderno, `Carteira › ${nomeNaLista}`);
+  const linha = texto.match(/Estimado [^\n]*antes do IR/)?.[0] ?? null;
+  await p.keyboard.press("Escape");
+  return { valor: v, linha };
+}
