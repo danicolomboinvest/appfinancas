@@ -734,6 +734,16 @@ model MonthlyEntry {
   /// acerto (é gravado com doCasal = false). O do par é gravado com o userId DELE, o da titular
   /// com o dela, então as consultas de sempre (userId + profileId) já não cruzam os dois.
   soMeu              Boolean                  @default(false)
+  /// Casal simples (15/10/2026, versão A do mockup): o gasto é do PAR de quem lançou ("Do Lucas").
+  /// Com isso ligado, doCasal fica false. Entra no acerto quando quem lançou pagou.
+  doPar              Boolean                  @default(false)
+  /// Casal simples: quem pagou foi o par de quem lançou (e não quem lançou, o padrão).
+  pagouOPar          Boolean                  @default(false)
+  /// Casal simples, gasto da casa: a divisão própria deste gasto ("renda", "meio" ou "outra").
+  /// Nulo = a regra da casa (Configurações › Casa).
+  divisaoPropria     String?                  @db.VarChar(6)
+  /// Com divisaoPropria "outra": a parte de quem lançou, em % (0 a 100).
+  parteDeQuemLancou  Decimal?                 @db.Decimal(5, 2)
   /// Perfil Empresa (11/10/2026), tudo opcional: de quem foi a venda ("Café Lume"), como pagou
   /// (pix, credito, debito, boleto, dinheiro), o dia em que o dinheiro cai e o dia em que ela
   /// marcou "Recebi". Nos outros perfis, sempre nulos.
