@@ -1200,3 +1200,19 @@ html .resumo-b a.bg-accent-gradient {
     background-color: color-mix(in srgb, var(--color-accent) 14%, transparent);
   }
 }
+
+/* Resumo editável: os cartões tremem enquanto a pessoa edita, como na tela do iPhone. */
+@keyframes resumo-treme {
+  0% { transform: rotate(-0.5deg); }
+  50% { transform: rotate(0.5deg); }
+  100% { transform: rotate(-0.5deg); }
+}
+.resumo-treme:not([data-arrastando="true"]) {
+  animation: resumo-treme 0.3s ease-in-out infinite;
+}
+.resumo-treme:nth-child(2n):not([data-arrastando="true"]) {
+  animation-delay: 0.12s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .resumo-treme { animation: none !important; }
+}
