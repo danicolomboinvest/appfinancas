@@ -46,8 +46,9 @@ describe("nome curto (fileira de fotos e Próxima a chegar)", () => {
     expect(nomeCurto("Trocar de carro")).toBe("Carro");
   });
 
-  it("fica com 'Viagem' quando é a única palavra e corta em 10 letras", () => {
+  it("fica com 'Viagem' quando é a única palavra, e não corta a palavra no meio", () => {
     expect(nomeCurto("Viagem")).toBe("Viagem");
-    expect(nomeCurto("Intercâmbio na Irlanda")).toBe("Intercâmbi");
+    expect(nomeCurto("Intercâmbio na Irlanda")).toBe("Intercâmbio");
+    expect(nomeCurto("Apartamento")).toBe("Apartamento");
   });
 });

@@ -126,7 +126,8 @@ const GENERICAS = new Set(["viagem", "meta", "sonho"]);
 /**
  * O nome curto da meta, para a fileira de fotos e o "Próxima a chegar" (o protótipo usa
  * Reserva, Europa, Carro). Sem números e sem palavras de ligação; "Viagem" só fica quando é a
- * única palavra. Até 10 letras.
+ * única palavra. A palavra fica inteira: cortada em 10 letras ela virava "Apartament" e
+ * "Intercâmbi" (regra dela: texto nunca cortado). A fileira diminui a letra das compridas.
  */
 export function nomeCurto(nome: string): string {
   const palavras = nome
@@ -136,7 +137,7 @@ export function nomeCurto(nome: string): string {
   const especificas = palavras.filter((p) => !GENERICAS.has(semAcento(p)));
   const escolhida = especificas[0] ?? palavras[0] ?? nome.trim();
   const curta = escolhida.charAt(0).toUpperCase() + escolhida.slice(1);
-  return curta.length > 10 ? curta.slice(0, 10) : curta;
+  return curta;
 }
 
 /**
