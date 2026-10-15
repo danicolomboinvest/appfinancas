@@ -26,7 +26,7 @@ describe("só o módulo de avisos decide o que já foi respondido", () => {
     // findMany/count/findFirst com o tipo da dispensa: gravar (create) e desfazer (deleteMany) pode.
     const leem = fora.filter((c) => {
       const t = readFileSync(c, "utf-8");
-      return /(findMany|findFirst|count|groupBy)\(\{[^)]*tipo:\s*(\{[^}]*)?"(aviso_dispensado|sugestao_dispensada)"/s.test(t);
+      return /(findMany|findFirst|count|groupBy)\(\{[^)]*tipo:\s*(\{[^}]*)?"(aviso_dispensado|sugestao_dispensada)"/.test(t);
     });
     expect(leem).toEqual([]);
   });
