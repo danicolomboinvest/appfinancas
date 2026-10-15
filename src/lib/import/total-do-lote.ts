@@ -12,6 +12,11 @@ import { descricaoComparavel, installmentDescription, parseInstallment } from "@
  *   projetadas caem nos seguintes). Estorno já está negativo e desconta. É o total da fatura.
  * - Extrato (e Open Finance): o saldo com sinal, como na tela de confirmação. Renda soma; gasto
  *   e aporte subtraem.
+ *
+ * Na fatura, é "o total da fatura importada" (15/10/2026): toda tela que fala do ARQUIVO usa
+ * este (o histórico de importações e o "Sua última fatura" da missão 2 do Money Reset). A tela
+ * que fala do MÊS ("Seu cartão em outubro", limite do cartão) usa gastoNoCartao
+ * (repositories/limite-cartao.repo.ts), que explica a diferença.
  */
 export type LancamentoDoLote = { amount: number; category: string; year: number; month: number; description?: string | null };
 

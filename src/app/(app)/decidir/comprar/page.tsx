@@ -34,7 +34,7 @@ import { responderRendaDoCasalAction } from "@/app/(app)/mensal/foco/actions";
 import { ehCasal } from "@/lib/profiles/casal";
 import { lerDecisao, listarComprasDecididasDesde } from "@/lib/repositories/decisao.repo";
 import { categoryLabel } from "@/lib/categories";
-import { parcelasPorMes } from "@/lib/decisoes/compra-guiada";
+import { carregarParcelasDoMes } from "@/lib/repositories/parcelas.repo";
 import { diaDaSemana } from "@/lib/decisoes/foco-semana";
 
 /** Rendimento de referência quando a pessoa não informou nenhum (≈ CDI líquido, ao mês). */
@@ -86,19 +86,12 @@ export default async function PossoComprarPage() {
     listarComprasDecididasDesde(ctx, desdeParcelas),
   ]);
   const decididas = todasDecididas.filter((d) => compraDecididaEmAberto(d, agora));
-  // As parcelas que ela já paga ("LOJA 03/10" na fatura), deste mês e do mês passado: a regra de
-  // não sugerir parcelinha olha a soma de todas, não só a nova.
-  const mesPassado = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
-  const gastosComParcela = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", amount: { gt: 0 }, description: { contains: "/" }, OR: [{ year, month }, mesPassado] },
-    select: { year: true, month: true, description: true, amount: true },
-    take: 3000,
-  });
-  const comoGasto = (g: (typeof gastosComParcela)[number]) => ({ descricao: g.description ?? "", valor: Number(g.amount) });
-  const parcelasNaFatura = parcelasPorMes(
-    gastosComParcela.filter((g) => g.year === year && g.month === month).map(comoGasto),
-    gastosComParcela.filter((g) => g.year !== year || g.month !== month).map(comoGasto),
-  );
+  // As parcelas que ela já paga: a regra de não sugerir parcelinha olha a soma de todas, não só a
+  // nova. O mesmo número de Recorrentes, do Foco e da Previsão (lib/contas/parcelas-do-mes, 15/10/2026):
+  // as do mês, as que continuam e ainda não chegaram na fatura e as contas parceladas, sem as que
+  // ela disse "Não é parcela" e, no Casal, com as do outro. Antes era o maior entre os gastos com
+  // "/" deste mês e os do mês passado que continuam, só dela e sem as recusas.
+  const parcelasNaFatura = (await carregarParcelasDoMes(ctx, { year, month })).total;
   // Os gastos lançados depois de cada decisão com o valor dela (ou da parcela): só esses dizem
   // se a compra já está nos números. Busca por faixa de valor pra não varrer anos de lançamentos.
   const faixas = decididas

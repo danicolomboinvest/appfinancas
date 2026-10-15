@@ -6,8 +6,6 @@ import {
   categoriaOutra,
   formaQuePesaMenos,
   ordemDasDecisoes,
-  parcelaDaDescricao,
-  parcelasPorMes,
   podeSugerirParcela,
   TAXAS_DA_ROLETA,
   VALORES_DA_ROLETA,
@@ -77,29 +75,6 @@ describe("regra da parcela", () => {
   it("bem durável: só se as parcelas do mês somadas ficam em até 15% da renda", () => {
     expect(podeSugerirParcela(cat("celular"), 380, 300, 6300)).toBe(true); // 680 ≤ 945
     expect(podeSugerirParcela(cat("celular"), 800, 300, 6300)).toBe(false); // 1.100 > 945
-  });
-});
-
-describe("parcelas que já existem", () => {
-  it("lê a parcela que o banco escreve", () => {
-    expect(parcelaDaDescricao("LOJA PARCELADA 09/10")).toEqual({ atual: 9, total: 10 });
-    expect(parcelaDaDescricao("Anuidade Diferenciada - Parcela 1/12")).toEqual({ atual: 1, total: 12 });
-    expect(parcelaDaDescricao("LOJA EXEMPLO 03/09 PARCELA 02/10")).toEqual({ atual: 2, total: 10 });
-    expect(parcelaDaDescricao("PAYGO*LGSTAR A 03/04")).toEqual({ atual: 3, total: 4 });
-  });
-  it("data não é parcela", () => {
-    expect(parcelaDaDescricao("PIX ENVIADO 18/09/2026-23:16:31 PADARIA")).toBeNull();
-    expect(parcelaDaDescricao("DES: PADARIA 27/08")).toBeNull();
-    expect(parcelaDaDescricao("MERCADO")).toBeNull();
-  });
-  it("do mês passado só contam as que continuam", () => {
-    const mes = [{ descricao: "MERCADO", valor: 200 }];
-    const passado = [
-      { descricao: "LOJA 03/10", valor: 300 },
-      { descricao: "OUTRA 10/10", valor: 80 },
-    ];
-    expect(parcelasPorMes(mes, passado)).toBe(300);
-    expect(parcelasPorMes([{ descricao: "LOJA 04/10", valor: 300 }, { descricao: "TV 01/12", valor: 150 }], passado)).toBe(450);
   });
 });
 

@@ -21,6 +21,9 @@ import { carregarFoco } from "@/app/(app)/mensal/foco/dados";
 import { getOwnUser } from "@/lib/repositories/user.repo";
 import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { acharMetaDaReserva } from "@/lib/portfolio/reserva-da-pessoa";
+import { carregarParcelasDoMes } from "@/lib/repositories/parcelas.repo";
+import { gastoNoCartao } from "@/lib/repositories/limite-cartao.repo";
+import { parcelasProjetadas, totalDoLote } from "@/lib/import/total-do-lote";
 
 /**
  * Os números de cada missão do Money Reset, com os dados DELA, e as marcas que ela paga (o logo
@@ -126,17 +129,27 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
       return { n: 1, meses, entra: entra.valor, entraMeses: entra.meses, sai: media(e, (x) => x.category === "EXPENSE").valor, marcas: marcasQueMaisLevam(comMarca(e), meses, 5) };
     }
     case 2: {
-      const lote = await prisma.importBatch.findFirst({ where: { ...dono, docType: "fatura" }, orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true } });
       const prox = new Date(ano, mes, 1);
-      const parcelas = await prisma.monthlyEntry.count({ where: { ...dono, year: prox.getFullYear(), month: prox.getMonth() + 1, category: "EXPENSE", importBatchId: { not: null } } });
+      const [lote, proximas] = await Promise.all([
+        prisma.importBatch.findFirst({ where: { ...dono, docType: "fatura" }, orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true } }),
+        // As parcelas do mês que vem: a mesma lista da Previsão (lib/contas/parcelas-do-mes). Antes
+        // contava qualquer gasto importado do mês seguinte, inclusive compra à vista.
+        carregarParcelasDoMes(ctx, { year: prox.getFullYear(), month: prox.getMonth() + 1 }),
+      ]);
+      const parcelas = proximas.itens.length;
       if (!lote) return { n: 2, fatura: null, parcelasFuturas: parcelas };
-      const linhas = await prisma.monthlyEntry.findMany({ where: { ...dono, importBatchId: lote.id, category: "EXPENSE" }, select: { description: true, amount: true, year: true, month: true, parentCategory: true } });
-      const meses = new Set(linhas.map((l) => l.year * 12 + l.month));
-      // A fatura é um mês só (o que caiu nela); as parcelas futuras ficam de fora do total.
-      const mesDaFatura = meses.size ? Math.min(...meses) : 0;
-      const doMes = linhas.filter((l) => l.year * 12 + l.month === mesDaFatura);
-      const total = doMes.reduce((s, l) => s + Number(l.amount), 0);
-      const marcas = marcasQueMaisLevam(doMes.map((l) => ({ ...l, amount: Number(l.amount) })), 1, 5);
+      // Todas as linhas do lote (também as que a revisão mandou para outro perfil), como o
+      // histórico de importações lê. O perfil que manda é o do lote (o deste perfil).
+      const linhas = await prisma.monthlyEntry.findMany({ where: { userId: ctx.userId, importBatchId: lote.id, importBatch: { is: { userId: ctx.userId, profileId: ctx.profileId } } }, select: { description: true, amount: true, category: true, year: true, month: true, parentCategory: true } });
+      // "Sua última fatura" fala do ARQUIVO: o total da fatura importada é o do histórico de
+      // importações (totalDoLote), tudo o que a fatura trouxe, em qualquer mês, menos as parcelas
+      // que ela projetou para os meses seguintes. Antes era só o primeiro mês do lote, a regra que
+      // o totalDoLote deixou em 14/10/2026 (a fatura que fecha no dia 5 grava em dois meses).
+      const lancamentos = linhas.map((l) => ({ amount: Number(l.amount), category: l.category, year: l.year, month: l.month, description: l.description ?? "" }));
+      const total = totalDoLote("fatura", lancamentos);
+      const projetadas = parcelasProjetadas(lancamentos);
+      const doArquivo = linhas.filter((l, i) => l.category === "EXPENSE" && !projetadas.has(i));
+      const marcas = marcasQueMaisLevam(doArquivo.map((l) => ({ ...l, amount: Number(l.amount) })), 1, 5);
       return { n: 2, fatura: { total, marcas, quando: lote.createdAt.toISOString().slice(0, 10) }, parcelasFuturas: parcelas };
     }
     case 3: {
@@ -156,18 +169,23 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
         30,
         { essenciais: true },
       ).filter((i) => i.tipo === "assinatura" && !cortadas.has(i.chave));
-      // Parcelas que já caem no mês que vem (a fatura importada lança as próximas sozinha).
+      // Parcelas do mês que vem: o mesmo total da Previsão (lib/contas/parcelas-do-mes), com as
+      // contas parceladas de Recorrentes e sem as recusadas. Antes somava qualquer gasto importado
+      // do mês seguinte (a compra à vista feita depois do fechamento também virava "parcela").
       const prox = new Date(ano, mes, 1);
       const [parcelas, contas] = await Promise.all([
-        prisma.monthlyEntry.aggregate({ where: { ...dono, year: prox.getFullYear(), month: prox.getMonth() + 1, category: "EXPENSE", importBatchId: { not: null } }, _sum: { amount: true } }),
+        carregarParcelasDoMes(ctx, { year: prox.getFullYear(), month: prox.getMonth() + 1 }),
         // As contas que ela já cadastrou em Recorrentes (aluguel, luz, internet), todo mês e com valor.
-        prisma.contaAPagar.findMany({ where: { ...dono, repete: true, quitada: false, valor: { not: null }, OR: [{ intervalo: null }, { intervalo: 1, unidade: "meses" }] }, select: { id: true, nome: true, valor: true } }),
+        prisma.contaAPagar.findMany({ where: { ...dono, repete: true, quitada: false, valor: { not: null }, OR: [{ intervalo: null }, { intervalo: 1, unidade: "meses" }] }, select: { id: true, nome: true, valor: true, parcelas: true } }),
       ]);
       const doRaioX = itens.map((i) => ({ chave: i.chave, nome: i.nome, mensal: i.mensal }));
       const jaTem = new Set(doRaioX.map((f) => normalizarDescricao(f.nome)));
-      const cadastradas = contas.filter((c) => !jaTem.has(normalizarDescricao(c.nome))).map((c) => ({ chave: `conta:${c.id}`, nome: c.nome, mensal: Number(c.valor) }));
+      // A conta parcelada já está nas parcelas (como em Recorrentes): não entra duas vezes.
+      const cadastradas = contas
+        .filter((c) => !((c.parcelas ?? 0) > 1) && !jaTem.has(normalizarDescricao(c.nome)))
+        .map((c) => ({ chave: `conta:${c.id}`, nome: c.nome, mensal: Number(c.valor) }));
       const fixas = [...cadastradas, ...doRaioX].sort((a, b) => b.mensal - a.mensal);
-      return { n: 4, fixas, parcelas: Number(parcelas._sum.amount ?? 0) };
+      return { n: 4, fixas, parcelas: parcelas.total };
     }
     case 5: {
       const e = await tres();
@@ -215,9 +233,11 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
       };
     }
     case 14: {
+      // "Já marcado para o mês que vem" na regra do cartão fala do MÊS: o gasto no cartão do mês
+      // (gastoNoCartao, o mesmo do limite do cartão). Antes somava todo gasto do mês seguinte,
+      // inclusive o que não é do cartão.
       const prox = new Date(ano, mes, 1);
-      const r = await prisma.monthlyEntry.aggregate({ where: { ...dono, year: prox.getFullYear(), month: prox.getMonth() + 1, category: "EXPENSE" }, _sum: { amount: true } });
-      return { n: 14, proximaFatura: Number(r._sum.amount ?? 0) };
+      return { n: 14, proximaFatura: await gastoNoCartao(ctx, prox.getFullYear(), prox.getMonth() + 1) };
     }
     case 15: {
       const [foco, user] = await Promise.all([carregarFoco(ctx), getOwnUser(ctx)]);

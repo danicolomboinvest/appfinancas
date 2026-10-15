@@ -21,6 +21,8 @@ import { ondeMostrarFechamento } from "../fechamento/quando-mostrar";
 import { categoriaResolvida, escolherSugestaoDoMes } from "@/lib/avisos/respostas";
 import { quantosNoDecidir } from "@/lib/decisoes/pilha";
 import { parcelasProjetadas } from "@/lib/import/total-do-lote";
+import { gastoNoCartao } from "@/lib/repositories/limite-cartao.repo";
+import { ehDoCartao } from "@/lib/cartao/limite";
 import { detalharONumero, type DetalheDoNumero, type LancamentoDoNumero } from "./detalhe-do-numero";
 import {
   categoriaQueCaiu,
@@ -448,18 +450,24 @@ async function carregarPrimeiraVez(
   assinaturasDela: Set<string>,
   recusas: Set<string>,
 ): Promise<HeroiPrimeiraVez> {
-  const [linhas, parcelaveis] = await Promise.all([
+  const soFatura = caso === "fatura";
+  const [linhas, parcelaveis, gastoDoCartao] = await Promise.all([
     prisma.monthlyEntry.findMany({
       where: comFiltro(lancamentosDosTotais(ctx), { year: mes.ano, month: mes.mes, category: "EXPENSE" }),
-      select: { amount: true, parentCategory: true, customCategoryId: true, description: true, importBatch: { select: { docType: true } } },
+      select: { amount: true, parentCategory: true, customCategoryId: true, description: true, userId: true, profileId: true, noCartao: true, importBatch: { select: { docType: true } } },
       take: 5000,
     }),
     listarLancamentosParcelaveis(ctx, { year: mes.ano, month: mes.mes }),
+    // "Seu cartão em outubro" fala do MÊS: é o gasto no cartão do mês, o mesmo número do limite do
+    // cartão (ver gastoNoCartao). Antes somava só as linhas vindas de fatura, sem a marcação dela
+    // (noCartao) e, no Casal, com a fatura do outro.
+    soFatura ? gastoNoCartao(ctx, mes.ano, mes.mes) : Promise.resolve(0),
   ]);
-  const soFatura = caso === "fatura";
-  const doCartao = linhas.filter((l) => l.importBatch?.docType === "fatura");
+  // As linhas do cartão pela mesma regra do gastoNoCartao: dela (quem olha, neste perfil) e do
+  // cartão (a marcação dela; sem marcação, vinda de fatura).
+  const doCartao = linhas.filter((l) => l.userId === ctx.userId && l.profileId === ctx.profileId && ehDoCartao(l));
   const consideradas = soFatura ? doCartao : linhas;
-  const temFatura = doCartao.length > 0;
+  const temFatura = linhas.some((l) => l.importBatch?.docType === "fatura");
   const faturaUmGasto = temFatura ? 0 : linhas.filter((l) => l.importBatch && ehPagamentoDeFatura(l.description)).reduce((s, l) => s + Number(l.amount), 0);
 
   const porCategoria = new Map<string, { valor: number; compras: number }>();
@@ -470,7 +478,7 @@ async function carregarPrimeiraVez(
     if (Number(l.amount) > 0) c.compras += 1;
     porCategoria.set(k, c);
   }
-  const total = consideradas.reduce((s, l) => s + Number(l.amount), 0);
+  const total = soFatura ? gastoDoCartao : consideradas.reduce((s, l) => s + Number(l.amount), 0);
   const paraOndeFoi = [...porCategoria.entries()]
     .filter(([k, c]) => k !== "__fatura" && c.valor >= 1)
     .sort((a, b) => b[1].valor - a[1].valor)

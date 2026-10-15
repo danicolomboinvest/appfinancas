@@ -104,42 +104,14 @@ export function vereditoComPeso(v: Veredito, sinceridade: Sinceridade, valor: nu
   return v;
 }
 
-/** As parcelas do mês somadas (as que já existem + a nova) ficam em até 15% da renda. */
+/**
+ * As parcelas do mês somadas (as que já existem + a nova) ficam em até 15% da renda. As que já
+ * existem são as de Recorrentes (lib/contas/parcelas-do-mes, via carregarParcelasDoMes).
+ */
 export const LIMITE_PARCELAS_DA_RENDA = 0.15;
 
 export function podeSugerirParcela(cat: Pick<CategoriaDaCompra, "duravel">, parcelasNoMes: number, novaParcela: number, renda: number): boolean {
   return cat.duravel && renda > 0 && parcelasNoMes + novaParcela <= renda * LIMITE_PARCELAS_DA_RENDA + 1e-9;
-}
-
-/**
- * "LOJA 03/10", "PARC 03/10", "Parcela 1/12": a parcela que o banco escreve na fatura. Data com
- * ano ("18/09/2026") não conta, e "27/08" também não (27 parcelas de 8 não existe).
- */
-export function parcelaDaDescricao(descricao: string): { atual: number; total: number } | null {
-  const achados = [...descricao.matchAll(/(?:^|[^\d/])(\d{1,2})\s*\/\s*(\d{1,2})(?![\d/])/g)];
-  if (achados.length === 0) return null;
-  // "LOJA 03/09 PARCELA 02/10": a que vem depois de "parc" ganha; senão, a última.
-  const depoisDeParc = achados.find((m) => /parc/i.test(descricao.slice(0, m.index ?? 0)));
-  const m = depoisDeParc ?? achados[achados.length - 1];
-  const atual = Number(m[1]);
-  const total = Number(m[2]);
-  if (!(total >= 2 && total <= 48 && atual >= 1 && atual <= total)) return null;
-  return { atual, total };
-}
-
-/**
- * Quanto ela já paga de parcelas por mês, pelos gastos de um mês. Do mês passado só contam as
- * que continuam (a 10/10 terminou), pra não zerar no começo do mês, antes da fatura chegar.
- */
-export function parcelasPorMes(doMes: { descricao: string; valor: number }[], doMesPassado: { descricao: string; valor: number }[]): number {
-  const soma = (lista: { descricao: string; valor: number }[], soContinuam: boolean) =>
-    lista.reduce((s, g) => {
-      const p = parcelaDaDescricao(g.descricao);
-      if (!p || !(g.valor > 0)) return s;
-      if (soContinuam && p.atual >= p.total) return s;
-      return s + g.valor;
-    }, 0);
-  return Math.max(soma(doMes, false), soma(doMesPassado, true));
 }
 
 type Formatos = Parameters<typeof avaliarCompra>[2];

@@ -7,6 +7,7 @@ import {
   PREFIXO_COMPRA_APAGADA,
   PREFIXO_NAO_PARCELA,
   acharParcela,
+  parcelasDoMes,
   chaveCompraApagada,
   chaveNaoParcela,
   doIndice,
@@ -14,6 +15,7 @@ import {
   type ContaParcelada,
   type Mes,
   type ParcelaParaMudar,
+  type ParcelasDoMes,
 } from "@/lib/contas/parcelas-do-mes";
 
 /**
@@ -65,6 +67,41 @@ export async function lerParcelaParaMudar(ctx: AuthContext, mes: Mes, chave: str
     listarRecusasDeParcela(ctx),
   ]);
   return acharParcela(lancamentos, mes, contas, recusas, chave);
+}
+
+/**
+ * As parcelas de um mês (este ou um dos próximos) para as telas que só precisam do número ou da
+ * lista: o Decidir ("Posso comprar?", a regra dos 15% da renda) e o Money Reset (missões 2 e 4).
+ * A conta é a de sempre (parcelasDoMes): as lançadas, as previstas que ainda não chegaram e as
+ * contas parceladas de Recorrentes, sem as recusadas no "Não é parcela" e, no Casal, com as
+ * parcelas visíveis do outro (listarLancamentosParcelaveis usa o filtro dos totais).
+ *
+ * Os dados são os mesmos da Previsão (contas não quitadas com mais de uma parcela, com o
+ * vencimento, que faz a parcela andar nos meses seguintes). Antes, o Decidir lia só os gastos
+ * dela com "/" deste mês e do passado (sem recusa e sem o Casal) e o Money Reset somava qualquer
+ * gasto importado do mês seguinte como parcela.
+ */
+export async function carregarParcelasDoMes(ctx: AuthContext, mes: Mes): Promise<ParcelasDoMes> {
+  const [lancamentos, recusas, contas] = await Promise.all([
+    listarLancamentosParcelaveis(ctx, mes),
+    listarRecusasDeParcela(ctx),
+    prisma.contaAPagar.findMany({
+      where: { ...doDono(ctx), quitada: false, parcelas: { gt: 1 } },
+      select: { id: true, nome: true, valor: true, parcelas: true, parcelaAtual: true, categoria: true, diaDoMes: true, vencimento: true },
+      take: 300,
+    }),
+  ]);
+  const parceladas: ContaParcelada[] = contas.map((c) => ({
+    id: c.id,
+    nome: c.nome,
+    valor: c.valor == null ? null : Number(c.valor),
+    parcelas: c.parcelas,
+    parcelaAtual: c.parcelaAtual,
+    categoria: (c.categoria as string | null) ?? null,
+    diaDoMes: c.diaDoMes,
+    vencimento: c.vencimento.toISOString().slice(0, 10),
+  }));
+  return parcelasDoMes(lancamentos, mes, parceladas, recusas);
 }
 
 // O recibo é JSON: Decimal e Date viram marcas e voltam do mesmo jeito.

@@ -256,7 +256,7 @@ function M2({ d, c }: { d: Extract<DadosDoMarco, { n: 2 }>; c: Comum }) {
       <HeroiDoTema>
         <small className="text-[13px] font-semibold text-heroi-suave">Sua última fatura</small>
         <span className="text-[34px] font-bold leading-none tracking-tight tabular-nums">{money(d.fatura.total, { round: true })}</span>
-        {d.parcelasFuturas > 0 && <small className="text-[13px] text-heroi-suave">{d.parcelasFuturas} parcelas já no mês que vem</small>}
+        {d.parcelasFuturas > 0 && <small className="text-[13px] text-heroi-suave">{d.parcelasFuturas === 1 ? "1 parcela" : `${d.parcelasFuturas} parcelas`} já no mês que vem</small>}
       </HeroiDoTema>
       {d.fatura.marcas.length > 0 && (
         <>

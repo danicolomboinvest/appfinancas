@@ -34,7 +34,22 @@ export async function salvarLimiteDoCartao(ctx: AuthContext, valor: number | nul
   await prisma.financialProfile.updateMany({ where: { id: ctx.profileId, userId: ctx.userId }, data: { limiteCartao: valor } });
 }
 
-/** Soma do que foi no cartão no mês. Estorno da fatura é gasto negativo e desconta sozinho. */
+/**
+ * Soma do que foi no cartão no mês. Estorno da fatura é gasto negativo e desconta sozinho.
+ *
+ * É "o gasto no cartão do MÊS" (15/10/2026), um dos dois números do cartão:
+ * - gasto no cartão do mês (este): o que está no mês do app e é do cartão, pela marcação dela
+ *   (noCartao) ou, sem marcação, por ter vindo de uma fatura. Mistura faturas (a compra de 28/09
+ *   e a de 02/10 caem em faturas diferentes e no mesmo mês) e o que ela lançou à mão no cartão.
+ *   Usam: o limite do cartão (card, aviso de 70/90/100%, o "Posso comprar?"), o "Seu cartão em
+ *   outubro" da primeira vez no Foco (mensal/foco/novo/dados.ts) e o "Já marcado para o mês que
+ *   vem" da missão 14 do Money Reset.
+ * - total da fatura importada (lib/import/total-do-lote.ts, totalDoLote): o que UM arquivo trouxe,
+ *   em qualquer mês, menos as parcelas projetadas. Usam: o histórico de importações e o "Sua última
+ *   fatura" da missão 2 do Money Reset.
+ * Os dois não precisam bater entre si (um é o mês, o outro é o arquivo); cada tela que fala do
+ * mesmo assunto usa a mesma função.
+ */
 export async function gastoNoCartao(ctx: AuthContext, ano: number, mes: number): Promise<number> {
   const r = await prisma.monthlyEntry.aggregate({ where: doCartaoNoMes(ctx, ano, mes), _sum: { amount: true } });
   return Number(r._sum.amount ?? 0);
