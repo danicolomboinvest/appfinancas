@@ -66,29 +66,38 @@ export async function conferirGastoPorCategoria(p: Page, c: Caderno, m: Mes, ori
   return { orc, gastos, trans };
 }
 
-/** O "livre do mês" e o da semana: Orçamento, Recorrentes, Decidir, Posso comprar e widget. */
+/**
+ * O "livre do mês" é UM número só (decisão da dona, 15/10/2026, lib/planning/livre-do-mes): o
+ * Orçamento, os Recorrentes, o Decidir, o Posso comprar e o widget dizem o mesmo. Diferença aqui é
+ * "numero" (derruba o teste), não mais "decisao". O da semana ("Livre nesta semana") é outro número:
+ * só confere o "por dia" do Decidir com o do widget.
+ */
 export async function conferirLivre(p: Page, c: Caderno, orc: RetratoDoOrcamento, origem: string) {
   const rec = await lerRecorrentes(p, c);
   const dec = await lerDecidir(p, c);
   const comprar = await lerPossoComprar(p, c).catch(() => null);
   const w = await lerWidget(p, BASE);
   const livreOrc = orc.livres ?? (orc.acimaDoPlano != null ? -orc.acimaDoPlano : null);
-  if (rec.livre != null && livreOrc != null && !bate(rec.livre, livreOrc, 2)) {
-    await c.anotar(p, { tipo: "numero", telaDeOrigem: "Orçamento", telaErrada: "Recorrentes", esperado: `Livre ${brl(livreOrc)} (Orçamento: livres)`, visto: brl(rec.livre), chave: `${c.perfil}|livre-recorrentes|${origem}` });
-  }
-  if (dec.livres != null && livreOrc != null && !bate(dec.livres, livreOrc, 2)) {
-    await c.anotar(p, { tipo: "decisao", telaDeOrigem: "Orçamento", telaErrada: "Decidir (pílula Posso comprar)", esperado: `${brl(livreOrc)} livres (Orçamento)`, visto: `${brl(dec.livres)} livres`, chave: `${c.perfil}|livre-decidir|${origem}` });
-  }
-  if (comprar?.livreDoMes != null && dec.livres != null && !bate(comprar.livreDoMes, dec.livres, 2)) {
-    await c.anotar(p, { tipo: "numero", telaDeOrigem: "Decidir", telaErrada: "Posso comprar", esperado: `livre ${brl(dec.livres)} (pílula do Decidir)`, visto: comprar.frase, chave: `${c.perfil}|livre-comprar|${origem}` });
-  }
-  if (comprar?.livreDoMes != null && livreOrc != null && !bate(comprar.livreDoMes, livreOrc, 2)) {
-    await c.anotar(p, { tipo: "decisao", telaDeOrigem: "Orçamento", telaErrada: "Posso comprar", esperado: `livre ${brl(livreOrc)} (Orçamento: livres)`, visto: comprar.frase, chave: `${c.perfil}|livre-comprar-orc|${origem}` });
+  const widgetMes = "erro" in w || !w.mes || w.mes.valor == null ? null : /acima/.test(w.mes.rotulo) ? -w.mes.valor : w.mes.valor;
+  const telas: [string, number | null, string][] = [
+    ["Recorrentes", rec.livre, rec.livre == null ? "(sem número)" : brl(rec.livre)],
+    ["Decidir (pílula Posso comprar)", dec.livres, dec.livres == null ? "(sem número)" : `${brl(dec.livres)} livres`],
+    ["Posso comprar", comprar?.livreDoMes ?? null, comprar?.frase ?? "(não abriu o passo 5)"],
+    ["widget (livre do mês)", widgetMes, "erro" in w ? w.erro : w.mes ? `${w.mes.valor} ${w.mes.rotulo}` : "(sem o campo mes)"],
+  ];
+  if (livreOrc != null) {
+    for (const [tela, valor, visto] of telas) {
+      // Recorrentes sem o cartão "Renda com dono" (sem renda) não tem onde mostrar o livre.
+      if (valor == null && tela === "Recorrentes" && !/Renda com dono/.test(rec.texto)) continue;
+      if (valor == null || !bate(valor, livreOrc, 1)) {
+        await c.anotar(p, { tipo: "numero", telaDeOrigem: "Orçamento", telaErrada: tela, esperado: `livre do mês ${brl(livreOrc)} (Orçamento)`, visto, chave: `${c.perfil}|livre-${tela}|${origem}` });
+      }
+    }
   }
   if (!("erro" in w) && dec.porDia != null && w.livre.porDia != null && !bate(dec.porDia, w.livre.porDia, 1)) {
     await c.anotar(p, { tipo: "numero", telaDeOrigem: "Decidir", telaErrada: "widget", esperado: `${brl(dec.porDia)} por dia (Decidir)`, visto: `${brl(w.livre.porDia)} por dia`, chave: `${c.perfil}|pordia-widget|${origem}` });
   }
-  return { rec, dec, comprar, widget: w };
+  return { rec, dec, comprar, widget: w, livreOrc, widgetMes };
 }
 
 /** Metas: a tela de Metas e o widget dizem o mesmo guardado. */
