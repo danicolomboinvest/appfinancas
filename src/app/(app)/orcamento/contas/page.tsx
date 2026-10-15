@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { getRequiredSession } from "@/lib/auth/session";
 import { hojeEmBrasilia } from "@/lib/contas/contas";
 import { listarContasAPagar, listarQuitadasRecentes } from "@/lib/repositories/conta-a-pagar.repo";
+import { listBudgets } from "@/lib/repositories/budget.repo";
 import { listarDividas, selicAnual } from "@/lib/repositories/divida.repo";
 import { saudeDe, SELIC_DE_RESERVA } from "@/lib/dividas/saude";
 import { perfilDoTipo } from "@/lib/dividas/tipos";
@@ -77,9 +78,12 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  const [abertas, pagas, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas, livreDoMes] = await Promise.all([
+  // O livre do mês da fonte única (lib/planning/livre-do-mes), junto com as outras consultas.
+  const livreDoMesP = carregarLivreDoMes(ctx, { ano, mes });
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, recusas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
+    listBudgets(ctx, ano, mes),
     getMonthlySummary(ctx, ano, mes),
     getMonthlyPlan(ctx, ano, mes),
     empresa ? Promise.resolve({ itens: [], decididos: new Set<string>() }) : carregarRaioX(ctx, ano, mes),
@@ -95,7 +99,6 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     listarLancamentosParcelaveis(ctx, { year: ano, month: mes }),
     // O que ela disse no "…" da parcela: "Não é parcela" e a compra apagada.
     listarRecusasDeParcela(ctx),
-    carregarLivreDoMes(ctx, { ano, mes }),
   ]);
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
@@ -130,8 +133,9 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   });
   const rotulos = Object.fromEntries((["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS"] as ParentCategory[]).map((k) => [k, categoryLabel(ctx.categorias ?? ctx.profileKind, k)]));
   const totalAssinaturas = assinaturas.reduce((s, i) => s + i.mensal, 0);
-  // O livre do mês da fonte única (lib/planning/livre-do-mes): o mesmo número do Orçamento.
-  const livre = livreDoMes.tipo === "plano" ? livreDoMes.valor : null;
+  // O mesmo número do Orçamento (antes: plano − resumo.totalExpense, com outro arredondamento).
+  const livreDoMes = await livreDoMesP;
+  const livre = livreDoMes.tipo === "plano" && plano.length > 0 ? livreDoMes.valor : null;
   const comDono = peso.contas + parcelas.total + totalAssinaturas;
   const pct = renda > 0 ? Math.round((comDono / renda) * 100) : null;
   const largura = (v: number) => `${Math.min(100, (v / renda) * 100)}%`;
