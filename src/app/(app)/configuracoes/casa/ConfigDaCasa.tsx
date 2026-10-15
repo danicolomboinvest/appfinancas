@@ -13,6 +13,9 @@ import { BOTAO_ESCURO, ParDeAvatares } from "@/components/casal-login/visual";
 import { removerParAction, sairDoCasalAction } from "@/app/(app)/divisao/nos-dois-actions";
 import { definirDivisaoAction } from "@/app/(app)/mensal/foco/acerto/actions";
 import { salvarNomesDaCasaAction } from "./actions";
+import { BarraDaDivisao, OutraDivisao } from "@/components/casa/PerguntasDoCasal";
+import { rotuloDaDivisao } from "@/lib/casa/escolhas";
+import type { CasaNaTela } from "@/lib/casa/regras";
 
 const CAMPO = "min-h-12 w-full rounded-2xl border border-border bg-surface px-4 text-[16px] text-ink outline-none focus:border-ink";
 const CARTAO = "flex flex-col gap-3 rounded-3xl border border-border bg-surface p-4";
@@ -21,7 +24,22 @@ const CARTAO = "flex flex-col gap-3 rounded-3xl border border-border bg-surface 
  * Configurações › Casa (Casal simples): os nomes, o jeito de dividir, o que esconder e a saída.
  * A titular tira o par; o par sai. Cada um fica com o que é seu.
  */
-export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; outro: string; souTitular: boolean; divisao: "renda" | "meio" | "combinado" }) {
+export function ConfigDaCasa({
+  eu,
+  outro,
+  souTitular,
+  divisao,
+  casa,
+  pctEuCombinado,
+}: {
+  eu: string;
+  outro: string;
+  souTitular: boolean;
+  divisao: "renda" | "meio" | "combinado";
+  casa: CasaNaTela;
+  /** Combinado: a minha parte, em % (60). */
+  pctEuCombinado: number;
+}) {
   const router = useRouter();
   const { showError } = useToast();
   // Erro no lugar (14/10/2026): embaixo do que falhou, até a próxima tentativa.
@@ -30,6 +48,10 @@ export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; o
   const [pendente, startTransition] = useTransition();
   const [nomes, setNomes] = useState({ eu, outro });
   const [jeito, setJeito] = useState(divisao);
+  // Combinado (liberado para todos em 15/10/2026): a minha parte digitada, como no "Outra" do Digitar.
+  const [pctSalvo, setPctSalvo] = useState(pctEuCombinado);
+  const [pct, setPct] = useState(pctEuCombinado);
+  const foraDaRegua = pct < 20 || pct > 80;
   const [confirmando, setConfirmando] = useState(false);
   const titular = souTitular ? nomes.eu : nomes.outro;
   const par = souTitular ? nomes.outro : nomes.eu;
@@ -91,14 +113,15 @@ export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; o
           opcoes={[
             { valor: "renda" as const, rotulo: "Pela renda" },
             { valor: "meio" as const, rotulo: "Meio a meio" },
-            ...(divisao === "combinado" ? [{ valor: "combinado" as const, rotulo: "Combinado" }] : []),
+            { valor: "combinado" as const, rotulo: "Combinado" },
           ]}
           valor={jeito}
           aoEscolher={(v) => {
-            if (v === "combinado") return;
             const antes = jeito;
             erroDoJeito.limpar();
             setJeito(v);
+            // Combinado salva no "Salvar" de baixo, depois de digitar a parte.
+            if (v === "combinado") return;
             startTransition(async () => {
               const r = await definirDivisaoAction(v).catch(() => ({ ok: false }));
               if (!r.ok) {
@@ -108,6 +131,34 @@ export function ConfigDaCasa({ eu, outro, souTitular, divisao }: { eu: string; o
             });
           }}
         />
+        {jeito === "combinado" && (
+          <div className="flex flex-col gap-2.5" data-combinado>
+            <BarraDaDivisao pctEu={foraDaRegua ? Math.min(80, Math.max(20, pct)) : pct} casa={casa} />
+            <OutraDivisao pctEu={pct} aoMudar={setPct} />
+            {(divisao !== "combinado" || pct !== pctSalvo) && (
+              <button
+                type="button"
+                disabled={pendente || foraDaRegua}
+                className={BOTAO_ESCURO}
+                onClick={() => {
+                  erroDoJeito.limpar();
+                  startTransition(async () => {
+                    const r = await definirDivisaoAction("combinado", pct).catch(() => ({ ok: false }));
+                    if (!r.ok) {
+                      erroDoJeito.falhou("Não salvou. Toque de novo.");
+                      return;
+                    }
+                    setPctSalvo(pct);
+                    router.refresh();
+                  });
+                }}
+              >
+                {erroDoJeito.erro ? TENTAR_DE_NOVO : `Salvar ${rotuloDaDivisao(pct)}`}
+              </button>
+            )}
+            {foraDaRegua && <p className="text-[13px] text-ink-muted">De 20% a 80% para cada um.</p>}
+          </div>
+        )}
         <ErroNoBotao erro={erroDoJeito.erro} />
         <p className="text-[13px] text-ink-muted">Só o que é da casa entra no acerto.</p>
       </section>
