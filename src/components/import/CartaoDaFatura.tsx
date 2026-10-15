@@ -20,6 +20,7 @@ export function CartaoDaFatura({ stats }: { stats: ParseStats }) {
   const fecha = diaDe(stats.fechamento);
   const vence = diaDe(stats.vencimento);
   const slug = slugDoBancoLido(stats.banco);
+  // Sem banco no conteúdo, o cartão achado pelo nome do arquivo já vem em stats.cartao.
 
   const linha = (banco: string, texto: React.ReactNode, acao?: React.ReactNode) => (
     <div className="mt-3 flex w-full flex-col gap-2 rounded-2xl bg-surface p-3 text-left" data-cartao-da-fatura>

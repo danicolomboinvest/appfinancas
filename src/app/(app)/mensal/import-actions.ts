@@ -18,7 +18,7 @@ import { conferirLeitura, leituraIncompleta, type Conferencia } from "@/lib/impo
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
-import { finalDoCartao } from "@/lib/cartao/bancos";
+import { bancoNoNomeDoArquivo, finalDoCartao } from "@/lib/cartao/bancos";
 import { acharCartaoDaFatura, ligarLoteAoCartao } from "@/lib/repositories/cartao.repo";
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
@@ -643,7 +643,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     let cartao: ParseStats["cartao"] = null;
     if (docType === "fatura") {
       try {
-        const achado = await acharCartaoDaFatura(ctx, { banco: profile.institution ?? null, final });
+        const achado = await acharCartaoDaFatura(ctx, { banco: profile.institution ?? bancoNoNomeDoArquivo(fileName), final });
         cartao = achado ? { id: achado.id, banco: achado.banco, apelido: achado.apelido, diaFechamento: achado.diaFechamento, diaVencimento: achado.diaVencimento } : null;
       } catch (err) {
         console.error("parseStatementAction: cartão da fatura (a leitura segue)", err);
@@ -1799,7 +1799,7 @@ export async function importTransactionsAction(
   // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio. (O que
   // só confirmou parcelas projetadas por outro lote não está vazio: agora elas são dele.)
   if (created === 0 && adotados === 0) await deleteEmptyImportBatch(ctx, batch.id);
-  else if (ehFatura) await ligarFaturaAoCartao(ctx, batch.id, fatura);
+  else if (ehFatura) await ligarFaturaAoCartao(ctx, batch.id, { banco: fatura?.banco ?? bancoNoNomeDoArquivo(fileName), final: fatura?.final ?? null });
   // O lote de print que ficou sem nenhuma compra (todas passaram para este) sai do histórico.
   for (const id of lotesDePrintMexidos) if (id !== batch.id) await deleteEmptyImportBatch(ctx, id);
 

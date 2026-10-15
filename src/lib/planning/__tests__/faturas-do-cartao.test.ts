@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { faturasDoCartao, totalDaFatura, type LancamentoDoCartao } from "../faturas-do-cartao";
-import { finalDoCartao, nomeDoCartao, slugDoBancoLido } from "@/lib/cartao/bancos";
+import { bancoNoNomeDoArquivo, finalDoCartao, nomeDoCartao, slugDoBancoLido } from "@/lib/cartao/bancos";
 
 const cartao = { id: "c1", banco: "nubank", apelido: null, diaFechamento: 15, diaVencimento: 22 };
 let n = 0;
@@ -66,5 +66,13 @@ describe("bancos do cartão", () => {
     expect(finalDoCartao("Fatura Cartão de Crédito;Final Cartão;1234\n;1234\n;9999")).toBe("1234");
     expect(finalDoCartao("5502 **** **** 7781 Titular")).toBe("7781");
     expect(finalDoCartao("Total R$ 1.234,56")).toBeNull();
+  });
+
+  it("o banco pelo nome do arquivo, quando o conteúdo não diz", () => {
+    expect(bancoNoNomeDoArquivo("Nubank_2026-10-10.csv")).toBe("Nubank");
+    expect(bancoNoNomeDoArquivo("fatura-itau-outubro.pdf")).toBe("Itaú");
+    expect(bancoNoNomeDoArquivo("banco-do-brasil.pdf")).toBe("Banco do Brasil");
+    expect(bancoNoNomeDoArquivo("internet.pdf")).toBeNull();
+    expect(bancoNoNomeDoArquivo(null)).toBeNull();
   });
 });

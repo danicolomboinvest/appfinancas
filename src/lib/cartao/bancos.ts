@@ -46,6 +46,21 @@ export function slugDoBancoLido(banco: string | null | undefined): string | null
 }
 
 /**
+ * O banco pelo nome do arquivo, quando o conteúdo não diz ("Nubank_2026-10-10.csv", a planilha da
+ * fatura do Nubank, não escreve o nome do banco dentro). Devolve o nome do banco, ou null.
+ */
+export function bancoNoNomeDoArquivo(nome: string | null | undefined): string | null {
+  if (!nome) return null;
+  const palavras = normalizarDescricao(nome.replace(/\.[a-z0-9]+$/i, "")).split(" ");
+  for (const b of BANCOS_DO_CARTAO) {
+    if (b.slug === "outro") continue;
+    const chaves = [normalizarDescricao(b.nome), normalizarDescricao(b.apelido), b.slug].filter(Boolean);
+    if (chaves.some((k) => (k.includes(" ") ? ` ${palavras.join(" ")} `.includes(` ${k} `) : palavras.includes(k)))) return b.nome;
+  }
+  return null;
+}
+
+/**
  * Os 4 últimos dígitos do cartão impressos na fatura ("Final 1234", "**** 1234", "Final Cartão;1234"
  * na planilha do BTG). Fatura com cartão adicional traz mais de um: vale o que aparece mais vezes.
  */

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import { Caderno, dia, exigirSemAchados, novaPagina, passo, testeDosAvisos } from "./comum";
@@ -29,8 +30,23 @@ async function teclar(p: Page, valor: number) {
   for (const ch of String(Math.round(valor * 100))) await d.getByRole("button", { name: ch, exact: true }).click();
 }
 
-async function lancadosNoCartao() {
-  const db = new PrismaClient({ datasourceUrl: URL_DO_BANCO });
+/** O Postgres local é dividido com outras jornadas: "too many clients" espera e tenta de novo. */
+async function lancadosNoCartao(): ReturnType<typeof lerLancadosNoCartao> {
+  for (let i = 0; ; i++) {
+    try {
+      return await lerLancadosNoCartao();
+    } catch (e) {
+      if (i < 20 && /too many clients|Too many database connections/i.test(String(e))) {
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
+async function lerLancadosNoCartao() {
+  const db = new PrismaClient({ datasourceUrl: `${URL_DO_BANCO}?connection_limit=1` });
   try {
     const edu = await db.user.findUniqueOrThrow({ where: { email: EMAIL } });
     const cartao = await db.cartao.findFirstOrThrow({ where: { userId: edu.id } });
@@ -114,6 +130,39 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
       for (const l of linhas) {
         if (l.year !== 2026 || l.month !== 10 || l.noCartao !== true)
           await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "mês do orçamento", esperado: "outubro de 2026, no cartão", visto: `${l.month}/${l.year}, noCartao ${l.noCartao}` });
+      }
+    });
+
+    await passo(c, "fatura do Nubank importada: as compras vão para o cartão", async () => {
+      await p.goto("/mensal/foco");
+      await pularTutoriais(p);
+      await p.getByRole("button", { name: "Registrar" }).first().click();
+      await p.getByRole("dialog").getByText("Extrato ou fatura", { exact: true }).click();
+      await p.locator("input[type=file]").first().setInputFiles(path.join(__dirname, "arquivos", "duda-fatura-nubank.csv"));
+      await p.locator("[data-confirmacao-do-arquivo]").waitFor({ timeout: 90_000 });
+      const oferta = p.locator("[data-cartao-da-fatura]");
+      const textoDaOferta = (await oferta.count()) ? ((await oferta.first().textContent()) ?? "") : "";
+      if (!/Cartão Nubank/.test(textoDaOferta)) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "fatura importada", telaErrada: "Conferência da fatura", esperado: "As compras vão para o Cartão Nubank.", visto: textoDaOferta || "nada" });
+      await conferirTextoELayout(p, c, "Conferência da fatura com cartão");
+      const pronto = p.getByRole("button", { name: /^Pronto, anotar/ });
+      if (await pronto.count()) await pronto.click();
+      else await p.getByRole("button", { name: /Pular e anotar/ }).click();
+      await p.waitForTimeout(1500);
+      const agoraNao = p.getByRole("button", { name: "Agora não" });
+      if (await agoraNao.count()) await agoraNao.first().click().catch(() => undefined);
+      await p.keyboard.press("Escape").catch(() => undefined);
+
+      const { cartao, linhas } = await lancadosNoCartao();
+      const daFatura = linhas.filter((l) => l.description && /Padaria Real|Posto Ipiranga|Loja de Tenis|Restaurante Sabor/.test(l.description));
+      if (daFatura.length < 4) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "fatura importada", telaErrada: "lançamentos ligados ao cartão", esperado: "as 4 compras da fatura ligadas ao Cartão Nubank", visto: `${daFatura.length} ligadas` });
+      await p.goto("/orcamento/cartao");
+      const texto = await conferirTextoELayout(p, c, "Seu cartão depois da fatura");
+      for (const chave of ["2026-10", "2026-11"]) {
+        const total = totalDaFatura(cartao, linhas, chave);
+        const nome = chave === "2026-10" ? "outubro" : "novembro";
+        const valor = `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const linha = texto.split("\n").find((l) => l.startsWith(`Fatura de ${nome}:`))?.replace(/\s/g, " ") ?? "";
+        if (!linha.includes(valor)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "fatura importada", telaErrada: "Seu cartão", esperado: `Fatura de ${nome}: ${valor} (soma dos lançamentos ligados)`, visto: linha || "não está" });
       }
     });
   } finally {
