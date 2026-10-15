@@ -9,7 +9,7 @@ import { NavProgressProvider } from "./nav-progress";
 import { ehVisaoGeral } from "./flow-tabs";
 import { useTopoAoTrocarDeTela } from "@/components/ui/useVoltarAoTopo";
 import { RegistrarDrawer } from "./RegistrarDrawer";
-import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, type ModoDoRegistrar } from "./registrar-eventos";
+import { modoPedidoNoEvento, EVENTO_IMPORTAR, EVENTO_REGISTRAR, EVENTO_REGISTRAR_EMPRESA, type ModoDoRegistrar } from "./registrar-eventos";
 import type { PerfilResumo } from "@/components/profiles/perfil-resumo";
 import { TopBar } from "./TopBar";
 import { AbasDaVisaoGeral, DeslizarEntreAbas } from "./AbasDaVisaoGeral";
@@ -217,8 +217,13 @@ export function AppShell({
           comMoneyReset={comMoneyReset}
           userEmail={userEmail}
           onLogout={handleLogout}
-          // Na Empresa, o Registrar do computador abre o + dela (Vendi, Paguei, Recebi).
-          onOpenRegistrar={() => (empresa ? router.push("/empresa?registrar=1") : abrirRegistrar())}
+          // Na Empresa, o Registrar do computador abre o + dela (Entrou, Paguei, Recebi): já na
+          // Visão geral dela, pelo evento (o endereço sozinho não reabre); de outra tela, indo pra lá.
+          onOpenRegistrar={() => {
+            if (!empresa) abrirRegistrar();
+            else if (pathname === "/empresa") window.dispatchEvent(new Event(EVENTO_REGISTRAR_EMPRESA));
+            else router.push("/empresa?registrar=1");
+          }}
           openFinance={openFinance}
           secoesFixas={modoPar ? SECOES_DO_PAR : undefined}
           perfis={perfis}

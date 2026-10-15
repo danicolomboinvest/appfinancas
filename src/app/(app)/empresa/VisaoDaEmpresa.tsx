@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Gauge, ChevronRight, FileText, Users } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -17,6 +17,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { HeroiDoTema } from "@/components/ui/HeroiDoTema";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { BotaoRegistrar } from "@/components/shell/BotaoRegistrar";
+import { EVENTO_REGISTRAR_EMPRESA } from "@/components/shell/registrar-eventos";
 import { NOME_DA_FORMA, type Forma } from "@/lib/empresa/config";
 import { chaveDoMes, mesAntes, reciboDoMes, type LancamentoDaEmpresa, type Mes, type Recibo } from "@/lib/empresa/regras";
 import { MESES, contasDoMes, diaDaSemanaDe, guiaDoMeiDaEmpresa, resumoDaEmpresa, type ResumoDaEmpresa } from "@/lib/empresa/resumo";
@@ -55,6 +56,12 @@ export function VisaoDaEmpresa({ dados, clientes, abaInicial, periodo, antigos, 
   const R = useMemo(() => resumoDaEmpresa(dados), [dados]);
   const [aba, setAba] = useState<Aba>(abaInicial);
   const [registrar, setRegistrar] = useState(abrirRegistrar);
+  // O "Registrar" da barra lateral do computador, com a pessoa já nesta tela.
+  useEffect(() => {
+    const abrir = () => setRegistrar(true);
+    window.addEventListener(EVENTO_REGISTRAR_EMPRESA, abrir);
+    return () => window.removeEventListener(EVENTO_REGISTRAR_EMPRESA, abrir);
+  }, []);
 
   const lancs = antigos ?? dados.lancamentos;
   const RP = useMemo(() => resumoDoPeriodo(lancs, periodo, dados.hoje), [lancs, periodo, dados.hoje]);

@@ -14,6 +14,11 @@ export type ModoDoRegistrar = "choice" | "type" | "voice" | "import";
 export const EVENTO_REGISTRAR = "spi:registrar";
 /** Abre a gaveta direto na importação de extrato ou fatura. */
 export const EVENTO_IMPORTAR = "spi:importar";
+/**
+ * Abre o + da Empresa (Entrou, Paguei, Recebi) quando a pessoa já está em /empresa. Ir para
+ * "/empresa?registrar=1" só abre ao chegar de outra tela: na mesma tela o endereço mudava e nada abria.
+ */
+export const EVENTO_REGISTRAR_EMPRESA = "spi:registrar-empresa";
 
 /**
  * Os nomes aceitos em `detail.modo`. Além dos internos, os em português que as telas usam
