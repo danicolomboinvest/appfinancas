@@ -16,6 +16,7 @@ import {
   lapis,
   moverParaPerfil,
   naoEAssinatura,
+  pagueiNaConta,
   prepararVoz,
   tocarNaSugestao,
   tocarNoLembrar,
@@ -354,6 +355,32 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       if (!nov.comprar || !/novembro/.test(nov.comprar.frase) || /R\$\s*0(?!\d)/.test(nov.comprar.frase)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "virar o mês", telaErrada: "Posso comprar", esperado: `Seu livre de novembro é ${nov.livreOrc == null ? "?" : brl(nov.livreOrc)}`, visto: nov.comprar?.frase ?? "(não abriu)", chave: `${PERFIL}|livre-nov-comprar` });
     });
 
+    // "Paguei" vira gasto (15/10/2026, versão B): o aluguel de novembro venceu dia 1. Um toque no
+    // círculo, "Pronto", e o gasto entra no Resumo, no Orçamento e no livre do mês.
+    let moradiaDepoisDoPaguei: number | null = null;
+    await passo(c, "Recorrentes: Paguei no aluguel de novembro vira gasto", async () => {
+      const antes = await lerOrcamento(p, c, NOV);
+      const resumoAntes = await lerResumo(p, c);
+      await visitarPeloApp(p, ["Resumo", "Orçamento", "Transações"]);
+      const chips = await pagueiNaConta(p, "Aluguel");
+      test.info().annotations.push({ type: "Paguei no aluguel", description: `${chips.dia} · ${chips.origem}` });
+      if (chips.dia !== "Hoje") await c.anotar(p, { tipo: "texto", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Recorrentes (linha aberta)", esperado: "o dia abre em Hoje", visto: chips.dia });
+      const entrou = p.locator("[data-entrou-nos-gastos]");
+      if (!(await entrou.count()) || !/Aluguel[\s\S]*2\.200,00/.test(await entrou.innerText())) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Recorrentes", esperado: "Entrou nos gastos: Aluguel R$ 2.200,00", visto: (await entrou.count()) ? await entrou.innerText() : "não aparece" });
+      if (await p.getByRole("button", { name: "Marcar Aluguel como paga" }).count()) await c.anotar(p, { tipo: "tela", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Recorrentes", esperado: "o aluguel paga", visto: "continua com o Paguei" });
+      await conferirTelaVelha(p, c, ["Resumo", "Orçamento", "Transações"]);
+      const { orc, trans } = await conferirGastoPorCategoria(p, c, NOV, "Paguei aluguel");
+      moradiaDepoisDoPaguei = orc.categorias.MORADIA?.gasto ?? null;
+      if (!bate((orc.categorias.MORADIA?.gasto ?? 0) - (antes.categorias.MORADIA?.gasto ?? 0), 2200)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Orçamento (Moradia)", esperado: `Moradia ${brl((antes.categorias.MORADIA?.gasto ?? 0) + 2200)}`, visto: orc.categorias.MORADIA?.texto ?? "(sem linha)" });
+      if (trans.linhas.filter((l) => l.descricao === "Aluguel" && bate(l.valor, -2200)).length !== 1) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Transações 11/2026", esperado: "uma linha Aluguel de R$ 2.200", visto: trans.linhas.filter((l) => /Aluguel/.test(l.descricao)).map((l) => `${l.descricao} ${brl(l.valor)}`).join(", ") || "nenhuma" });
+      const { livreOrc } = await conferirLivre(p, c, orc, "Paguei aluguel");
+      const livreAntes = antes.livres ?? (antes.acimaDoPlano != null ? -antes.acimaDoPlano : null);
+      if (livreAntes != null && livreOrc != null && !bate(livreAntes - livreOrc, 2200)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Orçamento (livre do mês)", esperado: `${brl(livreAntes - 2200)} (era ${brl(livreAntes)})`, visto: brl(livreOrc) });
+      const resumo = await lerResumo(p, c);
+      test.info().annotations.push({ type: "Resumo antes e depois do Paguei", description: `${resumoAntes.heroi} || ${resumo.heroi}` });
+      if (resumoAntes.gastoNoHeroi != null && resumo.gastoNoHeroi != null && /gast/i.test(resumo.heroi) && !bate(resumo.gastoNoHeroi - resumoAntes.gastoNoHeroi, 2200) && !bate(resumoAntes.gastoNoHeroi - resumo.gastoNoHeroi, 2200)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Recorrentes (Paguei)", telaErrada: "Resumo", esperado: "o herói do Resumo muda R$ 2.200", visto: `${brl(resumoAntes.gastoNoHeroi)} → ${brl(resumo.gastoNoHeroi)}` });
+    });
+
     await passo(c, "fechar outubro", async () => {
       await fecharMes(p, "outubro");
       const r = await lerResumo(p, c);
@@ -367,9 +394,22 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
 
     // ------------------------------------------------------------------ quarta 04/11
     await dia(c, "2026-11-04 21:00", [p]);
-    await passo(c, "extrato de novembro (dias 2 a 4)", async () => {
-      await importarArquivo(p, ARQ("ana-extrato-novembro.csv"));
-      const { orc } = await conferirGastoPorCategoria(p, c, NOV, "extrato novembro");
+    await passo(c, "extrato de novembro (dias 2 a 4) com o aluguel do Paguei: fica um só", async () => {
+      await importarArquivo(p, ARQ("ana-extrato-novembro.csv"), async (pg) => {
+        // O PIX do aluguel é o mesmo do Paguei de 02/11: "já estava no app (Paguei)", não entra de novo.
+        const link = pg.locator("[data-ja-no-app]");
+        if (!(await link.count())) {
+          await c.anotar(pg, { tipo: "sumiu", telaDeOrigem: "Importar (extrato com o aluguel)", telaErrada: "Conferência", esperado: "1 já estava no app (o aluguel do Paguei)", visto: "nada já no app" });
+          return;
+        }
+        await link.click();
+        const lista = await pg.locator("[data-confirmacao-do-arquivo]").innerText();
+        if (!/ALUGUEL[\s\S]{0,120}já estava no app \(Paguei\)/i.test(lista)) await c.anotar(pg, { tipo: "texto", telaDeOrigem: "Importar (extrato com o aluguel)", telaErrada: "Conferência", esperado: "PIX ENVIADO ALUGUEL · já estava no app (Paguei)", visto: lista.split("\n").filter((l) => /ALUGUEL|Paguei|já esta/i.test(l)).join(" / ") || "(sem a linha)" });
+      });
+      const { orc, trans } = await conferirGastoPorCategoria(p, c, NOV, "extrato novembro");
+      const alugueis = trans.linhas.filter((l) => bate(l.valor, -2200));
+      if (alugueis.length !== 1) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Importar (extrato com o aluguel)", telaErrada: "Transações 11/2026", esperado: "um aluguel de R$ 2.200 (o do Paguei virou o do extrato)", visto: alugueis.map((l) => `${l.descricao} (${l.categoria})`).join(", ") || "nenhum" });
+      if (moradiaDepoisDoPaguei != null && !bate(orc.categorias.MORADIA?.gasto, moradiaDepoisDoPaguei)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Importar (extrato com o aluguel)", telaErrada: "Orçamento (Moradia)", esperado: `Moradia ${brl(moradiaDepoisDoPaguei)} (o aluguel não conta duas vezes)`, visto: orc.categorias.MORADIA?.texto ?? "(sem linha)" });
       await conferirLivre(p, c, orc, "extrato novembro");
       await conferirMetas(p, c, "novembro");
       await conferirMesPassado(p, c, OUT, "extrato novembro");
