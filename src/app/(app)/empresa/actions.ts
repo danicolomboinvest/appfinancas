@@ -7,8 +7,10 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { HORAS_POR_MES_PADRAO, PRAZOS_DO_CREDITO, RAMOS, TIPOS_DE_EMPRESA, ehForma, lerConfigEmpresa, type ConfigEmpresa, type Forma, type Ramo, type TipoDeEmpresa } from "@/lib/empresa/config";
 import { mesAntes, somarDias, type Mes } from "@/lib/empresa/regras";
-import { MESES } from "@/lib/empresa/resumo";
-import { garantirContaDaGuia, lerPerfilDaEmpresa, marcarRecebida, registrarPagamento, registrarVenda, salvarConfigDaEmpresa, transferirSalario } from "@/lib/repositories/empresa.repo";
+import { guiaDoMeiDaEmpresa, MESES } from "@/lib/empresa/resumo";
+import { ehAtividadeDoMei } from "@/lib/empresa/legal";
+import type { AuthContext } from "@/lib/auth/session";
+import { garantirContaDaGuia, lancamentosDaEmpresa, lerPerfilDaEmpresa, marcarRecebida, registrarPagamento, registrarVenda, salvarConfigDaEmpresa, transferirSalario } from "@/lib/repositories/empresa.repo";
 import { marcarContaPaga } from "@/lib/repositories/conta-a-pagar.repo";
 import { parametrosDoMei } from "@/lib/repositories/parametro-legal.repo";
 
@@ -28,6 +30,20 @@ function hojeIso(): string {
 function valorValido(v: unknown, max = 10_000_000): number | null {
   const n = typeof v === "number" ? v : NaN;
   return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n * 100) / 100 : null;
+}
+
+/**
+ * A conta "Guia do MEI" das Recorrentes com o valor da fonte única (valorDaGuia): o digitado, a
+ * última guia paga ou a estimativa pela atividade. Cria a conta se ainda não existe.
+ */
+async function acertarContaDaGuia(ctx: AuthContext, config: ConfigEmpresa) {
+  if (config.tipo !== "MEI") return;
+  const hoje = hojeIso();
+  const mesAtual = { ano: Number(hoje.slice(0, 4)), mes: Number(hoje.slice(5, 7)) };
+  const [legal, lancamentos] = await Promise.all([parametrosDoMei(hoje), lancamentosDaEmpresa(ctx, mesAntes(mesAtual, 12))]);
+  if (!legal.diaDoDas) return;
+  const guia = guiaDoMeiDaEmpresa({ config, legal, lancamentos });
+  if (guia) await garantirContaDaGuia(ctx, { valor: guia.valor, dia: legal.diaDoDas.valor, lembrar: config.lembreteDas, hoje });
 }
 
 function atualizar() {
@@ -60,30 +76,47 @@ export async function abrirNegocioAction(r: RespostasDoAssistente): Promise<Resu
     taxas: atual?.taxas ?? { credito: null, debito: null },
     horasPorMes: atual?.horasPorMes ?? HORAS_POR_MES_PADRAO,
     abertoEm: atual?.abertoEm ?? new Date().toISOString(),
+    atividadeMei: atual?.atividadeMei ?? "servico",
+    dasDigitado: atual?.dasDigitado ?? null,
   };
   await salvarConfigDaEmpresa(ctx, config);
-  if (config.tipo === "MEI") {
-    const hoje = hojeIso();
-    const legal = await parametrosDoMei(hoje);
-    if (legal.das && legal.diaDoDas) await garantirContaDaGuia(ctx, { valor: legal.das.valor, dia: legal.diaDoDas.valor, lembrar: config.lembreteDas, hoje });
-  }
+  await acertarContaDaGuia(ctx, config);
   atualizar();
   return { ok: true };
 }
 
 /** Configurações da empresa: muda um pedaço da configuração. */
-export async function ajustarEmpresaAction(mudanca: Partial<Pick<ConfigEmpresa, "salario" | "lembreteDas" | "taxas" | "horasPorMes" | "diaDoSalario" | "tipo" | "faz">>): Promise<Resultado> {
+export async function ajustarEmpresaAction(mudanca: Partial<Pick<ConfigEmpresa, "salario" | "lembreteDas" | "taxas" | "horasPorMes" | "diaDoSalario" | "tipo" | "faz" | "atividadeMei">>): Promise<Resultado> {
   const ctx = await sessaoDaEmpresa();
   const atual = (await lerPerfilDaEmpresa(ctx)).config;
   if (!atual) return { ok: false, erro: "Abra o seu negócio primeiro." };
+  if (mudanca.atividadeMei !== undefined && !ehAtividadeDoMei(mudanca.atividadeMei)) return { ok: false, erro: "Escolha o que o MEI faz." };
   const novo = lerConfigEmpresa({ ...atual, ...mudanca, taxas: { ...atual.taxas, ...(mudanca.taxas ?? {}) } });
   if (!novo) return { ok: false, erro: "Não deu para salvar." };
   await salvarConfigDaEmpresa(ctx, novo);
-  if (mudanca.lembreteDas !== undefined && novo.tipo === "MEI") {
-    const hoje = hojeIso();
-    const legal = await parametrosDoMei(hoje);
-    if (legal.das && legal.diaDoDas) await garantirContaDaGuia(ctx, { valor: legal.das.valor, dia: legal.diaDoDas.valor, lembrar: novo.lembreteDas, hoje });
+  if (mudanca.lembreteDas !== undefined || mudanca.atividadeMei !== undefined) await acertarContaDaGuia(ctx, novo);
+  atualizar();
+  return { ok: true };
+}
+
+/**
+ * "Usar o valor da minha guia": o valor que ela digitou passa a valer no Resumo, em Impostos e na
+ * conta "Guia do MEI" das Recorrentes, até ela pagar uma guia depois disso. `null` volta para o
+ * valor estimado pelo app.
+ */
+export async function usarValorDaGuiaAction(valor: number | null): Promise<Resultado> {
+  const ctx = await sessaoDaEmpresa();
+  const atual = (await lerPerfilDaEmpresa(ctx)).config;
+  if (!atual || atual.tipo !== "MEI") return { ok: false, erro: "Isso é do MEI." };
+  let dasDigitado: ConfigEmpresa["dasDigitado"] = null;
+  if (valor !== null) {
+    const v = valorValido(valor, 100_000);
+    if (!v) return { ok: false, erro: "Digite o valor da guia." };
+    dasDigitado = { valor: v, em: hojeIso() };
   }
+  const novo: ConfigEmpresa = { ...atual, dasDigitado };
+  await salvarConfigDaEmpresa(ctx, novo);
+  await acertarContaDaGuia(ctx, novo);
   atualizar();
   return { ok: true };
 }
@@ -133,6 +166,11 @@ export async function pagueiAction(p: { valor: number; tipo?: string; contaId?: 
       descricao: (p.contaNome ?? "Conta").slice(0, 80),
       hoje,
     });
+    // A guia paga agora é a mais recente: a conta da próxima fica com o valor dela.
+    if (ehGuia) {
+      const config = (await lerPerfilDaEmpresa(ctx)).config;
+      if (config) await acertarContaDaGuia(ctx, config);
+    }
   } else {
     const t = TIPOS_DE_PAGAMENTO[p.tipo ?? ""];
     if (!t) return { ok: false, erro: "Escolha o que você pagou." };

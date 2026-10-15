@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { Caderno, testeDosAvisos, dia, exigirSemAchados, novaPagina, passo } from "./comum";
-import { abrirLancamento, entrar, lancarAMao, pilula, trocarPerfil } from "./acoes";
+import path from "node:path";
+import { abrirLancamento, entrar, importarArquivo, importarRespondendo, lancarAMao, pilula, trocarPerfil } from "./acoes";
 import { conferirGastoPorCategoria, conferirLivre, definirMesAtual } from "./conferir";
 import { lerOrcamento, lerResumo, lerTransacoes } from "./telas";
 import { bate, brl, reais } from "./dinheiro";
@@ -11,6 +12,7 @@ import { BASE, SENHA } from "./config";
  * casa e um "só meu". A Bia vê o da casa em todas as telas e não vê o "só meu".
  */
 const OUT = { ano: 2026, mes: 10 };
+const ARQ = (nome: string) => path.join(__dirname, "arquivos", nome);
 const PERFIL = "casal";
 
 async function gastoDe(p: Page, c: Caderno, chave: string) {
@@ -142,6 +144,27 @@ test("Casal: o par lança e a titular vê o mesmo em todas as telas", async ({ b
         if (selos !== `Da casa | Caio pagou | ${divisao}`) await c.anotar(p, { tipo: "texto", telaDeOrigem: "Bia (Digitar)", telaErrada: `Transações ${quem === "Bia" ? "da Bia" : "do Caio"}`, esperado: `Da casa | Caio pagou | ${divisao}`, visto: selos ?? "sem selos" });
       }
       test.info().annotations.push({ type: "Acerto depois da Feira", description: `Bia ${brl(daBia.euMando)} | Caio ${brl(doCaio.euMando)}` });
+    });
+
+    // 15/10/2026 (feedback de uma cliente): os dois sobem a mesma fatura do cartão. A Bia tem de ver
+    // a pergunta "parece já estar no app" para as compras que o Caio já subiu, e nada em dobro (nem
+    // no acerto). O "Presente da irmã" é o "Só meu" do Caio: nunca vira pergunta para a Bia (a
+    // pergunta revelaria o lançamento), então são 3 perguntas, não 4.
+    await dia(c, "2026-10-17 20:00", [bia, caio]);
+    await passo(c, "os dois sobem a mesma fatura do cartão", async () => {
+      await importarArquivo(caio, ARQ("casal-fatura-nubank.csv"));
+      const antes = await lerTransacoes(bia, c, OUT);
+      const titulo = await importarRespondendo(bia, ARQ("casal-fatura-nubank.csv"), "Não importar");
+      if (titulo !== "3 parecem já estar no app") await c.anotar(bia, { tipo: "tela", telaDeOrigem: "fatura do Caio + a mesma da Bia", telaErrada: "Importação da Bia", esperado: "3 parecem já estar no app", visto: titulo ?? "não perguntou" });
+      const depois = await lerTransacoes(bia, c, OUT);
+      for (const nome of [/Padaria do Bairro/i, /Farmacia Pague Menos/i, /Cinemark/i]) {
+        const n = depois.linhas.filter((l) => nome.test(l.descricao)).length;
+        const n0 = antes.linhas.filter((l) => nome.test(l.descricao)).length;
+        if (n !== 1 || n0 !== 1) await c.anotar(bia, { tipo: "numero", telaDeOrigem: "a mesma fatura pelos dois", telaErrada: "Transações da Bia", esperado: `${nome.source} uma vez (a do Caio)`, visto: `${n0} antes, ${n} depois` });
+      }
+      const { orc } = await conferirGastoPorCategoria(bia, c, OUT, "mesma fatura");
+      await conferirLivre(bia, c, orc, "mesma fatura");
+      await conferirGastoPorCategoria(caio, c, OUT, "mesma fatura (telas do Caio)");
     });
   } finally {
     c.salvar();
