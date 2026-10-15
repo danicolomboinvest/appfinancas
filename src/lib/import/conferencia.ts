@@ -1,6 +1,6 @@
 import { totalDoMesEmPesos } from "./argentina-tarjeta-pdf";
 import { detectInvoiceTotal } from "./detect";
-import { comprasDaFaturaSaoPositivas } from "./fatura-lines";
+import { comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "./fatura-lines";
 import type { ParsedTransaction } from "./statement-parser";
 
 /**
@@ -127,7 +127,11 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
   if (docType === "fatura") {
     const positivas = comprasDaFaturaSaoPositivas(txns);
     const compras = txns.filter((t) => (positivas ? t.amount > 0 : t.amount < 0)).reduce((s, t) => s + Math.abs(t.amount), 0);
-    const creditos = txns.filter((t) => (positivas ? t.amount < 0 : t.amount > 0)).reduce((s, t) => s + Math.abs(t.amount), 0);
+    // O crédito que fala em pagamento ("PAGAMENTO PIX" no Itaú) a revisão já deixa de fora como
+    // pagamento da fatura anterior; somado aqui, a fatura certa no centavo caía em "não fechou".
+    const creditos = txns
+      .filter((t) => (positivas ? t.amount < 0 : t.amount > 0) && !pareceCreditoDePagamento(t.description))
+      .reduce((s, t) => s + Math.abs(t.amount), 0);
     const total = detectInvoiceTotal(texto);
     const referencias = [total, ...TOTAIS_DE_COMPRAS.map((re) => numero(texto.match(re)))].filter(
       (n): n is number => n !== null,

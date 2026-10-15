@@ -21,6 +21,12 @@ describe("conferirLeitura: fatura", () => {
     expect(conferirLeitura(texto, "fatura", [t(164), t(22.57), t(-4.99, "ESTORNO")]).status).toBe("fechou");
   });
 
+  it("pagamento da anterior que a revisão deixa de fora ('PAGAMENTO PIX', Itaú) não entra na conta, o estorno entra", () => {
+    const texto = ["Total da fatura anterior 900,00", "Lançamentos atuais 130,00", "Total desta fatura 130,00"].join("\n");
+    const linhas = [t(-900, "PAGAMENTO PIX"), t(100), t(50), t(-20, "LOJA EXEMPLO")];
+    expect(conferirLeitura(texto, "fatura", linhas)).toEqual({ status: "fechou", lido: 130, esperado: 130 });
+  });
+
   it("bate descontando o estorno", () => {
     expect(conferirLeitura("Total a pagar R$ 80,00", "fatura", [t(100), t(-20, "ESTORNO")]).status).toBe("fechou");
   });
