@@ -4,7 +4,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { serverMoney } from "@/lib/money-server";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
-import { getCategorySpending, getDailyFlow } from "@/lib/consolidation/month-analysis";
+import { gastoAteHoje, getCategorySpending, getDailyFlow } from "@/lib/consolidation/month-analysis";
 import { listBudgets, sumExpensesByParentCategory } from "@/lib/repositories/budget.repo";
 import { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
 import { buildMonthInsights } from "@/lib/insights/month-insights";
@@ -56,9 +56,13 @@ export async function carregarBlocosDoMes(ctx: AuthContext, now: Date) {
     money,
   });
 
-  // Mesma conta da Visão mensal: o que saiu ATÉ HOJE, somando fatura sem data (ver a página do mês).
+  // A comparação é "até o mesmo ponto do mês": o que saiu ATÉ HOJE (gastoAteHoje, com a fatura
+  // sem data) contra o mês passado inteiro vezes a fração do mês que já passou (`elapsed`, feito
+  // em totalSpendingInsight). Os dois lados no mesmo escopo dos totais (lib/consolidation/
+  // escopo.ts): antes o "hoje" era só de quem estava logada e o mês passado era do casal, e o
+  // Foco dizia "gastando 40% menos" porque o gasto do par só entrava de um lado.
   const insights = buildMonthInsights({
-    currentExpense: (dailyFlow.points.at(-1)?.expense ?? 0) + dailyFlow.undatedAmount,
+    currentExpense: gastoAteHoje(dailyFlow),
     previousExpense: previousSummary.totalExpense,
     categories: categorySpending,
     money,
