@@ -8,6 +8,8 @@ import type { Caderno } from "./achados";
 
 export async function entrar(p: Page, email: string) {
   await p.goto("/login");
+  // Ainda com a sessão aberta, o /login manda para o app: não há o que preencher.
+  if (!/\/login/.test(new URL(p.url()).pathname)) return;
   const ja = p.getByRole("button", { name: "Já tenho conta" });
   if (await ja.count()) await ja.click();
   await p.locator("#email").fill(email);
@@ -291,7 +293,10 @@ export async function moverParaPerfil(p: Page, ano: number, mes: number, descric
 
 export async function naoEParcela(p: Page, nome: string) {
   await p.goto("/orcamento/contas");
-  await p.getByRole("button", { name: `Mais opções de ${nome}` }).first().click();
+  await p.waitForLoadState("networkidle").catch(() => undefined);
+  await pularTutoriais(p);
+  // Exato: a linha inteira da parcela também é um botão e o nome dela termina em "Mais opções de …".
+  await p.getByRole("button", { name: `Mais opções de ${nome}`, exact: true }).first().click();
   await p.getByRole("menuitem", { name: "Não é parcela" }).or(p.getByRole("button", { name: "Não é parcela" })).first().click();
   const confirma = p.getByRole("alertdialog").getByRole("button", { name: "Não é parcela", exact: true });
   if (await confirma.count()) await confirma.click();

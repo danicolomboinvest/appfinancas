@@ -15,6 +15,13 @@ import {
   lerResumo,
   lerTransacoes,
   lerWidget,
+  lerCarteira,
+  lerDecidirDaMeta,
+  lerGastosDoAno,
+  lerMesPassadoDosNumeros,
+  lerParcelas,
+  lerResumoDosNumeros,
+  somarTransacoes,
   type Mes,
   type RetratoDoOrcamento,
 } from "./telas";
@@ -236,4 +243,89 @@ export async function conferirAssinaturaNasTres(
       await c.anotar(p, { tipo: "numero", telaDeOrigem, telaErrada: telas[k], esperado: `${nome}: ${esperado[k]}`, visto: `${nome}: ${visto[k]}`, chave: `${c.perfil}|assinatura|${telas[k]}|${nome}|${c.acao}` });
   }
   return visto;
+}
+
+// ------------------------------------------------------------------ Matriz "mesmo número, várias telas"
+/**
+ * A matriz dos números (pedido da dona, 15/10/2026: "as coisas precisam bater certinho"). Cada número
+ * que aparece em mais de uma tela é lido em todas elas e comparado com a conta feita a partir da
+ * lista de Transações, que é o que ela conferiria à mão:
+ *  - gasto do mês: Transações, Orçamento (Gastou + a vencer), Gastos e o herói do Resumo;
+ *  - entrou, guardou e ficou com você: Transações, o Resumo do mês passado e o do mês atual;
+ *  - guardado no ano: a soma dos meses em Transações e o "Guardado em <ano>" do Resumo;
+ *  - gasto do ano: a soma dos meses e Gastos › Ano;
+ *  - parcelas: o topo de Recorrentes, o título da lista e a soma das parcelas;
+ *  - próximos meses: o que o Resumo promete para o mês seguinte e as parcelas que continuam;
+ *  - carteira: o total e a soma do "Por tipo";
+ *  - meta: o "Falta guardar" do Decidir e o guardado do mês.
+ * `mesesDoAno` são os meses com lançamento no ano (para o "Guardado em" e o gasto do ano).
+ */
+export async function conferirMatriz(p: Page, c: Caderno, m: Mes, mesesDoAno: number[], origem: string, opcoes: { planoDeGuardar?: number } = {}) {
+  const achar = async (telaErrada: string, esperado: string, visto: string, chave: string) =>
+    c.anotar(p, { tipo: "numero", telaDeOrigem: `Transações (soma da lista) · ${origem}`, telaErrada, esperado, visto, chave: `${c.perfil}|matriz|${chave}|${origem}` });
+
+  // Os meses do ano pela lista de Transações (a conta "à mão").
+  const porMes: Record<number, ReturnType<typeof somarTransacoes>> = {};
+  for (const mes of mesesDoAno) porMes[mes] = somarTransacoes(await lerTransacoes(p, c, { ano: m.ano, mes }));
+  const doMes = porMes[m.mes] ?? somarTransacoes(await lerTransacoes(p, c, m));
+  // Mês ainda sem gasto: a tela sem número (estado vazio) também bate com zero.
+  const bateOuVazio = (visto: number | null | undefined, esperado: number, folga = 1) => (visto == null ? Math.abs(esperado) < 1 : bate(visto, esperado, folga));
+
+  // Gasto do mês: Orçamento (Gastou + a vencer), Gastos e o herói do Resumo.
+  const orc = await lerOrcamento(p, c, m);
+  const gastos = await lerGastos(p, c, m);
+  const gastouOrc = orc.gastou != null ? orc.gastou + (orc.aVencer ?? 0) : null;
+  if (!bateOuVazio(gastouOrc, doMes.gastou)) await achar("Orçamento (Gastou + a vencer)", `${brl(doMes.gastou)} saíram`, brl(gastouOrc), "gasto-orc");
+  if (!bateOuVazio(gastos.total, doMes.gastou)) await achar("Gastos (Gastou)", `${brl(doMes.gastou)} saíram`, brl(gastos.total), "gasto-gastos");
+  // Recorrentes antes do Resumo: a primeira visita a Recorrentes cadastra a conta que achou no
+  // histórico ("Já está em Contas"), e só depois disso a previsão do Resumo conta com ela.
+  const parc = await lerParcelas(p, c);
+  const res = await lerResumoDosNumeros(p, c);
+  // O herói do Resumo conta até hoje: só confere quando não há conta "a vencer" no mês.
+  if (!orc.aVencer && res.gastoNoHeroi != null && /saíram/.test(res.heroi) && !bate(res.gastoNoHeroi, doMes.gastou, 1)) await achar("Resumo (herói)", `${brl(doMes.gastou)} saíram`, res.heroi.slice(0, 80), "gasto-resumo");
+
+  // Guardado no ano e gasto do ano.
+  const guardadoAno = Object.values(porMes).reduce((s, v) => s + v.guardou, 0);
+  if (res.guardadoNoAno && (res.guardadoNoAno.ano !== m.ano || !bate(res.guardadoNoAno.valor, guardadoAno, 1))) await achar(`Resumo (Guardado em ${m.ano})`, `Guardado em ${m.ano} ${brl(guardadoAno)}`, `Guardado em ${res.guardadoNoAno.ano} ${brl(res.guardadoNoAno.valor)}`, "guardado-ano");
+  const gastoAno = Object.values(porMes).reduce((s, v) => s + v.gastou, 0);
+  const gastosAno = await lerGastosDoAno(p, c, m.ano);
+  if (mesesDoAno.length && !bateOuVazio(gastosAno, gastoAno, mesesDoAno.length)) await achar(`Gastos › Ano ${m.ano}`, `${brl(gastoAno)} (soma dos meses)`, brl(gastosAno), "gasto-ano");
+
+  // Ficou com você no mês passado: o Resumo do mês atual e o do mês passado dizem o mesmo, e é
+  // entrou − gastou − guardou da lista.
+  const passado = m.mes === 1 ? { ano: m.ano - 1, mes: 12 } : { ano: m.ano, mes: m.mes - 1 };
+  const listaPassado = passado.ano === m.ano && porMes[passado.mes] ? porMes[passado.mes] : somarTransacoes(await lerTransacoes(p, c, passado));
+  const ficou = Math.round(listaPassado.entrou - listaPassado.gastou - listaPassado.guardou);
+  const mp = await lerMesPassadoDosNumeros(p, c, passado);
+  if (listaPassado.entrou > 0) {
+    if (!bate(mp.ficou, ficou, 1)) await achar(`Resumo de ${passado.mes}/${passado.ano}`, `ficou com você ${brl(ficou)}`, brl(mp.ficou), "ficou-passado");
+    const pct = Math.round((ficou / listaPassado.entrou) * 100);
+    if (mp.pct != null && Math.abs(mp.pct - pct) > 1) await achar(`Resumo de ${passado.mes}/${passado.ano}`, `${pct}% do que entrou`, `${mp.pct}%`, "ficou-pct");
+    if (res.ficouPassado != null && !bate(res.ficouPassado, ficou, 1)) await achar("Resumo (Ficou com você no mês passado)", brl(ficou), brl(res.ficouPassado), "ficou-atual");
+  }
+
+  // Parcelas: topo de Recorrentes, título da lista e a soma das parcelas.
+  const somaParcelas = parc.itens.reduce((s, x) => s + x.valor, 0);
+  if (parc.itens.length && !bate(parc.topo, somaParcelas, 1)) await achar("Recorrentes (Parcelas, topo)", `${brl(somaParcelas)} (soma da lista)`, brl(parc.topo), "parcelas-topo");
+  if (parc.itens.length && !bate(parc.doTitulo, somaParcelas, 1)) await achar("Recorrentes (Parcelas R$ X/mês)", `${brl(somaParcelas)} (soma da lista)`, brl(parc.doTitulo), "parcelas-titulo");
+  // O mês seguinte do Resumo ("Próximos meses"): as contas e assinaturas de Recorrentes e as
+  // parcelas que continuam (a previsão, lib/previsao/proximos-meses).
+  const nomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const proximo = nomes[m.mes % 12];
+  const continuam = parc.itens.filter((x) => x.faltam >= 2).reduce((s, x) => s + x.valor, 0);
+  const previsto = continuam + (parc.contas ?? 0) + (parc.assinaturas ?? 0);
+  if (res.proximos[proximo] != null && !bate(res.proximos[proximo], previsto, 1)) await achar(`Resumo (Próximos meses, ${proximo})`, `${brl(previsto)} (contas ${brl(parc.contas ?? 0)} + assinaturas ${brl(parc.assinaturas ?? 0)} + parcelas que continuam ${brl(continuam)}, de Recorrentes)`, brl(res.proximos[proximo]), "proximo-mes");
+
+  // Carteira: total e "Por tipo".
+  const cart = await lerCarteira(p, c);
+  const somaTipos = cart.porTipo.reduce((s, v) => s + v, 0);
+  if (cart.porTipo.length && !bate(cart.total, somaTipos, cart.porTipo.length)) await achar("Carteira (Sua carteira)", `${brl(somaTipos)} (soma do Por tipo)`, brl(cart.total), "carteira");
+
+  // Meta do mês: "Falta guardar R$ X dos R$ 600" = plano − guardado do mês.
+  if (opcoes.planoDeGuardar) {
+    const dm = await lerDecidirDaMeta(p, c);
+    const falta = Math.max(0, opcoes.planoDeGuardar - doMes.guardou);
+    if (dm.faltaGuardar && !bate(dm.faltaGuardar.falta, falta, 1)) await achar("Decidir (Falta guardar)", `faltam ${brl(falta)} dos ${brl(opcoes.planoDeGuardar)} (guardou ${brl(doMes.guardou)})`, brl(dm.faltaGuardar.falta), "falta-guardar");
+  }
+  return { porMes, doMes, orc, res, parc, cart };
 }

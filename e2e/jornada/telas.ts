@@ -307,3 +307,107 @@ export async function lerAssinaturaNoDinheiroPerdido(p: Page, caderno: Caderno, 
   const t = (await li.textContent()) ?? "";
   return /Não uso/.test(t) ? "Não uso" : /Uso/.test(t) ? "Uso" : /Para conferir/.test(t) ? "Para conferir" : t.trim().slice(0, 40);
 }
+
+// ------------------------------------------------------------------ Matriz dos números (numeros.jornada.ts)
+/** Os totais do mês somando a lista de Transações, do jeito que ela leria: entrou, saiu, guardou. */
+export function somarTransacoes(t: RetratoDasTransacoes) {
+  let entrou = 0;
+  let gastou = 0;
+  let guardou = 0;
+  for (const l of t.linhas) {
+    if (/^Entrada/.test(l.categoria)) entrou += l.valor;
+    else if (/^Guardado/.test(l.categoria)) guardou += Math.abs(l.valor);
+    else if (/^Resgatei/.test(l.categoria)) guardou -= Math.abs(l.valor);
+    else if (l.valor < 0) gastou -= l.valor;
+  }
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return { entrou: r2(entrou), gastou: r2(gastou), guardou: r2(guardou) };
+}
+
+/** O Resumo do mês atual: o "Ficou com você em <mês>", o "Guardado em <ano>" e os Próximos meses. */
+export async function lerResumoDosNumeros(p: Page, caderno: Caderno) {
+  const r = await lerResumo(p, caderno);
+  const ls = linhas(await textoVisivel(p));
+  const depois = (re: RegExp) => {
+    const i = ls.findIndex((l) => re.test(l));
+    return i >= 0 ? reais(ls.slice(i, i + 3).join(" ")) : null;
+  };
+  const proximos: Record<string, number> = {};
+  const iP = ls.findIndex((l) => l === "Próximos meses");
+  // Cada mês: "Nov", às vezes "+R$ 210" (a parcela que acabou) e o total "R$ 1.820".
+  if (iP >= 0) {
+    for (let i = iP + 1; i < ls.length; i++) {
+      if (!/^[A-Z][a-z]{2}$/.test(ls[i])) {
+        if (/^\+?R\$/.test(ls[i])) continue;
+        break;
+      }
+      const total = ls.slice(i + 1, i + 3).find((x) => /^R\$/.test(x));
+      if (total) proximos[ls[i]] = reais(total) ?? 0;
+    }
+  }
+  const ano = r.heroi.match(/Guardado em (\d{4})\s*R\$\s*([\d.]+)/);
+  return {
+    ...r,
+    ficouPassado: depois(/^Ficou com você em /),
+    guardadoNoAno: ano ? { ano: Number(ano[1]), valor: Number(ano[2].replace(/\./g, "")) } : null,
+    proximos,
+  };
+}
+
+/** O Resumo de um mês que passou: "Em setembro, ficou com você R$ X" e "N% do que entrou". */
+export async function lerMesPassadoDosNumeros(p: Page, caderno: Caderno, m: Mes) {
+  await lerResumo(p, caderno, m);
+  const t = (await textoVisivel(p)).replace(/\n+/g, " ");
+  const ficou = t.match(/ficou com você\s*(-?R\$\s*[\d.,]+|R\$\s*-?\s*[\d.,]+)/);
+  const pct = t.match(/(-?\d+)% do que entrou/);
+  return { ficou: ficou ? reais(ficou[1]) : null, pct: pct ? Number(pct[1]) : null, texto: t };
+}
+
+/** Recorrentes › Parcelas: o total do topo ("Parcelas R$ X") e cada parcela da lista. */
+export async function lerParcelas(p: Page, caderno: Caderno) {
+  const r = await lerRecorrentes(p, caderno);
+  const ls = linhas(await textoVisivel(p));
+  const itens: { nome: string; atual: number; total: number; faltam: number; valor: number }[] = [];
+  const i0 = ls.findIndex((l) => /^Parcelas R\$/.test(l));
+  if (i0 >= 0) {
+    for (let i = i0 + 1; i < ls.length - 2; i++) {
+      if (/^(Assinaturas|Dívidas por mês|Contas do ano)/.test(ls[i])) break;
+      const m = ls[i + 1].match(/^(\d+) de (\d+)(?: · faltam (\d+))?/);
+      if (!m) continue;
+      const valor = reais(ls.slice(i + 2, i + 4).find((x) => /R\$/.test(x)));
+      itens.push({ nome: ls[i], atual: Number(m[1]), total: Number(m[2]), faltam: Number(m[3] ?? Number(m[2]) - Number(m[1]) + 1), valor: valor ?? 0 });
+    }
+  }
+  return { topo: r.parcelas, contas: r.contas, assinaturas: r.assinaturas, doTitulo: i0 >= 0 ? reais(ls[i0]) : null, itens, texto: r.texto };
+}
+
+/** Gastos do ano: o total "Gastou" da vista Ano. */
+export async function lerGastosDoAno(p: Page, caderno: Caderno, ano: number) {
+  await abrir(p, `/mensal/gastos?view=ano&year=${ano}`, caderno, `Gastos ${ano}`);
+  const ls = linhas(await textoVisivel(p));
+  const iG = ls.findIndex((l) => l === "Gastou");
+  return iG >= 0 ? reais(ls.slice(iG, iG + 4).find((l) => /R\$/.test(l))) : null;
+}
+
+/** Carteira: o total do topo e a soma do "Por tipo". */
+export async function lerCarteira(p: Page, caderno: Caderno) {
+  await abrir(p, "/carteira", caderno, "Carteira");
+  const ls = linhas(await textoVisivel(p));
+  const iT = ls.findIndex((l) => l === "Sua carteira");
+  // "R$" · "6.451" · ",15": o total vem quebrado em três linhas.
+  const bloco = ls.slice(iT + 1, iT + 6).join(" ").replace(/\s+,/, ",").replace(/R\$\s+/, "R$ ");
+  const total = reais(bloco);
+  const porTipo: number[] = [];
+  const iP = ls.findIndex((l) => l === "Por tipo");
+  if (iP >= 0) for (let i = iP + 1; i < ls.length; i++) if (/^\d+ ativos?$/.test(ls[i]) && /R\$/.test(ls[i + 1] ?? "")) porTipo.push(reais(ls[i + 1]) ?? 0);
+  return { total, porTipo };
+}
+
+/** Metas: o "precisa R$ X por mês" e o mês em que chega, como a tela de Metas e o Decidir dizem. */
+export async function lerDecidirDaMeta(p: Page, caderno: Caderno) {
+  await abrir(p, "/decidir", caderno, "Decidir");
+  const t = (await textoVisivel(p)).replace(/\n+/g, " ");
+  const quando = t.match(/([a-z]{3}\/\d{4})\s*Quando chego na minha meta/);
+  const falta = t.match(/Falta guardar\s*R\$\s*([\d.,]+)\s*faltam dos (R\$\s*[\d.,]+) que o plano guarda/);
+  return { quando: quando?.[1] ?? null, faltaGuardar: falta ? { falta: reais(`R$ ${falta[1]}`), plano: reais(falta[2]) } : null };
+}
