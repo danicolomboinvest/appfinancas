@@ -26,6 +26,7 @@ import {
   type EntryType,
 } from "@/app/(app)/mensal/import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { DolarDeHoje } from "./DolarDeHoje";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } from "@/lib/import/limites";
 import type { PrintLido } from "@/lib/import/print-fatura";
@@ -1787,6 +1788,7 @@ export function StatementImport({
                         value={reaisDoDolar[i]}
                         onChange={(v) => setReaisDoDolar((atual) => ({ ...atual, [i]: v }))}
                       />
+                      <DolarDeHoje moeda={c.moeda} valorDeFora={c.valorDeFora} valorAtual={reaisDoDolar[i]} usar={(v) => setReaisDoDolar((atual) => ({ ...atual, [i]: v }))} />
                     </div>
                   ))}
                 </div>
