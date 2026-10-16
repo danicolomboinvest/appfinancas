@@ -2,6 +2,7 @@ import { Decimal } from "@/lib/finance/decimal";
 import { annualToMonthly } from "@/lib/finance/rate-conversion";
 import { fv } from "@/lib/finance/fv";
 import { pmt } from "@/lib/finance/pmt";
+import { mesesAteOPrazo } from "./meses-do-prazo";
 
 export type GoalCalcInput = {
   targetAmount: number;
@@ -35,7 +36,6 @@ export type GoalCalcResult = {
   status: GoalStatus;
 };
 
-const AVG_DAYS_PER_MONTH = 30.4375;
 
 /**
  * Quanto do ritmo esperado a pessoa pode ficar devendo antes do app chamar de atrasada.
@@ -52,10 +52,9 @@ const TOLERANCIA_RITMO = 0.85;
  */
 export function computeGoalPlan(input: GoalCalcInput): GoalCalcResult {
   const now = input.now ?? new Date();
-  const monthsRemaining = Math.max(
-    Math.round((input.targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * AVG_DAYS_PER_MONTH)),
-    0,
-  );
+  // Meses do calendário (fonte única: meses-do-prazo.ts). A conta por milissegundos arredondava
+  // diferente de manhã e de noite e a mesma meta pedia R$ 400 numa tela e R$ 440 na outra.
+  const monthsRemaining = mesesAteOPrazo(input.targetDate, now);
   const monthlyRate = annualToMonthly(input.annualRate);
   const achieved = input.currentAmount >= input.targetAmount;
   const overdue = !achieved && input.targetDate.getTime() < now.getTime();

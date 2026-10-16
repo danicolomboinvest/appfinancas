@@ -78,8 +78,8 @@ describe("a sugestão", () => {
 describe("a conta de exemplo do protótipo", () => {
   const p = mostra(planoDaMeta(contaDeExemplo()));
 
-  it("pede R$ 440 por mês para R$ 5.000 até out/2027 (o protótipo dizia R$ 400)", () => {
-    expect(p.pede).toBe(440);
+  it("pede R$ 400 por mês para R$ 5.000 até out/2027: 12 meses do calendário, a mesma conta da folha", () => {
+    expect(p.pede).toBe(400);
     expect(p.pede).toBe(porMesDaNovaMeta(5000, OUT_2027, HOJE));
     expect(p.prazoTexto).toBe("out/2027");
   });
@@ -87,7 +87,7 @@ describe("a conta de exemplo do protótipo", () => {
   it("a sobra é renda menos gasto menos aportes, de R$ 10 em R$ 10", () => {
     expect(p.sobraBruta).toBe(0);
     expect(p.sobra).toBe(0);
-    expect(p.falta).toBe(440);
+    expect(p.falta).toBe(400);
   });
 
   it("acha as coisinhas na ordem do remanejo: assinaturas, desejo, dia a dia", () => {
@@ -112,14 +112,14 @@ describe("a conta de exemplo do protótipo", () => {
   it("fecha com as 6 coisinhas e soma certo", () => {
     expect(p.situacao).toBe("fecha");
     expect(p.achado).toBeCloseTo(497.8, 2);
-    // 29,90 + 22,90 + 75 + 60 + 190 = 377,80 < 440; com a corrida, 497,80.
+    // 29,90 + 22,90 + 75 + 60 + 190 = 377,80 < 400; com a corrida, 497,80.
     expect(p.fechaCom).toBe(6);
     expect(p.alternativas).toBeNull();
   });
 
   it("a frase não tem conta armada, nem travessão, e usa 'para'", () => {
     const f = fraseDoPlano(p) as string;
-    expect(f).toMatch(/^Para chegar até out\/2027, faltam R\$\s440 por mês\.$/);
+    expect(f).toMatch(/^Para chegar até out\/2027, faltam R\$\s400 por mês\.$/);
     expect(f).not.toMatch(/[—–]/);
     expect(f).not.toMatch(/\bpra\b/i);
   });
@@ -246,7 +246,7 @@ describe("os casos de borda", () => {
     const p = mostra(planoDaMeta(contaDeExemplo({ rendaMedia: null })));
     expect(p.avisos).toContain("sem_renda");
     expect(p.sobraBruta).toBeNull();
-    expect(p.falta).toBe(440);
+    expect(p.falta).toBe(400);
     expect(p.situacao).toBe("fecha");
   });
 
@@ -255,7 +255,7 @@ describe("os casos de borda", () => {
     const p = mostra(planoDaMeta({ ...e, lancamentos: e.lancamentos.filter((l) => l.mes === 9), gastoTipico: { media: 4130, meses: 1 } }));
     expect(p.situacao).toBe("poucos_dados");
     expect(p.coisinhas).toEqual([]);
-    expect(p.falta).toBe(440);
+    expect(p.falta).toBe(400);
   });
 
   it("com 2 meses fechados, a coisinha precisa estar nos 2", () => {
@@ -270,7 +270,7 @@ describe("os casos de borda", () => {
     const p = mostra(planoDaMeta(contaDeExemplo({ gastoTipico: { media: 6000, meses: 3 } })));
     expect(p.avisos).toContain("sobra_negativa");
     expect(p.sobra).toBe(0);
-    expect(p.falta).toBe(440);
+    expect(p.falta).toBe(400);
   });
 
   it("aportes combinados maiores que a sobra nunca deixam a sobra negativa sozinhos", () => {
@@ -331,8 +331,8 @@ describe("as alternativas", () => {
     const a = alternativasPara(meta, 377.8, HOJE);
     expect(a.prazo).toMatchObject({ texto: "nov/2027", porMes: 370 });
     // A maior meta, de R$ 100 em R$ 100, que cabe em R$ 377,80 até out/2027.
-    expect(a.metaMenor).toEqual({ alvo: 4200, porMes: 370 });
-    expect(porMesDaNovaMeta(4300, OUT_2027, HOJE)).toBeGreaterThan(377.8);
+    expect(a.metaMenor).toEqual({ alvo: 4600, porMes: 370 });
+    expect(porMesDaNovaMeta(4700, OUT_2027, HOJE)).toBeGreaterThan(377.8);
     expect(a.oQueDa).toBeNull();
   });
 
@@ -341,7 +341,7 @@ describe("as alternativas", () => {
     expect(a.prazo).not.toBeNull();
     expect(a.prazo!.meses).toBeGreaterThan(36);
     expect(a.prazo!.porMes).toBeLessThanOrEqual(60);
-    expect(a.metaMenor).toEqual({ alvo: 600, porMes: 60 });
+    expect(a.metaMenor).toEqual({ alvo: 700, porMes: 60 });
     expect(a.oQueDa).toBeNull();
     const longe = alternativasPara({ alvo: 200000, guardado: 0, prazo: new Date(2030, 9, 1, 12) }, 800, HOJE);
     expect(longe.prazo!.meses).toBeGreaterThan(120);

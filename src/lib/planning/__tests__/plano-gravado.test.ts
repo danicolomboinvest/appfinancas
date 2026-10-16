@@ -34,7 +34,7 @@ describe("usar o plano: o servidor confere as escolhas", () => {
       ["delivery:ifood", 400, 200],
       ["corrida", 240, 120],
     ]);
-    expect(p.mostra && p.pede).toBe(440);
+    expect(p.mostra && p.pede).toBe(400);
   });
 
   it("fecha: grava os tetos escolhidos na régua e a meta continua com o por mês dela", () => {
@@ -47,7 +47,7 @@ describe("usar o plano: o servidor confere as escolhas", () => {
       ["assinatura:max", 0, 29.9, "max"],
     ]);
     expect(r.plano.achado).toBe(509.9);
-    expect(r.meta).toEqual({ alvo: 5000, prazo: OUT_2027, porMes: 440 });
+    expect(r.meta).toEqual({ alvo: 5000, prazo: OUT_2027, porMes: 400 });
     expect(r.plano.saida).toBe("nenhuma");
   });
 

@@ -1,4 +1,5 @@
 import { computeGoalPlan } from "@/lib/planning/goal";
+import { arredondarPorMes } from "@/lib/planning/meses-do-prazo";
 
 /**
  * As contas da área Metas da versão nova (protótipo aprovado, rota #metas e o detalhe "painel com
@@ -121,7 +122,7 @@ export type PlanoDaMeta = {
   status: StatusDaMeta;
   /** Meses até o prazo (o mesmo arredondamento do motor); nulo sem prazo. */
   mesesAtePrazo: number | null;
-  /** Por mês para chegar no prazo, com `ceil`. Sem prazo, o combinado. */
+  /** Por mês para chegar no prazo, de R$ 10 em R$ 10 (a mesma conta da folha). Sem prazo, o combinado. */
   porMesNecessario: number;
   /** Quanto devia ter pelo tempo que passou (~). Nulo sem prazo. */
   esperado: number | null;
@@ -174,7 +175,8 @@ export function planoDaMeta(e: EntradaDaMeta): PlanoDaMeta {
   return {
     status,
     mesesAtePrazo: motor.monthsRemaining,
-    porMesNecessario: Math.ceil(Math.max(0, motor.requiredMonthlyContribution)),
+    // A mesma conta de todas as telas (lib/planning/meses-do-prazo.ts): de R$ 10 em R$ 10.
+    porMesNecessario: arredondarPorMes(motor.requiredMonthlyContribution),
     esperado,
     atras: status === "BEHIND" && esperado !== null ? Math.max(0, Math.round(esperado - e.guardado)) : null,
     pct,
@@ -220,5 +222,5 @@ export function situacaoDoMes(valor: number, combinado: number, ehAtual: boolean
 /** O "guardar R$ X por mês" da nova meta: o PMT com rendimento, arredondado para cima de 10 em 10. */
 export function porMesDaNovaMeta(alvo: number, prazo: Date, hoje: Date, taxaAnual = TAXA_PADRAO_DAS_METAS, guardado = 0): number {
   const motor = computeGoalPlan({ targetAmount: alvo, currentAmount: guardado, targetDate: prazo, annualRate: taxaAnual, now: hoje });
-  return Math.ceil(Math.max(0, motor.requiredMonthlyContribution) / 10) * 10;
+  return arredondarPorMes(motor.requiredMonthlyContribution);
 }

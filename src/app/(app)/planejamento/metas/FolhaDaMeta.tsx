@@ -15,6 +15,7 @@ import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { currencySymbol } from "@/lib/money";
 import { MESES_CURTOS, MESES_LONGOS, duracao, mesesAteChegar, porMesDaNovaMeta, TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
+import { mesesAteOPrazo } from "@/lib/planning/meses-do-prazo";
 import { ESFERAS_DA_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/metas/tipos";
 import { prazoApertado, type LimiteDasMetas } from "@/lib/metas/prazo-que-cabe";
 import { PrazoQueCabe } from "./PrazoQueCabe";
@@ -150,7 +151,8 @@ function FolhaDaMeta({
   const tipo = e.tipo ?? tipoDoNome(e.nome);
   const prazoData = new Date(e.prazo.ano, e.prazo.mes, 1, 12);
   const hojeData = new Date(hoje.ano, hoje.mes - 1, hoje.dia);
-  const mesesAte = Math.max(1, e.prazo.ano * 12 + e.prazo.mes - hojeMi);
+  // A mesma conta de meses de todo o app (lib/planning/meses-do-prazo.ts).
+  const mesesAte = Math.max(1, mesesAteOPrazo(prazoData, hojeData));
   const taxa = meta?.taxaAnual ?? TAXA_PADRAO_DAS_METAS;
   const guardado = meta?.guardado ?? 0;
   const pmt = e.alvo > 0 ? porMesDaNovaMeta(e.alvo, prazoData, hojeData, taxa, guardado) : 0;
@@ -511,7 +513,7 @@ function FolhaDaMeta({
             )}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1 rounded-[20px] bg-accent-soft px-4 py-3.5 text-center text-sm font-medium text-ink">
+          <div className="flex flex-col items-center gap-1 rounded-[20px] bg-accent-soft px-4 py-3.5 text-center text-sm font-medium text-ink" data-folha-por-mes>
             <span>Guardar</span>
             <ValorDestaque texto={m(pmt)} className="text-[34px] font-medium leading-tight tracking-[-0.03em] tabular-nums text-accent-strong" />
             <span>

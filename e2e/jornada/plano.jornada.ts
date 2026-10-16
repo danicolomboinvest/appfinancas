@@ -17,6 +17,7 @@ import { abrirCaixaLocal } from "./caixa-local";
 const PERFIL = "ana-plano";
 const EMAIL = "ana@exemplo.test";
 const META = "Viagem de verão";
+const MESMO = "Mesmo número";
 const PORTA_SMTP = Number(process.env.JORNADA_SMTP_PORTA ?? 0);
 
 async function doBanco<T>(f: (db: PrismaClient) => Promise<T>): Promise<T> {
@@ -64,8 +65,44 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
   let fonteAntes = 0;
   try {
     await dia(c, "2026-10-15 09:00", [p]);
-    await passo(c, "cria a meta e toca em Como vou juntar?", async () => {
+    await passo(c, "mesmo número em todas as telas: o por mês da meta", async () => {
       await entrar(p, EMAIL);
+      // A meta nova pela folha: o "Guardar R$ X por mês" do último passo é o número de todas as telas.
+      await p.goto("/planejamento/metas");
+      await pularTutoriais(p);
+      await p.locator('[data-guia="nova-meta"]').first().click();
+      const d = p.getByRole("dialog", { name: "Nova meta" });
+      await d.getByLabel("Nome da meta").fill(MESMO);
+      await d.getByRole("button", { name: "Continuar", exact: true }).click();
+      await d.getByLabel("Quanto você precisa").fill(digitado(5000));
+      for (let i = 0; i < 4; i++) {
+        if (await d.getByRole("button", { name: "Criar meta", exact: true }).count()) break;
+        await d.getByRole("button", { name: "Continuar", exact: true }).click();
+      }
+      const naFolha = numero((await d.locator("[data-folha-por-mes]").textContent())?.match(/R\$\s?[\d.,]+/)?.[0] ?? "");
+      expect(naFolha).toBeGreaterThan(0);
+      await d.getByRole("button", { name: "Criar meta", exact: true }).click();
+      await expect(d).toBeHidden({ timeout: 20_000 });
+      const meta = await doBanco((db) => db.goal.findFirstOrThrow({ where: { name: MESMO, user: { email: EMAIL } }, select: { id: true, monthlyContribution: true } }));
+      const valor = new RegExp(`R\\$\\s?${naFolha.toLocaleString("pt-BR")}(?![\\d,])`);
+      const telas: [string, string][] = [];
+      telas.push(["banco (o que a meta grava)", `R$ ${Number(meta.monthlyContribution)}`]);
+      await p.goto("/planejamento/metas");
+      telas.push(["cartão da meta", (await p.locator(`#meta-${meta.id}`).textContent()) ?? ""]);
+      // O detalhe só mostra o por mês quando pergunta o aporte do mês (sai da mesma conta, testada em
+      // meses-do-prazo.test.ts); aqui ele pergunta outra coisa, então fica de fora.
+      // A Ana guarda menos do que as metas pedem: no "Como vou juntar?" faltam os R$ X inteiros.
+      await p.goto(`/planejamento/metas/${meta.id}/plano`);
+      await expect(p.getByText(/^Para chegar até /)).toBeVisible();
+      telas.push(["Como vou juntar?", await p.locator("[data-plano]").innerText()]);
+      for (const [tela, texto] of telas) {
+        if (!valor.test(texto.replace(/\s/g, " ").replace(/R\$ /g, "R$ ")))
+          await c.anotar(p, { tipo: "numero", telaDeOrigem: "folha Nova meta", telaErrada: tela, esperado: `R$ ${naFolha} por mês (o mesmo da folha)`, visto: texto.replace(/\s+/g, " ").slice(0, 160) });
+      }
+      if (Number(meta.monthlyContribution) !== naFolha) await c.anotar(p, { tipo: "numero", telaDeOrigem: "folha Nova meta", telaErrada: "banco", esperado: String(naFolha), visto: String(meta.monthlyContribution) });
+    });
+
+    await passo(c, "cria a meta e toca em Como vou juntar?", async () => {
       // Primeiro ela tenta, volta e tenta de novo com outro valor (o que aconteceu com a Dani):
       // a meta só nasce no "Usar esse plano", então não fica nenhuma meta repetida.
       await criarMetaComPlano(p, 9000);
