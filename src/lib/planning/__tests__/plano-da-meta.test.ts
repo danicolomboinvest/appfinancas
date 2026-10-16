@@ -6,6 +6,11 @@ import {
   fraseDoPlano,
   grupoDoLancamento,
   metadeArredondada,
+  passosDaRegua,
+  quantidadePara,
+  textoDaQuantidade,
+  textoDeHoje,
+  textoDoTicket,
   planoDaMeta,
   type AssinaturaDoPlano,
   type EntradaDoPlano,
@@ -343,5 +348,51 @@ describe("as alternativas", () => {
 
   it("nada disponível: nenhuma", () => {
     expect(alternativasPara(meta, 0, HOJE)).toEqual({ prazo: null, metaMenor: null, oQueDa: null });
+  });
+});
+
+describe("a régua e a quantidade (pedido da Dani, 16/10)", () => {
+  const base = { hoje: HOJE, assinaturas: [] as AssinaturaDoPlano[] };
+  const semEspaco = (t: string | null) => (t ?? "").replace(/\s/g, " ");
+
+  it("a régua vai de R$ 0 ao gasto de hoje, de R$ 10 em R$ 10, com o valor de hoje na ponta", () => {
+    expect(passosDaRegua(155)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 155]);
+    expect(passosDaRegua(40)).toEqual([0, 10, 20, 30, 40]);
+    expect(passosDaRegua(390)).toContain(200);
+  });
+
+  it("ticket alto: o iFood de R$ 200 é quase um pedido", () => {
+    // Dois pedidos de R$ 200 por mês: hoje R$ 400, sugestão R$ 200.
+    const { coisinhas } = coisinhasDosGastos({ ...base, lancamentos: [...aluguel, ...todoMes({ valor: 200, categoria: "ALIMENTACAO", subcategoria: "Delivery", descricao: "IFOOD *SUSHI" }), ...todoMes({ valor: 200, categoria: "ALIMENTACAO", subcategoria: "Delivery", descricao: "IFOOD *PIZZA" })] });
+    const ifood = coisinhas[0];
+    expect(ifood).toMatchObject({ nome: "iFood", hoje: 400, para: 200, ticket: 200, vezesPorMes: 2 });
+    expect(quantidadePara(ifood, 200)).toBe(1);
+    expect(textoDaQuantidade(ifood, 200)).toBe("dá 1 pedido por mês");
+    expect(textoDaQuantidade(ifood, 100)).toBe("menos de 1 pedido por mês");
+    expect(textoDaQuantidade(ifood, 0)).toBe("nenhum pedido");
+    expect(textoDaQuantidade(ifood, 400)).toBe("do jeito que está");
+    expect(textoDeHoje(ifood)).toBe("hoje: 2 pedidos por mês");
+    expect(semEspaco(textoDoTicket(ifood))).toBe("o seu custa uns R$ 200");
+  });
+
+  it("ticket baixo: corridas de R$ 15", () => {
+    const corridas = [7, 8, 9].flatMap((mes) => Array.from({ length: 16 }, () => ({ ano: 2026, mes, valor: 15, categoria: "TRANSPORTE", subcategoria: "Aplicativo", descricao: "UBER *TRIP" })));
+    const { coisinhas } = coisinhasDosGastos({ ...base, lancamentos: [...aluguel, ...corridas] });
+    const c = coisinhas[0];
+    expect(c).toMatchObject({ tipo: "corrida", hoje: 240, para: 120, ticket: 15, vezesPorMes: 16 });
+    expect(textoDaQuantidade(c, 130)).toBe("dá umas 9 corridas por mês");
+    expect(textoDaQuantidade(c, 10)).toBe("menos de 1 corrida por mês");
+    expect(textoDeHoje(c)).toBe("hoje: 16 corridas por mês");
+    expect(semEspaco(textoDoTicket(c))).toBe("a sua custa uns R$ 15");
+  });
+
+  it("lazer e compras falam em vezes; assinatura não tem régua", () => {
+    const p = mostra(planoDaMeta(contaDeExemplo()));
+    const lazer = p.coisinhas.find((c) => c.tipo === "lazer")!;
+    expect(lazer.vezesPorMes).toBe(2);
+    expect(textoDaQuantidade(lazer, 80)).toMatch(/^dá (1 vez|umas \d+ vezes) por mês$/);
+    const max = p.coisinhas.find((c) => c.tipo === "assinatura")!;
+    expect(max.ticket).toBeNull();
+    expect(textoDaQuantidade(max, 0)).toBeNull();
   });
 });

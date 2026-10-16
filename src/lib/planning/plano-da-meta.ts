@@ -120,6 +120,11 @@ export type Coisinha = {
   meses: number;
   /** Quantas vezes por mês, na mediana (pedidos, corridas, compras). */
   vezesPorMes: number;
+  /**
+   * O ticket dela nessa coisinha: a mediana de cada lançamento dos meses fechados (um pedido, uma
+   * corrida, uma compra). Null na assinatura. É o que traduz o valor da régua em quantidade.
+   */
+  ticket: number | null;
   /** As lojas por trás de "Compras" (só nomes de marca do catálogo). */
   lojas: string[];
   daCasa: boolean;
@@ -383,17 +388,20 @@ export function coisinhasDosGastos(e: Pick<EntradaDoPlano, "hoje" | "lancamentos
 
   const cobrancas = cobrancasDeAssinatura(e.assinaturas);
 
-  type Acc = { g: Grupo; porMes: Map<number, number>; vezes: Map<number, number>; descricoes: (string | null)[]; lojas: Map<string, number>; daCasa: number; total: number };
+  type Acc = { g: Grupo; porMes: Map<number, number>; vezes: Map<number, number>; valores: number[]; descricoes: (string | null)[]; lojas: Map<string, number>; daCasa: number; total: number };
   const grupos = new Map<string, Acc>();
   for (const l of lancs) {
     const g = grupoDoLancamento(l, cobrancas);
     if (!g) continue;
     // Estorno ou reembolso lançado como gasto positivo abate o mês, não soma.
     const valor = l.valor > 0 && pareceEstorno(l.descricao) ? -l.valor : l.valor;
-    const acc: Acc = grupos.get(g.id) ?? { g, porMes: new Map(), vezes: new Map(), descricoes: [], lojas: new Map(), daCasa: 0, total: 0 };
+    const acc: Acc = grupos.get(g.id) ?? { g, porMes: new Map(), vezes: new Map(), valores: [], descricoes: [], lojas: new Map(), daCasa: 0, total: 0 };
     const k = chaveDoMes(l.ano, l.mes);
     acc.porMes.set(k, (acc.porMes.get(k) ?? 0) + valor);
-    if (valor > 0) acc.vezes.set(k, (acc.vezes.get(k) ?? 0) + 1);
+    if (valor > 0) {
+      acc.vezes.set(k, (acc.vezes.get(k) ?? 0) + 1);
+      acc.valores.push(valor);
+    }
     acc.descricoes.push(l.descricao);
     const loja = g.tipo === "compras" ? nomeDaLoja(l.descricao) : null;
     if (loja) acc.lojas.set(loja, (acc.lojas.get(loja) ?? 0) + valor);
@@ -430,6 +438,7 @@ export function coisinhasDosGastos(e: Pick<EntradaDoPlano, "hoje" | "lancamentos
       nivel: acc.g.nivel,
       meses,
       vezesPorMes,
+      ticket: acc.valores.length > 0 ? reais(mediana(acc.valores)) : null,
       lojas,
       daCasa: acc.total > 0 && acc.daCasa / acc.total > 0.5,
     });
@@ -457,6 +466,7 @@ export function coisinhasDosGastos(e: Pick<EntradaDoPlano, "hoje" | "lancamentos
       nivel: 1,
       meses: a.mesesCobrados,
       vezesPorMes: 1,
+      ticket: null,
       lojas: [],
       daCasa: !!a.daCasa,
     });
@@ -480,6 +490,76 @@ function marcaDaCorrida(descricoes: (string | null)[]): string | null {
   if (nomes.size === 1 && nomes.has("99")) return "99";
   if (nomes.size === 2 && nomes.has("Uber") && nomes.has("99")) return "uber+99";
   return null;
+}
+
+/* ---------------------------------------------------------------- a régua e a quantidade */
+
+/**
+ * A régua de cada coisinha (pedido da Dani, 16/10/2026: "tivesse uma coisinha para eu arrastar
+ * quanto que eu quero gastar"): do gasto de hoje até R$ 0, de R$ 10 em R$ 10, com o valor de hoje
+ * na ponta mesmo quando não é redondo (155: 0, 10, ..., 150, 155). Começa na sugestão (`para`).
+ */
+export function passosDaRegua(hoje: number): number[] {
+  const out: number[] = [];
+  for (let v = 0; v < hoje - 1e-9; v += 10) out.push(v);
+  out.push(reais(hoje));
+  return out;
+}
+
+/** Quanto ela economiza por mês gastando `valor` nessa coisinha. */
+export const economiaPara = (c: Pick<Coisinha, "hoje">, valor: number) => reais(Math.max(0, c.hoje - valor));
+
+const UNIDADES: Record<Exclude<TipoDaCoisinha, "assinatura">, { um: string; varios: string; feminino: boolean }> = {
+  delivery: { um: "pedido", varios: "pedidos", feminino: false },
+  corrida: { um: "corrida", varios: "corridas", feminino: true },
+  lazer: { um: "vez", varios: "vezes", feminino: true },
+  compras: { um: "vez", varios: "vezes", feminino: true },
+};
+const unidadeDe = (c: Pick<Coisinha, "tipo">) => (c.tipo === "assinatura" ? null : UNIDADES[c.tipo]);
+
+/** Quantos pedidos (corridas, vezes) cabem em `valor` pelo ticket dela; null sem ticket. */
+export function quantidadePara(c: Pick<Coisinha, "ticket">, valor: number): number | null {
+  if (!c.ticket || !(c.ticket > 0)) return null;
+  return Math.max(0, valor) / c.ticket;
+}
+
+/**
+ * O valor da régua em palavras: "dá uns 4 pedidos por mês", "dá 1 corrida por mês", "menos de 1
+ * pedido por mês", "nenhum pedido" e, no valor de hoje, "do jeito que está". Null na assinatura.
+ */
+export function textoDaQuantidade(c: Pick<Coisinha, "tipo" | "hoje" | "ticket">, valor: number): string | null {
+  const u = unidadeDe(c);
+  if (!u) return null;
+  if (valor >= c.hoje - 1e-9) return "do jeito que está";
+  if (valor <= 0) return `${u.feminino ? "nenhuma" : "nenhum"} ${u.um}`;
+  const q = quantidadePara(c, valor);
+  if (q === null) return null;
+  if (q < 1) return `menos de 1 ${u.um} por mês`;
+  const n = Math.round(q);
+  if (n === 1) return `dá 1 ${u.um} por mês`;
+  return `dá ${u.feminino ? "umas" : "uns"} ${n} ${u.varios} por mês`;
+}
+
+/** Quantos são hoje: "hoje: 8 pedidos por mês". */
+export function textoDeHoje(c: Pick<Coisinha, "tipo" | "vezesPorMes">): string | null {
+  const u = unidadeDe(c);
+  if (!u) return null;
+  const n = Math.max(1, c.vezesPorMes);
+  return `hoje: ${n} ${n === 1 ? u.um : u.varios} por mês`;
+}
+
+/** O ticket arredondado para falar: até R$ 20 de 1 em 1, até R$ 100 de 5 em 5, depois de 10 em 10. */
+export function ticketArredondado(t: number): number {
+  return t < 20 ? Math.max(1, Math.round(t)) : t < 100 ? Math.round(t / 5) * 5 : Math.round(t / 10) * 10;
+}
+
+/** "o seu custa uns R$ 50" (pedido), "a sua custa uns R$ 17" (corrida), "cada vez custa uns R$ 80". */
+export function textoDoTicket(c: Pick<Coisinha, "tipo" | "ticket">): string | null {
+  if (!c.ticket || c.tipo === "assinatura") return null;
+  const v = dinheiro(ticketArredondado(c.ticket));
+  if (c.tipo === "delivery") return `o seu custa uns ${v}`;
+  if (c.tipo === "corrida") return `a sua custa uns ${v}`;
+  return `cada vez custa uns ${v}`;
 }
 
 /* ---------------------------------------------------------------- as alternativas */
