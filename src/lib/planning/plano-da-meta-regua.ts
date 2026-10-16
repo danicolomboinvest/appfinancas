@@ -1,7 +1,7 @@
 import { formatMoney } from "@/lib/money";
 import { MESES_CURTOS, TAXA_PADRAO_DAS_METAS, porMesDaNovaMeta } from "@/lib/metas/projecao";
 import { prazoQueCabe } from "@/lib/metas/prazo-que-cabe";
-import type { Alternativas, Coisinha, EntradaDoPlano, PlanoDaMeta, TipoDaCoisinha } from "./plano-da-meta";
+import type { Alternativas, Coisinha, EntradaDoPlano, FonteDoAporte, PlanoDaMeta, TipoDaCoisinha } from "./plano-da-meta";
 
 /**
  * A parte do plano da meta que a TELA usa enquanto ela mexe (a régua, a quantidade, as saídas e a
@@ -149,3 +149,23 @@ export function fraseDoPlano(p: PlanoDaMeta): string | null {
   }
 }
 
+
+/* ---------------------------------------------------------------- trazer das outras metas */
+
+/** Os passos da régua "Trazer para esta meta": de R$ 0 até o que dá, de R$ 10 em R$ 10. */
+export function passosDoTrazer(maximo: number): number[] {
+  const out: number[] = [];
+  for (let v = 0; v <= maximo + 1e-9; v += 10) out.push(v);
+  return out;
+}
+
+/**
+ * Quando a outra meta chega se ela trouxer `tirar` dela para esta: o mês novo ("mar/2028"),
+ * "parada" quando não sobra nada por mês para ela, ou null quando nem chega (depois de 2080).
+ */
+export function quandoChegaComMenos(f: Pick<FonteDoAporte, "porMes" | "alvo" | "guardado" | "taxaAnual">, tirar: number, hoje: Date): { texto: string } | "parada" | null {
+  const porMes = Math.round((f.porMes - tirar) * 100) / 100;
+  if (!(porMes > 0)) return "parada";
+  const p = prazoQueCabe({ alvo: f.alvo, guardado: f.guardado, porMes, taxaAnual: f.taxaAnual, hoje });
+  return p ? { texto: p.texto } : null;
+}

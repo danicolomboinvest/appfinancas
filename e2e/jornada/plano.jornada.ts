@@ -60,6 +60,8 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
   let metaId = "";
   let porMes = 0;
   let antesDoPlano: { alvo: number; prazo: string | null; porMes: number } | null = null;
+  let fonteId = "";
+  let fonteAntes = 0;
   try {
     await dia(c, "2026-10-15 09:00", [p]);
     await passo(c, "cria a meta e toca em Como vou juntar?", async () => {
@@ -89,6 +91,17 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
       const depois = (await regua.getAttribute("aria-valuetext")) ?? "";
       expect(numero(depois.split(" por mês")[0])).toBe(numero(antes.split(" por mês")[0]) - 30);
       await expect(ifood).toContainText(/dá (uns|1|menos)/);
+      // Para onde já vai o que ela guarda (a Ana tem Reserva, Europa e Carro): a Reserva com menos
+      // de 3 meses fica, e de outra meta ela traz R$ 30 para esta.
+      const jaGuarda = p.locator("[data-ja-guarda]");
+      await expect(jaGuarda).toContainText(/Você já guarda R\$\s?[\d.]+ por mês/);
+      await expect(jaGuarda).toContainText("A Reserva fica: ela ainda está com menos de 3 meses.");
+      const trazer = jaGuarda.getByRole("slider", { name: "Trazer para esta meta" }).first();
+      fonteId = (await trazer.locator("xpath=ancestor::*[@data-fonte][1]").getAttribute("data-fonte")) ?? "";
+      fonteAntes = Number((await doBanco((db) => db.goal.findUniqueOrThrow({ where: { id: fonteId }, select: { monthlyContribution: true } }))).monthlyContribution);
+      await trazer.focus();
+      for (let i = 0; i < 3; i++) await p.keyboard.press("ArrowRight");
+      await expect(jaGuarda).toContainText(/\+R\$\s?30 por mês para esta meta · .+ (passa para|fica parada)/);
       await conferirTextoELayout(p, c, "Plano com a régua");
       // Não fechou? Escolhe o primeiro caminho (sempre há os dois quando sobra algum valor).
       const caminhos = p.getByRole("radiogroup", { name: /Não fechou/ }).getByRole("radio");
@@ -96,6 +109,9 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
       await p.getByRole("button", { name: "Usar esse plano" }).click();
       await expect(p.getByRole("heading", { name: "Seu plano" })).toBeVisible({ timeout: 30_000 });
       porMes = numero((await p.locator("[data-por-mes]").textContent()) ?? "");
+      await expect(p.locator("[data-trazidos]")).toContainText("+R$");
+      const fonteDepois = Number((await doBanco((db) => db.goal.findUniqueOrThrow({ where: { id: fonteId }, select: { monthlyContribution: true } }))).monthlyContribution);
+      if (fonteDepois !== fonteAntes - 30) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Trazer para esta meta", telaErrada: "a outra meta no banco", esperado: `R$ ${fonteAntes - 30} por mês`, visto: String(fonteDepois) });
       await conferirTextoELayout(p, c, "Combinado");
     });
 
@@ -148,12 +164,15 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
       const depoisDoPlano = await valoresDaMetaNoBanco(metaId);
       const mudou = JSON.stringify(depoisDoPlano) !== JSON.stringify(antesDoPlano);
       if (mudou) await expect(p.locator("[data-aviso-tirar]")).toContainText("A meta volta para");
+      await expect(p.locator("[data-aviso-tirar]")).toContainText("volta para lá");
       await p.getByRole("button", { name: "Toque de novo para tirar o plano" }).click();
       await p.waitForURL(new RegExp(`/planejamento/metas/${metaId}$`), { timeout: 30_000 });
       await p.goto("/planejamento/metas");
       await expect(p.locator(`a[href="/planejamento/metas/${metaId}/plano"]`)).toHaveText(/Como vou juntar\?/);
       // Tirar o plano volta a meta aos valores de antes dele (ela não mexeu à mão).
       const final = await valoresDaMetaNoBanco(metaId);
+      const fonteFinal = Number((await doBanco((db) => db.goal.findUniqueOrThrow({ where: { id: fonteId }, select: { monthlyContribution: true } }))).monthlyContribution);
+      if (fonteFinal !== fonteAntes) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Tirar o plano", telaErrada: "a outra meta no banco", esperado: `R$ ${fonteAntes} por mês (devolvido)`, visto: String(fonteFinal) });
       if (JSON.stringify(final) !== JSON.stringify(antesDoPlano))
         await c.anotar(p, { tipo: "numero", telaDeOrigem: "Tirar o plano", telaErrada: "meta no banco", esperado: JSON.stringify(antesDoPlano), visto: JSON.stringify(final) });
     });

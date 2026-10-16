@@ -10,6 +10,7 @@ import type { Coisinha, PlanoDaMeta } from "@/lib/planning/plano-da-meta";
 import { alternativasPara, economiaPara } from "@/lib/planning/plano-da-meta-regua";
 import { usarPlanoAction } from "./acoes";
 import { ItemDaCoisinha } from "./ItemDaCoisinha";
+import { JaGuardaCartao } from "./JaGuarda";
 
 type Mostra = Extract<PlanoDaMeta, { mostra: true }>;
 type Saida = "nenhuma" | "prazo" | "menor" | "daa";
@@ -42,7 +43,7 @@ function Aviso({ texto }: { texto: string }) {
  * pelo ticket dela), as duas saídas quando não fecha e o "Usar esse plano". Toda conta vem do
  * motor (lib/planning); o servidor confere de novo ao usar.
  */
-export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; plano: Mostra; hoje: { ano: number; mes: number; dia: number }; inicial?: { itens: { id: string; valor: number }[]; saida: Saida } | null }) {
+export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; plano: Mostra; hoje: { ano: number; mes: number; dia: number }; inicial?: { itens: { id: string; valor: number }[]; saida: Saida; trazer?: { id: string; valor: number }[] } | null }) {
   const money = useMoney();
   const m = (v: number) => money(v, { round: Number.isInteger(Math.round(v * 100) / 100) });
   const router = useRouter();
@@ -53,34 +54,40 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
   const [sel, setSel] = useState<Record<string, boolean>>(() => Object.fromEntries((inicial?.itens ?? []).map((i) => [i.id, true])));
   const [val, setVal] = useState<Record<string, number>>(() => Object.fromEntries((inicial?.itens ?? []).map((i) => [i.id, i.valor])));
   const [saida, setSaida] = useState<Saida | null>(inicial && inicial.saida !== "nenhuma" ? inicial.saida : null);
+  // O que ela traz das outras metas para esta (régua "Trazer para esta meta").
+  const [trazer, setTrazer] = useState<Record<string, number>>(() => Object.fromEntries((inicial?.trazer ?? []).map((t) => [t.id, t.valor])));
+  const trazido = plano.jaGuarda.fontes.reduce((s, f) => s + Math.min(f.podeTrazer, trazer[f.id] ?? 0), 0);
 
   const valor = (c: Coisinha) => (c.acao === "cancelar" ? 0 : (val[c.id] ?? c.para));
   const economia = (c: Coisinha) => (c.acao === "cancelar" ? c.hoje : economiaPara(c, valor(c)));
   const achado = Math.round(plano.coisinhas.reduce((s, c) => s + (sel[c.id] ? economia(c) : 0), 0) * 100) / 100;
-  const falta = plano.falta;
-  const fechou = plano.pede !== null && achado >= falta - 1e-9;
+  // O que falta já descontado do que ela trouxe das outras metas (a frase e a barra mudam na hora).
+  const falta = Math.max(0, plano.falta - trazido);
+  const fechou = plano.pede !== null && achado + trazido >= plano.falta - 1e-9;
   const alts = useMemo(
-    () => (fechou || plano.pede === null ? null : alternativasPara({ alvo: meta.alvo, guardado: meta.guardado, prazo: dataDoPrazo(meta.prazo), taxaAnual: meta.taxaAnual }, plano.sobra + achado, hojeData)),
-    [fechou, plano.pede, plano.sobra, achado, meta.alvo, meta.guardado, meta.prazo, meta.taxaAnual, hojeData],
+    () => (fechou || plano.pede === null ? null : alternativasPara({ alvo: meta.alvo, guardado: meta.guardado, prazo: dataDoPrazo(meta.prazo), taxaAnual: meta.taxaAnual }, plano.sobra + trazido + achado, hojeData)),
+    [fechou, plano.pede, plano.sobra, trazido, achado, meta.alvo, meta.guardado, meta.prazo, meta.taxaAnual, hojeData],
   );
   const saidaValida = saida !== null && !!alts && ((saida === "prazo" && !!alts.prazo) || (saida === "menor" && !!alts.metaMenor) || (saida === "daa" && !!alts.oQueDa));
   const temItem = plano.coisinhas.some((c) => sel[c.id] && economia(c) > 0);
-  const podeUsar = fechou ? temItem : saidaValida;
+  const podeUsar = fechou ? temItem || trazido > 0 : saidaValida;
 
   function usar() {
     erro.limpar();
     const itens = plano.coisinhas.filter((c) => sel[c.id]).map((c) => ({ id: c.id, valor: valor(c) }));
     iniciar(async () => {
-      const r = await usarPlanoAction(meta.id, { itens, saida: fechou ? "nenhuma" : (saida ?? "nenhuma") });
+      const trazerAgora = plano.jaGuarda.fontes.filter((f) => (trazer[f.id] ?? 0) > 0).map((f) => ({ id: f.id, valor: Math.min(f.podeTrazer, trazer[f.id] ?? 0) }));
+      const r = await usarPlanoAction(meta.id, { itens, saida: fechou ? "nenhuma" : (saida ?? "nenhuma"), trazer: trazerAgora });
       if (!r.ok) return erro.falhou(r.error);
       router.push(`/planejamento/metas/${meta.id}/plano`);
       router.refresh();
     });
   }
 
-  const pct = plano.pede ? Math.min(100, ((plano.sobra + achado) / plano.pede) * 100) : 0;
-  const pctSobra = plano.pede ? Math.min(100, (plano.sobra / plano.pede) * 100) : 0;
-  const status = achado === 0 ? "Toque no que topa reduzir" : fechou ? (achado > falta ? `Fechou! E sobram ${m(achado - falta)} no mês` : "Fechou!") : `Faltam ${m(falta - achado)} por mês`;
+  // A barra: o que já sobra e o que veio das outras metas (verde), mais as coisinhas (cor do tema).
+  const pct = plano.pede ? Math.min(100, ((plano.sobra + trazido + achado) / plano.pede) * 100) : 0;
+  const pctSobra = plano.pede ? Math.min(100, ((plano.sobra + trazido) / plano.pede) * 100) : 0;
+  const status = fechou ? (achado > falta ? `Fechou! E sobram ${m(achado - falta)} no mês` : "Fechou!") : achado === 0 ? "Toque no que topa reduzir" : `Faltam ${m(falta - achado)} por mês`;
   const avisos = plano.avisos.map((a) => AVISO[a]).filter((t): t is string => !!t);
 
   const topo = (
@@ -94,7 +101,7 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
   );
 
   // Situações em que não há o que marcar.
-  if (plano.situacao === "poucos_dados" || plano.situacao === "ja_cabe" || plano.situacao === "sem_prazo" || (plano.situacao === "sem_coisinhas" && !plano.alternativas?.prazo && !plano.alternativas?.metaMenor && !plano.alternativas?.oQueDa)) {
+  if (plano.situacao === "poucos_dados" || plano.situacao === "ja_cabe" || plano.situacao === "sem_prazo" || (plano.situacao === "sem_coisinhas" && !plano.alternativas?.prazo && !plano.alternativas?.metaMenor && !plano.alternativas?.oQueDa && plano.jaGuarda.trazivel === 0)) {
     const voltarMeta = (
       <Link href={`/planejamento/metas/${meta.id}`} className="flex min-h-[52px] w-full items-center justify-center rounded-full bg-surface-2 px-5 text-base font-semibold text-ink">
         Voltar para a meta
@@ -171,16 +178,21 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
         <span className="text-[22px] font-medium leading-tight text-ink">
           faltam <b className="text-[34px] font-medium tabular-nums tracking-[-0.03em] text-accent-strong">{m(falta)}</b> por mês
         </span>
-        {plano.sobra > 0 && (
-          <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-muted">
-            <i className="size-2 rounded-full bg-success" aria-hidden />
-            {m(plano.sobra)} já sobram hoje
-          </span>
-        )}
         {avisos.map((t) => (
           <Aviso key={t} texto={t} />
         ))}
       </div>
+
+      <JaGuardaCartao
+        j={plano.jaGuarda}
+        trazer={trazer}
+        hoje={hojeData}
+        m={m}
+        onTrazer={(id, valor) => {
+          setTrazer((t) => ({ ...t, [id]: valor }));
+          setSaida(null);
+        }}
+      />
 
       {plano.coisinhas.length > 0 && <span className="mt-1 text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">Coisinhas dos seus gastos</span>}
       {plano.coisinhas.map((c) => (
@@ -203,7 +215,7 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
         />
       ))}
 
-      {alts && (achado > 0 || plano.coisinhas.length === 0) && (
+      {alts && (achado + trazido > 0 || plano.coisinhas.length === 0) && (
         <div className="flex flex-col gap-2" role="radiogroup" aria-label="Não fechou. Qual caminho?">
           <p className="text-center text-sm font-semibold text-ink">Não fechou. Qual caminho?</p>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-2">
@@ -214,7 +226,7 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
         </div>
       )}
       <div className="sticky bottom-0 z-30 -mx-5 mt-2 flex flex-col gap-2 bg-canvas px-5 pb-[calc(0.75rem+var(--safe-bottom))] pt-2 shadow-[0_-1px_0_var(--color-border)]">
-        {alts && achado > 0 && !saidaValida && <p className="text-center text-[13px] font-medium text-ink-muted">Não fechou: escolha um caminho logo acima.</p>}
+        {alts && achado + trazido > 0 && !saidaValida && <p className="text-center text-[13px] font-medium text-ink-muted">Não fechou: escolha um caminho logo acima.</p>}
         <button type="button" disabled={!podeUsar || pendente} onClick={usar} className={`flex min-h-[52px] w-full items-center justify-center rounded-full bg-accent px-5 text-base font-bold text-on-accent disabled:opacity-40 ${erro.classe}`}>
           {pendente ? "Salvando…" : erro.erro ? TENTAR_DE_NOVO : "Usar esse plano"}
         </button>

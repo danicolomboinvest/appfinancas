@@ -12,8 +12,9 @@ import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { casaAtiva, ehDaCasa } from "@/lib/casa/regras";
 import { categoriasEssenciais } from "@/lib/categories";
 import { TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
-import { cobrancasDeAssinatura, mesesFechados, type AssinaturaDoPlano, type EntradaDoPlano, type LancamentoDoPlano } from "@/lib/planning/plano-da-meta";
-import { TIPO_DO_PLANO, antesDoPlanoNovo, dataDoPrazo, oQueTirarFaz, planoDoRegistro, valoresDaMeta, type PlanoGravado } from "@/lib/planning/plano-gravado";
+import { cobrancasDeAssinatura, mesesFechados, type AssinaturaDoPlano, type EntradaDoPlano, type LancamentoDoPlano, type OutraMeta } from "@/lib/planning/plano-da-meta";
+import { TIPO_DO_PLANO, antesDoPlanoNovo, dataDoPrazo, devolucoes, juntarTrazidos, oQueTirarFaz, planoDoRegistro, valoresDaMeta, type PlanoGravado, type Trazido } from "@/lib/planning/plano-gravado";
+import { fotoDoTipo } from "@/lib/metas/tipos";
 
 /**
  * O banco do plano da meta: junta o que o motor (lib/planning/plano-da-meta.ts) precisa e grava o
@@ -52,16 +53,28 @@ export async function planoDisponivel(ctx: AuthContext): Promise<boolean> {
   return (u?.currency ?? "BRL").toUpperCase() === "BRL";
 }
 
-/** Aportes já combinados: o "por mês" das outras metas em andamento e o da reserva incompleta. */
-async function aportesCombinados(ctx: AuthContext, menosAMeta: string): Promise<number> {
+/**
+ * As outras metas em andamento e a reserva incompleta, com o "por mês" combinado de cada uma: é o
+ * que ela já guarda (e de onde pode trazer para esta meta). A meta do tipo Reserva conta como reserva.
+ */
+async function outrasMetas(ctx: AuthContext, menosAMeta: string): Promise<OutraMeta[]> {
   const [metas, reserva] = await Promise.all([
-    prisma.goal.findMany({ where: { ...doDono(ctx), status: { not: "ACHIEVED" }, id: { not: menosAMeta } }, select: { targetAmount: true, currentAmount: true, monthlyContribution: true } }),
-    prisma.emergencyFund.findFirst({ where: doDono(ctx), select: { targetAmount: true, currentAmount: true, monthlyContribution: true } }),
+    prisma.goal.findMany({
+      where: { ...doDono(ctx), status: { not: "ACHIEVED" }, id: { not: menosAMeta } },
+      select: { id: true, name: true, icon: true, fotoUrl: true, targetAmount: true, currentAmount: true, targetDate: true, annualRate: true, monthlyContribution: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.emergencyFund.findFirst({ where: doDono(ctx), select: { targetAmount: true, currentAmount: true, monthlyContribution: true, annualRate: true } }),
   ]);
-  let s = 0;
-  for (const g of metas) if (Number(g.currentAmount) < Number(g.targetAmount)) s += Math.max(0, Number(g.monthlyContribution ?? 0));
-  if (reserva && Number(reserva.currentAmount) < Number(reserva.targetAmount)) s += Math.max(0, Number(reserva.monthlyContribution));
-  return s;
+  const out: OutraMeta[] = [];
+  if (reserva && Number(reserva.currentAmount) < Number(reserva.targetAmount) && Number(reserva.monthlyContribution) > 0) {
+    out.push({ id: "reserva", nome: "Reserva", foto: null, porMes: Number(reserva.monthlyContribution), alvo: Number(reserva.targetAmount), guardado: Number(reserva.currentAmount), prazo: null, taxaAnual: Number(reserva.annualRate), reserva: true });
+  }
+  for (const g of metas) {
+    if (!(Number(g.currentAmount) < Number(g.targetAmount)) || !(Number(g.monthlyContribution ?? 0) > 0)) continue;
+    out.push({ id: g.id, nome: g.name, foto: g.fotoUrl ?? fotoDoTipo(g.icon), porMes: Number(g.monthlyContribution), alvo: Number(g.targetAmount), guardado: Number(g.currentAmount), prazo: g.targetDate, taxaAnual: g.annualRate === null ? TAXA_PADRAO_DAS_METAS : Number(g.annualRate), reserva: g.icon === "RESERVA" });
+  }
+  return out;
 }
 
 /** Os gastos dela nos meses pedidos, no formato do motor. */
@@ -128,11 +141,11 @@ async function assinaturasDoPlano(ctx: AuthContext, hoje: Date, lancamentos: Lan
 /** Tudo o que o motor precisa para a meta, de quem olha. */
 export async function entradaDoPlano(ctx: AuthContext, meta: MetaDoPlano, hoje: Date): Promise<EntradaDoPlano> {
   const meses = mesesFechados(hoje);
-  const [u, renda, gasto, aportes, lancamentos] = await Promise.all([
+  const [u, renda, gasto, outras, lancamentos] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId }, select: { currency: true } }),
     getRendaMedia(ctx, hoje),
     getTypicalMonthlyExpense(ctx),
-    aportesCombinados(ctx, meta.id),
+    outrasMetas(ctx, meta.id),
     lancamentosDoPlano(ctx, meses),
   ]);
   const assinaturas = await assinaturasDoPlano(ctx, hoje, lancamentos);
@@ -143,7 +156,8 @@ export async function entradaDoPlano(ctx: AuthContext, meta: MetaDoPlano, hoje: 
     rendaMedia: renda?.valor ?? null,
     rendaMeses: renda?.meses ?? 0,
     gastoTipico: gasto ? { media: gasto.monthlyAverage, meses: gasto.monthsUsed } : null,
-    aportesCombinados: aportes,
+    aportesCombinados: outras.reduce((t, o) => t + o.porMes, 0),
+    outras,
     lancamentos,
     assinaturas,
   };
@@ -173,14 +187,32 @@ export async function planosDoPerfil(ctx: AuthContext): Promise<Map<string, Plan
  * Grava o plano (troca o anterior da mesma meta) e atualiza a meta, juntos. Guarda a meta de antes
  * (para o "Tirar o plano" voltar) e como o plano a deixou (para saber se ela mexeu depois).
  */
-export async function gravarPlano(ctx: AuthContext, goalId: string, plano: PlanoGravado, meta: { alvo: number; prazo: Date | null; porMes: number }): Promise<boolean> {
+export async function gravarPlano(ctx: AuthContext, goalId: string, plano: PlanoGravado, meta: { alvo: number; prazo: Date | null; porMes: number }, trazidos: Trazido[] = []): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
     const g = await tx.goal.findFirst({ where: { id: goalId, ...doDono(ctx) }, select: { targetAmount: true, targetDate: true, monthlyContribution: true } });
     if (!g) return false;
     const anterior = await tx.decisao.findFirst({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId }, orderBy: { createdAt: "desc" }, select: { dados: true } });
     const agora = valoresDaMeta({ alvo: Number(g.targetAmount), prazo: g.targetDate, porMes: Number(g.monthlyContribution ?? 0) });
-    const completo: PlanoGravado = { ...plano, antes: antesDoPlanoNovo(anterior ? planoDoRegistro(anterior.dados) : null, agora), depois: valoresDaMeta(meta) };
+    const planoAnterior = anterior ? planoDoRegistro(anterior.dados) : null;
+    // O que veio de outras metas num plano anterior continua registrado (o "Tirar" devolve tudo).
+    let todosTrazidos = trazidos;
+    if (planoAnterior?.trazidos?.length) {
+      const ids = planoAnterior.trazidos.map((t) => t.id);
+      const [outras, reserva] = await Promise.all([
+        tx.goal.findMany({ where: { id: { in: ids.filter((x) => x !== "reserva") }, ...doDono(ctx) }, select: { id: true, monthlyContribution: true } }),
+        ids.includes("reserva") ? tx.emergencyFund.findFirst({ where: doDono(ctx), select: { monthlyContribution: true } }) : Promise.resolve(null),
+      ]);
+      const agoraOutras = new Map<string, number>(outras.map((o) => [o.id, Number(o.monthlyContribution ?? 0)]));
+      if (reserva) agoraOutras.set("reserva", Number(reserva.monthlyContribution));
+      todosTrazidos = juntarTrazidos(planoAnterior.trazidos, trazidos, agoraOutras);
+    }
+    const completo: PlanoGravado = { ...plano, antes: antesDoPlanoNovo(planoAnterior, agora), depois: valoresDaMeta(meta), ...(todosTrazidos.length ? { trazidos: todosTrazidos } : {}) };
     await tx.goal.updateMany({ where: { id: goalId, ...doDono(ctx) }, data: { targetAmount: meta.alvo, targetDate: meta.prazo, monthlyContribution: meta.porMes } });
+    // O que veio das outras metas: o "por mês" delas desce (o prazo fica; o app mostra quando chegam).
+    for (const t of trazidos) {
+      if (t.id === "reserva") await tx.emergencyFund.updateMany({ where: doDono(ctx), data: { monthlyContribution: t.depois } });
+      else await tx.goal.updateMany({ where: { id: t.id, ...doDono(ctx) }, data: { monthlyContribution: t.depois } });
+    }
     await tx.decisao.deleteMany({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId } });
     await tx.decisao.create({ data: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId, valor: plano.achado, descricao: "plano", dados: completo } });
     return true;
@@ -205,6 +237,20 @@ export async function tirarPlano(ctx: AuthContext, goalId: string): Promise<"vol
     const plano = d ? planoDoRegistro(d.dados) : null;
     await tx.decisao.deleteMany({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId } });
     if (!plano || !g) return "nada";
+    // O que veio das outras metas volta para elas (se ela não mexeu no "por mês" delas depois).
+    if (plano.trazidos?.length) {
+      const ids = plano.trazidos.filter((t) => t.id !== "reserva").map((t) => t.id);
+      const [outras, reserva] = await Promise.all([
+        tx.goal.findMany({ where: { id: { in: ids }, ...doDono(ctx) }, select: { id: true, monthlyContribution: true } }),
+        plano.trazidos.some((t) => t.id === "reserva") ? tx.emergencyFund.findFirst({ where: doDono(ctx), select: { monthlyContribution: true } }) : Promise.resolve(null),
+      ]);
+      const agora = new Map<string, number>(outras.map((o) => [o.id, Number(o.monthlyContribution ?? 0)]));
+      if (reserva) agora.set("reserva", Number(reserva.monthlyContribution));
+      for (const v of devolucoes(plano, agora)) {
+        if (v.id === "reserva") await tx.emergencyFund.updateMany({ where: doDono(ctx), data: { monthlyContribution: v.porMes } });
+        else await tx.goal.updateMany({ where: { id: v.id, ...doDono(ctx) }, data: { monthlyContribution: v.porMes } });
+      }
+    }
     const r = oQueTirarFaz(plano, valoresDaMeta({ alvo: Number(g.targetAmount), prazo: g.targetDate, porMes: Number(g.monthlyContribution ?? 0) }));
     if (r.acao !== "voltar") return r.acao === "mexida" ? "ficou" : "nada";
     await tx.goal.updateMany({ where: { id: goalId, ...doDono(ctx) }, data: { targetAmount: r.valores.alvo, targetDate: dataDoPrazo(r.valores.prazo), monthlyContribution: r.valores.porMes } });

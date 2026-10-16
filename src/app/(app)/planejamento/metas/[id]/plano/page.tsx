@@ -57,6 +57,9 @@ export default async function PlanoDaMetaPage(props: PageProps<"/planejamento/me
           return [{ id: c.id, valor }];
         }),
         saida: gravado.saida,
+        // O que tinha vindo das outras metas. Ao reabrir, o "por mês" delas já está mais baixo e a
+        // régua começa do zero de novo (o que foi trazido já está na meta).
+        trazer: [],
       }
     : null;
   return (
@@ -85,6 +88,8 @@ async function Combinado({ meta, plano }: { meta: Awaited<ReturnType<typeof meta
       : previa.acao === "mexida"
         ? "A meta fica como está agora."
         : null;
+  const devolve = (plano.trazidos ?? []).map((t) => t.nome).filter(Boolean);
+  const avisoCompleto = [avisoDoTirar, devolve.length ? `O que veio de ${devolve.join(" e ")} volta para lá.` : null].filter(Boolean).join(" ") || null;
   const icone = "flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-accent-soft text-accent-strong";
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-3" data-plano="combinado">
@@ -116,6 +121,26 @@ async function Combinado({ meta, plano }: { meta: Awaited<ReturnType<typeof meta
           {m(meta.porMes)}/mês
         </span>
       </div>
+
+      {(plano.trazidos?.length ?? 0) > 0 && (
+        <div className="flex flex-col gap-3 rounded-[20px] border border-border bg-surface p-3.5" data-trazidos>
+          <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">Veio das outras metas</h3>
+          {plano.trazidos!.map((t) => (
+            <div key={t.id} className={linha}>
+              <span className={icone}>
+                <PiggyBank size={18} aria-hidden />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="text-[14.5px] font-semibold text-ink">{t.nome}</b>
+                <small className="text-[12.5px] tabular-nums text-ink-muted">
+                  era {m(t.antes)} por mês, agora {m(t.depois)}
+                </small>
+              </span>
+              <span className="whitespace-nowrap text-[14.5px] font-semibold tabular-nums text-ink">+{m(t.valor)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {plano.itens.length > 0 && (
         <div className="flex flex-col gap-3 rounded-[20px] border border-border bg-surface p-3.5">
@@ -171,7 +196,7 @@ async function Combinado({ meta, plano }: { meta: Awaited<ReturnType<typeof meta
       <Link href={`/planejamento/metas/${meta.id}/plano?mudar=1`} className="flex min-h-[52px] w-full items-center justify-center rounded-full bg-ink px-5 text-base font-semibold text-canvas">
         Mudar o plano
       </Link>
-      <TirarPlano metaId={meta.id} aviso={avisoDoTirar} />
+      <TirarPlano metaId={meta.id} aviso={avisoCompleto} />
     </div>
   );
 }

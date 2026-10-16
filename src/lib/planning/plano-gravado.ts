@@ -60,9 +60,14 @@ export type PlanoGravado = {
   antes?: ValoresDaMeta;
   /** A meta como o plano deixou (para saber se ela mexeu à mão depois). */
   depois?: ValoresDaMeta;
+  /** O que veio das outras metas (o "Tirar o plano" devolve, se ela não mexeu nelas depois). */
+  trazidos?: Trazido[];
 };
 
-export type Escolhas = { itens: { id: string; valor: number }[]; saida: Saida };
+/** O que ela trouxe de outra meta (ou da reserva) para esta: o "por mês" dela antes e depois. */
+export type Trazido = { id: string; nome: string; reserva: boolean; valor: number; antes: number; depois: number };
+
+export type Escolhas = { itens: { id: string; valor: number }[]; saida: Saida; trazer?: { id: string; valor: number }[] };
 
 const reais = (v: number) => Math.round(v * 100) / 100;
 const chaveDoPrazo = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -80,7 +85,7 @@ export function textoDoPrazoGravado(prazo: string | null): string | null {
 }
 
 export type ResultadoDasEscolhas =
-  | { ok: true; plano: PlanoGravado; meta: { alvo: number; prazo: Date | null; porMes: number } }
+  | { ok: true; plano: PlanoGravado; meta: { alvo: number; prazo: Date | null; porMes: number }; trazidos: Trazido[] }
   | { ok: false; erro: string };
 
 /**
@@ -110,24 +115,37 @@ export function aplicarEscolhas(p: PlanoDaMeta, meta: EntradaDoPlano["meta"], e:
     const raiox = c.acao === "cancelar" ? (c.raiox ?? null) : null;
     itens.push({ id: c.id, tipo: c.tipo, nome: c.nome, marca: c.marca, hoje: c.hoje, teto, economia, acao: c.acao, raiox });
   }
+  // Trazer das outras metas: só de quem está na lista, de R$ 10 em R$ 10, até o que cada uma pode ceder.
+  const trazidos: Trazido[] = [];
+  const vistasT = new Set<string>();
+  for (const t of e.trazer ?? []) {
+    if (vistasT.has(t.id)) return { ok: false, erro: "Meta repetida." };
+    vistasT.add(t.id);
+    if (!(t.valor > 0)) continue;
+    const f = p.jaGuarda.fontes.find((x) => x.id === t.id);
+    if (!f) return { ok: false, erro: "Uma meta mudou. Abra o plano de novo." };
+    if (t.valor > f.podeTrazer + 1e-9 || Math.abs(t.valor / 10 - Math.round(t.valor / 10)) > 1e-9) return { ok: false, erro: f.travada === "reserva_curta" ? "A Reserva fica: ela ainda está com menos de 3 meses." : "Valor fora da régua." };
+    trazidos.push({ id: f.id, nome: f.nome, reserva: f.reserva, valor: t.valor, antes: f.porMes, depois: reais(f.porMes - t.valor) });
+  }
+  const trazido = reais(trazidos.reduce((s, t) => s + t.valor, 0));
   const achado = reais(itens.reduce((s, i) => s + i.economia, 0));
-  const disponivel = reais(p.sobra + achado);
-  const base = { versao: 1 as const, itens, cobrancas: [...cobrancas.entries()].map(([k, v]) => [k, [...v]] as [string, number[]]), achado, em: hoje.toISOString() };
+  const disponivel = reais(p.sobra + trazido + achado);
+  const base = { versao: 1 as const, itens, cobrancas: [...cobrancas.entries()].map(([k, v]) => [k, [...v]] as [string, number[]]), achado, em: hoje.toISOString(), ...(trazidos.length > 0 ? { trazidos } : {}) };
 
   if (disponivel >= p.pede - 1e-9) {
-    if (itens.length === 0) return { ok: false, erro: "Escolha pelo menos uma coisinha." };
-    return { ok: true, plano: { ...base, porMes: p.pede, alvo: meta.alvo, prazo: chaveDoPrazo(meta.prazo), saida: "nenhuma" }, meta: { alvo: meta.alvo, prazo: meta.prazo, porMes: p.pede } };
+    if (itens.length === 0 && trazidos.length === 0) return { ok: false, erro: "Escolha pelo menos uma coisinha." };
+    return { ok: true, plano: { ...base, porMes: p.pede, alvo: meta.alvo, prazo: chaveDoPrazo(meta.prazo), saida: "nenhuma" }, meta: { alvo: meta.alvo, prazo: meta.prazo, porMes: p.pede }, trazidos };
   }
   const a = alternativasPara(meta, disponivel, hoje);
   if (e.saida === "prazo" && a.prazo) {
     const d = new Date(a.prazo.ano, a.prazo.mes - 1, 1, 12);
-    return { ok: true, plano: { ...base, porMes: a.prazo.porMes, alvo: meta.alvo, prazo: chaveDoPrazo(d), saida: "prazo" }, meta: { alvo: meta.alvo, prazo: d, porMes: a.prazo.porMes } };
+    return { ok: true, plano: { ...base, porMes: a.prazo.porMes, alvo: meta.alvo, prazo: chaveDoPrazo(d), saida: "prazo" }, meta: { alvo: meta.alvo, prazo: d, porMes: a.prazo.porMes }, trazidos };
   }
   if (e.saida === "menor" && a.metaMenor) {
-    return { ok: true, plano: { ...base, porMes: a.metaMenor.porMes, alvo: a.metaMenor.alvo, prazo: chaveDoPrazo(meta.prazo), saida: "menor" }, meta: { alvo: a.metaMenor.alvo, prazo: meta.prazo, porMes: a.metaMenor.porMes } };
+    return { ok: true, plano: { ...base, porMes: a.metaMenor.porMes, alvo: a.metaMenor.alvo, prazo: chaveDoPrazo(meta.prazo), saida: "menor" }, meta: { alvo: a.metaMenor.alvo, prazo: meta.prazo, porMes: a.metaMenor.porMes }, trazidos };
   }
   if (e.saida === "daa" && a.oQueDa) {
-    return { ok: true, plano: { ...base, porMes: a.oQueDa, alvo: meta.alvo, prazo: chaveDoPrazo(meta.prazo), saida: "daa" }, meta: { alvo: meta.alvo, prazo: meta.prazo, porMes: a.oQueDa } };
+    return { ok: true, plano: { ...base, porMes: a.oQueDa, alvo: meta.alvo, prazo: chaveDoPrazo(meta.prazo), saida: "daa" }, meta: { alvo: meta.alvo, prazo: meta.prazo, porMes: a.oQueDa }, trazidos };
   }
   return { ok: false, erro: "Não fechou: escolha mais prazo ou meta menor." };
 }
@@ -176,6 +194,9 @@ export function planoDoRegistro(dados: unknown): PlanoGravado | null {
     const x = (v && typeof v === "object" ? v : null) as Partial<ValoresDaMeta> | null;
     return x && typeof x.alvo === "number" && typeof x.porMes === "number" ? { alvo: x.alvo, porMes: x.porMes, prazo: typeof x.prazo === "string" ? x.prazo : null } : undefined;
   };
+  const trazidos = Array.isArray(d.trazidos)
+    ? d.trazidos.filter((t): t is Trazido => !!t && typeof t.id === "string" && typeof t.valor === "number" && typeof t.antes === "number" && typeof t.depois === "number").map((t) => ({ id: t.id, nome: typeof t.nome === "string" ? t.nome : "", reserva: t.reserva === true, valor: t.valor, antes: t.antes, depois: t.depois }))
+    : [];
   const antes = valores(d.antes);
   const depois = valores(d.depois);
   return {
@@ -190,6 +211,7 @@ export function planoDoRegistro(dados: unknown): PlanoGravado | null {
     em: typeof d.em === "string" ? d.em : "",
     ...(antes ? { antes } : {}),
     ...(depois ? { depois } : {}),
+    ...(trazidos.length > 0 ? { trazidos } : {}),
   };
 }
 
@@ -261,3 +283,26 @@ export function textoDoAvisoDoTeto(a: AvisoDoTeto, nomeDaMeta: string, money: (v
 }
 
 export { textoDoPrazo };
+
+/** Tirar o plano devolve o que veio de cada outra meta, se ela não mexeu no "por mês" dela depois. */
+export function devolucoes(p: PlanoGravado, porMesAgora: ReadonlyMap<string, number>): { id: string; reserva: boolean; porMes: number }[] {
+  return (p.trazidos ?? []).filter((t) => porMesAgora.has(t.id) && Math.round((porMesAgora.get(t.id) as number) * 100) === Math.round(t.depois * 100)).map((t) => ({ id: t.id, reserva: t.reserva, porMes: t.antes }));
+}
+
+/**
+ * "Mudar o plano" depois de já ter trazido de outra meta: o que veio antes continua registrado
+ * (para o "Tirar o plano" devolver tudo). Mesma meta nas duas vezes: soma, com o "antes" de antes
+ * de tudo. Meta que ela mexeu à mão depois (o "por mês" não é o que o plano deixou) sai do registro.
+ */
+export function juntarTrazidos(anteriores: readonly Trazido[], novos: readonly Trazido[], porMesAgora: ReadonlyMap<string, number>): Trazido[] {
+  const out = new Map<string, Trazido>();
+  for (const a of anteriores) {
+    const agora = porMesAgora.get(a.id);
+    if (agora !== undefined && Math.round(agora * 100) === Math.round(a.depois * 100)) out.set(a.id, { ...a });
+  }
+  for (const n of novos) {
+    const a = out.get(n.id);
+    out.set(n.id, a ? { ...n, antes: a.antes, valor: Math.round((a.valor + n.valor) * 100) / 100 } : { ...n });
+  }
+  return [...out.values()];
+}

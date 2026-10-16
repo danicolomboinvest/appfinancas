@@ -98,9 +98,59 @@ export type EntradaDoPlano = {
   gastoTipico: { media: number; meses: number } | null;
   /** O "por mês" que ela já combinou nas outras metas e na reserva. */
   aportesCombinados: number;
+  /**
+   * As outras metas em andamento e a reserva, com o que cada uma recebe por mês (pedido da Dani,
+   * 16/10/2026: "eu junto R$ 550 por mês, mas não sei para que meta você está considerando"). É o
+   * que a tela mostra em "Você já guarda" e de onde ela pode trazer dinheiro para esta meta.
+   */
+  outras?: OutraMeta[];
   /** Lançamentos de GASTO de quem olha, pelo menos os 3 meses fechados. */
   lancamentos: LancamentoDoPlano[];
   assinaturas: AssinaturaDoPlano[];
+};
+
+export type OutraMeta = {
+  /** O id da meta, ou "reserva" para a Reserva de emergência (a tabela própria). */
+  id: string;
+  nome: string;
+  foto: string | null;
+  porMes: number;
+  alvo: number;
+  guardado: number;
+  prazo: Date | null;
+  taxaAnual: number;
+  /** É a reserva de emergência (a tabela própria ou a meta do tipo Reserva). */
+  reserva: boolean;
+};
+
+/** Uma meta (ou a reserva) que já recebe parte do que ela guarda. */
+export type FonteDoAporte = {
+  id: string;
+  nome: string;
+  foto: string | null;
+  porMes: number;
+  reserva: boolean;
+  /** Reserva: quantos meses de gasto ela cobre hoje. */
+  mesesDeReserva: number | null;
+  /** Quanto dá para trazer para esta meta, de R$ 10 em R$ 10 (0 = não sai nada). */
+  podeTrazer: number;
+  /** Por que não sai nada (ou só uma parte): a reserva ainda curta. */
+  travada: "reserva_curta" | "reserva_media" | null;
+  alvo: number;
+  guardado: number;
+  /** "2027-09" ou null. */
+  prazo: string | null;
+  taxaAnual: number;
+};
+
+export type JaGuarda = {
+  /** O que ela guarda por mês: o combinado das metas e da reserva, mais o que sobra sem meta. */
+  total: number;
+  fontes: FonteDoAporte[];
+  /** O que sobra sem meta (é a sobra do plano: já entra na conta desta meta). */
+  semMeta: number;
+  /** Quanto dá para trazer das outras metas, somado (nunca mais do que existe de verdade). */
+  trazivel: number;
 };
 
 export type TipoDaCoisinha = "assinatura" | "delivery" | "corrida" | "compras" | "lazer";
@@ -189,6 +239,8 @@ export type PlanoDaMeta =
       semPrazo: { comSobra: PrazoSugerido | null; comCoisinhas: PrazoSugerido | null } | null;
       avisos: AvisoDoPlano[];
       mesesDeDados: number;
+      /** Para onde já vai o que ela guarda, e o que dá para trazer para esta meta. */
+      jaGuarda: JaGuarda;
     };
 
 export type AvisoDoPlano = "sem_renda" | "renda_de_um_mes" | "sobra_negativa" | "dois_meses" | "prazo_vencido";
@@ -529,7 +581,8 @@ export function planoDaMeta(e: EntradaDoPlano): PlanoDaMeta {
 
   const { coisinhas, mesesDeDados } = coisinhasDosGastos(e);
   if (mesesDeDados === 2) avisos.push("dois_meses");
-  const base = { mostra: true as const, prazoTexto, pede, sobraBruta, sobra, avisos, mesesDeDados };
+  const jaGuarda = jaGuardaDe(e.outras ?? [], livre, sobra, e.gastoTipico?.media ?? null);
+  const base = { mostra: true as const, prazoTexto, pede, sobraBruta, sobra, avisos, mesesDeDados, jaGuarda };
 
   // Com menos de 2 meses fechados de gasto, nada do que vem dos gastos é confiável (nem a sobra).
   const poucos = !e.gastoTipico || mesesDeDados < LIMITES.minimoDeMesesDeDados;
@@ -571,3 +624,46 @@ export function planoDaMeta(e: EntradaDoPlano): PlanoDaMeta {
   return { ...base, situacao: "nao_fecha", falta, coisinhas, achado, fechaCom: 0, alternativas: alternativasPara(e.meta, sobra + achado, e.hoje), semPrazo: null };
 }
 
+
+/* ---------------------------------------------------------------- o que ela já guarda */
+
+/** Abaixo disso a reserva não cede nada; até 6 meses, cede 30% (regra da reserva, 09/10/2026). */
+export const RESERVA_CURTA_MESES = 3;
+export const RESERVA_COMPLETA_MESES = 6;
+const chaveDoMes = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+/**
+ * Para onde já vai o que ela guarda, e quanto dá para trazer para esta meta:
+ * - cada outra meta pode ceder o "por mês" inteiro (ela atrasa; a tela diz quanto);
+ * - a reserva com menos de 3 meses de gasto não cede nada; de 3 a 6 meses, 30% do que recebe (o resto
+ *   segue nela, como manda a regra da reserva); completa, não está na lista;
+ * - nada sai além do que existe de verdade: se o combinado das metas passa do que sobra do mês
+ *   (renda menos gasto), só a parte que cabe pode ser trazida.
+ * O que sobra sem meta já entra na conta desta meta (é a sobra), então não tem régua.
+ */
+export function jaGuardaDe(outras: readonly OutraMeta[], livre: number | null, sobra: number, gastoMedio: number | null): JaGuarda {
+  let cabe = Math.max(0, Math.min(outras.reduce((t, o) => t + Math.max(0, o.porMes), 0), Math.max(0, livre ?? 0)));
+  const fontes: FonteDoAporte[] = [];
+  for (const o of outras) {
+    if (!(o.porMes > 0)) continue;
+    const meses = o.reserva && gastoMedio && gastoMedio > 0 ? Math.round((o.guardado / gastoMedio) * 10) / 10 : null;
+    let maximo = o.porMes;
+    let travada: FonteDoAporte["travada"] = null;
+    if (o.reserva) {
+      if (meses === null || meses < RESERVA_CURTA_MESES) {
+        maximo = 0;
+        travada = "reserva_curta";
+      } else if (meses < RESERVA_COMPLETA_MESES) {
+        maximo = o.porMes * 0.3;
+        travada = "reserva_media";
+      }
+    }
+    const podeTrazer = Math.max(0, Math.floor(Math.min(maximo, cabe) / 10) * 10);
+    cabe -= podeTrazer;
+    fontes.push({ id: o.id, nome: o.nome, foto: o.foto, porMes: o.porMes, reserva: o.reserva, mesesDeReserva: meses, podeTrazer, travada, alvo: o.alvo, guardado: o.guardado, prazo: o.prazo ? chaveDoMes(o.prazo) : null, taxaAnual: o.taxaAnual });
+  }
+  // A reserva primeiro (é a base de tudo), depois as metas na ordem em que vieram.
+  fontes.sort((a, b) => Number(b.reserva) - Number(a.reserva));
+  const total = Math.round((fontes.reduce((t, f) => t + f.porMes, 0) + sobra) * 100) / 100;
+  return { total, fontes, semMeta: sobra, trazivel: fontes.reduce((t, f) => t + f.podeTrazer, 0) };
+}

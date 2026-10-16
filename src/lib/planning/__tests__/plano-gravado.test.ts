@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planoDaMeta, type EntradaDoPlano, type LancamentoDoPlano } from "../plano-da-meta";
-import { antesDoPlanoNovo, aplicarEscolhas, avisosPorCoisinha, mesmosValores, oQueTirarFaz, chaveDoAvisoDoTeto, planoDoRegistro, tetosAlcancados, textoDoAvisoDoTeto, type PlanoGravado } from "../plano-gravado";
+import { antesDoPlanoNovo, aplicarEscolhas, avisosPorCoisinha, devolucoes, juntarTrazidos, mesmosValores, oQueTirarFaz, chaveDoAvisoDoTeto, planoDoRegistro, tetosAlcancados, textoDoAvisoDoTeto, type PlanoGravado } from "../plano-gravado";
 
 const HOJE = new Date(2026, 9, 16, 12);
 const OUT_2027 = new Date(2027, 9, 1, 12);
@@ -171,5 +171,56 @@ describe("tirar o plano volta a meta (16/10)", () => {
   it("compara no centavo e no mês, e o registro guarda o antes e o depois", () => {
     expect(mesmosValores({ alvo: 5000, prazo: null, porMes: 440.001 }, { alvo: 5000, prazo: null, porMes: 440 })).toBe(true);
     expect(planoDoRegistro(JSON.parse(JSON.stringify(base)))).toEqual(base);
+  });
+});
+
+describe("o que ela já guarda e trazer das outras metas (16/10)", () => {
+  const viagem = { id: "viagem", nome: "Viagem", foto: "/fotos/metas/praia.jpg", porMes: 300, alvo: 6000, guardado: 1000, prazo: new Date(2027, 9, 1, 12), taxaAnual: 0.1, reserva: false };
+  const reserva = { id: "reserva", nome: "Reserva", foto: null, porMes: 250, alvo: 24000, guardado: 1000, prazo: null, taxaAnual: 0.1, reserva: true };
+  // Renda 4.380, gasto 3.830: sobra R$ 550; as metas levam R$ 550 e não sobra nada sem meta.
+  const e = entrada({ rendaMedia: 4380, gastoTipico: { media: 3830, meses: 3 }, aportesCombinados: 550, outras: [viagem, reserva] });
+  const p = planoDaMeta(e);
+  if (!p.mostra) throw new Error("não mostra");
+
+  it("mostra para onde vai: R$ 250 na Reserva, R$ 300 na Viagem", () => {
+    expect(p.jaGuarda.total).toBe(550);
+    expect(p.jaGuarda.semMeta).toBe(0);
+    expect(p.jaGuarda.fontes.map((f) => [f.nome, f.porMes, f.podeTrazer, f.travada])).toEqual([
+      ["Reserva", 250, 0, "reserva_curta"],
+      ["Viagem", 300, 300, null],
+    ]);
+  });
+
+  it("reserva de 3 a 6 meses cede 30%; dinheiro sem meta aparece como sem meta", () => {
+    const media = planoDaMeta(entrada({ rendaMedia: 4380, gastoTipico: { media: 3830, meses: 3 }, aportesCombinados: 250, outras: [{ ...reserva, guardado: 3830 * 4 }] }));
+    expect(media.mostra && media.jaGuarda.fontes[0]).toMatchObject({ podeTrazer: 70, travada: "reserva_media" });
+    expect(media.mostra && media.jaGuarda.semMeta).toBe(300);
+  });
+
+  it("nunca traz mais do que existe: combinado maior que a sobra do mês", () => {
+    const apertado = planoDaMeta(entrada({ rendaMedia: 4380, gastoTipico: { media: 4200, meses: 3 }, aportesCombinados: 300, outras: [viagem] }));
+    expect(apertado.mostra && apertado.jaGuarda.trazivel).toBe(180);
+  });
+
+  it("trazer da Viagem entra na conta e grava o por mês dela antes e depois", () => {
+    const r = aplicarEscolhas(p, e.meta, { itens: [{ id: "delivery:ifood", valor: 200 }], saida: "nenhuma", trazer: [{ id: "viagem", valor: 300 }] }, HOJE);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.trazidos).toEqual([{ id: "viagem", nome: "Viagem", reserva: false, valor: 300, antes: 300, depois: 0 }]);
+    expect(r.plano.trazidos).toEqual(r.trazidos);
+  });
+
+  it("a Reserva curta não cede, nem fora da régua", () => {
+    expect(aplicarEscolhas(p, e.meta, { itens: [], saida: "nenhuma", trazer: [{ id: "reserva", valor: 100 }] }, HOJE)).toEqual({ ok: false, erro: "A Reserva fica: ela ainda está com menos de 3 meses." });
+    expect(aplicarEscolhas(p, e.meta, { itens: [], saida: "nenhuma", trazer: [{ id: "viagem", valor: 305 }] }, HOJE).ok).toBe(false);
+    expect(aplicarEscolhas(p, e.meta, { itens: [], saida: "nenhuma", trazer: [{ id: "outra", valor: 10 }] }, HOJE).ok).toBe(false);
+  });
+
+  it("tirar devolve só o que ela não mexeu; mudar o plano soma com o que veio antes", () => {
+    const plano: PlanoGravado = { versao: 1, itens: [], cobrancas: [], porMes: 440, alvo: 5000, prazo: "2027-10", saida: "nenhuma", achado: 0, em: "", trazidos: [{ id: "viagem", nome: "Viagem", reserva: false, valor: 100, antes: 300, depois: 200 }] };
+    expect(devolucoes(plano, new Map([["viagem", 200]]))).toEqual([{ id: "viagem", reserva: false, porMes: 300 }]);
+    expect(devolucoes(plano, new Map([["viagem", 250]]))).toEqual([]);
+    const juntos = juntarTrazidos(plano.trazidos!, [{ id: "viagem", nome: "Viagem", reserva: false, valor: 50, antes: 200, depois: 150 }], new Map([["viagem", 200]]));
+    expect(juntos).toEqual([{ id: "viagem", nome: "Viagem", reserva: false, valor: 150, antes: 300, depois: 150 }]);
   });
 });

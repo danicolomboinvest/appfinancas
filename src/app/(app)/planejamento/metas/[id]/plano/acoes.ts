@@ -20,6 +20,7 @@ type Resultado = { ok: true } | { ok: false; error: string };
 const escolhasSchema = z.object({
   itens: z.array(z.object({ id: z.string().min(1).max(80), valor: z.number().min(0).max(1e8) })).max(30),
   saida: z.enum(["nenhuma", "prazo", "menor", "daa"]),
+  trazer: z.array(z.object({ id: z.string().min(1).max(60), valor: z.number().min(0).max(1e8) })).max(30).optional(),
 });
 const idSchema = z.string().min(1).max(60);
 
@@ -42,7 +43,7 @@ export async function usarPlanoAction(goalId: string, escolhas: z.infer<typeof e
   const entrada = await entradaDoPlano(ctx, meta, hoje);
   const r = aplicarEscolhas(planoDaMeta(entrada), entrada.meta, e.data, hoje, cobrancasDeAssinatura(entrada.assinaturas));
   if (!r.ok) return { ok: false, error: r.erro };
-  const ok = await gravarPlano(ctx, meta.id, r.plano, r.meta);
+  const ok = await gravarPlano(ctx, meta.id, r.plano, r.meta, r.trazidos);
   if (!ok) return { ok: false, error: "Essa meta não existe mais. Recarregue a página." };
   // O lembrete de cancelar das assinaturas escolhidas (o mesmo do Raio-X). Falhar aqui não desfaz o plano.
   const chaves = r.plano.itens.filter((i) => i.acao === "cancelar" && i.raiox).map((i) => i.raiox as string);
