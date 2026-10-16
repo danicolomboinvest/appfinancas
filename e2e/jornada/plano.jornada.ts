@@ -122,7 +122,7 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
       });
       const valor = Math.max(1, Math.ceil(teto * 0.8 - ja));
       await lancarAMao(p, { valor, categoria: "Alimentação", descricao: "iFood" });
-      const chave = `plano:${metaId}:delivery:ifood:2026-10:75`;
+      const chave = "plano:delivery:ifood:2026-10:75";
       await expect.poll(() => doBanco((db) => db.notificationLog.count({ where: { key: chave } })), { timeout: 30_000 }).toBe(1);
       await expect.poll(() => caixa.recebidos.filter((e) => e.para === EMAIL && /iFood/.test(e.assunto)).length, { timeout: 30_000, message: `caixa: ${JSON.stringify(caixa.recebidos.map((e) => [e.para, e.assunto]))}` }).toBe(1);
       // Outro gasto no mesmo mês não repete o aviso.

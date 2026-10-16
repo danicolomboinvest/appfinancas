@@ -170,9 +170,25 @@ export function tetosAlcancados(p: PlanoGravado, lancamentosDoMes: readonly Lanc
   return out;
 }
 
-/** A chave do aviso (uma por coisinha, meta e mês): o NotificationLog impede repetir. */
-export function chaveDoAvisoDoTeto(goalId: string, itemId: string, ano: number, mes: number): string {
-  return `plano:${goalId}:${itemId}:${ano}-${String(mes).padStart(2, "0")}:75`.slice(0, 190);
+/**
+ * A chave do aviso: uma por coisinha e mês, mesmo que ela esteja em mais de um plano (duas metas
+ * com o iFood mandavam dois avisos iguais). O NotificationLog impede repetir.
+ */
+export function chaveDoAvisoDoTeto(itemId: string, ano: number, mes: number): string {
+  return `plano:${itemId}:${ano}-${String(mes).padStart(2, "0")}:75`.slice(0, 190);
+}
+
+/**
+ * Com mais de um plano, cada coisinha avisa uma vez: vale o teto mais apertado (o de maior
+ * porcentagem já usada), com o nome da meta desse plano.
+ */
+export function avisosPorCoisinha<T extends { meta: string }>(avisos: readonly (AvisoDoTeto & T)[]): (AvisoDoTeto & T)[] {
+  const melhor = new Map<string, AvisoDoTeto & T>();
+  for (const a of avisos) {
+    const atual = melhor.get(a.item.id);
+    if (!atual || a.pct > atual.pct) melhor.set(a.item.id, a);
+  }
+  return [...melhor.values()];
 }
 
 /** O texto do aviso. */

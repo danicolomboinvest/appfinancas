@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planoDaMeta, type EntradaDoPlano, type LancamentoDoPlano } from "../plano-da-meta";
-import { aplicarEscolhas, chaveDoAvisoDoTeto, planoDoRegistro, tetosAlcancados, textoDoAvisoDoTeto, type PlanoGravado } from "../plano-gravado";
+import { aplicarEscolhas, avisosPorCoisinha, chaveDoAvisoDoTeto, planoDoRegistro, tetosAlcancados, textoDoAvisoDoTeto, type PlanoGravado } from "../plano-gravado";
 
 const HOJE = new Date(2026, 9, 16, 12);
 const OUT_2027 = new Date(2027, 9, 1, 12);
@@ -121,8 +121,18 @@ describe("o aviso no caminho (75% do teto)", () => {
     expect(tetosAlcancados(plano, [ifood(160), ifood(30, "Estorno IFOOD"), { ...ifood(500), descricao: "Supermercado", subcategoria: "Supermercado" }])).toEqual([]);
   });
 
-  it("uma chave por coisinha, meta e mês; o texto sem travessão", () => {
-    expect(chaveDoAvisoDoTeto("meta1", "delivery:ifood", 2026, 10)).toBe("plano:meta1:delivery:ifood:2026-10:75");
+  it("duas metas com o iFood: um aviso só, o do teto mais apertado", () => {
+    const outro: PlanoGravado = { ...plano, itens: [{ ...plano.itens[0], teto: 160 }] };
+    const lanc = [ifood(150)];
+    const todos = [...tetosAlcancados(plano, lanc).map((a) => ({ ...a, meta: "Carro" })), ...tetosAlcancados(outro, lanc).map((a) => ({ ...a, meta: "Viagem" }))];
+    expect(todos).toHaveLength(2);
+    const um = avisosPorCoisinha(todos);
+    expect(um).toHaveLength(1);
+    expect(um[0]).toMatchObject({ meta: "Viagem", pct: 94 });
+  });
+
+  it("uma chave por coisinha e mês; o texto sem travessão", () => {
+    expect(chaveDoAvisoDoTeto("delivery:ifood", 2026, 10)).toBe("plano:delivery:ifood:2026-10:75");
     const [a] = tetosAlcancados(plano, [ifood(150)]);
     const t = textoDoAvisoDoTeto(a, "Carro", (v) => `R$ ${v}`);
     expect(t).toEqual({ titulo: "Faltam R$ 50 no combinado de iFood", corpo: "Você já usou R$ 150 de R$ 200 este mês. É o plano da meta Carro." });

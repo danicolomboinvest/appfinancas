@@ -7,12 +7,13 @@ import { sendPushToUser, isPushConfigured } from "@/lib/push/send";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { alertEmail } from "@/lib/email/templates";
 import { lancamentosDoPlano, planosDoPerfil } from "@/lib/repositories/plano-da-meta.repo";
-import { chaveDoAvisoDoTeto, tetosAlcancados, textoDoAvisoDoTeto } from "./plano-gravado";
+import { avisosPorCoisinha, chaveDoAvisoDoTeto, tetosAlcancados, textoDoAvisoDoTeto } from "./plano-gravado";
 
 /**
  * O "aviso no caminho" do plano da meta (16/10/2026): quando o gasto do mês numa coisinha do plano
  * chega a 75% do teto que ela escolheu ("iFood até R$ 200"), avisa. Igual ao aviso do limite do
- * cartão (lib/cartao/avisar.ts): na hora em que o gasto entra, um por coisinha por mês, notificação
+ * cartão (lib/cartao/avisar.ts): na hora em que o gasto entra, um por coisinha por mês (mesmo em
+ * duas metas, vale o teto mais apertado), notificação
  * no celular e e-mail para quem não tem notificação, respeitando o "avisos de orçamento" desligado.
  * Só o mês de agora: lançar um gasto de um mês que já passou não avisa. Nunca lança.
  */
@@ -30,36 +31,36 @@ export async function avisarTetosDoPlano(ctx: AuthContext, ano: number, mes: num
     const money = (v: number) => formatMoney(v, toCurrencyCode(user.currency), { round: Number.isInteger(v) });
     let enviou = false;
     let falhou = false;
-    for (const meta of metas) {
+    const todos = metas.flatMap((meta) => {
       const plano = planos.get(meta.id);
-      if (!plano) continue;
-      for (const aviso of tetosAlcancados(plano, lancamentos)) {
-        const chave = chaveDoAvisoDoTeto(meta.id, aviso.item.id, ano, mes);
-        // Reserva a chave antes de mandar: dois gastos salvos juntos não mandam o mesmo aviso duas vezes.
-        try {
-          await prisma.notificationLog.create({ data: { userId: ctx.userId, key: chave } });
-        } catch {
-          continue;
-        }
-        const { titulo, corpo } = textoDoAvisoDoTeto(aviso, meta.name, money);
-        const url = `/planejamento/metas/${meta.id}/plano`;
-        let chegou = isPushConfigured() ? (await sendPushToUser(ctx.userId, { title: titulo, body: corpo, url, tag: chave })) > 0 : false;
-        if (!chegou && isEmailConfigured()) {
-          const { subject, html } = alertEmail({
-            name: user.name,
-            alerts: [{ title: titulo, body: corpo, url: `${baseUrl}${url}` }],
-            preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
-            tema: ctx.profileTheme,
-            moeda: toCurrencyCode(user.currency),
-          });
-          chegou = (await sendEmail({ to: user.email, subject, html })).ok;
-        }
-        if (chegou) enviou = true;
-        else {
-          // Nada chegou: solta a chave, o próximo gasto tenta de novo.
-          await prisma.notificationLog.deleteMany({ where: { userId: ctx.userId, key: chave } });
-          falhou = true;
-        }
+      return plano ? tetosAlcancados(plano, lancamentos).map((a) => ({ ...a, meta: meta.name, metaId: meta.id })) : [];
+    });
+    for (const aviso of avisosPorCoisinha(todos)) {
+      const chave = chaveDoAvisoDoTeto(aviso.item.id, ano, mes);
+      // Reserva a chave antes de mandar: dois gastos salvos juntos não mandam o mesmo aviso duas vezes.
+      try {
+        await prisma.notificationLog.create({ data: { userId: ctx.userId, key: chave } });
+      } catch {
+        continue;
+      }
+      const { titulo, corpo } = textoDoAvisoDoTeto(aviso, aviso.meta, money);
+      const url = `/planejamento/metas/${aviso.metaId}/plano`;
+      let chegou = isPushConfigured() ? (await sendPushToUser(ctx.userId, { title: titulo, body: corpo, url, tag: chave })) > 0 : false;
+      if (!chegou && isEmailConfigured()) {
+        const { subject, html } = alertEmail({
+          name: user.name,
+          alerts: [{ title: titulo, body: corpo, url: `${baseUrl}${url}` }],
+          preferencesUrl: `${baseUrl}/configuracoes/notificacoes`,
+          tema: ctx.profileTheme,
+          moeda: toCurrencyCode(user.currency),
+        });
+        chegou = (await sendEmail({ to: user.email, subject, html })).ok;
+      }
+      if (chegou) enviou = true;
+      else {
+        // Nada chegou: solta a chave, o próximo gasto tenta de novo.
+        await prisma.notificationLog.deleteMany({ where: { userId: ctx.userId, key: chave } });
+        falhou = true;
       }
     }
     return enviou ? "enviado" : falhou ? "falhou" : "nada";
