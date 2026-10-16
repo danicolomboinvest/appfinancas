@@ -179,7 +179,9 @@ export function chaveDoAvisoDoTeto(goalId: string, itemId: string, ano: number, 
 export function textoDoAvisoDoTeto(a: AvisoDoTeto, nomeDaMeta: string, money: (v: number) => string): { titulo: string; corpo: string } {
   const falta = Math.max(0, reais(a.item.teto - a.gasto));
   return {
-    titulo: falta > 0 ? `${a.item.nome}: faltam ${money(falta)} para o combinado` : `${a.item.nome}: chegou no combinado`,
+    // Começa com "Faltam", não com a marca: o assunto do e-mail ganha maiúscula na primeira letra
+    // (lib/email/blocos.ts) e "iFood" virava "IFood".
+    titulo: falta > 0 ? `Faltam ${money(falta)} no combinado de ${a.item.nome}` : `Chegou no combinado de ${a.item.nome}`,
     corpo: `Você já usou ${money(a.gasto)} de ${money(a.item.teto)} este mês. É o plano da meta ${nomeDaMeta}.`,
   };
 }

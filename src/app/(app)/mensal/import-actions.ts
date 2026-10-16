@@ -6,7 +6,7 @@ import { ehPessoa } from "@/lib/casal/acerto";
 import { revalidatePath } from "next/cache";
 import { agendarCacaDoDinheiroPerdido } from "@/lib/dinheiro-perdido/agendar";
 import { agendarContasDoHistorico } from "@/lib/contas/agendar-contas";
-import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
+import { agendarAvisoDoCartao, agendarAvisoDoPlano } from "@/lib/cartao/agendar";
 import { descricaoComparavel, installmentDescription, mesmaParcela, parseInstallment } from "@/lib/entries/recurrence";
 import { countMoneyLines, detectInvoiceTotal, looksLikeCardInvoice, MOTIVO_SINAIS_FATURA, periodoSemMovimento, sinaisDesmentemExtrato, type DocKind } from "@/lib/import/detect";
 import { MOTIVO_MOVIMENTACAO_B3, profileDocument } from "@/lib/import/profile";
@@ -2033,6 +2033,12 @@ export async function importTransactionsAction(
   // Limite do cartão: a fatura que entrou pode ter passado de 70/90/100% de cada mês em que
   // ela pôs compra (o aviso guarda o que já mandou por mês, não repete).
   if (ehFatura && created > 0) for (const m of mesesDasComprasCriadas.values()) await agendarAvisoDoCartao(ctx, m.year, m.month);
+  // O aviso do plano da meta (75% do teto da coisinha) também vale para o extrato (a fatura já
+  // passa por ele junto com o do cartão).
+  if (!ehFatura && created > 0) for (const key of touchedMonths) {
+    const [year, month] = key.split("/").map(Number);
+    await agendarAvisoDoPlano(ctx, year, month);
+  }
 
   // Dinheiro perdido: o extrato novo pode trazer carta nova ("2 cartas novas"), e um estorno pedido
   // pode ter caído. Depois da resposta; a Empresa não tem essa tela.

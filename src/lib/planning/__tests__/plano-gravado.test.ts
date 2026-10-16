@@ -125,7 +125,7 @@ describe("o aviso no caminho (75% do teto)", () => {
     expect(chaveDoAvisoDoTeto("meta1", "delivery:ifood", 2026, 10)).toBe("plano:meta1:delivery:ifood:2026-10:75");
     const [a] = tetosAlcancados(plano, [ifood(150)]);
     const t = textoDoAvisoDoTeto(a, "Carro", (v) => `R$ ${v}`);
-    expect(t).toEqual({ titulo: "iFood: faltam R$ 50 para o combinado", corpo: "Você já usou R$ 150 de R$ 200 este mês. É o plano da meta Carro." });
+    expect(t).toEqual({ titulo: "Faltam R$ 50 no combinado de iFood", corpo: "Você já usou R$ 150 de R$ 200 este mês. É o plano da meta Carro." });
     expect(`${t.titulo}${t.corpo}`).not.toMatch(/[—–]|\bpra\b/);
   });
 });

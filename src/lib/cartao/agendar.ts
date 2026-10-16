@@ -19,3 +19,18 @@ export async function agendarAvisoDoCartao(ctx: AuthContext, ano: number, mes: n
     // Sem requisição: nada a agendar.
   }
 }
+
+/**
+ * Só o aviso do plano da meta (75% do teto de uma coisinha), para quando o gasto entra por um
+ * caminho que não é de cartão (extrato importado). Fora de uma requisição, não faz nada.
+ */
+export async function agendarAvisoDoPlano(ctx: AuthContext, ano: number, mes: number): Promise<void> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3001";
+    const baseUrl = `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}`;
+    after(async () => (await import("@/lib/planning/avisar-plano")).avisarTetosDoPlano(ctx, ano, mes, baseUrl));
+  } catch {
+    // Sem requisição: nada a agendar.
+  }
+}

@@ -152,7 +152,7 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
     <div className="mx-auto flex w-full max-w-xl flex-col gap-3" data-plano={plano.situacao}>
       {topo}
       {/* O painel colado no alto: quanto ela já achou e a barra. */}
-      <div className="sticky top-0 z-[2] -mx-4 flex flex-col gap-1.5 bg-canvas px-4 pb-2.5 pt-2 shadow-[0_1px_0_var(--color-border)]">
+      <div className="sticky top-[calc(3.6rem+var(--safe-top))] z-30 -mx-5 flex flex-col gap-1.5 bg-canvas px-5 pb-2.5 pt-2 shadow-[0_1px_0_var(--color-border)] md:top-0">
         <div className="flex flex-wrap items-baseline justify-between gap-x-2">
           <span className="text-[26px] font-medium tabular-nums leading-tight tracking-[-0.02em] text-ink">{m(achado)}</span>
           <small className="text-[13px] font-medium text-ink-muted">achados de {m(falta)}</small>
@@ -203,17 +203,18 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
         />
       ))}
 
-      <div className="sticky bottom-0 z-[2] -mx-4 mt-2 flex flex-col gap-2 bg-canvas px-4 pb-[calc(0.75rem+var(--safe-bottom))] pt-2 shadow-[0_-1px_0_var(--color-border)]">
-        {alts && (achado > 0 || plano.coisinhas.length === 0) && (
-          <div className="flex flex-col gap-2" role="radiogroup" aria-label="Não fechou. Qual caminho?">
-            <p className="text-center text-sm font-semibold text-ink">Não fechou. Qual caminho?</p>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-2">
-              {alts.prazo && <Caminho on={saida === "prazo"} onClick={() => setSaida("prazo")} icone={<Clock size={20} aria-hidden />} titulo={`Chegar em ${alts.prazo.texto}`} sub={`${m(alts.prazo.porMes)} por mês`} />}
-              {alts.metaMenor && <Caminho on={saida === "menor"} onClick={() => setSaida("menor")} icone={<MinusCircle size={20} aria-hidden />} titulo={`Meta de ${m(alts.metaMenor.alvo)}`} sub={`${m(alts.metaMenor.porMes)} por mês até ${plano.prazoTexto}`} />}
-              {alts.oQueDa && <Caminho on={saida === "daa"} onClick={() => setSaida("daa")} icone={<Route size={20} aria-hidden />} titulo={`Guardar ${m(alts.oQueDa)} por mês`} sub="e rever daqui a 3 meses" />}
-            </div>
+      {alts && (achado > 0 || plano.coisinhas.length === 0) && (
+        <div className="flex flex-col gap-2" role="radiogroup" aria-label="Não fechou. Qual caminho?">
+          <p className="text-center text-sm font-semibold text-ink">Não fechou. Qual caminho?</p>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-2">
+            {alts.prazo && <Caminho on={saida === "prazo"} onClick={() => setSaida("prazo")} icone={<Clock size={20} aria-hidden />} titulo={`Chegar em ${alts.prazo.texto}`} sub={`${m(alts.prazo.porMes)} por mês`} />}
+            {alts.metaMenor && <Caminho on={saida === "menor"} onClick={() => setSaida("menor")} icone={<MinusCircle size={20} aria-hidden />} titulo={`Meta de ${m(alts.metaMenor.alvo)}`} sub={`${m(alts.metaMenor.porMes)} por mês até ${plano.prazoTexto}`} />}
+            {alts.oQueDa && <Caminho on={saida === "daa"} onClick={() => setSaida("daa")} icone={<Route size={20} aria-hidden />} titulo={`Guardar ${m(alts.oQueDa)} por mês`} sub="e rever daqui a 3 meses" />}
           </div>
-        )}
+        </div>
+      )}
+      <div className="sticky bottom-0 z-30 -mx-5 mt-2 flex flex-col gap-2 bg-canvas px-5 pb-[calc(0.75rem+var(--safe-bottom))] pt-2 shadow-[0_-1px_0_var(--color-border)]">
+        {alts && achado > 0 && !saidaValida && <p className="text-center text-[13px] font-medium text-ink-muted">Não fechou: escolha um caminho logo acima.</p>}
         <button type="button" disabled={!podeUsar || pendente} onClick={usar} className={`flex min-h-[52px] w-full items-center justify-center rounded-full bg-accent px-5 text-base font-bold text-on-accent disabled:opacity-40 ${erro.classe}`}>
           {pendente ? "Salvando…" : erro.erro ? TENTAR_DE_NOVO : "Usar esse plano"}
         </button>

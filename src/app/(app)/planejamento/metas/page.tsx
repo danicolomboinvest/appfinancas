@@ -104,7 +104,7 @@ export default async function MetasPage() {
                 </CartaoComMenu>
                 {selo(x).tipo === "prazo-apertado" && <SeloPrazoApertado meta={metaParaEditar(x)} className="absolute left-3 top-3 z-[2]" />}
                 {/* O plano da meta (16/10/2026): a que está em andamento e não é de viagem. */}
-                {comPlano && !x.daViagem && x.plano.status !== "ACHIEVED" && <BotaoDoPlano metaId={x.id} plano={planos.has(x.id) ? resumoDoPlano(planos.get(x.id)!) : null} money={m} />}
+                {comPlano && !x.daViagem && x.plano.status !== "ACHIEVED" && <BotaoDoPlano metaId={x.id} plano={planos.has(x.id) ? resumoDoPlano(planos.get(x.id)!) : null} />}
               </div>
             ))}
           </>

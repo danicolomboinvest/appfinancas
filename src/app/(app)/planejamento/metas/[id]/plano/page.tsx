@@ -6,7 +6,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
 import { planoDaMeta } from "@/lib/planning/plano-da-meta";
 import { AVISO_EM, textoDoPrazoGravado, type PlanoGravado } from "@/lib/planning/plano-gravado";
-import { textoDoPrazo } from "@/lib/planning/plano-da-meta-regua";
+import { passosDaRegua, textoDoPrazo } from "@/lib/planning/plano-da-meta-regua";
 import { entradaDoPlano, lerPlano, metaDoPlano, planoDisponivel } from "@/lib/repositories/plano-da-meta.repo";
 import { TelaDoPlano } from "./TelaDoPlano";
 import { TirarPlano } from "./TirarPlano";
@@ -45,7 +45,20 @@ export default async function PlanoDaMetaPage(props: PageProps<"/planejamento/me
   const plano = planoDaMeta(entrada);
   if (!plano.mostra) notFound();
   // "Mudar o plano": abre com o que ela tinha escolhido (o que ainda existe nos gastos).
-  const inicial = gravado ? { itens: gravado.itens.map((i) => ({ id: i.id, valor: i.teto })).filter((i) => plano.coisinhas.some((c) => c.id === i.id)), saida: gravado.saida } : null;
+  // O gasto de hoje pode ter mudado desde o plano: o teto antigo vai para o passo mais perto da régua de agora.
+  const inicial = gravado
+    ? {
+        itens: gravado.itens.flatMap((i) => {
+          const c = plano.coisinhas.find((k) => k.id === i.id);
+          if (!c) return [];
+          if (c.acao === "cancelar") return [{ id: c.id, valor: 0 }];
+          const passos = passosDaRegua(c.hoje);
+          const valor = passos.reduce((melhor, v) => (Math.abs(v - i.teto) < Math.abs(melhor - i.teto) ? v : melhor), passos[0]);
+          return [{ id: c.id, valor }];
+        }),
+        saida: gravado.saida,
+      }
+    : null;
   return (
     <TelaDoPlano
       meta={{ id: meta.id, nome: meta.nome, alvo: meta.alvo, guardado: meta.guardado, prazo: chaveDoPrazo(meta.prazo), taxaAnual: meta.taxaAnual }}
