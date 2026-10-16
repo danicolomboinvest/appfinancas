@@ -4,11 +4,13 @@ import { chaveRaioX } from "@/lib/decisoes/raio-x";
 import { parseInstallment } from "@/lib/entries/recurrence";
 import { pareceEstorno } from "@/lib/import/estorno";
 import { marcaDaDescricao, normalizarDescricao } from "@/lib/marcas/marca";
-import { MESES_CURTOS, TAXA_PADRAO_DAS_METAS, porMesDaNovaMeta } from "@/lib/metas/projecao";
+import { TAXA_PADRAO_DAS_METAS, porMesDaNovaMeta } from "@/lib/metas/projecao";
 import { prazoQueCabe, type PrazoSugerido } from "@/lib/metas/prazo-que-cabe";
-import { formatMoney } from "@/lib/money";
 import { ehNaoGasto } from "./nao-e-gasto";
 import { NUNCA_SUGERIR } from "./remanejo";
+import { alternativasPara, metadeArredondada, textoDoPrazo } from "./plano-da-meta-regua";
+
+export * from "./plano-da-meta-regua";
 
 /**
  * "Como vou juntar?" (16/10/2026, protótipo plano-da-meta.html aprovado pela Dani com condições).
@@ -43,8 +45,9 @@ import { NUNCA_SUGERIR } from "./remanejo";
  * 5. A ordem é a do remanejo (memória regra-remanejo-prioridade): desejo primeiro (assinaturas,
  *    depois compras e lazer, o de maior economia antes), dia a dia depois (delivery e corrida,
  *    com a etiqueta "do dia a dia"). No casal simples, o gasto da casa vai depois do que é só dela.
- * 6. Quando as coisinhas não fecham: mais prazo (`prazoQueCabe`) e meta menor (o maior valor, de
- *    R$ 100 em R$ 100, que cabe no prazo dela). Ver os limites em LIMITES.
+ * 6. Quando as coisinhas não fecham: SEMPRE as duas saídas (decisão da Dani, 16/10/2026), mais
+ *    prazo (`prazoQueCabe`, por mais longe que fique) e meta menor (o maior valor, de R$ 100 em
+ *    R$ 100, que cabe no prazo dela, a partir de R$ 100). "Guardar o que dá" só sem prazo possível.
  *
  * Puro, sem banco: quem chama traz a renda, o gasto típico, os aportes, os lançamentos e as
  * assinaturas com o estado único já resolvido.
@@ -125,6 +128,8 @@ export type Coisinha = {
    * corrida, uma compra). Null na assinatura. É o que traduz o valor da régua em quantidade.
    */
   ticket: number | null;
+  /** Assinatura: a chave do Raio-X (liga o lembrete de cancelar). Null nas outras. */
+  raiox: string | null;
   /** As lojas por trás de "Compras" (só nomes de marca do catálogo). */
   lojas: string[];
   daCasa: boolean;
@@ -205,8 +210,6 @@ export const LIMITES = {
 
 const reais = (v: number) => Math.round(v * 100) / 100;
 const baixo10 = (v: number) => Math.floor(v / 10) * 10;
-/** A metade, arredondada para cima de R$ 10 em R$ 10. */
-export const metadeArredondada = (v: number) => Math.ceil(v / 2 / 10) * 10;
 
 function mediana(v: number[]): number {
   if (v.length === 0) return 0;
@@ -439,6 +442,7 @@ export function coisinhasDosGastos(e: Pick<EntradaDoPlano, "hoje" | "lancamentos
       meses,
       vezesPorMes,
       ticket: acc.valores.length > 0 ? reais(mediana(acc.valores)) : null,
+      raiox: null,
       lojas,
       daCasa: acc.total > 0 && acc.daCasa / acc.total > 0.5,
     });
@@ -467,6 +471,7 @@ export function coisinhasDosGastos(e: Pick<EntradaDoPlano, "hoje" | "lancamentos
       meses: a.mesesCobrados,
       vezesPorMes: 1,
       ticket: null,
+      raiox: a.marcas.find((m) => m.startsWith("r:"))?.slice(2) ?? null,
       lojas: [],
       daCasa: !!a.daCasa,
     });
@@ -491,128 +496,6 @@ function marcaDaCorrida(descricoes: (string | null)[]): string | null {
   if (nomes.size === 2 && nomes.has("Uber") && nomes.has("99")) return "uber+99";
   return null;
 }
-
-/* ---------------------------------------------------------------- a régua e a quantidade */
-
-/**
- * A régua de cada coisinha (pedido da Dani, 16/10/2026: "tivesse uma coisinha para eu arrastar
- * quanto que eu quero gastar"): do gasto de hoje até R$ 0, de R$ 10 em R$ 10, com o valor de hoje
- * na ponta mesmo quando não é redondo (155: 0, 10, ..., 150, 155). Começa na sugestão (`para`).
- */
-export function passosDaRegua(hoje: number): number[] {
-  const out: number[] = [];
-  for (let v = 0; v < hoje - 1e-9; v += 10) out.push(v);
-  out.push(reais(hoje));
-  return out;
-}
-
-/** Quanto ela economiza por mês gastando `valor` nessa coisinha. */
-export const economiaPara = (c: Pick<Coisinha, "hoje">, valor: number) => reais(Math.max(0, c.hoje - valor));
-
-const UNIDADES: Record<Exclude<TipoDaCoisinha, "assinatura">, { um: string; varios: string; feminino: boolean }> = {
-  delivery: { um: "pedido", varios: "pedidos", feminino: false },
-  corrida: { um: "corrida", varios: "corridas", feminino: true },
-  lazer: { um: "vez", varios: "vezes", feminino: true },
-  compras: { um: "vez", varios: "vezes", feminino: true },
-};
-const unidadeDe = (c: Pick<Coisinha, "tipo">) => (c.tipo === "assinatura" ? null : UNIDADES[c.tipo]);
-
-/** Quantos pedidos (corridas, vezes) cabem em `valor` pelo ticket dela; null sem ticket. */
-export function quantidadePara(c: Pick<Coisinha, "ticket">, valor: number): number | null {
-  if (!c.ticket || !(c.ticket > 0)) return null;
-  return Math.max(0, valor) / c.ticket;
-}
-
-/**
- * O valor da régua em palavras: "dá uns 4 pedidos por mês", "dá 1 corrida por mês", "menos de 1
- * pedido por mês", "nenhum pedido" e, no valor de hoje, "do jeito que está". Null na assinatura.
- */
-export function textoDaQuantidade(c: Pick<Coisinha, "tipo" | "hoje" | "ticket">, valor: number): string | null {
-  const u = unidadeDe(c);
-  if (!u) return null;
-  if (valor >= c.hoje - 1e-9) return "do jeito que está";
-  if (valor <= 0) return `${u.feminino ? "nenhuma" : "nenhum"} ${u.um}`;
-  const q = quantidadePara(c, valor);
-  if (q === null) return null;
-  if (q < 1) return `menos de 1 ${u.um} por mês`;
-  const n = Math.round(q);
-  if (n === 1) return `dá 1 ${u.um} por mês`;
-  return `dá ${u.feminino ? "umas" : "uns"} ${n} ${u.varios} por mês`;
-}
-
-/** Quantos são hoje: "hoje: 8 pedidos por mês". */
-export function textoDeHoje(c: Pick<Coisinha, "tipo" | "vezesPorMes">): string | null {
-  const u = unidadeDe(c);
-  if (!u) return null;
-  const n = Math.max(1, c.vezesPorMes);
-  return `hoje: ${n} ${n === 1 ? u.um : u.varios} por mês`;
-}
-
-/** O ticket arredondado para falar: até R$ 20 de 1 em 1, até R$ 100 de 5 em 5, depois de 10 em 10. */
-export function ticketArredondado(t: number): number {
-  return t < 20 ? Math.max(1, Math.round(t)) : t < 100 ? Math.round(t / 5) * 5 : Math.round(t / 10) * 10;
-}
-
-/** "o seu custa uns R$ 50" (pedido), "a sua custa uns R$ 17" (corrida), "cada vez custa uns R$ 80". */
-export function textoDoTicket(c: Pick<Coisinha, "tipo" | "ticket">): string | null {
-  if (!c.ticket || c.tipo === "assinatura") return null;
-  const v = dinheiro(ticketArredondado(c.ticket));
-  if (c.tipo === "delivery") return `o seu custa uns ${v}`;
-  if (c.tipo === "corrida") return `a sua custa uns ${v}`;
-  return `cada vez custa uns ${v}`;
-}
-
-/* ---------------------------------------------------------------- as alternativas */
-
-export const textoDoPrazo = (d: Date) => `${MESES_CURTOS[d.getMonth()]}/${d.getFullYear()}`;
-
-/**
- * Quando não fecha, guardando `disponivel` por mês: chegar mais tarde, ou uma meta menor no mesmo
- * prazo. Cada uma some quando passa do limite (LIMITES_DAS_ALTERNATIVAS).
- */
-export function alternativasPara(meta: EntradaDoPlano["meta"], disponivel: number, hoje: Date): Alternativas {
-  const taxa = meta.taxaAnual ?? TAXA_PADRAO_DAS_METAS;
-  if (!(disponivel > 0) || !meta.prazo) return { prazo: null, metaMenor: null, oQueDa: null };
-  const p = prazoQueCabe({ alvo: meta.alvo, guardado: meta.guardado, porMes: disponivel, taxaAnual: taxa, hoje });
-  let prazo: Alternativas["prazo"] = null;
-  if (p) {
-    const data = new Date(p.ano, p.mes - 1, 1, 12);
-    const porMes = porMesDaNovaMeta(meta.alvo, data, hoje, taxa, meta.guardado);
-    const escolhido = (meta.prazo.getFullYear() - hoje.getFullYear()) * 12 + meta.prazo.getMonth() - hoje.getMonth();
-    const teto = Math.min(LIMITES_DAS_ALTERNATIVAS.prazoMaximoEmMeses, Math.max(1, escolhido) * LIMITES_DAS_ALTERNATIVAS.prazoMaximoEmVezes);
-    if (p.meses <= teto) prazo = { ...p, porMes };
-  }
-  // Meta menor: o maior alvo, de R$ 100 em R$ 100, que cabe no prazo dela com o disponível.
-  const cabe = (alvo: number) => porMesDaNovaMeta(alvo, meta.prazo as Date, hoje, taxa, meta.guardado) <= disponivel;
-  let lo = Math.ceil(meta.guardado / 100) * 100;
-  let hi = Math.floor(meta.alvo / 100) * 100;
-  let melhor: number | null = null;
-  while (lo <= hi) {
-    const meio = Math.floor((lo + hi) / 200) * 100;
-    if (cabe(meio)) {
-      melhor = meio;
-      lo = meio + 100;
-    } else hi = meio - 100;
-  }
-  let metaMenor: Alternativas["metaMenor"] = null;
-  if (melhor !== null && melhor < meta.alvo && melhor > meta.guardado) {
-    const ok = melhor >= meta.alvo * LIMITES_DAS_ALTERNATIVAS.metaMenorMinima && melhor >= LIMITES_DAS_ALTERNATIVAS.metaMenorEmReais;
-    if (ok) metaMenor = { alvo: melhor, porMes: porMesDaNovaMeta(melhor, meta.prazo, hoje, taxa, meta.guardado) };
-  }
-  const oQueDa = !prazo && !metaMenor && baixo10(disponivel) > 0 ? baixo10(disponivel) : null;
-  return { prazo, metaMenor, oQueDa };
-}
-
-export const LIMITES_DAS_ALTERNATIVAS = {
-  /** Prazo que cabe só até 10 anos a partir de hoje... */
-  prazoMaximoEmMeses: 120,
-  /** ...e até 3 vezes o prazo que ela escolheu (R$ 5 mil em 12 meses não vira 7 anos). */
-  prazoMaximoEmVezes: 3,
-  /** Meta menor só quando fica com pelo menos metade da original. */
-  metaMenorMinima: 0.5,
-  /** E pelo menos R$ 200. */
-  metaMenorEmReais: 200,
-} as const;
 
 /* ---------------------------------------------------------------- o plano */
 
@@ -657,8 +540,7 @@ export function planoDaMeta(e: EntradaDoPlano): PlanoDaMeta {
     // Sem prazo: quando chega com o que sobra, e com sobra + todas as coisinhas.
     const achado = reais(coisinhas.reduce((s, c) => s + c.economia, 0));
     const chega = (porMes: number) => {
-      const p = porMes > 0 ? prazoQueCabe({ alvo: e.meta.alvo, guardado: e.meta.guardado, porMes, taxaAnual: taxa, hoje: e.hoje }) : null;
-      return p && p.meses <= LIMITES_DAS_ALTERNATIVAS.prazoMaximoEmMeses ? p : null;
+      return porMes > 0 ? prazoQueCabe({ alvo: e.meta.alvo, guardado: e.meta.guardado, porMes, taxaAnual: taxa, hoje: e.hoje }) : null;
     };
     const comSobra = chega(sobra);
     const comTudo = achado > 0 ? chega(sobra + achado) : null;
@@ -687,28 +569,5 @@ export function planoDaMeta(e: EntradaDoPlano): PlanoDaMeta {
   }
   if (fechaCom > 0) return { ...base, situacao: "fecha", falta, coisinhas, achado, fechaCom, alternativas: null, semPrazo: null };
   return { ...base, situacao: "nao_fecha", falta, coisinhas, achado, fechaCom: 0, alternativas: alternativasPara(e.meta, sobra + achado, e.hoje), semPrazo: null };
-}
-
-/* ---------------------------------------------------------------- a frase */
-
-/** O dinheiro da frase: o formatador do app (o plano só aparece em real), sem centavo quando é redondo. */
-const dinheiro = (v: number) => formatMoney(v, "BRL", { round: Number.isInteger(Math.round(v * 100) / 100) });
-
-/**
- * A frase do topo do plano, sem conta armada (pedido da Dani, 16/10/2026: "R$ 400 menos R$ 0"
- * ficou estranho). Uma frase só, com o número do que falta.
- */
-export function fraseDoPlano(p: PlanoDaMeta): string | null {
-  if (!p.mostra) return null;
-  switch (p.situacao) {
-    case "ja_cabe":
-      return `O que sobra hoje já paga essa meta até ${p.prazoTexto}.`;
-    case "sem_prazo":
-      return p.semPrazo?.comSobra ? `Com o que sobra hoje, você chega em ${p.semPrazo.comSobra.texto}.` : "Escolha uma data para ver quanto guardar por mês.";
-    case "poucos_dados":
-      return `Para chegar até ${p.prazoTexto}, faltam ${dinheiro(p.falta)} por mês.`;
-    default:
-      return `Para chegar até ${p.prazoTexto}, faltam ${dinheiro(p.falta)} por mês.`;
-  }
 }
 

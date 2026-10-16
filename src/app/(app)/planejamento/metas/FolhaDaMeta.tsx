@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { useTecladoNaFolha } from "@/components/ui/useTecladoNaFolha";
 import { useAppNativo } from "@/components/ui/useAppNativo";
 import { useRouter } from "next/navigation";
-import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
+import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, Route, X } from "lucide-react";
 import type { GoalIcon } from "@prisma/client";
 import { useToast } from "@/components/ui/toast-context";
 import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
@@ -50,14 +50,14 @@ export const useFolhaDaMeta = () => useContext(FolhaContexto);
  * `limite`: quanto cabe guardar por mês nas metas (lib/metas/prazo-que-cabe). Com ele, o passo
  * "Para quando?" avisa quando o valor por mês passa disso e sugere um prazo. Sem ele, nada muda.
  */
-export function ProvedorDaFolhaDaMeta({ hoje, limite = null, children }: { hoje: { ano: number; mes: number; dia: number }; limite?: LimiteDasMetas | null; children: ReactNode }) {
+export function ProvedorDaFolhaDaMeta({ hoje, limite = null, comPlano = false, children }: { hoje: { ano: number; mes: number; dia: number }; limite?: LimiteDasMetas | null; comPlano?: boolean; children: ReactNode }) {
   const [aberta, setAberta] = useState<{ meta?: MetaParaEditar; passo: 1 | 3; chave: number } | null>(null);
   const abrir = useCallback((meta?: MetaParaEditar, passo: 1 | 3 = 1) => setAberta({ meta, passo: meta ? passo : 1, chave: Date.now() }), []);
   const valor = useMemo(() => ({ abrir }), [abrir]);
   return (
     <FolhaContexto.Provider value={valor}>
       {children}
-      {aberta && <FolhaDaMeta key={aberta.chave} hoje={hoje} meta={aberta.meta} passoInicial={aberta.passo} limite={limite} onFechar={() => setAberta(null)} />}
+      {aberta && <FolhaDaMeta key={aberta.chave} hoje={hoje} meta={aberta.meta} passoInicial={aberta.passo} limite={limite} comPlano={comPlano} onFechar={() => setAberta(null)} />}
     </FolhaContexto.Provider>
   );
 }
@@ -111,12 +111,15 @@ function FolhaDaMeta({
   meta,
   passoInicial = 1,
   limite,
+  comPlano = false,
   onFechar,
 }: {
   hoje: { ano: number; mes: number; dia: number };
   meta?: MetaParaEditar;
   passoInicial?: 1 | 3;
   limite: LimiteDasMetas | null;
+  /** O "Como vou juntar?" embaixo do "Criar meta" (plano da meta, 16/10/2026). */
+  comPlano?: boolean;
   onFechar: () => void;
 }) {
   const money = useMoney();
@@ -180,7 +183,7 @@ function FolhaDaMeta({
     else muda({ passo });
   };
 
-  function salvar() {
+  function salvar(comOPlano = false) {
     const dados: MetaGuiada = {
       nome: e.nome.trim(),
       tipo,
@@ -204,7 +207,8 @@ function FolhaDaMeta({
       const r = await criarMetaAction(dados);
       if (!r.ok) return erroDoSalvar.falhou(r.error);
       onFechar();
-      router.push(`/planejamento/metas?nova=${r.id}`);
+      // "Como vou juntar?": a meta nasce e o plano abre na hora (sem plano, ela fica como criada).
+      router.push(comOPlano ? `/planejamento/metas/${r.id}/plano` : `/planejamento/metas?nova=${r.id}`);
       router.refresh();
     });
   }
@@ -559,9 +563,15 @@ function FolhaDaMeta({
             </button>
           ) : (
             <>
-              <button type="button" disabled={pendente} onClick={salvar} className={`${botao} ${erroDoSalvar.classe}`}>
+              <button type="button" disabled={pendente} onClick={() => salvar()} className={`${botao} ${erroDoSalvar.classe}`}>
                 {pendente ? "Salvando…" : erroDoSalvar.erro ? TENTAR_DE_NOVO : meta ? "Salvar meta" : "Criar meta"}
               </button>
+              {!meta && comPlano && !e.semPrazo && (
+                <button type="button" disabled={pendente} onClick={() => salvar(true)} className="mt-2 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-full border-[1.5px] border-accent bg-accent-soft px-5 text-base font-bold text-accent-strong disabled:opacity-40">
+                  <Route size={18} aria-hidden />
+                  Como vou juntar?
+                </button>
+              )}
               <ErroNoBotao erro={erroDoSalvar.erro} />
             </>
           )}

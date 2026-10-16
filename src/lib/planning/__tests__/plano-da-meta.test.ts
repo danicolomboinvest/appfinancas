@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  LIMITES_DAS_ALTERNATIVAS,
   alternativasPara,
   coisinhasDosGastos,
   fraseDoPlano,
@@ -337,13 +336,23 @@ describe("as alternativas", () => {
     expect(a.oQueDa).toBeNull();
   });
 
-  it("prazo só até 3 vezes o escolhido e 10 anos; meta menor só com metade e R$ 200", () => {
+  it("sempre as duas saídas, por mais longe que fique o prazo (decisão da Dani, 16/10)", () => {
     const a = alternativasPara(meta, 60, HOJE);
-    expect(a.prazo).toBeNull();
-    expect(a.metaMenor).toBeNull();
-    expect(a.oQueDa).toBe(60);
+    expect(a.prazo).not.toBeNull();
+    expect(a.prazo!.meses).toBeGreaterThan(36);
+    expect(a.prazo!.porMes).toBeLessThanOrEqual(60);
+    expect(a.metaMenor).toEqual({ alvo: 600, porMes: 60 });
+    expect(a.oQueDa).toBeNull();
     const longe = alternativasPara({ alvo: 200000, guardado: 0, prazo: new Date(2030, 9, 1, 12) }, 800, HOJE);
-    expect(longe.prazo === null || longe.prazo.meses <= LIMITES_DAS_ALTERNATIVAS.prazoMaximoEmMeses).toBe(true);
+    expect(longe.prazo!.meses).toBeGreaterThan(120);
+    expect(longe.metaMenor).not.toBeNull();
+  });
+
+  it("meta menor só a partir de R$ 100; guardar o que dá só quando a meta não chega até 2080", () => {
+    expect(alternativasPara(meta, 5, HOJE).metaMenor).toBeNull();
+    const nunca = alternativasPara({ alvo: 5_000_000, guardado: 0, prazo: OUT_2027 }, 10, HOJE);
+    expect(nunca.prazo).toBeNull();
+    expect(nunca.oQueDa).toBe(10);
   });
 
   it("nada disponível: nenhuma", () => {

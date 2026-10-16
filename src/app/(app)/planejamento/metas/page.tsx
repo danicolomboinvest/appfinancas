@@ -19,6 +19,9 @@ import { casaNaTela } from "@/lib/casa/regras";
 import { MetasADois } from "./MetasADois";
 import { getLimiteDasMetas } from "@/lib/repositories/renda-media.repo";
 import { AbrirPrazoPelaUrl, SeloPrazoApertado } from "./SeloPrazoApertado";
+import { BotaoDoPlano } from "./BotaoDoPlano";
+import { planoDisponivel, planosDoPerfil } from "@/lib/repositories/plano-da-meta.repo";
+import { resumoDoPlano } from "@/lib/planning/plano-gravado";
 
 /**
  * Metas da versão nova (protótipo aprovado, rota #metas): o resumo com o anel de todas juntas e a
@@ -29,7 +32,7 @@ export default async function MetasPage() {
   const ctx = await getRequiredSession();
   const hoje = nowInBrazil();
   const casa = casaNaTela(ctx.casa);
-  const [todas, money, aDois, limite] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney(), casa ? metasADois(ctx, hoje) : Promise.resolve([]), getLimiteDasMetas(ctx, hoje)]);
+  const [todas, money, aDois, limite, comPlano, planos] = await Promise.all([listarMetasDaTela(ctx, hoje), serverMoney(), casa ? metasADois(ctx, hoje) : Promise.resolve([]), getLimiteDasMetas(ctx, hoje), planoDisponivel(ctx), planosDoPerfil(ctx)]);
   // A reserva primeiro (é a base de tudo), depois o prazo mais perto (protótipo: Reserva, Viagem, Carro).
   const metas = [...todas].sort((a, b) => Number(b.icon === "RESERVA") - Number(a.icon === "RESERVA"));
   const m = (v: number) => money(v, { round: true });
@@ -76,7 +79,7 @@ export default async function MetasPage() {
   );
 
   return (
-    <ProvedorDaFolhaDaMeta hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }} limite={limite}>
+    <ProvedorDaFolhaDaMeta hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }} limite={limite} comPlano={comPlano}>
       <ConquistasDeMetas ctx={ctx} />
       <Suspense fallback={null}>
         <DestacarMetaNova />
@@ -100,6 +103,8 @@ export default async function MetasPage() {
                   <CartaoDaMeta meta={x} jeito={jeito} hoje={hoje} money={m} selo={selo(x)} />
                 </CartaoComMenu>
                 {selo(x).tipo === "prazo-apertado" && <SeloPrazoApertado meta={metaParaEditar(x)} className="absolute left-3 top-3 z-[2]" />}
+                {/* O plano da meta (16/10/2026): a que está em andamento e não é de viagem. */}
+                {comPlano && !x.daViagem && x.plano.status !== "ACHIEVED" && <BotaoDoPlano metaId={x.id} plano={planos.has(x.id) ? resumoDoPlano(planos.get(x.id)!) : null} money={m} />}
               </div>
             ))}
           </>

@@ -228,3 +228,54 @@
 .md-b-atual {
   box-shadow: inset 0 0 0 1.5px var(--color-accent);
 }
+
+/* A régua do "Como vou juntar?" (16/10/2026): quanto ela quer gastar em cada coisinha. Grande para
+   o dedo, o trilho cheio até o valor, e o rolar da página continua (touch-action: pan-y). */
+.regua-do-plano {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.regua-do-plano::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--color-accent) 0, var(--color-accent) var(--p, 50%), var(--color-border-strong) var(--p, 50%));
+}
+.regua-do-plano::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 3px solid var(--color-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.regua-do-plano::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-border-strong);
+}
+.regua-do-plano::-moz-range-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-accent);
+}
+.regua-do-plano::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 3px solid var(--color-accent);
+}
+.regua-do-plano:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
