@@ -39,6 +39,9 @@ export type ItemDoPlano = {
   raiox: string | null;
 };
 
+/** O que o plano mexe na meta: valor por mês, prazo ("2027-11" ou null) e alvo. */
+export type ValoresDaMeta = { alvo: number; prazo: string | null; porMes: number };
+
 export type PlanoGravado = {
   versao: 1;
   itens: ItemDoPlano[];
@@ -53,6 +56,10 @@ export type PlanoGravado = {
   /** Soma das economias. */
   achado: number;
   em: string;
+  /** A meta antes do plano (o "Tirar o plano" volta para isso). Ausente nos planos gravados antes. */
+  antes?: ValoresDaMeta;
+  /** A meta como o plano deixou (para saber se ela mexeu à mão depois). */
+  depois?: ValoresDaMeta;
 };
 
 export type Escolhas = { itens: { id: string; valor: number }[]; saida: Saida };
@@ -125,6 +132,39 @@ export function aplicarEscolhas(p: PlanoDaMeta, meta: EntradaDoPlano["meta"], e:
   return { ok: false, erro: "Não fechou: escolha mais prazo ou meta menor." };
 }
 
+const centavos = (v: number) => Math.round(v * 100);
+/** A meta está igual a estes valores (no centavo e no mês)? */
+export function mesmosValores(a: ValoresDaMeta, b: ValoresDaMeta): boolean {
+  return centavos(a.alvo) === centavos(b.alvo) && centavos(a.porMes) === centavos(b.porMes) && (a.prazo ?? null) === (b.prazo ?? null);
+}
+
+/** Os valores da meta como o plano compara ("2027-11" no prazo). */
+export function valoresDaMeta(m: { alvo: number; prazo: Date | null; porMes: number }): ValoresDaMeta {
+  return { alvo: m.alvo, prazo: m.prazo ? chaveDoPrazo(m.prazo) : null, porMes: m.porMes };
+}
+
+/**
+ * O "antes" de um plano novo: se já havia plano e a meta continua como ele deixou, o antes é o
+ * do plano antigo ("Mudar o plano" não perde a meta de antes de tudo); senão, a meta de agora.
+ */
+export function antesDoPlanoNovo(anterior: PlanoGravado | null, agora: ValoresDaMeta): ValoresDaMeta {
+  if (anterior?.antes && anterior.depois && mesmosValores(anterior.depois, agora)) return anterior.antes;
+  return agora;
+}
+
+/**
+ * O que o "Tirar o plano" faz com a meta (pedido de 16/10/2026):
+ * - "voltar": o plano mudou a meta e ela não mexeu depois: volta aos valores de antes;
+ * - "mexida": ela mudou a meta à mão depois do plano: a meta fica como está agora (a tela avisa);
+ * - "nada": o plano não mudou a meta (ou é um plano antigo, sem o antes guardado).
+ */
+export function oQueTirarFaz(p: PlanoGravado, agora: ValoresDaMeta): { acao: "voltar"; valores: ValoresDaMeta } | { acao: "mexida" | "nada" } {
+  if (!p.antes || !p.depois) return { acao: "nada" };
+  if (!mesmosValores(p.depois, agora)) return { acao: "mexida" };
+  if (mesmosValores(p.antes, agora)) return { acao: "nada" };
+  return { acao: "voltar", valores: p.antes };
+}
+
 /** O registro (coluna `dados` da Decisao) de volta para plano; null se não for um plano válido. */
 export function planoDoRegistro(dados: unknown): PlanoGravado | null {
   const d = (dados && typeof dados === "object" ? dados : null) as Partial<PlanoGravado> | null;
@@ -132,7 +172,25 @@ export function planoDoRegistro(dados: unknown): PlanoGravado | null {
   const itens = d.itens.filter((i): i is ItemDoPlano => !!i && typeof i.id === "string" && typeof i.nome === "string" && typeof i.teto === "number" && typeof i.hoje === "number");
   const cobrancas = Array.isArray(d.cobrancas) ? d.cobrancas.filter((c): c is [string, number[]] => Array.isArray(c) && typeof c[0] === "string" && Array.isArray(c[1])) : [];
   const saida: Saida = d.saida === "prazo" || d.saida === "menor" || d.saida === "daa" ? d.saida : "nenhuma";
-  return { versao: 1, itens, cobrancas, porMes: d.porMes, alvo: d.alvo, prazo: typeof d.prazo === "string" ? d.prazo : null, saida, achado: typeof d.achado === "number" ? d.achado : 0, em: typeof d.em === "string" ? d.em : "" };
+  const valores = (v: unknown): ValoresDaMeta | undefined => {
+    const x = (v && typeof v === "object" ? v : null) as Partial<ValoresDaMeta> | null;
+    return x && typeof x.alvo === "number" && typeof x.porMes === "number" ? { alvo: x.alvo, porMes: x.porMes, prazo: typeof x.prazo === "string" ? x.prazo : null } : undefined;
+  };
+  const antes = valores(d.antes);
+  const depois = valores(d.depois);
+  return {
+    versao: 1,
+    itens,
+    cobrancas,
+    porMes: d.porMes,
+    alvo: d.alvo,
+    prazo: typeof d.prazo === "string" ? d.prazo : null,
+    saida,
+    achado: typeof d.achado === "number" ? d.achado : 0,
+    em: typeof d.em === "string" ? d.em : "",
+    ...(antes ? { antes } : {}),
+    ...(depois ? { depois } : {}),
+  };
 }
 
 /** O resumo do selo da meta: "3 coisinhas, R$ 380 por mês". */

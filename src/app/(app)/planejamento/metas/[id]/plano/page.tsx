@@ -7,7 +7,7 @@ import { serverMoney } from "@/lib/money-server";
 import { planoDaMeta } from "@/lib/planning/plano-da-meta";
 import { AVISO_EM, textoDoPrazoGravado, type PlanoGravado } from "@/lib/planning/plano-gravado";
 import { passosDaRegua, textoDoPrazo } from "@/lib/planning/plano-da-meta-regua";
-import { entradaDoPlano, lerPlano, metaDoPlano, planoDisponivel } from "@/lib/repositories/plano-da-meta.repo";
+import { entradaDoPlano, lerPlano, metaDoPlano, planoDisponivel, previaDoTirar } from "@/lib/repositories/plano-da-meta.repo";
 import { TelaDoPlano } from "./TelaDoPlano";
 import { TirarPlano } from "./TirarPlano";
 import { LogoDaCoisinha } from "./LogoDaCoisinha";
@@ -76,6 +76,15 @@ async function Combinado({ meta, plano }: { meta: Awaited<ReturnType<typeof meta
   const tetos = plano.itens.filter((i) => i.acao === "reduzir" && i.teto > 0);
   const cancelar = plano.itens.filter((i) => i.acao === "cancelar");
   const linha = "flex items-center gap-3";
+  // O que o "Tirar o plano" faz com a meta (16/10/2026): volta aos valores de antes do plano, ou fica
+  // como está quando ela mexeu na meta à mão depois.
+  const previa = previaDoTirar(meta, plano);
+  const avisoDoTirar =
+    previa.acao === "voltar"
+      ? `A meta volta para ${m(previa.valores.porMes)} por mês${previa.valores.prazo ? ` até ${textoDoPrazoGravado(previa.valores.prazo)}` : ""}${previa.valores.alvo !== meta.alvo ? `, de ${m(previa.valores.alvo)}` : ""}.`
+      : previa.acao === "mexida"
+        ? "A meta fica como está agora."
+        : null;
   const icone = "flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-accent-soft text-accent-strong";
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-3" data-plano="combinado">
@@ -162,7 +171,7 @@ async function Combinado({ meta, plano }: { meta: Awaited<ReturnType<typeof meta
       <Link href={`/planejamento/metas/${meta.id}/plano?mudar=1`} className="flex min-h-[52px] w-full items-center justify-center rounded-full bg-ink px-5 text-base font-semibold text-canvas">
         Mudar o plano
       </Link>
-      <TirarPlano metaId={meta.id} />
+      <TirarPlano metaId={meta.id} aviso={avisoDoTirar} />
     </div>
   );
 }

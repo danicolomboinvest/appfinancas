@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planoDaMeta, type EntradaDoPlano, type LancamentoDoPlano } from "../plano-da-meta";
-import { aplicarEscolhas, avisosPorCoisinha, chaveDoAvisoDoTeto, planoDoRegistro, tetosAlcancados, textoDoAvisoDoTeto, type PlanoGravado } from "../plano-gravado";
+import { antesDoPlanoNovo, aplicarEscolhas, avisosPorCoisinha, mesmosValores, oQueTirarFaz, chaveDoAvisoDoTeto, planoDoRegistro, tetosAlcancados, textoDoAvisoDoTeto, type PlanoGravado } from "../plano-gravado";
 
 const HOJE = new Date(2026, 9, 16, 12);
 const OUT_2027 = new Date(2027, 9, 1, 12);
@@ -137,5 +137,39 @@ describe("o aviso no caminho (75% do teto)", () => {
     const t = textoDoAvisoDoTeto(a, "Carro", (v) => `R$ ${v}`);
     expect(t).toEqual({ titulo: "Faltam R$ 50 no combinado de iFood", corpo: "Você já usou R$ 150 de R$ 200 este mês. É o plano da meta Carro." });
     expect(`${t.titulo}${t.corpo}`).not.toMatch(/[—–]|\bpra\b/);
+  });
+});
+
+describe("tirar o plano volta a meta (16/10)", () => {
+  const antes = { alvo: 5000, prazo: "2027-10", porMes: 440 };
+  const depois = { alvo: 5000, prazo: "2028-04", porMes: 260 };
+  const base: PlanoGravado = { versao: 1, itens: [], cobrancas: [], porMes: 260, alvo: 5000, prazo: "2028-04", saida: "prazo", achado: 200, em: "", antes, depois };
+
+  it("o plano mudou a meta e ela não mexeu: volta aos valores de antes", () => {
+    expect(oQueTirarFaz(base, { ...depois })).toEqual({ acao: "voltar", valores: antes });
+  });
+
+  it("ela mexeu na meta à mão depois: fica como está", () => {
+    expect(oQueTirarFaz(base, { ...depois, porMes: 300 })).toEqual({ acao: "mexida" });
+    expect(oQueTirarFaz(base, { ...depois, prazo: "2028-06" })).toEqual({ acao: "mexida" });
+  });
+
+  it("o plano não mudou a meta, ou é antigo (sem o antes): nada a voltar", () => {
+    expect(oQueTirarFaz({ ...base, antes: depois }, depois)).toEqual({ acao: "nada" });
+    const { antes: _a, depois: _d, ...velho } = base;
+    void _a;
+    void _d;
+    expect(oQueTirarFaz(velho, depois)).toEqual({ acao: "nada" });
+  });
+
+  it("mudar o plano guarda o antes de tudo, se a meta ainda está como o plano deixou", () => {
+    expect(antesDoPlanoNovo(base, depois)).toEqual(antes);
+    expect(antesDoPlanoNovo(base, { ...depois, porMes: 300 })).toEqual({ ...depois, porMes: 300 });
+    expect(antesDoPlanoNovo(null, depois)).toEqual(depois);
+  });
+
+  it("compara no centavo e no mês, e o registro guarda o antes e o depois", () => {
+    expect(mesmosValores({ alvo: 5000, prazo: null, porMes: 440.001 }, { alvo: 5000, prazo: null, porMes: 440 })).toBe(true);
+    expect(planoDoRegistro(JSON.parse(JSON.stringify(base)))).toEqual(base);
   });
 });

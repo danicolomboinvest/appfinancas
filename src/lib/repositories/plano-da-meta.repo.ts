@@ -13,7 +13,7 @@ import { casaAtiva, ehDaCasa } from "@/lib/casa/regras";
 import { categoriasEssenciais } from "@/lib/categories";
 import { TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
 import { cobrancasDeAssinatura, mesesFechados, type AssinaturaDoPlano, type EntradaDoPlano, type LancamentoDoPlano } from "@/lib/planning/plano-da-meta";
-import { TIPO_DO_PLANO, planoDoRegistro, type PlanoGravado } from "@/lib/planning/plano-gravado";
+import { TIPO_DO_PLANO, antesDoPlanoNovo, dataDoPrazo, oQueTirarFaz, planoDoRegistro, valoresDaMeta, type PlanoGravado } from "@/lib/planning/plano-gravado";
 
 /**
  * O banco do plano da meta: junta o que o motor (lib/planning/plano-da-meta.ts) precisa e grava o
@@ -169,20 +169,45 @@ export async function planosDoPerfil(ctx: AuthContext): Promise<Map<string, Plan
   return out;
 }
 
-/** Grava o plano (troca o anterior da mesma meta) e atualiza a meta, juntos. */
+/**
+ * Grava o plano (troca o anterior da mesma meta) e atualiza a meta, juntos. Guarda a meta de antes
+ * (para o "Tirar o plano" voltar) e como o plano a deixou (para saber se ela mexeu depois).
+ */
 export async function gravarPlano(ctx: AuthContext, goalId: string, plano: PlanoGravado, meta: { alvo: number; prazo: Date | null; porMes: number }): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const r = await tx.goal.updateMany({ where: { id: goalId, ...doDono(ctx) }, data: { targetAmount: meta.alvo, targetDate: meta.prazo, monthlyContribution: meta.porMes } });
-    if (r.count === 0) return false;
+    const g = await tx.goal.findFirst({ where: { id: goalId, ...doDono(ctx) }, select: { targetAmount: true, targetDate: true, monthlyContribution: true } });
+    if (!g) return false;
+    const anterior = await tx.decisao.findFirst({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId }, orderBy: { createdAt: "desc" }, select: { dados: true } });
+    const agora = valoresDaMeta({ alvo: Number(g.targetAmount), prazo: g.targetDate, porMes: Number(g.monthlyContribution ?? 0) });
+    const completo: PlanoGravado = { ...plano, antes: antesDoPlanoNovo(anterior ? planoDoRegistro(anterior.dados) : null, agora), depois: valoresDaMeta(meta) };
+    await tx.goal.updateMany({ where: { id: goalId, ...doDono(ctx) }, data: { targetAmount: meta.alvo, targetDate: meta.prazo, monthlyContribution: meta.porMes } });
     await tx.decisao.deleteMany({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId } });
-    await tx.decisao.create({ data: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId, valor: plano.achado, descricao: "plano", dados: plano } });
+    await tx.decisao.create({ data: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId, valor: plano.achado, descricao: "plano", dados: completo } });
     return true;
   });
 }
 
-/** "Tirar o plano": a meta fica como está (o valor por mês e o prazo que ela escolheu continuam). */
-export async function tirarPlano(ctx: AuthContext, goalId: string): Promise<PlanoGravado | null> {
-  const antes = await lerPlano(ctx, goalId);
-  await prisma.decisao.deleteMany({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId } });
-  return antes;
+/** O que o "Tirar o plano" vai fazer com a meta, para a tela avisar antes. */
+export function previaDoTirar(meta: MetaDoPlano, plano: PlanoGravado) {
+  return oQueTirarFaz(plano, valoresDaMeta({ alvo: meta.alvo, prazo: meta.prazo, porMes: meta.porMes }));
+}
+
+/**
+ * "Tirar o plano": sai o plano (tetos e avisos) e, se o plano tinha mudado a meta e ela não mexeu
+ * depois, a meta volta aos valores de antes. Se ela mexeu à mão, a meta fica como está.
+ */
+export async function tirarPlano(ctx: AuthContext, goalId: string): Promise<"voltou" | "ficou" | "nada"> {
+  return prisma.$transaction(async (tx) => {
+    const [d, g] = await Promise.all([
+      tx.decisao.findFirst({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId }, orderBy: { createdAt: "desc" }, select: { dados: true } }),
+      tx.goal.findFirst({ where: { id: goalId, ...doDono(ctx) }, select: { targetAmount: true, targetDate: true, monthlyContribution: true } }),
+    ]);
+    const plano = d ? planoDoRegistro(d.dados) : null;
+    await tx.decisao.deleteMany({ where: { ...doDono(ctx), tipo: TIPO_DO_PLANO, chave: goalId } });
+    if (!plano || !g) return "nada";
+    const r = oQueTirarFaz(plano, valoresDaMeta({ alvo: Number(g.targetAmount), prazo: g.targetDate, porMes: Number(g.monthlyContribution ?? 0) }));
+    if (r.acao !== "voltar") return r.acao === "mexida" ? "ficou" : "nada";
+    await tx.goal.updateMany({ where: { id: goalId, ...doDono(ctx) }, data: { targetAmount: r.valores.alvo, targetDate: dataDoPrazo(r.valores.prazo), monthlyContribution: r.valores.porMes } });
+    return "voltou";
+  });
 }

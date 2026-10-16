@@ -28,6 +28,11 @@ async function doBanco<T>(f: (db: PrismaClient) => Promise<T>): Promise<T> {
   }
 }
 
+async function valoresDaMetaNoBanco(id: string) {
+  const g = await doBanco((db) => db.goal.findUniqueOrThrow({ where: { id }, select: { targetAmount: true, targetDate: true, monthlyContribution: true } }));
+  return { alvo: Number(g.targetAmount), prazo: g.targetDate ? g.targetDate.toISOString().slice(0, 7) : null, porMes: Number(g.monthlyContribution ?? 0) };
+}
+
 const numero = (t: string) => Number(t.replace(/[^\d,]/g, "").replace(",", "."));
 
 async function criarMetaComPlano(p: Page) {
@@ -54,12 +59,14 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
   await novaPagina(p, c);
   let metaId = "";
   let porMes = 0;
+  let antesDoPlano: { alvo: number; prazo: string | null; porMes: number } | null = null;
   try {
     await dia(c, "2026-10-15 09:00", [p]);
     await passo(c, "cria a meta e toca em Como vou juntar?", async () => {
       await entrar(p, EMAIL);
       await criarMetaComPlano(p);
       metaId = /metas\/([^/]+)\/plano/.exec(p.url())?.[1] ?? "";
+      antesDoPlano = await valoresDaMetaNoBanco(metaId);
       await expect(p.getByText(/^Para chegar até /)).toBeVisible();
       await expect(p.getByText(/faltam/).first()).toBeVisible();
       await conferirTextoELayout(p, c, "Como vou juntar?");
@@ -137,10 +144,18 @@ test("Ana: monta o plano da meta, usa e recebe o aviso a 75%", async ({ page: p 
       await expect(p.locator('[data-coisinha="delivery:ifood"] button[aria-pressed="true"]')).toBeVisible();
       await p.goto(`/planejamento/metas/${metaId}/plano`);
       await p.getByRole("button", { name: "Tirar o plano" }).click();
+      // Antes do segundo toque, a tela diz o que acontece com a meta.
+      const depoisDoPlano = await valoresDaMetaNoBanco(metaId);
+      const mudou = JSON.stringify(depoisDoPlano) !== JSON.stringify(antesDoPlano);
+      if (mudou) await expect(p.locator("[data-aviso-tirar]")).toContainText("A meta volta para");
       await p.getByRole("button", { name: "Toque de novo para tirar o plano" }).click();
       await p.waitForURL(new RegExp(`/planejamento/metas/${metaId}$`), { timeout: 30_000 });
       await p.goto("/planejamento/metas");
       await expect(p.locator(`a[href="/planejamento/metas/${metaId}/plano"]`)).toHaveText(/Como vou juntar\?/);
+      // Tirar o plano volta a meta aos valores de antes dele (ela não mexeu à mão).
+      const final = await valoresDaMetaNoBanco(metaId);
+      if (JSON.stringify(final) !== JSON.stringify(antesDoPlano))
+        await c.anotar(p, { tipo: "numero", telaDeOrigem: "Tirar o plano", telaErrada: "meta no banco", esperado: JSON.stringify(antesDoPlano), visto: JSON.stringify(final) });
     });
   } finally {
     c.salvar();

@@ -12,7 +12,6 @@ import {
   fecharMes,
   importarArquivo,
   importarRespondendo,
-  peloMenu,
   lancarAMao,
   lancarPorVoz,
   lapis,
@@ -372,12 +371,12 @@ test("Ana: uma semana de uso, números e telas iguais em todo lugar", async ({ p
       await conferirLivre(p, c, orc, "extrato de novo");
     });
 
-    // Quarta-feira: o ritual abre pelo menu e mostra a semana que passou (15/10/2026).
-    await passo(c, "Ritual da semana pelo menu, numa quarta", async () => {
-      await p.goto("/mensal/foco");
-      await peloMenu(p, "Ritual da semana");
+    // Quarta-feira: o ritual saiu do menu (ec7f68cc, 16/10/2026) e fica na Visão geral, como a
+    // primeira sugestão da segunda. Numa quarta, ela abre pelo endereço e vê a semana que passou.
+    await passo(c, "Ritual da semana numa quarta, pelo endereço", async () => {
+      await p.goto("/mensal/foco/ritual");
       await p.waitForURL(/\/mensal\/foco\/ritual/, { timeout: 20_000 });
-      if (!(await p.locator("[data-semana-que-passou]").count())) await c.anotar(p, { tipo: "tela", telaDeOrigem: "menu (Ritual da semana)", telaErrada: "Ritual numa quarta", esperado: "a semana que passou", visto: (await textoVisivel(p)).slice(0, 120) });
+      if (!(await p.locator("[data-semana-que-passou]").count())) await c.anotar(p, { tipo: "tela", telaDeOrigem: "/mensal/foco/ritual", telaErrada: "Ritual numa quarta", esperado: "a semana que passou", visto: (await textoVisivel(p)).slice(0, 120) });
     });
 
     await passo(c, "Empresa: vendeu R$ 300 no Ateliê", async () => {
