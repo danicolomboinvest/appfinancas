@@ -11,13 +11,26 @@ import { descricaoSemFalsaAplicacao, parecePagamentoDeFatura } from "@/lib/impor
 export const SUBCATEGORIA_NAO_E_GASTO = "Investimento";
 
 /**
- * Pro SQL (`typical-expense.ts`), que só sabe "contém". É um filtro mais largo que `ehNaoGasto`
- * (sem palavra inteira, sem tirar a conta de consumo): o Prisma não tem expressão regular.
+ * Pro SQL (`typical-expense.ts`), que só sabe "contém": NÃO decide nada, só traz os CANDIDATOS,
+ * e quem decide é `ehNaoGasto`, em memória. Por isso é largo de propósito (pedaços de palavra,
+ * sem acento): tem de pegar TUDO que `ehNaoGasto` reconhece, senão a linha fica no gasto.
+ *
+ * Antes era a própria regra, com frases inteiras ("pagamento de fatura", "pagto cartão"), e
+ * deixava passar o que `parecePagamentoDeFatura` reconhece: "Pagamento cartão de crédito",
+ * "Fatura Nubank", "Pagamento de boleto NU PAGAMENTOS". A fatura contava junto com as compras
+ * dela e o custo de vida subia (16/10/2026: 31 de 286 perfis, mediana de 12% a mais). E o
+ * contrário: "Pagamento de fatura CLARO" saía do gasto, e é a conta do celular.
+ *
+ * Mexeu em `parecePagamentoDeFatura` ou nas aplicações? O teste em `nao-e-gasto.test.ts` confere
+ * que todo "não é gasto" passa por esta lista.
  */
 export const TERMOS_NAO_E_GASTO = [
-  "aplicação", "aplicacao", "caixinha", "rdb", "cdb", "tesouro direto",
-  "pagamento de fatura", "pagamento fatura", "pgto fatura", "pagto fatura", "pag fatura", "fatura do cartão", "fatura do cartao",
-  "pagto cartão", "pagto cartao",
+  // aplicação (e "aplicação"), caixinha, RDB, CDB, Tesouro Direto
+  "aplica", "caixinha", "rdb", "cdb", "tesouro",
+  // fatura; "cartão/cartao" (Pagto cartão crédito); "tarjeta"/"resumen" (Argentina)
+  "fatura", "cart", "tarj", "resumen",
+  // boleto pago à empresa do cartão ("NU PAGAMENTOS", "NU.PAGAMENTOS"), ver EMPRESA_DO_CARTAO
+  "pagamentos", "nubank", "itaucard", "bradescard", "credicard", "hipercard", "midway", "ourocard",
 ];
 
 /** Os mesmos termos de aplicação da lista, mas como PALAVRA inteira (ver `ehNaoGasto`). */

@@ -396,7 +396,9 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     }
     const diaDaSemana = hoje.getDay();
     if (foco.ritmo !== "mensal" && !foco.ritualFeito && (diaDaSemana === 1 || diaDaSemana === 2)) {
-      fila.push({ tipo: "hora-do-mes", id: `ritual-${chaveDaSemana(hoje)}`, texto: "O ritual da semana leva 2 minutos.", botao: { rotulo: "Começar", href: "/mensal/foco/ritual" } });
+      // Na segunda o ritual vem primeiro, antes de qualquer outra sugestão (16/10/2026, a Dani): ele saiu
+      // do menu e só aparece aqui, então não pode ficar escondido atrás de outra coisa.
+      fila.push({ tipo: "hora-do-mes", id: `ritual-${chaveDaSemana(hoje)}`, texto: "O ritual da semana leva 2 minutos.", botao: { rotulo: "Começar", href: "/mensal/foco/ritual" }, prioridade: diaDaSemana === 1 ? -1 : undefined });
     }
 
     // 6. Algo indo bem (só quando nada acima acende, e no máximo uma vez por semana).

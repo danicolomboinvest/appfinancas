@@ -20,7 +20,6 @@ import {
   FileText,
   List,
   Sprout,
-  Coffee,
   type LucideIcon,
 } from "lucide-react";
 import { ROTAS_DA_VISAO_GERAL } from "./flow-tabs";
@@ -114,12 +113,9 @@ export const NAV_SECTIONS: NavSection[] = [
     // As quatro abas (Resumo, Orçamento, Transações, Recorrentes) moram em duas pastas. A Visão
     // geral antiga por ano (/dashboard) saiu em 12/10/2026 e o link velho cai no Resumo.
     alsoMatches: ROTAS_DA_VISAO_GERAL.filter((r) => r !== "/mensal"),
-    exceto: ["/mensal/foco/ritual"],
   },
-  // O ritual da semana (15/10/2026, feedback de uma cliente): antes só aparecia como sugestão do
-  // Resumo às segundas e terças. Agora abre em qualquer dia; fora de segunda e terça mostra a
-  // semana que passou. Logo depois da Visão geral, de onde ele sai. A Empresa tem o menu dela.
-  { basePath: "/mensal/foco/ritual", href: "/mensal/foco/ritual", label: "Ritual da semana", icon: Coffee, soPessoa: true },
+  // O ritual da semana não tem item no menu (16/10/2026, a Dani: "já acho que tá muito cheio"). Ele
+  // aparece uma vez por semana na Visão geral; a página continua abrindo em qualquer dia pelo link.
   {
     basePath: "/planejamento",
     href: "/planejamento/metas",
