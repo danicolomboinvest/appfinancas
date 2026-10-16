@@ -331,7 +331,7 @@ function FolhaDaMeta({
       "Sem prazo: você escolhe quanto guardar por mês no fim"
     ) : (
       <>
-        Faltam {duracao(mesesAte)} · guardar <b className="whitespace-nowrap text-accent-strong">{m(pmt)}</b> por mês
+        {/^(1 (ano|mês)|menos de 1 mês)$/.test(duracao(mesesAte)) ? "Falta" : "Faltam"} {duracao(mesesAte)} · guardar <b className="whitespace-nowrap text-accent-strong">{m(pmt)}</b> por mês
       </>
     );
     conteudo = (
@@ -399,7 +399,9 @@ function FolhaDaMeta({
         <p aria-live="polite" className={`rounded-2xl px-3 py-2.5 text-[14.5px] font-medium ${vencido ? "bg-danger-soft text-danger" : "bg-accent-soft text-ink"}`}>
           {falta}
         </p>
-        {apertado && limite && (
+        {/* Criando a meta, não avisa que o prazo não cabe (16/10/2026, a Dani: "deixa ela terminar e
+            no fim fala como ela vai juntar"): quem mostra isso é o "Como vou juntar?". Editando, continua. */}
+        {meta && apertado && limite && (
           <PrazoQueCabe
             porMes={pmt}
             limite={limite}
