@@ -6,6 +6,7 @@ import { pareceEstorno } from "@/lib/import/estorno";
 import { marcaDaDescricao, normalizarDescricao } from "@/lib/marcas/marca";
 import { MESES_CURTOS, TAXA_PADRAO_DAS_METAS, porMesDaNovaMeta } from "@/lib/metas/projecao";
 import { prazoQueCabe, type PrazoSugerido } from "@/lib/metas/prazo-que-cabe";
+import { formatMoney } from "@/lib/money";
 import { ehNaoGasto } from "./nao-e-gasto";
 import { NUNCA_SUGERIR } from "./remanejo";
 
@@ -610,12 +611,8 @@ export function planoDaMeta(e: EntradaDoPlano): PlanoDaMeta {
 
 /* ---------------------------------------------------------------- a frase */
 
-const dinheiro = (v: number) => {
-  const cent = Math.round(v * 100);
-  const r = Math.floor(Math.abs(cent) / 100);
-  const c = Math.abs(cent) % 100;
-  return `R$ ${String(r).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}${c ? `,${String(c).padStart(2, "0")}` : ""}`;
-};
+/** O dinheiro da frase: o formatador do app (o plano só aparece em real), sem centavo quando é redondo. */
+const dinheiro = (v: number) => formatMoney(v, "BRL", { round: Number.isInteger(Math.round(v * 100) / 100) });
 
 /**
  * A frase do topo do plano, sem conta armada (pedido da Dani, 16/10/2026: "R$ 400 menos R$ 0"
@@ -635,4 +632,3 @@ export function fraseDoPlano(p: PlanoDaMeta): string | null {
   }
 }
 
-export { dinheiro as dinheiroDoPlano };

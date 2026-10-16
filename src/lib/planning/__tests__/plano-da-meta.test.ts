@@ -115,7 +115,7 @@ describe("a conta de exemplo do protótipo", () => {
 
   it("a frase não tem conta armada, nem travessão, e usa 'para'", () => {
     const f = fraseDoPlano(p) as string;
-    expect(f).toBe("Para chegar até out/2027, faltam R$ 440 por mês.");
+    expect(f).toMatch(/^Para chegar até out\/2027, faltam R\$\s440 por mês\.$/);
     expect(f).not.toMatch(/[—–]/);
     expect(f).not.toMatch(/\bpra\b/i);
   });
