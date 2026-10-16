@@ -4,6 +4,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { computeGoalPlan } from "@/lib/planning/goal";
+import { arredondarPorMes } from "@/lib/planning/meses-do-prazo";
 
 export type GoalInput = {
   name: string;
@@ -62,7 +63,8 @@ export async function getGoalWithProgress(ctx: AuthContext, id: string) {
 
 function computedFields(input: GoalInput) {
   const plan = computeGoalPlan(input);
-  return { monthlyContribution: plan.requiredMonthlyContribution, status: plan.status };
+  // A mesma conta de todas as telas (lib/planning/meses-do-prazo.ts): de R$ 10 em R$ 10.
+  return { monthlyContribution: arredondarPorMes(plan.requiredMonthlyContribution), status: plan.status };
 }
 
 export async function createGoal(ctx: AuthContext, input: GoalInput) {
