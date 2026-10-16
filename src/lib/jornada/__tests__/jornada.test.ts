@@ -128,6 +128,19 @@ describe("montarLinhaDoTempo", () => {
     expect(itens.filter((i) => i.marca === "parou")).toHaveLength(1);
   });
 
+  it("último dia no mesmo dia da importação: vem depois dela", () => {
+    const itens = montarLinhaDoTempo(
+      base({
+        tentativas: [{ ...t({ stage: "confirm", created: 12 }), em: em("02", 16) }],
+        usos: [
+          { nome: "pageview", caminho: "/mensal/foco", em: em("02", 15) },
+          { nome: "pageview", caminho: "/orcamento", em: em("02", 17) },
+        ],
+      }),
+    );
+    expect(itens.map((i) => i.texto)).toEqual(["Comprou pela Hubla", "Criou a conta", "Importou 12 lançamentos", "Último dia no app", "Pediu reembolso"]);
+  });
+
   it("sem conta: compra, não criou a conta e saiu", () => {
     const itens = montarLinhaDoTempo(base({ contaEm: null }));
     expect(itens.map((i) => i.texto)).toEqual(["Comprou pela Hubla", "Não criou a conta", "Pediu reembolso"]);

@@ -246,10 +246,11 @@ export function montarLinhaDoTempo(d: DadosDaJornada): ItemDaLinha[] {
 
   // Os dias de uso: as telas que abriu em cada dia (sem repetir), menos o dia da conta, que já
   // aparece acima, e os dias que já têm importação ou lançamento à mão ficam com as telas também.
-  const usosPorDia = new Map<string, { em: Date; nomes: string[] }>();
+  const usosPorDia = new Map<string, { em: Date; ate: Date; nomes: string[] }>();
   for (const u of d.usos) {
     const k = diaEmBrasilia(u.em);
-    const atual = usosPorDia.get(k) ?? { em: u.em, nomes: [] };
+    const atual = usosPorDia.get(k) ?? { em: u.em, ate: u.em, nomes: [] };
+    atual.ate = u.em;
     atual.nomes.push(rotuloDoUso(u.nome, u.caminho));
     usosPorDia.set(k, atual);
   }
@@ -259,7 +260,8 @@ export function montarLinhaDoTempo(d: DadosDaJornada): ItemDaLinha[] {
     const ultimo = i === dias.length - 1;
     const chips = telas.slice(0, MAX_CHIPS).map((t) => ({ texto: t }));
     if (telas.length > MAX_CHIPS) chips.push({ texto: `mais ${telas.length - MAX_CHIPS}` });
-    itens.push({ quando: uso.em, soDia: true, texto: ultimo ? "Último dia no app" : "Abriu o app", marca: ultimo && parou === "usou" ? "parou" : "neutro", chips });
+    // O último dia fica depois de tudo o que ela fez nele (a importação do mesmo dia vem antes).
+    itens.push({ quando: ultimo ? uso.ate : uso.em, soDia: true, texto: ultimo ? "Último dia no app" : "Abriu o app", marca: ultimo && parou === "usou" ? "parou" : "neutro", chips });
   });
 
   if (d.saiuEm) {
