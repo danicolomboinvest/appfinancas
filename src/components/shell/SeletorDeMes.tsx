@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import {
@@ -39,6 +39,20 @@ export function SeletorDeMes() {
   const router = useRouter();
   const [folha, setFolha] = useState(false);
   const [calendario, setCalendario] = useState(false);
+  // O Resumo editável avisa que está na tela (e quando está em edição): o lápis mora aqui, na linha do mês.
+  const [temResumo, setTemResumo] = useState(false);
+  const [editandoResumo, setEditandoResumo] = useState(false);
+  useEffect(() => {
+    const aqui = (e: Event) => setTemResumo((e as CustomEvent<boolean>).detail);
+    const editando = (e: Event) => setEditandoResumo((e as CustomEvent<boolean>).detail);
+    window.addEventListener("spi:resumo-aqui", aqui);
+    window.addEventListener("spi:resumo-editando", editando);
+    window.dispatchEvent(new CustomEvent("spi:resumo-pergunta"));
+    return () => {
+      window.removeEventListener("spi:resumo-aqui", aqui);
+      window.removeEventListener("spi:resumo-editando", editando);
+    };
+  }, [caminho]);
   const agora = nowInBrazil();
   const periodo = periodoCompletoDaRota(caminho, busca, agora);
   if (!periodo) return null;
@@ -68,9 +82,10 @@ export function SeletorDeMes() {
     { chave: "ano", nome: "Esse ano", on: intervalo?.tipo === "ano", href: hrefDoIntervalo(aba, intervaloDoTipo("ano", agora)) },
   ];
 
+  const lapis = aba === "resumo" && temResumo && !editandoResumo;
   return (
     <>
-      <div className="-mt-2 mb-2 grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 pb-1" aria-label="Período">
+      <div className={`-mt-2 mb-2 grid items-center gap-2 pb-1 ${lapis ? "grid-cols-[44px_minmax(0,1fr)_44px_44px]" : "grid-cols-[44px_minmax(0,1fr)_44px]"}`} aria-label="Período">
         {antes ? (
           <Link href={hrefDoMes(aba, antes, agora)} aria-label="Mês anterior" className={seta} scroll={false}>
             <ChevronLeft size={18} aria-hidden />
@@ -101,6 +116,17 @@ export function SeletorDeMes() {
           <span className={apagada} aria-hidden>
             <ChevronRight size={18} />
           </span>
+        )}
+        {lapis && (
+          <button
+            type="button"
+            data-editar-resumo
+            aria-label="Editar o Resumo"
+            onClick={() => window.dispatchEvent(new CustomEvent("spi:editar-resumo"))}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink transition-colors hover:bg-border"
+          >
+            <Pencil size={17} aria-hidden />
+          </button>
         )}
       </div>
       <Modal

@@ -106,7 +106,7 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
   // vez, o "digitou" e o "nada" ficam como eram: ali não há o que escolher.
   if (r.caso === "dia-a-dia" || r.caso === "mes-fechado") {
     const disponiveis: Partial<Record<CartaoDoResumo, ReactNode>> = {
-      hoje: <ParaGastarHoje r={r} money={m} />,
+      hoje: r.foco.foco.livre.tipo === "semOrcamento" || r.foco.foco.livre.semana.passou >= 1 ? null : <ParaGastarHoje r={r} money={m} />,
       mes: heroi,
       cats: r.categorias.length > 0 ? <Categorias r={r} money={m} /> : null,
       semana: <LinhaDaSemana r={r} money={m} />,
