@@ -3,7 +3,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { CATEGORIAS_EMPRESA, ehEmpresa } from "@/lib/profiles/empresa";
 import type { ParentCategory } from "@prisma/client";
-import { SUBCATEGORIA_NAO_E_GASTO, TERMOS_NAO_E_GASTO } from "./nao-e-gasto";
+import { ehNaoGasto, SUBCATEGORIA_NAO_E_GASTO, TERMOS_NAO_E_GASTO } from "./nao-e-gasto";
 
 export type TypicalExpense = {
   /** Média mensal dos gastos nos meses considerados. */
@@ -12,7 +12,10 @@ export type TypicalExpense = {
   monthsUsed: number;
 };
 
-/** O filtro SQL de "não é gasto" (a lista mora em `nao-e-gasto.ts`, sem banco). */
+/**
+ * O filtro SQL dos CANDIDATOS a "não é gasto" (a lista mora em `nao-e-gasto.ts`, sem banco). Ele
+ * só busca; quem decide é `ehNaoGasto`, a mesma regra do caixa da Empresa e da importação.
+ */
 export const NAO_E_GASTO = [
   { subcategory: SUBCATEGORIA_NAO_E_GASTO },
   ...TERMOS_NAO_E_GASTO.map((t) => ({
@@ -51,16 +54,16 @@ export async function getTypicalMonthlyExpense(ctx: AuthContext): Promise<Typica
   const soFixas = ehEmpresa(ctx.profileKind) ? { AND: [{ OR: [{ parentCategory: { in: fixas } }, { parentCategory: null }] }] } : {};
   // O que não é gasto é somado À PARTE e subtraído: um filtro NOT no SQL também descartaria os
   // lançamentos sem descrição ou sem subcategoria (NULL), que são a maioria dos feitos à mão.
+  // O SQL traz só os candidatos (poucas linhas) e `ehNaoGasto` decide em memória.
   const [linhas, naoGasto, mesesReais] = await Promise.all([
     prisma.monthlyEntry.groupBy({
       by: ["year", "month"],
       where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", OR: meses, ...soFixas },
       _sum: { amount: true },
     }),
-    prisma.monthlyEntry.groupBy({
-      by: ["year", "month"],
+    prisma.monthlyEntry.findMany({
       where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", AND: [{ OR: meses }, { OR: NAO_E_GASTO }, ...(soFixas.AND ?? [])] },
-      _sum: { amount: true },
+      select: { year: true, month: true, amount: true, description: true, subcategory: true },
     }),
     // Mês que só tem as cópias automáticas da despesa fixa (a pessoa não lançou nada nele) não é
     // "o que ela gastou": puxaria a média pra baixo. Vale o mês com algum lançamento feito no
@@ -75,7 +78,12 @@ export async function getTypicalMonthlyExpense(ctx: AuthContext): Promise<Typica
     }),
   ]);
   const reais = new Set(mesesReais.map((m) => `${m.year}-${m.month}`));
-  const fora = new Map(naoGasto.map((l) => [`${l.year}-${l.month}`, Number(l._sum.amount ?? 0)]));
+  const fora = new Map<string, number>();
+  for (const l of naoGasto) {
+    if (!ehNaoGasto(l)) continue;
+    const chave = `${l.year}-${l.month}`;
+    fora.set(chave, (fora.get(chave) ?? 0) + Number(l.amount ?? 0));
+  }
 
   const comGasto = linhas
     .map((l) => ({ ...l, _sum: { amount: Number(l._sum.amount ?? 0) - (fora.get(`${l.year}-${l.month}`) ?? 0) } }))

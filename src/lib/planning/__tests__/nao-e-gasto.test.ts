@@ -56,3 +56,59 @@ describe("ehNaoGasto", () => {
     for (const t of TERMOS_NAO_E_GASTO) expect(t).not.toMatch(/pix|transf/);
   });
 });
+
+/**
+ * 16/10/2026: o gasto típico (Reserva, plano da meta) tirava o "não é gasto" com o "contém" do
+ * SQL, uma lista de frases que discordava de `ehNaoGasto`. Descrições genéricas, do jeito que os
+ * bancos e as pessoas escrevem; nenhuma é de cliente.
+ */
+describe("filtro do SQL x ehNaoGasto", () => {
+  /** O "contém" sem diferenciar caixa, como o `mode: "insensitive"` do Prisma. */
+  const contem = (termos: string[], d: string) => termos.some((t) => d.toLowerCase().includes(t.toLowerCase()));
+  const ANTIGOS = [
+    "aplicação", "aplicacao", "caixinha", "rdb", "cdb", "tesouro direto",
+    "pagamento de fatura", "pagamento fatura", "pgto fatura", "pagto fatura", "pag fatura", "fatura do cartão", "fatura do cartao",
+    "pagto cartão", "pagto cartao",
+  ];
+  const FATURAS_QUE_O_ANTIGO_PERDIA = [
+    "Pagamento cartão de crédito",
+    "PAGAMENTO CARTAO",
+    "Pgto. cartao",
+    "Fatura Nubank",
+    "Fatura cartão Inter",
+    "Pagamento de boleto NU PAGAMENTOS S.A.",
+    "PAG BOLETO ITAUCARD",
+    "PAGO TARJETA VISA",
+  ];
+  const NAO_E_GASTO = [
+    ...FATURAS_QUE_O_ANTIGO_PERDIA,
+    "Pagamento de Fatura", "PGTO FATURA CARTAO", "Pag fatura via internet banking", "Pagto cartão crédito",
+    "Pagamento de boleto NU.PAGAMENTOS", "BOLETO PORTO SEGURO CARTOES", "PAGO DE TARJETA DE CREDITO", "PAGO RESUMEN MASTERCARD",
+    "APLICAÇÃO RDB", "Aplicacao CDB Liquidez", "Guardado na caixinha", "TED Tesouro Direto",
+  ];
+
+  it("o filtro antigo deixava a fatura no gasto, e ehNaoGasto tira", () => {
+    for (const d of FATURAS_QUE_O_ANTIGO_PERDIA) {
+      expect(contem(ANTIGOS, d), d).toBe(false);
+      expect(ehNaoGasto({ description: d }), d).toBe(true);
+    }
+  });
+
+  it("o filtro antigo tirava a conta do celular, e ehNaoGasto deixa no gasto", () => {
+    expect(contem(ANTIGOS, "Pagamento de fatura CLARO")).toBe(true);
+    expect(ehNaoGasto({ description: "Pagamento de fatura CLARO" })).toBe(false);
+  });
+
+  it("todo 'não é gasto' passa pela lista de candidatos do SQL (senão fica no gasto sem ninguém ver)", () => {
+    for (const d of NAO_E_GASTO) {
+      expect(ehNaoGasto({ description: d }), d).toBe(true);
+      expect(contem(TERMOS_NAO_E_GASTO, d), d).toBe(true);
+    }
+  });
+
+  // Ainda NÃO reconhecido por nenhum dos dois: sem verbo de pagar nem "fatura", pode ser a compra
+  // lançada à mão com o nome do cartão. Se a regra mudar, é ehNaoGasto que muda.
+  it("'<banco> cartão de crédito' sozinho continua gasto", () => {
+    expect(ehNaoGasto({ description: "Itaú cartão de crédito" })).toBe(false);
+  });
+});

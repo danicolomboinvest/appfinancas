@@ -8,12 +8,13 @@ import type { AuthContext } from "@/lib/auth/session";
  * "não é gasto" come o gasto inteiro, mês só com cópias automáticas.
  */
 type Soma = { year: number; month: number; _sum: { amount: number | null } };
+type Linha = { year: number; month: number; amount: number; description: string | null; subcategory: string | null };
 type Args = { where: Record<string, unknown> & { category: string; AND?: unknown[]; OR?: { year: number; month: number }[] }; _count?: unknown };
 
 const banco = vi.hoisted(() => ({
   hoje: new Date(2027, 0, 15, 12),
   gasto: [] as Soma[],
-  naoGasto: [] as Soma[],
+  candidatos: [] as Linha[],
   reais: [] as { year: number; month: number }[],
   renda: [] as Soma[],
   naoRenda: [] as Soma[],
@@ -28,7 +29,11 @@ vi.mock("@/lib/db/prisma", () => ({
         banco.chamadas.push(args);
         if (args._count) return banco.reais.map((r) => ({ ...r, _count: { _all: 1 } }));
         if (args.where.category === "INCOME") return args.where.AND ? banco.naoRenda : banco.renda;
-        return args.where.AND ? banco.naoGasto : banco.gasto;
+        return banco.gasto;
+      },
+      findMany: async (args: Args) => {
+        banco.chamadas.push(args);
+        return banco.candidatos;
       },
     },
   },
@@ -38,11 +43,13 @@ import { getTypicalMonthlyExpense } from "../typical-expense";
 
 const ctx = { userId: "u1", profileId: "p1", profileKind: "PESSOAL" } as unknown as AuthContext;
 const s = (year: number, month: number, amount: number | null): Soma => ({ year, month, _sum: { amount } });
+const l = (year: number, month: number, amount: number, description: string | null, subcategory: string | null = null): Linha =>
+  ({ year, month, amount, description, subcategory });
 
 beforeEach(() => {
   banco.hoje = new Date(2027, 0, 15, 12);
   banco.gasto = [];
-  banco.naoGasto = [];
+  banco.candidatos = [];
   banco.reais = [];
   banco.renda = [];
   banco.naoRenda = [];
@@ -71,7 +78,7 @@ describe("getTypicalMonthlyExpense", () => {
 
   it("aplicação e fatura saem do gasto; mês em que isso come tudo não entra na média (sem dividir por mês vazio)", async () => {
     banco.gasto = [s(2026, 12, 5000), s(2026, 11, 1500)];
-    banco.naoGasto = [s(2026, 12, 2000), s(2026, 11, 1500)];
+    banco.candidatos = [l(2026, 12, 1500, "Pagamento de fatura"), l(2026, 12, 500, "Aplicação RDB"), l(2026, 11, 1500, "Fatura Nubank")];
     banco.reais = [{ year: 2026, month: 12 }, { year: 2026, month: 11 }];
     expect(await getTypicalMonthlyExpense(ctx)).toEqual({ monthlyAverage: 3000, monthsUsed: 1 });
   });
@@ -93,5 +100,25 @@ describe("getTypicalMonthlyExpense", () => {
     const reais = banco.chamadas.find((c) => c._count)!;
     const dez = (reais.where.OR as unknown as { year: number; month: number; createdAt: { gte: Date } }[])[0];
     expect(dez.createdAt.gte.toISOString()).toBe("2026-12-01T03:00:00.000Z");
+  });
+
+  // 16/10/2026: o "contém" do SQL só busca; quem decide é ehNaoGasto. Antes "Pagamento cartão de
+  // crédito" ficava no gasto (a fatura somava com as compras dela) e a conta do celular saía.
+  it("o SQL traz candidatos e ehNaoGasto decide: a fatura sai, a conta do celular e a loja ficam", async () => {
+    banco.gasto = [s(2026, 12, 5000)];
+    banco.reais = [{ year: 2026, month: 12 }];
+    banco.candidatos = [
+      l(2026, 12, 1800, "Pagamento cartão de crédito"),
+      l(2026, 12, 120, "Pagamento de fatura CLARO"),
+      l(2026, 12, 90, "Caixinha de som JBL"),
+      l(2026, 12, 300, "Transferência", "Investimento"),
+    ];
+    expect(await getTypicalMonthlyExpense(ctx)).toEqual({ monthlyAverage: 2900, monthsUsed: 1 });
+  });
+
+  it("a busca dos candidatos não usa NOT (lançamento sem descrição continua no gasto)", async () => {
+    await getTypicalMonthlyExpense(ctx);
+    const busca = banco.chamadas.find((c) => c.where.AND)!;
+    expect(JSON.stringify(busca.where)).not.toMatch(/"NOT"/);
   });
 });
