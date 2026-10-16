@@ -24,7 +24,7 @@ export default async function PlanoDaMetaPage(props: PageProps<"/planejamento/me
   const mudar = (await props.searchParams).mudar === "1";
   const ctx = await getRequiredSession();
   const hoje = nowInBrazil();
-  const meta = await metaDoPlano(ctx, id);
+  const meta = await metaDoPlano(ctx, id, hoje);
   if (!meta) notFound();
   const [disponivel, gravado] = await Promise.all([planoDisponivel(ctx), lerPlano(ctx, id)]);
 
@@ -64,7 +64,7 @@ export default async function PlanoDaMetaPage(props: PageProps<"/planejamento/me
     : null;
   return (
     <TelaDoPlano
-      meta={{ id: meta.id, nome: meta.nome, alvo: meta.alvo, guardado: meta.guardado, prazo: chaveDoPrazo(meta.prazo), taxaAnual: meta.taxaAnual }}
+      meta={{ id: meta.id, nome: meta.nome, alvo: meta.alvo, guardado: meta.guardado, prazo: chaveDoPrazo(meta.prazo), taxaAnual: meta.taxaAnual, rascunho: meta.rascunho }}
       plano={plano}
       hoje={{ ano: hoje.getFullYear(), mes: hoje.getMonth() + 1, dia: hoje.getDate() }}
       inicial={inicial}

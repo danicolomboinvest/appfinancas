@@ -10,6 +10,8 @@ const m = (v: number) => fmt(v, { round: Number.isInteger(Math.round(v * 100) / 
 const HOJE = new Date(2026, 9, 16, 12);
 const j: JaGuarda = {
   total: 550,
+  origem: "metas",
+  pedemAsMetas: 550,
   semMeta: 0,
   trazivel: 300,
   fontes: [
@@ -38,8 +40,17 @@ describe("Você já guarda", () => {
     expect(html({ viagem: 300 })).toContain("Viagem fica parada");
   });
 
+  it("com o quanto guardar do orçamento: diz que as metas pedem mais do que ela guarda", () => {
+    const h = html({}, { ...j, total: 550, origem: "orcamento", pedemAsMetas: 1558, semMeta: 0 });
+    expect(h).toContain("Você guarda <span class=\"tabular-nums\">R$ 550</span> por mês");
+    expect(h).toMatch(/Suas metas já pedem <span[^>]*>R\$ 1\.558<\/span> e você guarda <span[^>]*>R\$ 550<\/span>\./);
+    const sobra = html({}, { ...j, total: 550, origem: "orcamento", pedemAsMetas: 300, semMeta: 250 });
+    expect(sobra).not.toContain("Suas metas já pedem");
+    expect(sobra).toContain("R$ 250 por mês sem meta");
+  });
+
   it("dinheiro sem meta: aparece e já conta para esta meta", () => {
-    const h = html({}, { total: 550, semMeta: 550, trazivel: 0, fontes: [] });
+    const h = html({}, { total: 550, origem: "metas", pedemAsMetas: 0, semMeta: 550, trazivel: 0, fontes: [] });
     expect(h).toContain("R$ 550 por mês sem meta");
     expect(h).not.toContain('type="range"');
   });

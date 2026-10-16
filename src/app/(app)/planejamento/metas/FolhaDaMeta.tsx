@@ -19,7 +19,7 @@ import { ESFERAS_DA_META, fotoDoTipo, fotosEmOrdem, tipoDoNome } from "@/lib/met
 import { prazoApertado, type LimiteDasMetas } from "@/lib/metas/prazo-que-cabe";
 import { PrazoQueCabe } from "./PrazoQueCabe";
 import { mesAoTrocarDeAno, prazoJaPassou } from "./visual";
-import { apagarMetaAction, criarMetaAction, desfazerApagarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
+import { apagarMetaAction, comecarPlanoDaNovaMetaAction, criarMetaAction, desfazerApagarMetaAction, editarMetaAction, enviarFotoDaMetaAction, type MetaGuiada } from "./acoes";
 
 /**
  * A nova meta guiada (protótipo #nova-meta, rodadas 4, 12 e 32): uma pergunta por tela, em cinco
@@ -204,11 +204,19 @@ function FolhaDaMeta({
         brilhar(document.getElementById(`meta-${meta.id}`));
         return;
       }
+      // "Como vou juntar?": a meta ainda não nasce (rascunho); ela nasce no "Usar esse plano" ou no
+      // "Criar a meta sem plano". Voltar e tentar de novo não cria uma segunda meta igual.
+      if (comOPlano) {
+        const r = await comecarPlanoDaNovaMetaAction(dados);
+        if (!r.ok) return erroDoSalvar.falhou(r.error);
+        onFechar();
+        router.push(`/planejamento/metas/${r.id}/plano`);
+        return;
+      }
       const r = await criarMetaAction(dados);
       if (!r.ok) return erroDoSalvar.falhou(r.error);
       onFechar();
-      // "Como vou juntar?": a meta nasce e o plano abre na hora (sem plano, ela fica como criada).
-      router.push(comOPlano ? `/planejamento/metas/${r.id}/plano` : `/planejamento/metas?nova=${r.id}`);
+      router.push(`/planejamento/metas?nova=${r.id}`);
       router.refresh();
     });
   }

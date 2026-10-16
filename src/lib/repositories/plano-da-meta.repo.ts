@@ -11,7 +11,8 @@ import { chaveRaioX } from "@/lib/decisoes/raio-x";
 import { marcaDaDescricao } from "@/lib/marcas/marca";
 import { casaAtiva, ehDaCasa } from "@/lib/casa/regras";
 import { categoriasEssenciais } from "@/lib/categories";
-import { TAXA_PADRAO_DAS_METAS } from "@/lib/metas/projecao";
+import { TAXA_PADRAO_DAS_METAS, porMesDaNovaMeta } from "@/lib/metas/projecao";
+import type { GoalIcon } from "@prisma/client";
 import { cobrancasDeAssinatura, mesesFechados, type AssinaturaDoPlano, type EntradaDoPlano, type LancamentoDoPlano, type OutraMeta } from "@/lib/planning/plano-da-meta";
 import { TIPO_DO_PLANO, antesDoPlanoNovo, dataDoPrazo, devolucoes, juntarTrazidos, oQueTirarFaz, planoDoRegistro, valoresDaMeta, type PlanoGravado, type Trazido } from "@/lib/planning/plano-gravado";
 import { fotoDoTipo } from "@/lib/metas/tipos";
@@ -25,15 +26,77 @@ import { fotoDoTipo } from "@/lib/metas/tipos";
  * "Só meu" dele aparece); o gasto da casa entra marcado "da casa" e vai para o fim da lista.
  */
 
-export type MetaDoPlano = { id: string; nome: string; foto: string | null; alvo: number; guardado: number; prazo: Date | null; taxaAnual: number; porMes: number };
+export type MetaDoPlano = {
+  id: string;
+  nome: string;
+  foto: string | null;
+  alvo: number;
+  guardado: number;
+  prazo: Date | null;
+  taxaAnual: number;
+  porMes: number;
+  /** A meta ainda não existe: é o rascunho da folha da nova meta (o id é o do rascunho). */
+  rascunho?: boolean;
+};
+
+/* ---------------------------------------------------------------- o rascunho da nova meta */
+
+export const TIPO_DO_RASCUNHO = "meta_rascunho";
+/** O rascunho vale por 2 dias; depois disso o plano não abre nele. */
+const VALIDADE_DO_RASCUNHO_MS = 2 * 86_400_000;
+type DadosDoRascunho = { nome: string; tipo: GoalIcon; alvo: number; prazo: string; foto: string | null };
+
+/** Guarda a nova meta como rascunho (só um por perfil: o novo troca o anterior). */
+export async function criarRascunhoDaMeta(ctx: AuthContext, d: DadosDoRascunho): Promise<string> {
+  await prisma.decisao.deleteMany({ where: { ...doDono(ctx), tipo: TIPO_DO_RASCUNHO } });
+  const r = await prisma.decisao.create({ data: { ...doDono(ctx), tipo: TIPO_DO_RASCUNHO, descricao: "rascunho", dados: d }, select: { id: true } });
+  return r.id;
+}
+
+async function lerRascunho(ctx: AuthContext, id: string): Promise<DadosDoRascunho | null> {
+  const r = await prisma.decisao.findFirst({ where: { id, ...doDono(ctx), tipo: TIPO_DO_RASCUNHO }, select: { dados: true, createdAt: true } });
+  if (!r || Date.now() - r.createdAt.getTime() > VALIDADE_DO_RASCUNHO_MS) return null;
+  const d = (r.dados && typeof r.dados === "object" ? r.dados : {}) as Partial<DadosDoRascunho>;
+  if (typeof d.nome !== "string" || typeof d.alvo !== "number" || typeof d.prazo !== "string" || typeof d.tipo !== "string") return null;
+  return { nome: d.nome, tipo: d.tipo as GoalIcon, alvo: d.alvo, prazo: d.prazo, foto: typeof d.foto === "string" ? d.foto : null };
+}
+
+/** A meta nasce do rascunho (no "Usar esse plano" ou no "Criar a meta sem plano") e o rascunho sai. */
+export async function criarMetaDoRascunho(ctx: AuthContext, id: string, hoje: Date): Promise<string | null> {
+  const d = await lerRascunho(ctx, id);
+  if (!d) return null;
+  const prazo = dataDoPrazo(d.prazo);
+  const meta = await prisma.goal.create({
+    data: {
+      ...doDono(ctx),
+      name: d.nome,
+      icon: d.tipo,
+      targetAmount: d.alvo,
+      targetDate: prazo,
+      currentAmount: 0,
+      annualRate: TAXA_PADRAO_DAS_METAS,
+      monthlyContribution: prazo ? porMesDaNovaMeta(d.alvo, prazo, hoje) : 50,
+      status: "NOT_STARTED",
+      fotoUrl: d.foto,
+    },
+    select: { id: true },
+  });
+  await prisma.decisao.deleteMany({ where: { id, ...doDono(ctx), tipo: TIPO_DO_RASCUNHO } });
+  return meta.id;
+}
 
 /** A meta, se for dela e estiver em andamento. */
-export async function metaDoPlano(ctx: AuthContext, goalId: string): Promise<MetaDoPlano | null> {
+export async function metaDoPlano(ctx: AuthContext, goalId: string, hoje: Date = new Date()): Promise<MetaDoPlano | null> {
   const g = await prisma.goal.findFirst({
     where: { id: goalId, ...doDono(ctx) },
     select: { id: true, name: true, fotoUrl: true, targetAmount: true, currentAmount: true, targetDate: true, annualRate: true, monthlyContribution: true, viagem: true },
   });
-  if (!g) return null;
+  if (!g) {
+    const r = await lerRascunho(ctx, goalId);
+    if (!r) return null;
+    const prazo = dataDoPrazo(r.prazo);
+    return { id: goalId, nome: r.nome, foto: r.foto, alvo: r.alvo, guardado: 0, prazo, taxaAnual: TAXA_PADRAO_DAS_METAS, porMes: prazo ? porMesDaNovaMeta(r.alvo, prazo, hoje) : 0, rascunho: true };
+  }
   return {
     id: g.id,
     nome: g.name,
@@ -75,6 +138,18 @@ async function outrasMetas(ctx: AuthContext, menosAMeta: string): Promise<OutraM
     out.push({ id: g.id, nome: g.name, foto: g.fotoUrl ?? fotoDoTipo(g.icon), porMes: Number(g.monthlyContribution), alvo: Number(g.targetAmount), guardado: Number(g.currentAmount), prazo: g.targetDate, taxaAnual: g.annualRate === null ? TAXA_PADRAO_DAS_METAS : Number(g.annualRate), reserva: g.icon === "RESERVA" });
   }
   return out;
+}
+
+/**
+ * O "quanto guardar" do orçamento: o do mês de hoje ou, sem ele, o do plano mais recente dos 3 meses
+ * antes (o orçamento pode não ter sido aberto ainda no mês). Null quando não há ou é zero.
+ */
+export async function guardaNoOrcamento(ctx: AuthContext, hoje: Date): Promise<number | null> {
+  const meses = [0, 1, 2, 3].map((i) => new Date(hoje.getFullYear(), hoje.getMonth() - i, 1)).map((d) => ({ year: d.getFullYear(), month: d.getMonth() + 1 }));
+  const planos = await prisma.monthlyPlan.findMany({ where: { ...doDono(ctx), OR: meses }, select: { year: true, month: true, plannedInvestment: true } });
+  const recente = planos.sort((a, b) => b.year * 12 + b.month - (a.year * 12 + a.month))[0];
+  const v = recente ? Number(recente.plannedInvestment) : 0;
+  return v > 0 ? v : null;
 }
 
 /** Os gastos dela nos meses pedidos, no formato do motor. */
@@ -141,12 +216,13 @@ async function assinaturasDoPlano(ctx: AuthContext, hoje: Date, lancamentos: Lan
 /** Tudo o que o motor precisa para a meta, de quem olha. */
 export async function entradaDoPlano(ctx: AuthContext, meta: MetaDoPlano, hoje: Date): Promise<EntradaDoPlano> {
   const meses = mesesFechados(hoje);
-  const [u, renda, gasto, outras, lancamentos] = await Promise.all([
+  const [u, renda, gasto, outras, lancamentos, guarda] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId }, select: { currency: true } }),
     getRendaMedia(ctx, hoje),
     getTypicalMonthlyExpense(ctx),
     outrasMetas(ctx, meta.id),
     lancamentosDoPlano(ctx, meses),
+    guardaNoOrcamento(ctx, hoje),
   ]);
   const assinaturas = await assinaturasDoPlano(ctx, hoje, lancamentos);
   return {
@@ -158,6 +234,7 @@ export async function entradaDoPlano(ctx: AuthContext, meta: MetaDoPlano, hoje: 
     gastoTipico: gasto ? { media: gasto.monthlyAverage, meses: gasto.monthsUsed } : null,
     aportesCombinados: outras.reduce((t, o) => t + o.porMes, 0),
     outras,
+    guardaNoOrcamento: guarda,
     lancamentos,
     assinaturas,
   };

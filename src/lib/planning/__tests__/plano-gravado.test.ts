@@ -224,3 +224,32 @@ describe("o que ela já guarda e trazer das outras metas (16/10)", () => {
     expect(juntos).toEqual([{ id: "viagem", nome: "Viagem", reserva: false, valor: 150, antes: 300, depois: 150 }]);
   });
 });
+
+describe("o quanto guardar do orçamento manda (16/10, o caso da Dani)", () => {
+  const meta = (id: string, porMes: number) => ({ id, nome: id, foto: null, porMes, alvo: 10000, guardado: 0, prazo: new Date(2028, 5, 1, 12), taxaAnual: 0.1, reserva: false });
+
+  it("guarda R$ 550 e as metas pedem R$ 1.558: nada sobra, faltam inteiros, e a diferença aparece", () => {
+    const e = entrada({ guardaNoOrcamento: 550, aportesCombinados: 1557.73, outras: [meta("Viagem", 961.58), meta("Celular", 596.15)] });
+    const p = planoDaMeta(e);
+    if (!p.mostra) throw new Error("não mostra");
+    expect(p.sobra).toBe(0);
+    expect(p.falta).toBe(p.pede);
+    expect(p.jaGuarda).toMatchObject({ total: 550, origem: "orcamento", pedemAsMetas: 1557.73, semMeta: 0 });
+    // Só sai das metas o que ela guarda de verdade.
+    expect(p.jaGuarda.trazivel).toBe(550);
+  });
+
+  it("guarda R$ 550 e as metas pedem R$ 300: os R$ 250 sem meta entram inteiros", () => {
+    const p = planoDaMeta(entrada({ guardaNoOrcamento: 550, aportesCombinados: 300, outras: [meta("Viagem", 300)] }));
+    if (!p.mostra) throw new Error("não mostra");
+    expect(p.sobra).toBe(250);
+    expect(p.falta).toBe((p.pede ?? 0) - 250);
+    expect(p.jaGuarda).toMatchObject({ total: 550, pedemAsMetas: 300, semMeta: 250 });
+  });
+
+  it("sem o quanto guardar, vale a regra de antes (renda menos gasto menos os combinados)", () => {
+    const p = planoDaMeta(entrada({ guardaNoOrcamento: null, rendaMedia: 4380, gastoTipico: { media: 3830, meses: 3 }, aportesCombinados: 300, outras: [meta("Viagem", 300)] }));
+    expect(p.mostra && p.jaGuarda.origem).toBe("metas");
+    expect(p.mostra && p.sobra).toBe(250);
+  });
+});

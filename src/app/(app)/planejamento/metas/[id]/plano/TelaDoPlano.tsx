@@ -8,14 +8,14 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import type { Coisinha, PlanoDaMeta } from "@/lib/planning/plano-da-meta";
 import { alternativasPara, economiaPara } from "@/lib/planning/plano-da-meta-regua";
-import { usarPlanoAction } from "./acoes";
+import { criarMetaSemPlanoAction, usarPlanoAction } from "./acoes";
 import { ItemDaCoisinha } from "./ItemDaCoisinha";
 import { JaGuardaCartao } from "./JaGuarda";
 
 type Mostra = Extract<PlanoDaMeta, { mostra: true }>;
 type Saida = "nenhuma" | "prazo" | "menor" | "daa";
 
-export type MetaNaTela = { id: string; nome: string; alvo: number; guardado: number; prazo: string | null; taxaAnual: number };
+export type MetaNaTela = { id: string; nome: string; alvo: number; guardado: number; prazo: string | null; taxaAnual: number; rascunho?: boolean };
 
 const AVISO: Partial<Record<Mostra["avisos"][number], string>> = {
   sobra_negativa: "Hoje o que sai passa do que entra. Confira se a renda está toda lançada.",
@@ -79,7 +79,7 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
       const trazerAgora = plano.jaGuarda.fontes.filter((f) => (trazer[f.id] ?? 0) > 0).map((f) => ({ id: f.id, valor: Math.min(f.podeTrazer, trazer[f.id] ?? 0) }));
       const r = await usarPlanoAction(meta.id, { itens, saida: fechou ? "nenhuma" : (saida ?? "nenhuma"), trazer: trazerAgora });
       if (!r.ok) return erro.falhou(r.error);
-      router.push(`/planejamento/metas/${meta.id}/plano`);
+      router.push(`/planejamento/metas/${r.id}/plano`);
       router.refresh();
     });
   }
@@ -231,6 +231,23 @@ export function TelaDoPlano({ meta, plano, hoje, inicial }: { meta: MetaNaTela; 
           {pendente ? "Salvando…" : erro.erro ? TENTAR_DE_NOVO : "Usar esse plano"}
         </button>
         <ErroNoBotao erro={erro.erro} />
+        {meta.rascunho && (
+          <button
+            type="button"
+            disabled={pendente}
+            onClick={() =>
+              iniciar(async () => {
+                const r = await criarMetaSemPlanoAction(meta.id);
+                if (!r.ok) return erro.falhou(r.error);
+                router.push(`/planejamento/metas?nova=${r.id}`);
+                router.refresh();
+              })
+            }
+            className="flex min-h-11 w-full items-center justify-center text-[15px] font-semibold text-ink-muted disabled:opacity-40"
+          >
+            Criar a meta sem plano
+          </button>
+        )}
       </div>
     </div>
   );

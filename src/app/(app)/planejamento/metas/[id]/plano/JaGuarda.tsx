@@ -1,4 +1,4 @@
-import { Lock, PiggyBank } from "lucide-react";
+import { CircleAlert, Lock, PiggyBank } from "lucide-react";
 import type { JaGuarda } from "@/lib/planning/plano-da-meta";
 import { passosDoTrazer, quandoChegaComMenos } from "@/lib/planning/plano-da-meta-regua";
 
@@ -15,8 +15,17 @@ export function JaGuardaCartao({ j, trazer, onTrazer, hoje, m }: { j: JaGuarda; 
   return (
     <div className="flex flex-col gap-2.5 rounded-[24px] border border-border bg-surface p-4" data-ja-guarda>
       <b className="text-[15px] font-semibold text-ink">
-        Você já guarda <span className="tabular-nums">{m(j.total)}</span> por mês
+        {j.origem === "orcamento" ? "Você guarda" : "Você já guarda"} <span className="tabular-nums">{m(j.total)}</span> por mês
       </b>
+      {/* As metas que já existem pedem mais do que ela guarda: a diferença fica à vista. */}
+      {j.origem === "orcamento" && j.pedemAsMetas > j.total + 0.005 && (
+        <p className="flex items-start gap-2 rounded-2xl bg-accent-soft px-3 py-2.5 text-[13.5px] font-medium text-ink" data-metas-pedem-mais>
+          <CircleAlert size={16} className="mt-0.5 shrink-0 text-accent-strong" aria-hidden />
+          <span>
+            Suas metas já pedem <span className="whitespace-nowrap tabular-nums">{m(j.pedemAsMetas)}</span> e você guarda <span className="whitespace-nowrap tabular-nums">{m(j.total)}</span>.
+          </span>
+        </p>
+      )}
       {j.fontes.map((f) => {
         const t = trazer[f.id] ?? 0;
         const passos = passosDoTrazer(f.podeTrazer);
@@ -85,7 +94,7 @@ export function JaGuardaCartao({ j, trazer, onTrazer, hoje, m }: { j: JaGuarda; 
       {media && <p className="text-[13px] font-medium text-ink-muted">Da Reserva sai no máximo {m(media.podeTrazer)}: ela ainda está com menos de 6 meses.</p>}
       {j.semMeta > 0 && (
         <p className="text-[13.5px] font-medium tabular-nums text-ink">
-          {m(j.semMeta)} por mês sem meta <span className="font-normal text-ink-muted">· já contam para esta meta</span>
+          {m(j.semMeta)} por mês sem meta <span className="font-normal text-ink-muted">· contam inteiros para esta meta</span>
         </p>
       )}
     </div>

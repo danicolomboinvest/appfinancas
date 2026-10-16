@@ -10,6 +10,7 @@ import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { apagarMeta, restaurarMeta, type MetaApagada } from "@/lib/repositories/goal.repo";
 import { criarRecibo, lerRecibo } from "@/lib/desfazer/recibo";
 import { lerMetaDaTela } from "@/lib/repositories/metas.repo";
+import { criarRascunhoDaMeta } from "@/lib/repositories/plano-da-meta.repo";
 import { TAXA_PADRAO_DAS_METAS, mesDaqui, mesDoAporte, porMesDaNovaMeta } from "@/lib/metas/projecao";
 import { TIPOS_DE_META, ehFotoDoBanco, FOTOS_DE_META, urlDaFoto } from "@/lib/metas/tipos";
 
@@ -67,6 +68,23 @@ function prazoValido(prazo: string | null, hoje: Date): Date | null | "invalido"
 }
 
 /** Nova meta guiada: nome, tipo, quanto, quando, foto. O valor por mês sai da conta (ou da escolha, sem prazo). */
+/**
+ * "Como vou juntar?" na folha da nova meta (16/10/2026): a meta ainda NÃO nasce. Vira um rascunho e
+ * o plano abre nele; ela nasce no "Usar esse plano" ou no "Criar a meta sem plano". Antes, a meta
+ * nascia aqui e quem voltava e tentava de novo ficava com duas metas iguais (aconteceu com a Dani).
+ */
+export async function comecarPlanoDaNovaMetaAction(dados: MetaGuiada): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const p = metaGuiadaSchema.safeParse(dados);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Dados inválidos." };
+  const ctx = await getRequiredSession();
+  const hoje = nowInBrazil();
+  const prazo = prazoValido(p.data.prazo, hoje);
+  if (prazo === "invalido") return { ok: false, error: "Escolha um mês daqui para frente." };
+  if (!prazo) return { ok: false, error: "Escolha uma data para a meta." };
+  const id = await criarRascunhoDaMeta(ctx, { nome: p.data.nome, tipo: p.data.tipo, alvo: p.data.alvo, prazo: `${prazo.getFullYear()}-${String(prazo.getMonth() + 1).padStart(2, "0")}`, foto: await fotoValida(ctx, p.data.foto) });
+  return { ok: true, id };
+}
+
 export async function criarMetaAction(dados: MetaGuiada): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const p = metaGuiadaSchema.safeParse(dados);
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Dados inválidos." };

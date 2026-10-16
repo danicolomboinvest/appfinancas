@@ -104,6 +104,12 @@ export type EntradaDoPlano = {
    * que a tela mostra em "Você já guarda" e de onde ela pode trazer dinheiro para esta meta.
    */
   outras?: OutraMeta[];
+  /**
+   * O "quanto guardar" do orçamento do mês (MonthlyPlan.plannedInvestment). Quando existe, É o que
+   * ela guarda (decisão de 16/10/2026, a Dani: "eu coloquei que eu junto R$ 550 por mês"): o que
+   * sobra dele depois do que as outras metas pedem entra primeiro nesta meta.
+   */
+  guardaNoOrcamento?: number | null;
   /** Lançamentos de GASTO de quem olha, pelo menos os 3 meses fechados. */
   lancamentos: LancamentoDoPlano[];
   assinaturas: AssinaturaDoPlano[];
@@ -144,8 +150,14 @@ export type FonteDoAporte = {
 };
 
 export type JaGuarda = {
-  /** O que ela guarda por mês: o combinado das metas e da reserva, mais o que sobra sem meta. */
+  /**
+   * O que ela guarda por mês: o "quanto guardar" do orçamento (origem "orcamento") ou, sem ele, o
+   * combinado das metas e da reserva mais o que sobra sem meta (origem "metas").
+   */
   total: number;
+  origem: "orcamento" | "metas";
+  /** Quanto as metas que já existem (e a reserva) pedem por mês, somado. */
+  pedemAsMetas: number;
   fontes: FonteDoAporte[];
   /** O que sobra sem meta (é a sobra do plano: já entra na conta desta meta). */
   semMeta: number;
@@ -573,7 +585,11 @@ export function planoDaMeta(e: EntradaDoPlano): PlanoDaMeta {
   // a sobra (meta com prazo impossível, 630 vezes a renda numa conta real) nunca deixa a sobra
   // negativa sozinho: ele só ocupa tudo o que sobra.
   const livre = temRenda && e.gastoTipico ? reais((e.rendaMedia as number) - e.gastoTipico.media) : null;
-  const sobraBruta = livre === null ? null : livre > 0 ? reais(livre - Math.min(livre, Math.max(0, e.aportesCombinados))) : livre;
+  // Com o "quanto guardar" do orçamento, a regra é a dela: o que sobra dele depois do que as metas
+  // que já existem pedem é o que entra nesta meta (nada, quando elas já pedem mais do que ela guarda).
+  const guarda = e.guardaNoOrcamento !== null && e.guardaNoOrcamento !== undefined && e.guardaNoOrcamento > 0 ? reais(e.guardaNoOrcamento) : null;
+  const sobraBruta =
+    guarda !== null ? reais(guarda - Math.max(0, e.aportesCombinados)) : livre === null ? null : livre > 0 ? reais(livre - Math.min(livre, Math.max(0, e.aportesCombinados))) : livre;
   if (livre !== null && livre < 0) avisos.push("sobra_negativa");
   // Sobra negativa conta zero: o plano não promete tapar o buraco do mês (na validação de 16/10,
   // quase sempre era renda lançada pela metade ou Pix para conta própria, não gasto de verdade).
@@ -581,7 +597,7 @@ export function planoDaMeta(e: EntradaDoPlano): PlanoDaMeta {
 
   const { coisinhas, mesesDeDados } = coisinhasDosGastos(e);
   if (mesesDeDados === 2) avisos.push("dois_meses");
-  const jaGuarda = jaGuardaDe(e.outras ?? [], livre, sobra, e.gastoTipico?.media ?? null);
+  const jaGuarda = jaGuardaDe(e.outras ?? [], guarda ?? livre, sobra, e.gastoTipico?.media ?? null, guarda);
   const base = { mostra: true as const, prazoTexto, pede, sobraBruta, sobra, avisos, mesesDeDados, jaGuarda };
 
   // Com menos de 2 meses fechados de gasto, nada do que vem dos gastos é confiável (nem a sobra).
@@ -640,8 +656,9 @@ const chaveDoMes = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).p
  * - nada sai além do que existe de verdade: se o combinado das metas passa do que sobra do mês
  *   (renda menos gasto), só a parte que cabe pode ser trazida.
  * O que sobra sem meta já entra na conta desta meta (é a sobra), então não tem régua.
+ * Com o "quanto guardar" do orçamento, `livre` é ele: só sai das metas o que ela guarda de verdade.
  */
-export function jaGuardaDe(outras: readonly OutraMeta[], livre: number | null, sobra: number, gastoMedio: number | null): JaGuarda {
+export function jaGuardaDe(outras: readonly OutraMeta[], livre: number | null, sobra: number, gastoMedio: number | null, guarda: number | null = null): JaGuarda {
   let cabe = Math.max(0, Math.min(outras.reduce((t, o) => t + Math.max(0, o.porMes), 0), Math.max(0, livre ?? 0)));
   const fontes: FonteDoAporte[] = [];
   for (const o of outras) {
@@ -664,6 +681,7 @@ export function jaGuardaDe(outras: readonly OutraMeta[], livre: number | null, s
   }
   // A reserva primeiro (é a base de tudo), depois as metas na ordem em que vieram.
   fontes.sort((a, b) => Number(b.reserva) - Number(a.reserva));
-  const total = Math.round((fontes.reduce((t, f) => t + f.porMes, 0) + sobra) * 100) / 100;
-  return { total, fontes, semMeta: sobra, trazivel: fontes.reduce((t, f) => t + f.podeTrazer, 0) };
+  const pedemAsMetas = Math.round(fontes.reduce((t, f) => t + f.porMes, 0) * 100) / 100;
+  const total = guarda ?? Math.round((pedemAsMetas + sobra) * 100) / 100;
+  return { total, origem: guarda !== null ? "orcamento" : "metas", pedemAsMetas, fontes, semMeta: sobra, trazivel: fontes.reduce((t, f) => t + f.podeTrazer, 0) };
 }

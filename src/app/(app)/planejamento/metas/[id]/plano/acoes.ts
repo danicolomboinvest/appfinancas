@@ -6,7 +6,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { planoDaMeta } from "@/lib/planning/plano-da-meta";
 import { aplicarEscolhas } from "@/lib/planning/plano-gravado";
-import { cobrancasDeAssinatura, entradaDoPlano, gravarPlano, metaDoPlano, planoDisponivel, tirarPlano } from "@/lib/repositories/plano-da-meta.repo";
+import { cobrancasDeAssinatura, criarMetaDoRascunho, entradaDoPlano, gravarPlano, metaDoPlano, planoDisponivel, tirarPlano } from "@/lib/repositories/plano-da-meta.repo";
 import { ligarLembretes } from "@/lib/assinaturas/lembretes";
 
 /**
@@ -16,6 +16,7 @@ import { ligarLembretes } from "@/lib/assinaturas/lembretes";
  */
 
 type Resultado = { ok: true } | { ok: false; error: string };
+type ResultadoComMeta = { ok: true; id: string } | { ok: false; error: string };
 
 const escolhasSchema = z.object({
   itens: z.array(z.object({ id: z.string().min(1).max(80), valor: z.number().min(0).max(1e8) })).max(30),
@@ -31,19 +32,22 @@ function revalidar(id: string) {
   revalidatePath("/mensal/foco");
 }
 
-export async function usarPlanoAction(goalId: string, escolhas: z.infer<typeof escolhasSchema>): Promise<Resultado> {
+export async function usarPlanoAction(goalId: string, escolhas: z.infer<typeof escolhasSchema>): Promise<ResultadoComMeta> {
   const id = idSchema.safeParse(goalId);
   const e = escolhasSchema.safeParse(escolhas);
   if (!id.success || !e.success) return { ok: false, error: "Escolhas inválidas." };
   const ctx = await getRequiredSession();
   if (!(await planoDisponivel(ctx))) return { ok: false, error: "O plano não está disponível neste perfil." };
   const hoje = nowInBrazil();
-  const meta = await metaDoPlano(ctx, id.data);
+  const meta = await metaDoPlano(ctx, id.data, hoje);
   if (!meta) return { ok: false, error: "Essa meta não existe mais. Recarregue a página." };
   const entrada = await entradaDoPlano(ctx, meta, hoje);
   const r = aplicarEscolhas(planoDaMeta(entrada), entrada.meta, e.data, hoje, cobrancasDeAssinatura(entrada.assinaturas));
   if (!r.ok) return { ok: false, error: r.erro };
-  const ok = await gravarPlano(ctx, meta.id, r.plano, r.meta, r.trazidos);
+  // Nova meta (rascunho da folha): ela nasce agora, junto com o plano.
+  const goalId2 = meta.rascunho ? await criarMetaDoRascunho(ctx, meta.id, hoje) : meta.id;
+  if (!goalId2) return { ok: false, error: "Essa meta não existe mais. Recarregue a página." };
+  const ok = await gravarPlano(ctx, goalId2, r.plano, r.meta, r.trazidos);
   if (!ok) return { ok: false, error: "Essa meta não existe mais. Recarregue a página." };
   // O lembrete de cancelar das assinaturas escolhidas (o mesmo do Raio-X). Falhar aqui não desfaz o plano.
   const chaves = r.plano.itens.filter((i) => i.acao === "cancelar" && i.raiox).map((i) => i.raiox as string);
@@ -54,8 +58,19 @@ export async function usarPlanoAction(goalId: string, escolhas: z.infer<typeof e
       console.error("[plano da meta] lembrete de cancelar falhou:", err);
     }
   }
-  revalidar(meta.id);
-  return { ok: true };
+  revalidar(goalId2);
+  return { ok: true, id: goalId2 };
+}
+
+/** "Criar a meta sem plano": a nova meta (rascunho) nasce como na folha, sem tetos nem avisos. */
+export async function criarMetaSemPlanoAction(rascunhoId: string): Promise<ResultadoComMeta> {
+  const id = idSchema.safeParse(rascunhoId);
+  if (!id.success) return { ok: false, error: "Meta inválida." };
+  const ctx = await getRequiredSession();
+  const novo = await criarMetaDoRascunho(ctx, id.data, nowInBrazil());
+  if (!novo) return { ok: false, error: "Essa meta não existe mais. Comece de novo." };
+  revalidar(novo);
+  return { ok: true, id: novo };
 }
 
 /** A meta continua com o valor por mês e o prazo de agora; só o plano (tetos e avisos) sai. */
