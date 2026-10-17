@@ -163,8 +163,8 @@ export function TelaDasCalculadoras({ salvas }: { salvas: SalvaNaLista[] }) {
                       <t.Icone size={18} aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <b className="block truncate text-[15px] font-medium text-ink">{s.nome || t.nome}</b>
-                      <small className="block truncate text-caption text-ink-muted">{s.resumo}</small>
+                      <b className="block break-words text-[15px] font-medium text-ink">{s.nome || t.nome}</b>
+                      <small className="block break-words text-caption text-ink-muted">{s.resumo}</small>
                     </span>
                     <em className="shrink-0 text-caption not-italic text-ink-muted">{s.data}</em>
                   </Link>

@@ -179,7 +179,7 @@ export function AmortizarGuiado({ dados, salva }: { dados: DadosDaTela; salva: S
                 <LogoDoCredor credor={d.credor ?? d.nome} tipo={d.tipo} saude={saude} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5">
-                    <b className="truncate text-[15px] font-medium text-ink">{d.nome}</b>
+                    <b className="min-w-0 break-words text-[15px] font-medium text-ink">{d.nome}</b>
                     <span className={`rounded-full px-2 py-px text-xs ${saude === "cara" ? "bg-danger-soft text-danger" : saude === "saudavel" ? "bg-success-soft text-success" : "bg-accent-soft text-accent-strong"}`}>{FRASE_DA_SAUDE[saude].selo}</span>
                   </span>
                   <small className="text-caption text-ink-muted">
