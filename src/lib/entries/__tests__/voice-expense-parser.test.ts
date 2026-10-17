@@ -253,6 +253,18 @@ describe("valor falado: centavos e jeitos de escrever o número (14/10/2026)", (
     expect(parseVoiceEntry("paguei 30 reais e 2 cafés").amount).toBe(30);
     expect(parseVoiceEntry("gastei 50 reais e 20 de gorjeta").amount).toBe(50);
   });
+  it("centavos sem a palavra reais: 75 e 32 centavos, 18 e 50 (17/10/2026)", () => {
+    expect(parseVoiceEntry("ifood 75 e 32 centavos")).toMatchObject({ amount: 75.32, description: "iFood" });
+    expect(parseVoiceEntry("padaria 18 e 50")).toMatchObject({ amount: 18.5, description: "Padaria" });
+    expect(parseVoiceEntry("gastei 23 e 90 no uber")).toMatchObject({ amount: 23.9, description: "Uber" });
+    expect(parseVoiceEntry("lanche 12 e 5 centavos")).toMatchObject({ amount: 12.05, description: "Lanche" });
+  });
+  it("sem reais também não inventa centavos de outra coisa", () => {
+    expect(parseVoiceEntry("paguei 30 e 2 cafés").amount).toBe(30);
+    expect(parseVoiceEntry("almoço 50 e 20 de gorjeta").amount).toBe(50);
+    expect(parseVoiceEntry("recebi 4 mil e 500").amount).toBe(4500);
+    expect(parseVoiceEntry("mercado 18 e 5").amount).toBe(18);
+  });
   it("100.50 é cem e cinquenta, não dez mil", () => {
     expect(parseVoiceEntry("gastei 100.50 no mercado").amount).toBe(100.5);
   });

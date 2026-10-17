@@ -142,7 +142,8 @@ function lerNumeroEscrito(t: string): number {
  * "30 reais e 2 cafés" e "50 reais e 20 de gorjeta" não viram centavos.
  */
 function centavosDepois(resto: string): number {
-  const m = resto.match(/^\s*(?:reais|real)\s+e\s+(\d{1,2}|[a-z]+(?:\s+e\s+[a-z]+)?)\s*(centavos?)?(?=\s|$)(.*)$/);
+  // O "reais" é opcional: "75 e 32 centavos" e "18 e 50" também são ditos assim (17/10/2026).
+  const m = resto.match(/^\s*(?:(?:reais|real)\s+)?e\s+(\d{1,2}|[a-z]+(?:\s+e\s+[a-z]+)?)\s*(centavos?)?(?=\s|$)(.*)$/);
   if (!m) return 0;
   const n = /^\d+$/.test(m[1]) ? Number(m[1]) : wordsToNumber(m[1]);
   if (n === null || n <= 0 || n >= 100) return 0;
@@ -356,7 +357,8 @@ export function descricaoDaFala(text: string): string {
       for (let j = i + 1; j < limpos.length && PALAVRA_DE_NUMERO(limpos[j]); j += 1) fora.add(j);
     }
     // "e 50 centavos", "e noventa" depois do real: também é o valor.
-    if (PALAVRA_DE_DINHEIRO.test(t) && limpos[i + 1] === "e") {
+    // Também depois do número sem o "reais": "75 e 32 centavos", "18 e 50" (17/10/2026).
+    if ((PALAVRA_DE_DINHEIRO.test(t) || EH_NUMERO.test(t)) && limpos[i + 1] === "e") {
       let j = i + 2;
       while (j < limpos.length && limpos[j] !== "e" && (PALAVRA_DE_NUMERO(limpos[j]) || /^\d{1,2}$/.test(limpos[j]))) j += 1;
       if (limpos[j] === "e" && j + 1 < limpos.length && PALAVRA_DE_NUMERO(limpos[j + 1])) {
