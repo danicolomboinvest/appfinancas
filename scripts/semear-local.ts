@@ -35,6 +35,9 @@ async function main() {
   const antiga = await prisma.user.findUnique({ where: { email: EMAIL }, select: { id: true } });
   if (antiga) {
     await prisma.financialProfile.deleteMany({ where: { userId: antiga.id } });
+    // Os diagnósticos de importação não caem com o perfil e travavam a nova semeadura.
+    await prisma.importFile.deleteMany({ where: { userId: antiga.id } });
+    await prisma.importDiagnostic.deleteMany({ where: { userId: antiga.id } });
     await prisma.user.delete({ where: { id: antiga.id } });
   }
   // Comprou pelo site em 15/03/2026: Configurações mostra "renova em 15 de março de 2027".
