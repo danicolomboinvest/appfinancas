@@ -19,6 +19,11 @@ describe("cartões do Resumo", () => {
     expect(limparOrdem(["hoje", "meta:cmv5nh2470006jr06", "reserva", "meta:", "meta:../x"])).toEqual(["hoje", "meta:cmv5nh2470006jr06", "reserva"]);
   });
 
+  it("o quadro do mês até agora existe, mas só aparece para quem adiciona", () => {
+    expect(ORDEM_PADRAO).not.toContain("ateagora");
+    expect(limparOrdem(["hoje", "ateagora"])).toEqual(["hoje", "ateagora"]);
+  });
+
   it("ignora o que não é cartão e o que veio repetido", () => {
     expect(limparOrdem(["mes", "xis", "mes", 3, null, "cats"])).toEqual(["mes", "cats"]);
     expect(limparOrdem("mes")).toEqual([]);

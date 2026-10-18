@@ -16,6 +16,9 @@ import { MESES } from "../dados";
 import { ContaDoLivre } from "../ContaDoLivre";
 import { ComoChegamos } from "../ComoChegamos";
 import { CartaoAcerto } from "../CartaoAcerto";
+import { QuadroDoMes } from "../QuadroDoMes";
+import { DuasBolinhas } from "@/components/casa/Pessoas";
+import { vozDoTema } from "@/lib/profiles/voice";
 import { PrimeirosPassos } from "../DepoisDoComeco";
 import { carregarResumoNovo, type InfoDaCategoria, type ResumoNovo as Dados } from "./dados";
 import { CartaoSugestao } from "./CartaoSugestao";
@@ -111,8 +114,9 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
       cats: r.categorias.length > 0 ? <Categorias r={r} money={m} /> : null,
       semana: <LinhaDaSemana r={r} money={m} />,
       proximos: proximos.length > 0 ? <ProximosMeses meses={proximos} money={m} href={(p) => `/mensal/foco?mes=${paraParametro(p)}${cor !== "a" ? `&cor=${cor}` : ""}`} /> : null,
+      ateagora: <MesAteAgora ctx={ctx} r={r} casa={casa} />,
     };
-    const antigos = (["hoje", "mes", "cats", "semana", "proximos"] as const)
+    const antigos = (["hoje", "mes", "cats", "semana", "proximos", "ateagora"] as const)
       .filter((id) => disponiveis[id])
       .map((id): CartaoNaTela => ({ id, ...NOMES_DOS_CARTOES[id], tam: "l", node: disponiveis[id] }));
     const ordem = ordemQueVale(await lerOrdemDoResumo(ctx));
@@ -164,6 +168,25 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
         {r.primeiraVez && <ParaOndeFoi r={r} money={m} />}
       </div>
     </div>
+  );
+}
+
+/**
+ * O quadro "Outubro até agora" do Resumo antigo (pedido da Dani, 18/10/2026): Entrou, Gastou,
+ * Guardou e Sobrou do mês de agora, com a mesma conta e o mesmo visual de antes.
+ */
+function MesAteAgora({ ctx, r, casa }: { ctx: AuthContext; r: Dados; casa: ReturnType<typeof casaNaTela> }) {
+  const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
+  const titulo = MESES[r.foco.month - 1].charAt(0).toUpperCase() + MESES[r.foco.month - 1].slice(1);
+  return (
+    <QuadroDoMes
+      titulo={`${titulo} até agora`}
+      resumo={r.foco.summary}
+      href={r.foco.hrefMes}
+      rotulos={{ entrou: voz.titulos.entrou, gastou: voz.titulos.gastou }}
+      money={r.foco.m}
+      aoLadoDoTitulo={casa ? <DuasBolinhas casa={casa} /> : undefined}
+    />
   );
 }
 
