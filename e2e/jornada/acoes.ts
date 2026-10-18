@@ -113,10 +113,20 @@ export async function prepararVoz(p: Page) {
       onend: (() => void) | null = null;
       onerror: ((e: unknown) => void) | null = null;
       onstart: (() => void) | null = null;
+      private parciais: ReturnType<typeof setInterval> | null = null;
       start() {
         this.onstart?.();
+        // Como o iPhone: pedaços da frase chegam enquanto ela fala (é isso que mexe a onda lá).
+        let n = 0;
+        this.parciais = setInterval(() => {
+          const frase = (window as unknown as { __fraseDaJornada?: string }).__fraseDaJornada ?? "";
+          n += 3;
+          const r = [Object.assign([{ transcript: frase.slice(0, n), confidence: 0.5 }], { isFinal: false })];
+          this.onresult?.({ resultIndex: 0, results: r });
+        }, 180);
       }
       stop() {
+        if (this.parciais) clearInterval(this.parciais);
         const frase = (window as unknown as { __fraseDaJornada?: string }).__fraseDaJornada ?? "";
         const r = [Object.assign([{ transcript: frase, confidence: 0.95 }], { isFinal: true })];
         this.onresult?.({ resultIndex: 0, results: r });
@@ -144,7 +154,17 @@ export async function lancarPorVoz(p: Page, frase: string) {
   if (!caixa) throw new Error("botão de falar sem caixa");
   await p.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
   await p.mouse.down();
-  await p.waitForTimeout(1200);
+  // A onda mexe enquanto ela fala e o relógio anda, também sem o segundo microfone (o do iPhone).
+  const alturas = () => p.evaluate(() => [...document.querySelectorAll<HTMLDivElement>("[data-onda] > div")].map((b) => b.style.height).join(","));
+  await p.waitForTimeout(500);
+  const antes = await alturas();
+  await p.waitForTimeout(250);
+  const depois = await alturas();
+  await p.waitForTimeout(600);
+  const relogio = await p.locator("[data-relogio-da-voz]").textContent();
+  expect(antes, "a onda ficou parada enquanto falava").not.toBe(depois);
+  expect(Math.max(...depois.split(",").map((h) => parseFloat(h))), "a onda não subiu com a fala").toBeGreaterThan(30);
+  expect(relogio, "o relógio da gravação ficou parado").not.toBe("0:00");
   await p.mouse.up();
   const d = p.getByRole("dialog");
   await d.getByRole("button", { name: "Salvar", exact: true }).waitFor({ timeout: 20_000 });

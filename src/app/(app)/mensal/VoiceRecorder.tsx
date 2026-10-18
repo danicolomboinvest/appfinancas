@@ -6,7 +6,7 @@ import { useInstallPlatform, useIsStandalone } from "@/lib/pwa/install";
 import { Mic } from "lucide-react";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
 import { entenderFalaAction } from "./actions";
-import { ondaPodeAbrirMicrofone } from "@/lib/entries/onda-do-microfone";
+import { ENERGIA_DO_EMPURRAO, alturaDaBarra, energiaDepois, ondaPodeAbrirMicrofone } from "@/lib/entries/onda-do-microfone";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import type { Titulos } from "@/lib/profiles/voice";
 
@@ -30,6 +30,9 @@ interface MinimalSpeechRecognition {
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
+  /** Começo da fala e do som: empurram a onda sem microfone (nem todo navegador avisa). */
+  onspeechstart?: (() => void) | null;
+  onsoundstart?: (() => void) | null;
   start: () => void;
   stop: () => void;
 }
@@ -131,6 +134,25 @@ function runVisualizerLoop(
 }
 
 /**
+ * A onda quando não dá para abrir o microfone (iPhone, ou antes do analisador ficar pronto): reage
+ * à energia que o reconhecimento de fala vai empurrando (lib/entries/onda-do-microfone.ts) e
+ * também conta o tempo, que antes ficava parado em 0:00 no iPhone.
+ */
+function runOndaDaFala(
+  voz: { energia: number; em: number },
+  barEls: (HTMLDivElement | null)[],
+  timerEl: HTMLSpanElement | null,
+  startedAt: number,
+  rafHolder: { id: number | null },
+) {
+  const agora = Date.now();
+  const energia = energiaDepois(voz.energia, agora - voz.em);
+  barEls.forEach((bar, i) => bar?.style.setProperty("height", `${Math.round(alturaDaBarra(i, agora, energia) * 100)}%`));
+  if (timerEl) timerEl.textContent = formatElapsed(agora - startedAt);
+  rafHolder.id = requestAnimationFrame(() => runOndaDaFala(voz, barEls, timerEl, startedAt, rafHolder));
+}
+
+/**
  * A frase entendida no servidor, com as regras e as categorias DELA (o mesmo motor da importação).
  * Sem internet, ou se o servidor demorar, o aparelho entende sozinho (dicionário e palavras
  * faladas, sem as regras dela): o lançamento nunca fica parado esperando.
@@ -174,12 +196,25 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
   const isHeldRef = useRef(false);
   const apertouEmRef = useRef(0);
   const toqueRapidoRef = useRef(false);
+  /** A energia da onda sem microfone e quando ela levou o último empurrão. */
+  const vozRef = useRef({ energia: 0, em: 0 });
+  const gravouEmRef = useRef(0);
 
-  function stopVisualizer() {
+  function empurrarOnda() {
+    // Muda no lugar: o loop da onda segura este mesmo objeto.
+    vozRef.current.energia = ENERGIA_DO_EMPURRAO;
+    vozRef.current.em = Date.now();
+  }
+
+  function cancelarLoop() {
     if (rafHolderRef.current.id !== null) {
       cancelAnimationFrame(rafHolderRef.current.id);
       rafHolderRef.current.id = null;
     }
+  }
+
+  function stopVisualizer() {
+    cancelarLoop();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
     audioContextRef.current?.close().catch(() => {});
@@ -187,7 +222,20 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
     barRefs.current.forEach((bar) => bar?.style.setProperty("height", "8%"));
   }
 
+  /** A onda que reage à fala (e o relógio). Na segunda tentativa o relógio continua de onde estava. */
+  function ligarOndaDaFala() {
+    vozRef.current.energia = 0;
+    vozRef.current.em = Date.now();
+    cancelarLoop();
+    rafHolderRef.current.id = requestAnimationFrame(() =>
+      runOndaDaFala(vozRef.current, barRefs.current, timerElRef.current, gravouEmRef.current, rafHolderRef.current),
+    );
+  }
+
   async function startVisualizer() {
+    // Já começa reagindo à fala; se o analisador ficar pronto, ele assume com o volume de verdade.
+    gravouEmRef.current = Date.now();
+    ligarOndaDaFala();
     try {
       if (!ondaPodeAbrirMicrofone(navigator.userAgent)) return;
       const AudioContextCtor = getAudioContextConstructor();
@@ -209,10 +257,16 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
+      // Soltou o botão enquanto o analisador abria: não religa nada.
+      if (!isHeldRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        audioContext.close().catch(() => {});
+        return;
+      }
       const levels = new Array(BAR_COUNT).fill(0.08);
-      const startedAt = Date.now();
+      cancelarLoop();
       rafHolderRef.current.id = requestAnimationFrame(() =>
-        runVisualizerLoop(analyser, levels, barRefs.current, timerElRef.current, startedAt, rafHolderRef.current),
+        runVisualizerLoop(analyser, levels, barRefs.current, timerElRef.current, gravouEmRef.current, rafHolderRef.current),
       );
     } catch {
       // Sem acesso ao stream bruto, a transcrição continua via SpeechRecognition, só sem a onda.
@@ -244,7 +298,10 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
     recognition.continuous = true;
     recognition.onresult = (event) => {
       latestResultsRef.current = event.results;
+      empurrarOnda();
     };
+    recognition.onspeechstart = empurrarOnda;
+    recognition.onsoundstart = empurrarOnda;
     recognition.onerror = (event) => {
       // Toque rápido: o reconhecimento parou antes de ouvir qualquer coisa, e o erro que vem
       // ("no-speech", "aborted") é consequência do jeito de usar, não falha. A dica já está na tela.
@@ -299,6 +356,7 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
       return;
     }
     if (tentativa === 1) startVisualizer();
+    else ligarOndaDaFala();
   }
 
   function stopRecording() {
@@ -330,7 +388,7 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
   return (
     <div className="flex flex-col items-center gap-5 py-2">
       {/* Onda de volume, sempre presente pra reservar o espaço; anima só durante a gravação. */}
-      <div className="flex h-14 items-center gap-[3px]">
+      <div data-onda className="flex h-14 items-center gap-[3px]">
         {Array.from({ length: BAR_COUNT }).map((_, i) => (
           <div
             key={i}
@@ -362,7 +420,7 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
       </button>
 
       <div className="flex flex-col items-center gap-1">
-        <span ref={timerElRef} className={`text-sm font-medium tabular-nums text-ink-muted ${recording ? "" : "invisible"}`}>
+        <span ref={timerElRef} data-relogio-da-voz className={`text-sm font-medium tabular-nums text-ink-muted ${recording ? "" : "invisible"}`}>
           0:00
         </span>
         <span className={`text-xs ${errorMessage ? "text-danger" : dica ? "font-medium text-ink-muted" : "text-ink-faint"}`}>
