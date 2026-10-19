@@ -376,7 +376,7 @@ const GIRLY_IMP: Partial<Titulos> = {
   impVozErroGenerico: "Não deu para gravar agora. Tenta de novo?",
   impVozSafariDica: "Cansada de liberar o microfone toda vez? O Safari pergunta de novo a cada visita",
   impLendoArquivo: "Lendo seu arquivo…",
-  impErroEnvio: "Não consegui enviar o arquivo. Dá uma olhada na internet e tenta de novo.",
+  impErroEnvio: "A conexão caiu no meio do envio. Tenta de novo?",
   impErroSalvar: "Não salvou. Tenta de novo?",
   impProtegido: "Esse arquivo tem senha",
   impSenhaPlaceholder: "Senha do arquivo",

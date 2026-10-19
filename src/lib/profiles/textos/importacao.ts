@@ -55,6 +55,8 @@ export type TextosImportacao = {
   impConcluir: string;
   // Extrato/fatura: subir o arquivo
   impArquivoGrande: string;
+  /** O celular não entregou o arquivo (ainda na nuvem, apagado ou mudou depois de escolhido). */
+  impArquivoNaoAbriu: string;
   impOQueSubindo: string;
   impTipoExtrato: string;
   impTipoFatura: string;
@@ -328,7 +330,7 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impVozSafariDica: "Chato autorizar o microfone toda vez? O Safari pergunta de novo a cada visita.",
   // Compartilhado
   impLendoArquivo: "Lendo arquivo...",
-  impErroEnvio: "Não consegui enviar o arquivo. Confira a internet e tente de novo.",
+  impErroEnvio: "A conexão caiu no meio do envio. Tente de novo.",
   impErroSalvar: "Não salvou. Tente de novo.",
   impProtegido: "Este arquivo está protegido por senha",
   impSenhaPlaceholder: "Senha do arquivo",
@@ -341,7 +343,8 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impRemover: "Remover",
   impConcluir: "Concluir",
   // Extrato/fatura: subir o arquivo
-  impArquivoGrande: "Arquivo grande demais (máx. 4 MB). Exporte um período menor, ou em Excel ou CSV.",
+  impArquivoGrande: "Arquivo grande demais (máx. 25 MB). Exporte um período menor.",
+  impArquivoNaoAbriu: "Não consegui abrir esse arquivo no seu celular. Baixe de novo e envie outra vez.",
   impOQueSubindo: "O que você está subindo?",
   impTipoExtrato: "Extrato bancário",
   impTipoFatura: "Fatura de cartão",

@@ -19,3 +19,14 @@ describe("limite de tamanho do upload", () => {
     expect(UPLOAD_MAX_BYTES).toBeGreaterThanOrEqual(3 * 1024 * 1024);
   });
 });
+
+describe("arquivo grande pelo armazenamento (19/10/2026)", () => {
+  it("até 4 MB vai direto; de 4 a 25 MB vai pelo armazenamento; acima disso não vai", async () => {
+    const { vaiPeloArmazenamento, ARQUIVO_MAX_BYTES } = await import("../limites");
+    expect(vaiPeloArmazenamento(3 * 1024 * 1024)).toBe(false);
+    expect(vaiPeloArmazenamento(UPLOAD_MAX_BYTES)).toBe(false);
+    expect(vaiPeloArmazenamento(8 * 1024 * 1024)).toBe(true);
+    expect(vaiPeloArmazenamento(15 * 1024 * 1024)).toBe(true);
+    expect(vaiPeloArmazenamento(ARQUIVO_MAX_BYTES + 1)).toBe(false);
+  });
+});

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { getImportHealth } from "@/lib/repositories/import-diagnostic.repo";
 import { purgeExpiredImportFiles } from "@/lib/repositories/import-file.repo";
+import { apagarArquivosGrandesEsquecidos } from "@/lib/import/arquivo-grande";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { prisma } from "@/lib/db/prisma";
 import { pessoasAAvisar, type PessoaAAvisar } from "@/lib/support/import-outreach";
@@ -46,6 +47,8 @@ export async function GET(request: Request) {
   // Retenção dos arquivos guardados. Roda ANTES de qualquer saída antecipada: em dia sem falha
   // a função retornava cedo, e aí extrato de cliente ficaria parado no banco além do prazo.
   const arquivosApagados = await purgeExpiredImportFiles();
+  // Arquivos grandes que ficaram no armazenamento (o normal é apagar logo depois da leitura).
+  await apagarArquivosGrandesEsquecidos().catch((err) => console.error("faxina do armazenamento falhou", err));
 
   const problemas = health.falhas + health.parciais + health.implausiveis + erros.length;
   // Quem está esperando ajuda entra no e-mail mesmo em dia sem falha nova.

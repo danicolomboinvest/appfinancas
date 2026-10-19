@@ -57,6 +57,7 @@ import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type Mo
 import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
 import { casarComFaturaAberta, printsAnterioresDaFatura, type CompraDoPrintGravada } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
+import { ArquivoGrandeSumiu, trazerArquivoGrande } from "@/lib/import/arquivo-grande";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import {
   ajustarAnoDaCompra,
@@ -216,7 +217,7 @@ export type ParseStats = {
 
 export type ParseStatementResult =
   | { ok: true; items: ReviewItem[]; customCategories: { id: string; name: string; icon?: string }[]; stats: ParseStats }
-  | { ok: false; error: string; needsPassword?: boolean };
+  | { ok: false; error: string; needsPassword?: boolean; reenviar?: boolean };
 
 /** A conferência vai na mensagem do diagnóstico: é o que o relatório diário e o aviso de suporte
  * leem pra saber se faltou coisa (ver `leituraIncompletaDoRegistro`). */
@@ -375,6 +376,15 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   const encoding = doPrint ? "imagem" : String(formData.get("encoding") ?? "text");
   // "fatura" = fatura de cartão (tudo é gasto); "extrato" = extrato bancário (sinal manda).
   const docType = doPrint ? "fatura" : String(formData.get("docType") ?? "extrato");
+
+  // Arquivo grande (19/10/2026): veio pelo armazenamento; busca de lá e põe no lugar de "file".
+  try {
+    await trazerArquivoGrande(formData, ctx.userId);
+  } catch (err) {
+    if (!(err instanceof ArquivoGrandeSumiu)) throw err;
+    // A tela manda de novo sozinha uma vez (reenviar); só chega à pessoa se falhar de novo.
+    return { ok: false, error: "Não consegui receber esse arquivo. Envie de novo.", reenviar: true };
+  }
 
   const uploaded = formData.get("file");
   const uploadedName = uploaded instanceof File ? uploaded.name : null;

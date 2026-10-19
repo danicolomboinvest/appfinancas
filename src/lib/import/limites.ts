@@ -17,6 +17,24 @@
 export const UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
+ * Arquivo grande (19/10/2026). Acima de UPLOAD_MAX_BYTES o arquivo não passa pela Vercel: o
+ * aparelho manda direto para um armazenamento privado (Vercel Blob, em São Paulo) e o servidor
+ * busca de lá, lê e apaga na hora (src/lib/import/arquivo-grande.ts). Uma cliente pediu reembolso
+ * porque o extrato dela era pesado e ela teve de lançar tudo na mão. Até aqui o app aceita.
+ */
+export const ARQUIVO_MAX_BYTES = 25 * 1024 * 1024;
+
+/** Vai pelo armazenamento (e não direto no envio da leitura)? */
+export function vaiPeloArmazenamento(tamanho: number): boolean {
+  return tamanho > UPLOAD_MAX_BYTES && tamanho <= ARQUIVO_MAX_BYTES;
+}
+
+/** Pasta do armazenamento de cada pessoa: o servidor só lê o que está na pasta de quem pediu. */
+export function pastaDoEnvio(userId: string): string {
+  return `importar/${userId}/`;
+}
+
+/**
  * O que o campo de arquivo do extrato aceita (12/10/2026). O iPhone filtra o seletor de arquivos
  * pelo tipo: com só "text/csv", um CSV salvo pelo WhatsApp, pelo Mail ou baixado do banco (que o
  * iOS marca como "text/comma-separated-values" ou "application/vnd.ms-excel") aparecia apagado

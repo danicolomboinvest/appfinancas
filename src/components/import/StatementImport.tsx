@@ -28,10 +28,11 @@ import {
 import { useMoney } from "@/components/money/MoneyProvider";
 import { DolarDeHoje } from "./DolarDeHoje";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { ACEITA_ARQUIVO_DE_EXTRATO, MAX_PRINTS, UPLOAD_MAX_BYTES, ehImagem } from "@/lib/import/limites";
+import { ACEITA_ARQUIVO_DE_EXTRATO, ARQUIVO_MAX_BYTES, MAX_PRINTS, ehImagem } from "@/lib/import/limites";
 import type { PrintLido } from "@/lib/import/print-fatura";
 import { prometeParcelasSeguintes } from "@/lib/import/fatura-aberta";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
+import { ArquivoNaoAbriu, comNovaTentativa, erroComOArquivo, montarEnvio } from "./enviar-arquivo";
 import { TEXTO_JA_NO_APP, tituloDoGrupo } from "@/lib/import/ja-no-app-texto";
 import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
 import { perguntasDeMaiorValor } from "@/lib/onboarding/conferencia-inicial";
@@ -174,16 +175,30 @@ function nomeDosPrints(n: number): string {
 const LINHAS_VISIVEIS = 30;
 
 /** O arquivo vai CRU num FormData (string grande de base64 estoura o limite de serialização
- * das actions). O encoding diz ao servidor como interpretar os bytes. */
-function buildUploadForm(file: File, docType: "extrato" | "fatura", faturaMonth?: string): FormData {
+ * das actions), ou pelo armazenamento quando passa de 4 MB (enviar-arquivo.ts). O encoding diz ao
+ * servidor como interpretar os bytes. */
+function camposDoEnvio(file: File, docType: "extrato" | "fatura", faturaMonth?: string, password?: string): Record<string, string> {
   const name = file.name.toLowerCase();
   const encoding = name.endsWith(".xlsx") || name.endsWith(".xls") ? "xlsx" : name.endsWith(".pdf") ? "pdf" : "text";
-  const formData = new FormData();
-  formData.set("file", file);
-  formData.set("encoding", encoding);
-  formData.set("docType", docType);
-  if (faturaMonth) formData.set("faturaMonth", faturaMonth);
-  return formData;
+  return { encoding, docType, ...(faturaMonth ? { faturaMonth } : {}), ...(password ? { password } : {}) };
+}
+
+/**
+ * Lê o arquivo no servidor. A conexão caiu no meio? tenta de novo sozinho. O arquivo grande sumiu do
+ * armazenamento antes da leitura (a leitura anterior já apagou)? manda de novo e lê.
+ */
+async function lerNoServidor(file: File, campos: Record<string, string>): Promise<Awaited<ReturnType<typeof parseStatementAction>>> {
+  return comNovaTentativa(async () => {
+    const r = await parseStatementAction(await montarEnvio(file, campos));
+    if (!r.ok && r.reenviar) return parseStatementAction(await montarEnvio(file, campos));
+    return r;
+  });
+}
+
+/** O que a tela diz quando o envio falha: o arquivo, a conexão ou a gente, nessa ordem. */
+function falhaDoEnvio(err: unknown, t: { impArquivoNaoAbriu: string; impErroEnvio: string }): string {
+  if (err instanceof ArquivoNaoAbriu) return t.impArquivoNaoAbriu;
+  return ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA;
 }
 
 /**
@@ -383,7 +398,7 @@ export function StatementImport({
       lerPrintsNaTela([file]);
       return;
     }
-    if (file.size > UPLOAD_MAX_BYTES) {
+    if (file.size > ARQUIVO_MAX_BYTES) {
       setError(t.impArquivoGrande);
       return;
     }
@@ -411,7 +426,7 @@ export function StatementImport({
       const form = new FormData();
       form.set("file", await prepararImagem(arquivo), arquivo.name.replace(/\.\w+$/, ".png"));
       form.set("envio", envio);
-      const r = await lerPrintDaFaturaAction(form);
+      const r = await comNovaTentativa(() => lerPrintDaFaturaAction(form));
       if (r.ok) {
         lidos.push(r.print);
         banco ??= r.banco;
@@ -467,17 +482,17 @@ export function StatementImport({
     setFileName(file.name);
     setUltimoArquivo({ file, pwd });
     const type = forcedType ?? docType;
-    const formData = buildUploadForm(file, type, type === "fatura" && contarNoMes ? faturaMonth : undefined);
-    if (pwd) formData.set("password", pwd);
+    const campos = camposDoEnvio(file, type, type === "fatura" && contarNoMes ? faturaMonth : undefined, pwd);
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof parseStatementAction>>;
       try {
-        result = await parseStatementAction(formData);
+        result = await lerNoServidor(file, campos);
       } catch (err) {
         console.error("parseStatementAction falhou no envio", err);
-        registrarErroNoCliente("importar-ler", err);
-        // "Confira a internet" só quando foi a internet mesmo (12/10/2026).
-        setError(ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA);
+        registrarErroNoCliente("importar-ler", erroComOArquivo(err, file));
+        // "Confira a internet" só quando foi a internet mesmo (12/10/2026); arquivo que o celular
+        // não entregou diz isso (19/10/2026).
+        setError(falhaDoEnvio(err, t));
         return;
       }
       if (!result.ok) {
@@ -540,12 +555,8 @@ export function StatementImport({
         return { ...arq, status: "erro", erro: ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA };
       }
     }
-    if (arq.file.size > UPLOAD_MAX_BYTES) return { ...arq, status: "erro", erro: t.impArquivoGrande };
-    const tentar = async (tipo: "extrato" | "fatura") => {
-      const form = buildUploadForm(arq.file, tipo);
-      if (pwd) form.set("password", pwd);
-      return parseStatementAction(form);
-    };
+    if (arq.file.size > ARQUIVO_MAX_BYTES) return { ...arq, status: "erro", erro: t.impArquivoGrande };
+    const tentar = (tipo: "extrato" | "fatura") => lerNoServidor(arq.file, camposDoEnvio(arq.file, tipo, undefined, pwd));
     try {
       let tipo = forcado ?? arq.docType;
       let r = await tentar(tipo);
@@ -561,8 +572,8 @@ export function StatementImport({
       const meses = resumo.chips[resumo.chips.length - 1];
       return { ...arq, status: "ok", pwd, senhaErrada: false, docType: tipo, stats: r.stats, items: r.items, customCategories: r.customCategories, erro: undefined, rotulo: meses && !/compra|lançamento|vence/.test(meses) ? `${resumo.titulo} · ${meses}` : resumo.titulo };
     } catch (err) {
-      registrarErroNoCliente("importar-ler", err);
-      return { ...arq, status: "erro", erro: ehFalhaDeRede(err) ? t.impErroEnvio : MSG_FALHA_NOSSA };
+      registrarErroNoCliente("importar-ler", erroComOArquivo(err, arq.file));
+      return { ...arq, status: "erro", erro: falhaDoEnvio(err, t) };
     }
   }
 

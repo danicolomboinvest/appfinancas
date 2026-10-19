@@ -159,7 +159,7 @@ export const SECOES_DO_MANUAL: SecaoDoManual[] = [
       {
         tipo: "regras",
         itens: [
-          { texto: "Arquivos aceitos: PDF, Excel, CSV e OFX, até 4 MB." },
+          { texto: "Arquivos aceitos: PDF, Excel, CSV e OFX, até 25 MB." },
           { texto: "PDF com senha: quase sempre é o CPF, só números. A senha não fica salva." },
           { texto: "PDF escaneado, foto ou \"imprimir pelo celular\" não funciona. Baixe o PDF pelo app ou site do banco, ou exporte em Excel.", atencao: true },
         ],
