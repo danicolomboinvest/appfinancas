@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { Caderno, dia, exigirSemAchados, novaPagina, passo, testeDosAvisos } from "./comum";
 import { entrar, pularTutoriais } from "./acoes";
 import { conferirTextoELayout, lerOrcamento, lerResumo } from "./telas";
-import { conferirGastoPorCategoria } from "./conferir";
+import { conferirGastoPorCategoria, conferirLivre } from "./conferir";
 import { textoVisivel } from "./texto";
 import { bate, brl } from "./dinheiro";
 import { URL_DO_BANCO } from "./config";
@@ -53,9 +53,31 @@ async function lerLancadosNoCartao() {
     const edu = await db.user.findUniqueOrThrow({ where: { email: EMAIL } });
     const cartao = await db.cartao.findFirstOrThrow({ where: { userId: edu.id } });
     const linhas = await db.monthlyEntry.findMany({ where: { userId: edu.id, cartaoId: cartao.id, category: "EXPENSE" } });
-    return { cartao, linhas: linhas.map((l) => ({ id: l.id, year: l.year, month: l.month, entryDate: l.entryDate, amount: Number(l.amount), description: l.description, noCartao: l.noCartao })) };
+    return {
+      cartao,
+      linhas: linhas.map((l) => ({ id: l.id, year: l.year, month: l.month, entryDate: l.entryDate, amount: Number(l.amount), description: l.description, noCartao: l.noCartao, subcategory: l.subcategory, parcelamentoId: l.parcelamentoId })),
+    };
   } finally {
     await db.$disconnect();
+  }
+}
+
+/** O gasto de uma categoria-mãe no mês, somado direto do banco (o que todas as telas têm de mostrar). */
+async function gastoNoBanco(parentCategory: string, year: number, month: number): Promise<number> {
+  for (let i = 0; ; i++) {
+    const db = new PrismaClient({ datasourceUrl: `${URL_DO_BANCO}?connection_limit=1` });
+    try {
+      const r = await db.monthlyEntry.aggregate({ where: { user: { email: EMAIL }, category: "EXPENSE", parentCategory: parentCategory as never, year, month }, _sum: { amount: true } });
+      return Number(r._sum.amount ?? 0);
+    } catch (e) {
+      if (i < 20 && /too many clients|Too many database connections/i.test(String(e))) {
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      throw e;
+    } finally {
+      await db.$disconnect();
+    }
   }
 }
 
@@ -210,6 +232,136 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
         await c.anotar(p, { tipo: "numero", telaDeOrigem: "fatura com a compra de 15/10", telaErrada: "lançamentos", esperado: "uma compra de R$ 89,90, em novembro", visto: cinema.map((l) => `${l.description ?? ""} ${l.month}/${l.year}`).join(" | ") || "nenhuma" });
       const orcNov = await lerOrcamento(p, c, { ano: 2026, mes: 11 }, false);
       if (!bate(orcNov.categorias.LAZER?.gasto ?? 0, 89.9)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "fatura com a compra de 15/10", telaErrada: "Orçamento de novembro", esperado: "Lazer R$ 89,90 (sem dobrar)", visto: orcNov.categorias.LAZER?.texto ?? "sem Lazer" });
+    });
+
+    // ---------------------------------------------------------------- 18/10/2026, lançamento à mão
+    await passo(c, "apelido do cartão: Mudar nome ou dias, Roxinho", async () => {
+      await p.goto("/orcamento/cartao");
+      await pularTutoriais(p);
+      await p.getByRole("link", { name: "Mudar nome ou dias" }).click();
+      const campo = p.getByLabel("Como você chama este cartão?");
+      await expect(campo).toHaveValue("");
+      await expect(campo).toHaveAttribute("placeholder", "Nubank");
+      await campo.fill("Roxinho");
+      await expect(p.getByText("Cartão Roxinho", { exact: true })).toBeVisible();
+      await conferirTextoELayout(p, c, "Mudar o cartão (apelido)");
+      await p.getByRole("button", { name: "Salvar cartão" }).click();
+      await p.waitForURL(/\/orcamento\/cartao$/);
+      await expect(p.getByText("Cartão Roxinho", { exact: true })).toBeVisible();
+      // Reabrir mostra o apelido preenchido (é por ali que ela renomeia).
+      await p.getByRole("link", { name: "Mudar nome ou dias" }).click();
+      await expect(p.getByLabel("Como você chama este cartão?")).toHaveValue("Roxinho");
+      await p.goto("/orcamento/cartao");
+    });
+
+    await passo(c, "gasto à mão com subcategoria, valor pelo teclado do computador", async () => {
+      const d = await abrirDigitar(p);
+      await p.keyboard.type("205");
+      await p.keyboard.press("Backspace");
+      await p.keyboard.type("00");
+      await expect(d.locator("[data-valor-digitado]")).toHaveAttribute("data-valor-digitado", "2000");
+      await d.getByRole("button", { name: "Lazer", exact: true }).click();
+      await d.getByRole("group", { name: "Subcategoria" }).getByRole("button", { name: "Cinema/Shows" }).click();
+      await d.getByRole("button", { name: "Ontem", exact: true }).click();
+      await d.getByRole("button", { name: /Outro jeito/ }).click();
+      // Enter salva (o foco está num botão do Digitar: não o aperta, salva).
+      await p.keyboard.press("Enter");
+      await expect(d).toBeHidden({ timeout: 20_000 });
+    });
+
+    await passo(c, "compra parcelada: R$ 1.000 em 3x no Cartão Roxinho, pelo teclado", async () => {
+      const d = await abrirDigitar(p);
+      await p.keyboard.type("100000");
+      await expect(d.locator("[data-valor-digitado]")).toHaveAttribute("data-valor-digitado", "100000");
+      // O teclado da tela continua valendo junto.
+      await d.getByRole("button", { name: "Apagar" }).click();
+      await d.getByRole("button", { name: "0", exact: true }).click();
+      await expect(d.locator("[data-valor-digitado]")).toHaveAttribute("data-valor-digitado", "100000");
+      await d.getByRole("button", { name: "Lazer", exact: true }).click();
+      await d.getByRole("group", { name: "Subcategoria" }).getByRole("button", { name: "Hobbies" }).click();
+      await d.getByRole("button", { name: "Ontem", exact: true }).click();
+      await d.getByRole("button", { name: /Cartão Roxinho/ }).click();
+      await expect(d.locator("[data-vezes]")).toHaveText("À vista");
+      await d.getByRole("button", { name: "Mais uma vez" }).click();
+      await d.getByRole("button", { name: "Mais uma vez" }).click();
+      await expect(d.locator("[data-vezes]")).toHaveText("3x");
+      const linha = d.locator("[data-valor-da-parcela]");
+      await expect(linha).toContainText(/3x de R\$\s?333,33/);
+      await expect(linha).toContainText(/A 1ª de R\$\s?333,34/);
+      await expect(linha).toContainText(/Total da compra R\$\s?1\.000,00/);
+      await expect(d.locator("[data-ultima-parcela]")).toContainText("Última na fatura de dezembro");
+      // Parcelado e "Repetir todo mês" não vão juntos.
+      await expect(d.getByRole("switch", { name: /Repetir todo mês/ })).toHaveCount(0);
+      await conferirTextoELayout(p, c, "Digitar parcelado");
+      await d.getByRole("button", { name: "Mais uma vez" }).focus();
+      await p.keyboard.press("Enter");
+      await expect(d).toBeHidden({ timeout: 20_000 });
+    });
+
+    await passo(c, "as 3 parcelas: uma por fatura, a 1ª com os centavos, ligadas", async () => {
+      const { cartao, linhas } = await lancadosNoCartao();
+      const parc = linhas.filter((l) => l.parcelamentoId).sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
+      const visto = parc.map((l) => `${l.description} ${l.month}/${l.year} ${brl(l.amount)} ${l.subcategory ?? ""}`).join(" | ") || "nenhuma";
+      const esperado = ["Hobbies (1/3) 10/2026 333,34 Hobbies", "Hobbies (2/3) 11/2026 333,33 Hobbies", "Hobbies (3/3) 12/2026 333,33 Hobbies"];
+      const igual =
+        parc.length === 3 &&
+        new Set(parc.map((l) => l.parcelamentoId)).size === 1 &&
+        parc.every((l, i) => `${l.description} ${l.month}/${l.year} ${l.amount.toFixed(2).replace(".", ",")} ${l.subcategory}` === esperado[i]);
+      if (!igual) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (parcelado)", telaErrada: "lançamentos", esperado: esperado.join(" | "), visto });
+      if (!bate(parc.reduce((s2, l) => s2 + l.amount, 0), 1000, 0.001)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (parcelado)", telaErrada: "soma das parcelas", esperado: "R$ 1.000,00", visto: brl(parc.reduce((s2, l) => s2 + l.amount, 0)) });
+      // Seu cartão: cada fatura soma os lançamentos ligados (a parcela do mês dela, nunca o total).
+      await p.goto("/orcamento/cartao");
+      const texto = await conferirTextoELayout(p, c, "Seu cartão com parcelas");
+      for (const [chave, nome] of [["2026-10", "outubro"], ["2026-11", "novembro"], ["2026-12", "dezembro"]] as const) {
+        const total = totalDaFatura(cartao, linhas, chave);
+        const valor = `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const l = texto.split("\n").find((x) => x.startsWith(`Fatura de ${nome}:`))?.replace(/\s/g, " ") ?? "";
+        if (!l.includes(valor)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (parcelado)", telaErrada: "Seu cartão", esperado: `Fatura de ${nome}: ${valor}`, visto: l || "não está" });
+        const daParcela = parc.find((x) => `${x.year}-${String(x.month).padStart(2, "0")}` === chave);
+        if (daParcela && totalDaFatura(cartao, [daParcela], chave) !== daParcela.amount)
+          await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (parcelado)", telaErrada: `fatura de ${nome}`, esperado: `a parcela ${daParcela.description} nesta fatura`, visto: "em outra fatura" });
+      }
+    });
+
+    await passo(c, "a parcela do mês bate no Orçamento, em Gastos, nas Transações e no Resumo", async () => {
+      for (const mes of [10, 11, 12]) {
+        const m = { ano: 2026, mes };
+        const esperado = await gastoNoBanco("LAZER", 2026, mes);
+        const { orc } = await conferirGastoPorCategoria(p, c, m, `parcelado ${mes}/2026`, { atual: mes === 10 });
+        if (!bate(orc.categorias.LAZER?.gasto ?? 0, esperado))
+          await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (parcelado)", telaErrada: `Orçamento ${mes}/2026`, esperado: `Lazer ${brl(esperado)} (só a parcela do mês)`, visto: orc.categorias.LAZER?.texto ?? "sem Lazer" });
+        if (mes === 10) {
+          // O livre do mês é um número só em todas as telas (regra da casa).
+          await conferirLivre(p, c, orc, "parcelado");
+          const resumo = await lerResumo(p, c);
+          await conferirTextoELayout(p, c, "Resumo com parcela");
+          if (/1\.000,00/.test(resumo.heroi)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (parcelado)", telaErrada: "Resumo de outubro", esperado: "só a 1ª parcela (R$ 333,34)", visto: resumo.heroi });
+        }
+      }
+    });
+
+    await passo(c, "Transações: filtrar Lazer pela subcategoria Hobbies", async () => {
+      await p.goto("/mensal/2026/10");
+      await pularTutoriais(p);
+      const linhasDaLista = p.locator("[data-linha-transacao]");
+      await p.getByRole("button", { name: /^Categoria/ }).click();
+      const folha = p.getByRole("dialog");
+      await folha.getByRole("button", { name: "Lazer" }).click();
+      const chips = folha.getByRole("group", { name: "Subcategorias de Lazer" });
+      await expect(chips.getByRole("button", { name: "Hobbies" })).toBeVisible();
+      await expect(chips.getByRole("button", { name: "Cinema/Shows" })).toBeVisible();
+      await chips.getByRole("button", { name: "Hobbies" }).click();
+      await conferirTextoELayout(p, c, "Folha Categorias com subcategorias");
+      await folha.getByRole("button", { name: "Aplicar" }).click();
+      await expect(folha).toBeHidden();
+      const so = await linhasDaLista.allInnerTexts();
+      if (so.length !== 1 || !/Hobbies \(1\/3\)/.test(so[0] ?? ""))
+        await c.anotar(p, { tipo: "numero", telaDeOrigem: "filtro Lazer › Hobbies", telaErrada: "Transações 10/2026", esperado: "só a linha Hobbies (1/3)", visto: so.map((x) => x.replace(/\n/g, " ")).join(" | ") || "nenhuma" });
+      // Tirar o Hobbies: volta a mostrar todo o Lazer, inclusive o Cinema/Shows.
+      await p.getByRole("button", { name: "Tirar o filtro Hobbies" }).click();
+      const todos = await linhasDaLista.allInnerTexts();
+      if (!todos.some((x) => /Cinema\/Shows|R\$\s?20,00/.test(x)) || !todos.some((x) => /Hobbies/.test(x)))
+        await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "filtro Lazer", telaErrada: "Transações 10/2026", esperado: "o Cinema/Shows e o Hobbies (1/3)", visto: todos.map((x) => x.replace(/\n/g, " ")).join(" | ") || "nenhuma" });
     });
   } finally {
     c.salvar();

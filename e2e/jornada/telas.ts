@@ -100,10 +100,11 @@ export async function lerTransacoes(p: Page, caderno: Caderno, m: Mes): Promise<
   const r: RetratoDasTransacoes = { contagem: c ? Number(c[1]) : null, linhas: [] };
   for (const el of await p.locator("[data-linha-transacao]").all()) {
     // No casal a linha começa com a bolinha de quem lançou ("B", "C"): não é a descrição.
-    const ls = linhas(await el.innerText()).filter((l, i) => !(i === 0 && l.length <= 2));
+    // O selinho "a vencer" (compra com data no futuro, como a parcela de um mês seguinte) vem antes da categoria.
+    const ls = linhas(await el.innerText()).filter((l, i) => !(i === 0 && l.length <= 2) && l !== "a vencer");
     const valorTxt = ls.find((l) => /R\$/.test(l)) ?? "";
     const v = reais(valorTxt) ?? 0;
-    r.linhas.push({ descricao: ls[0] ?? "", categoria: (ls[1] ?? "").replace(/ · .*$/, ""), valor: /^\+/.test(valorTxt) ? Math.abs(v) : v });
+    r.linhas.push({ descricao: ls[0] ?? "", categoria: (ls[1] ?? "").replace(/^a vencer\s*/, "").replace(/ · .*$/, ""), valor: /^\+/.test(valorTxt) ? Math.abs(v) : v });
   }
   return r;
 }
