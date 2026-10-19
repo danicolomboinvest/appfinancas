@@ -25,8 +25,8 @@ export type EscolhaDoCartao = { id: string | null; temCartoes: boolean };
  * `cartaoId` junto. Lembra o último cartão escolhido neste aparelho, como o "No cartão" já fazia.
  *
  * Compra parcelada (18/10/2026, a Dani): com um cartão escolhido e `parcelado` (só no Digitar),
- * aparece "Em quantas vezes?" (1 a 24, 1 = à vista). O valor digitado é o total: a linha diz
- * quanto é cada parcela e em que fatura cai a primeira e a última.
+ * aparece "Parcelas" (1 a 24, 1 = à vista). O valor digitado é o total: UMA linha curta diz
+ * quanto é cada parcela e até que fatura vai ("3x de R$ 333,33 · até dezembro", 18/10/2026).
  */
 export function CartaoNoDigitar({
   data,
@@ -164,17 +164,6 @@ export function CartaoNoDigitar({
         )}
       </div>
       {botaoNovo}
-      {faturaEscolhida && vezes > 1 && ultima && (
-        <p key={`${faturaEscolhida.chave}-${vezes}`} className="animate-fade-in flex items-center gap-2 rounded-2xl bg-accent-soft px-4 py-3 text-[15px] text-ink" aria-live="polite" data-fatura={faturaEscolhida.chave} data-ultima-parcela={`${ultima.year}-${String(ultima.month).padStart(2, "0")}`}>
-          <CalendarDays size={18} className="mt-0.5 shrink-0 self-start text-accent-strong" aria-hidden />
-          <span className="flex min-w-0 flex-col">
-            <span>
-              1ª na fatura de <b className="font-semibold">{nomeDaFatura(faturaEscolhida, anoDaCompra)}</b>
-            </span>
-            <span className="text-sm text-ink-muted">Última na fatura de {nomeDaFatura({ ano: ultima.year, mes: ultima.month }, anoDaCompra)}</span>
-          </span>
-        </p>
-      )}
       {faturaEscolhida && vezes <= 1 && (
         <p key={faturaEscolhida.chave} className="animate-fade-in flex items-center gap-2 rounded-2xl bg-accent-soft px-4 py-3 text-[15px] text-ink" aria-live="polite" data-fatura={faturaEscolhida.chave}>
           <CalendarDays size={18} className="mt-0.5 shrink-0 self-start text-accent-strong" aria-hidden />
@@ -190,38 +179,48 @@ export function CartaoNoDigitar({
         </p>
       )}
       {parcelado && escolhido && (
-        <div className="flex flex-col gap-2" data-parcelas>
-          <h3 className="pt-1 text-[15px] font-medium text-ink">Em quantas vezes?</h3>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              aria-label="Menos uma vez"
-              disabled={vezes <= 1}
-              onClick={() => parcelado.onVezes(vezes - 1)}
-              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-premium-sm ring-1 ring-border disabled:opacity-40"
-            >
-              <Minus size={20} aria-hidden />
-            </button>
-            <output className="min-w-0 flex-1 text-center text-[1.375rem] tabular-nums text-ink" aria-live="polite" data-vezes={vezes}>
-              {vezes <= 1 ? "À vista" : `${vezes}x`}
-            </output>
-            <button
-              type="button"
-              aria-label="Mais uma vez"
-              disabled={vezes >= MAX_PARCELAS}
-              onClick={() => parcelado.onVezes(vezes + 1)}
-              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-premium-sm ring-1 ring-border disabled:opacity-40"
-            >
-              <Plus size={20} aria-hidden />
-            </button>
+        <div className="flex flex-col gap-1.5" data-parcelas>
+          {/* Uma linha só (18/10/2026, a Dani: "não quero textão"): o rótulo e o - 3x + lado a lado. */}
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[15px] font-medium text-ink">Parcelas</h3>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="Menos uma vez"
+                disabled={vezes <= 1}
+                onClick={() => parcelado.onVezes(vezes - 1)}
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-premium-sm ring-1 ring-border disabled:opacity-40"
+              >
+                <Minus size={18} aria-hidden />
+              </button>
+              <output className="min-w-[4.5rem] text-center text-[1.125rem] tabular-nums text-ink" aria-live="polite" data-vezes={vezes}>
+                {vezes <= 1 ? "À vista" : `${vezes}x`}
+              </output>
+              <button
+                type="button"
+                aria-label="Mais uma vez"
+                disabled={vezes >= MAX_PARCELAS}
+                onClick={() => parcelado.onVezes(vezes + 1)}
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-premium-sm ring-1 ring-border disabled:opacity-40"
+              >
+                <Plus size={18} aria-hidden />
+              </button>
+            </div>
           </div>
-          {vezes > 1 && parcelado.totalCentavos > 0 && (
-            <p className="text-center text-[15px] text-ink" data-valor-da-parcela>
-              <b className="font-semibold tabular-nums">
-                {resumo.vezes}x de {parcelado.money(resumo.parcela / 100)}
-              </b>
-              {resumo.primeira !== null && <span className="block text-sm text-ink-muted">A 1ª de {parcelado.money(resumo.primeira / 100)}</span>}
-              <span className="block text-sm text-ink-muted">Total da compra {parcelado.money(parcelado.totalCentavos / 100)}</span>
+          {/* "3x de R$ 333,33 · até dezembro": diz que o valor digitado é o total e até quando vai. */}
+          {vezes > 1 && ultima && (
+            <p
+              className="animate-fade-in text-center text-[15px] text-ink-muted"
+              aria-live="polite"
+              data-valor-da-parcela
+              data-ultima-parcela={`${ultima.year}-${String(ultima.month).padStart(2, "0")}`}
+            >
+              {parcelado.totalCentavos > 0 && (
+                <b className="font-semibold tabular-nums text-ink">
+                  {resumo.vezes}x de {parcelado.money(resumo.parcela / 100)}
+                </b>
+              )}
+              {parcelado.totalCentavos > 0 ? " · " : ""}até {nomeDaFatura({ ano: ultima.year, mes: ultima.month }, anoDaCompra)}
             </p>
           )}
         </div>
