@@ -34,6 +34,7 @@ export function CartaoNoDigitar({
   onEscolha,
   inicial,
   parcelado,
+  parcelaFalada,
 }: {
   data: string;
   escolha: EscolhaDoCartao;
@@ -42,6 +43,8 @@ export function CartaoNoDigitar({
   inicial?: string | null;
   /** Digitar: "Em quantas vezes?" com o total digitado (centavos). Sem isto, não aparece (edição). */
   parcelado?: { totalCentavos: number; vezes: number; onVezes: (n: number) => void; money: (v: number) => string };
+  /** A voz disse "em 3 vezes": sem cartão lembrado, o único cartão dela já vem marcado. */
+  parcelaFalada?: boolean;
 }) {
   const [cartoes, setCartoes] = useState<CartaoNaTela[] | null>(null);
   const [novo, setNovo] = useState(false);
@@ -58,7 +61,8 @@ export function CartaoNoDigitar({
             ultimo = window.localStorage.getItem(ULTIMO_CARTAO);
           } catch {}
         }
-        const lembrado = lista.find((c) => c.id === ultimo);
+        // Parcelada pela voz sem cartão lembrado: com um cartão só, é ele (parcela só existe no cartão).
+        const lembrado = lista.find((c) => c.id === ultimo) ?? (parcelaFalada && lista.length === 1 ? lista[0] : undefined);
         onEscolha({ id: lembrado?.id ?? null, temCartoes: lista.length > 0 });
       })
       .catch(() => vivo && setCartoes([]));

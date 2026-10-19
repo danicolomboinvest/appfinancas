@@ -26,6 +26,8 @@ export type ParsedVoiceEntry = {
   quando?: "ontem" | "anteontem" | null;
   /** Casal simples (15/10/2026): de quem é, quem pagou e como divide, quando a frase disse. */
   casal?: CasalFalado | null;
+  /** Compra parcelada dita na frase ("em 3 vezes", "3x de 100"), de 2 a 24; o valor é o TOTAL. */
+  parcelas?: number | null;
 };
 
 /**
@@ -415,12 +417,51 @@ function noventaENoveEhOApp(text: string): string {
   );
 }
 
+const NUMERO_DA_PARCELA = "(\\d{1,2}|[a-zà-ú]+(?:\\s+e\\s+[a-zà-ú]+)?)";
+
+function numeroDaParcela(t: string): number | null {
+  const n = /^\d+$/.test(t) ? Number(t) : wordsToNumber(normalize(t));
+  return n !== null && n >= 2 && n <= 24 ? n : null;
+}
+
+/**
+ * Compra parcelada falada (19/10/2026, pedido da Dani): "parcelei um sapato de 100 reais em três
+ * vezes", "geladeira de 3.000 em 10x", "3x de 100 na loja", "12 parcelas de 150". Tira o trecho da
+ * frase (senão o "3" virava o valor e a descrição "3x de na loja") e diz se o valor falado é o
+ * total ("em 3 vezes") ou de cada parcela ("3x de 100"). O Digitar abre parcelado e ela revisa.
+ */
+function parcelasDaFala(text: string): { parcelas: number | null; porParcela: boolean; texto: string } {
+  // "3x de 100", "12 parcelas de 150": o valor que vem depois é o de cada parcela.
+  const porParcela = text.match(new RegExp(`(?:^|\\s)${NUMERO_DA_PARCELA}\\s*(?:x|vezes|parcelas)\\s+de(?=\\s)`, "i"));
+  if (porParcela) {
+    const n = numeroDaParcela(porParcela[1]);
+    if (n) return { parcelas: n, porParcela: true, texto: limparParcela(text.replace(porParcela[0], " ")) };
+  }
+  // "em 3 vezes", "em 10x", "parcelado em 4", "parcelei em 3 vezes": o valor falado é o total.
+  const noTotal = text.match(new RegExp(`(?:^|\\s)(?:parcel(?:ei|ou|amos|ad[oa]s?)\\s+)?em\\s+${NUMERO_DA_PARCELA}\\s*(x|vezes|parcelas)?(?=\\s|$|[,.!?])`, "i"));
+  if (noTotal && (noTotal[2] || /parcel/i.test(noTotal[0]))) {
+    const n = numeroDaParcela(noTotal[1]);
+    if (n) return { parcelas: n, porParcela: false, texto: limparParcela(text.replace(noTotal[0], " ")) };
+  }
+  return { parcelas: null, porParcela: false, texto: text };
+}
+
+/** O que sobra da parcela na frase: "parcelei", "parcelado", "sem juros" e "uma compra de um". */
+function limparParcela(text: string): string {
+  return text
+    .replace(/\b(parcel(?:ei|ou|amos|ad[oa]s?)|sem juros)\b/gi, " ")
+    .replace(/(^|\s)(?:uma\s+)?compra\s+(?:de|do|da)\s+(?:uma?\s+)?/i, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /**
  * `contexto`: as regras que ELA ensinou e as categorias que ela criou (quem chama no servidor
  * passa; sem contexto, só o dicionário, a base comunitária e as palavras faladas).
  */
 export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}, casa: { nomeDoPar?: string | null } = {}): ParsedVoiceEntry {
-  const text = noventaENoveEhOApp(falado);
+  const parcela = parcelasDaFala(noventaENoveEhOApp(falado));
+  const text = parcela.texto;
   const normalized = normalize(text);
   const category = extractEntryCategory(normalized);
   // Casal simples: "Lucas pagou", "metade cada", "da casa" preenchem as perguntas do casal e saem
@@ -432,6 +473,8 @@ export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}, c
   const base = { category, amount: extractAmount(normalized), currency: extractCurrency(normalized), quando };
 
   if (category === "EXPENSE") {
+    // "3x de 100": o valor falado é o da parcela; o Digitar recebe sempre o total.
+    if (parcela.parcelas && parcela.porParcela && base.amount !== null) base.amount = Math.round(base.amount * parcela.parcelas * 100) / 100;
     // O mesmo motor da importação (14/10/2026): "posto" é Combustível lá, e tem que ser aqui.
     // Frase só com verbo e valor ("gastei 300 reais"): não há o que categorizar, e não chuta.
     const achada = limpa ? categoriaDaFala(limpa, contexto) : null;
@@ -443,6 +486,7 @@ export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}, c
       description: limpa,
       chaveDaFala: limpa ? chaveParaAprender(limpa) : null,
       ...(doCasal.casal ? { casal: doCasal.casal } : {}),
+      ...(parcela.parcelas ? { parcelas: parcela.parcelas } : {}),
     };
   }
 

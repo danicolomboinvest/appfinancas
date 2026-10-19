@@ -224,6 +224,7 @@ function inicialDaVoz(parsed: ParsedVoiceEntry, kind: ProfileKind) {
       descricao: parsed.description || undefined,
       chaveDaFala: parsed.chaveDaFala ?? undefined,
       casal: parsed.casal ?? undefined,
+      parcelas: parsed.parcelas ?? undefined,
     };
   }
   const tipoLivre = voiceSubcategory(parsed, kind);

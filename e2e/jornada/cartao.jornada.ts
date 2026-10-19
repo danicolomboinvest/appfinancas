@@ -2,7 +2,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import { Caderno, dia, exigirSemAchados, novaPagina, passo, testeDosAvisos } from "./comum";
-import { abrirLancamento, entrar, pilula, pularTutoriais } from "./acoes";
+import { abrirLancamento, entrar, falarSemSalvar, pilula, prepararVoz, pularTutoriais } from "./acoes";
 import { conferirTextoELayout, lerOrcamento, lerResumo, lerTransacoes } from "./telas";
 import { conferirGastoPorCategoria, conferirLivre } from "./conferir";
 import { textoVisivel } from "./texto";
@@ -446,6 +446,32 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
         if (total > 0 && !l.includes(valor)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Esta e as próximas", telaErrada: "Seu cartão", esperado: `Fatura de ${nome}: ${valor}`, visto: l || "não está" });
         if (linhas.some((x) => /Hobbies \([23]\/3\)/.test(x.description ?? ""))) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Esta e as próximas", telaErrada: "Seu cartão", esperado: "sem a 2ª e a 3ª parcela", visto: "ainda ligadas ao cartão" });
       }
+    });
+
+    await passo(c, "voz: \"parcelei um sapato de 100 reais em três vezes\" abre em 3x no cartão e grava as 3", async () => {
+      await prepararVoz(p);
+      await p.goto("/mensal/foco");
+      const d = await falarSemSalvar(p, "parcelei um sapato de 100 reais em três vezes");
+      const vezes = await d.locator("[data-vezes]").getAttribute("data-vezes").catch(() => null);
+      if (vezes !== "3") await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "voz parcelada", telaErrada: "Digitar", esperado: "Parcelas 3x", visto: vezes ? `${vezes}x` : "sem Parcelas" });
+      const linha = (await d.locator("[data-valor-da-parcela]").textContent().catch(() => null)) ?? "";
+      if (!/3x de R\$\s?33,33/.test(linha)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "voz parcelada", telaErrada: "Digitar", esperado: "3x de R$ 33,33", visto: linha || "não está" });
+      const desc = await d.locator("input").filter({ hasNot: p.locator("[type=hidden]") }).evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value).find((v) => /sapato/i.test(v)) ?? "");
+      if (desc !== "Sapato") await c.anotar(p, { tipo: "texto", telaDeOrigem: "voz parcelada", telaErrada: "Digitar", esperado: "descrição Sapato", visto: desc || "vazia" });
+      await conferirTextoELayout(p, c, "Digitar parcelado pela voz");
+      // Sem categoria reconhecida, escolhe uma para poder salvar (a voz não chuta).
+      const salvar = d.getByRole("button", { name: "Salvar", exact: true });
+      if (await salvar.isDisabled()) await d.getByRole("button", { name: "Outros", exact: true }).click();
+      await salvar.click();
+      await expect(d).toBeHidden({ timeout: 20_000 });
+      const sapato = (await parcelasNoBanco()).filter((l) => /Sapato/.test(l.description ?? ""));
+      const visto = sapato.map((l) => `${l.description} ${l.month}/${l.year} ${brl(l.amount)}`).join(" | ") || "nenhuma";
+      const certo =
+        sapato.length === 3 &&
+        new Set(sapato.map((l) => l.parcelamentoId)).size === 1 &&
+        sapato.every((l) => l.cartaoId) &&
+        bate(sapato.reduce((s2, l) => s2 + l.amount, 0), 100, 0.001);
+      if (!certo) await c.anotar(p, { tipo: "numero", telaDeOrigem: "voz parcelada", telaErrada: "lançamentos", esperado: "Sapato (1/3), (2/3) e (3/3) no cartão, somando R$ 100,00", visto });
     });
   } finally {
     c.salvar();

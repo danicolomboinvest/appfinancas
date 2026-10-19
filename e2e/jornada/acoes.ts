@@ -146,6 +146,13 @@ export async function prepararVoz(p: Page) {
 }
 
 export async function lancarPorVoz(p: Page, frase: string) {
+  const d = await falarSemSalvar(p, frase);
+  await d.getByRole("button", { name: "Salvar", exact: true }).click();
+  await expect(d).toBeHidden({ timeout: 20_000 });
+}
+
+/** Fala a frase e para no Digitar já preenchido (para conferir antes de salvar). */
+export async function falarSemSalvar(p: Page, frase: string) {
   await abrirRegistrar(p);
   await p.getByRole("dialog").getByText("Gravar áudio", { exact: true }).click();
   await p.evaluate((f) => ((window as unknown as { __fraseDaJornada?: string }).__fraseDaJornada = f), frase);
@@ -168,8 +175,7 @@ export async function lancarPorVoz(p: Page, frase: string) {
   await p.mouse.up();
   const d = p.getByRole("dialog");
   await d.getByRole("button", { name: "Salvar", exact: true }).waitFor({ timeout: 20_000 });
-  await d.getByRole("button", { name: "Salvar", exact: true }).click();
-  await expect(d).toBeHidden({ timeout: 20_000 });
+  return d;
 }
 
 /** O "+" → "Extrato ou fatura" → arquivo → anotar. */

@@ -68,6 +68,8 @@ export function Digitar({
     quando?: "ontem" | "anteontem";
     /** Casal simples: de quem é, quem pagou e como divide, quando a frase disse. */
     casal?: CasalDaFala;
+    /** Compra parcelada dita na frase ("em 3 vezes"): abre com as parcelas marcadas. */
+    parcelas?: number;
   };
 }) {
   const { voz, profileId, cartaoComLimite, kind, categorias, casa } = useProfileTheme();
@@ -112,7 +114,8 @@ export function Digitar({
   const [repetir, setRepetir] = useState(false);
   const [cartao, setCartao] = useState<EscolhaDoCartao>({ id: null, temCartoes: false });
   // Compra parcelada no cartão (18/10/2026): 1 = à vista. Não convive com o "Repetir todo mês".
-  const [vezes, setVezes] = useState(1);
+  // A voz que disse "em 3 vezes" já abre com 3: ela só escolhe o cartão e revisa (19/10/2026).
+  const [vezes, setVezes] = useState(() => (!rascunho && inicial?.parcelas && inicial.parcelas > 1 ? Math.min(inicial.parcelas, 24) : 1));
   // Subcategoria do gasto (18/10/2026): chips opcionais depois da categoria. A da voz já vem.
   const [sub, setSub] = useState<string>(() =>
     !rascunho && inicial?.subcategoria && inicial.tipo !== "INCOME" && inicial.tipo !== "INVESTMENT_CONTRIBUTION" ? inicial.subcategoria : "",
@@ -462,6 +465,7 @@ export function Digitar({
           escolha={cartao}
           onEscolha={setCartao}
           parcelado={podeParcelar ? { totalCentavos: centavos, vezes, onVezes: setVezes, money } : undefined}
+          parcelaFalada={Boolean(inicial?.parcelas && inicial.parcelas > 1)}
         />
       )}
 

@@ -270,6 +270,21 @@ describe("valor falado: centavos e jeitos de escrever o número (14/10/2026)", (
     expect(parseVoiceEntry("bala 50 centavos")).toMatchObject({ amount: 0.5, description: "Bala" });
     expect(parseVoiceEntry("paguei noventa centavos na bala")).toMatchObject({ amount: 0.9, description: "Bala" });
   });
+  it("compra parcelada falada: o valor é o total e as parcelas vêm junto (19/10/2026)", () => {
+    expect(parseVoiceEntry("parcelei uma compra de um sapato de 100 reais em três vezes")).toMatchObject({ amount: 100, parcelas: 3, description: "Sapato" });
+    expect(parseVoiceEntry("comprei uma geladeira de 3.000 em 10x")).toMatchObject({ amount: 3000, parcelas: 10, description: "Geladeira" });
+    expect(parseVoiceEntry("tênis 400 reais parcelado em 4 vezes sem juros")).toMatchObject({ amount: 400, parcelas: 4, description: "Tênis" });
+    expect(parseVoiceEntry("parcelei em 3 vezes um sapato de 100")).toMatchObject({ amount: 100, parcelas: 3, description: "Sapato" });
+  });
+  it("parcela dita por parcela: 3x de 100 é R$ 300 em 3 vezes", () => {
+    expect(parseVoiceEntry("gastei 3x de 100 na loja")).toMatchObject({ amount: 300, parcelas: 3, description: "Loja" });
+    expect(parseVoiceEntry("celular 12 parcelas de 150 reais")).toMatchObject({ amount: 1800, parcelas: 12, description: "Celular" });
+  });
+  it("sem parcela falada, parcelas fica vazio e nada muda", () => {
+    expect(parseVoiceEntry("gastei 30 no mercado").parcelas ?? null).toBeNull();
+    expect(parseVoiceEntry("academia 3 vezes por semana 120 reais").parcelas ?? null).toBeNull();
+    expect(parseVoiceEntry("recebi 3.000 de salário").parcelas ?? null).toBeNull();
+  });
   it("100.50 é cem e cinquenta, não dez mil", () => {
     expect(parseVoiceEntry("gastei 100.50 no mercado").amount).toBe(100.5);
   });
