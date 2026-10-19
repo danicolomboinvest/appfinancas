@@ -22,6 +22,7 @@ import { partesDoTexto } from "@/lib/profiles/textos/shell";
 import { useToast } from "@/components/ui/toast-context";
 import { brilharQuandoAparecer } from "@/lib/ui/brilho";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { chaveDaSub, lerChave, passaNoFiltro, subcategoriasDoPeriodo, tirarCategoria } from "@/lib/entries/filtro-categoria";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, emojiEscolhido, isParentCategoryKey, categoriasParaEscolher, type CategoriasDoPerfil } from "@/lib/categories";
 import { EntryForm } from "./EntryForm";
 import { FolhaDaTransacao } from "./FolhaDaTransacao";
@@ -60,6 +61,8 @@ export type ListEntry = {
   goalId: string | null;
   /** Cópia de um lançamento fixo ("Repetir todo mês": despesa, renda ou aporte): editar e apagar perguntam se é só este mês. */
   recurrenceId?: string | null;
+  /** Parcela de uma compra parcelada à mão (18/10/2026): o "Desfazer" do apagar devolve a ligação. */
+  parcelamentoId?: string | null;
   /** Lançado em outra moeda: "€ 2.000,00" já formatado no servidor, e os dados pra editar. */
   originalLabel?: string | null;
   originalAmount?: number | null;
@@ -168,6 +171,7 @@ function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntry
     originalCurrency: entry.originalCurrency ?? null,
     exchangeRate: entry.exchangeRate ?? null,
     recurrenceId: entry.recurrenceId ?? null,
+    parcelamentoId: entry.parcelamentoId ?? null,
   };
 }
 
@@ -500,7 +504,8 @@ export function EntryList({
     if (filtro === "cartao" && !e.noCartao) return false;
     if (pessoa && e.dono !== pessoa) return false;
     // "SEM": o gasto sem categoria (o link da linha "Sem categoria" do Orçamento).
-    if (categoriasFiltro.length > 0 && !categoriasFiltro.includes((e.customCategoryId ?? e.parentCategory ?? (e.category === "EXPENSE" ? "SEM" : "")) as string)) return false;
+    // Subcategoria (18/10/2026): "ALIMENTACAO|Delivery" filtra só o Delivery de Alimentação.
+    if (!passaNoFiltro(e, categoriasFiltro)) return false;
     if (busca.trim() && !casaComABusca(busca, [e.description, e.subcategory, categoryName(e, customCategories, voz, kind)], e.amount)) return false;
     return true;
   });
@@ -510,7 +515,13 @@ export function EntryList({
     const k = e.entryDate ?? "sem-data";
     grupos.set(k, [...(grupos.get(k) ?? []), e]);
   }
-  const nomeDaChave = (k: string) => (k === "SEM" ? "Sem categoria" : isParentCategoryKey(k) ? categoryLabel(kind, k) : (customCategories.find((c) => c.id === k)?.name ?? "Categoria"));
+  const nomeDaChave = (k: string): string => {
+    const { categoria, sub } = lerChave(k);
+    if (sub) return sub;
+    return categoria === "SEM" ? "Sem categoria" : isParentCategoryKey(categoria) ? categoryLabel(kind, categoria) : (customCategories.find((c) => c.id === categoria)?.name ?? "Categoria");
+  };
+  // As subcategorias que aparecem nos lançamentos do período, por categoria (os chips da folha).
+  const subsDoPeriodo = subcategoriasDoPeriodo(entries);
   // A folha "Categorias" lista TODAS as do perfil (12/10/2026): só as do mês deixava a folha vazia
   // num mês só com entradas. As que aparecem no mês vêm primeiro; depois as padrão e as criadas.
   const doMes = [...new Set(entries.filter((e) => e.category === "EXPENSE").map((e) => e.customCategoryId ?? e.parentCategory).filter((k): k is string => Boolean(k)))];
@@ -599,7 +610,7 @@ export function EntryList({
         </div>
         <div className={`flex flex-wrap items-center gap-2 ${categoriasFiltro.length ? "" : "hidden"}`} data-filtro-categoria>
           {categoriasFiltro.map((k) => (
-            <button key={k} type="button" onClick={() => setCategoriasFiltro((l) => l.filter((x) => x !== k))} aria-label={`Tirar o filtro ${nomeDaChave(k)}`} className="flex min-h-10 items-center gap-1 rounded-full bg-ink px-3.5 text-[15px] text-canvas">
+            <button key={k} type="button" onClick={() => setCategoriasFiltro((l) => (lerChave(k).sub ? l.filter((x) => x !== k) : tirarCategoria(l, k)))} aria-label={`Tirar o filtro ${nomeDaChave(k)}`} className="flex min-h-10 items-center gap-1 rounded-full bg-ink px-3.5 text-[15px] text-canvas">
               {nomeDaChave(k)} <X size={14} aria-hidden />
             </button>
           ))}
@@ -617,7 +628,7 @@ export function EntryList({
                   key={k}
                   type="button"
                   aria-pressed={on}
-                  onClick={() => setRascunhoCategorias((l) => (on ? l.filter((x) => x !== k) : [...l, k]))}
+                  onClick={() => setRascunhoCategorias((l) => (on ? tirarCategoria(l, k) : [...l, k]))}
                   className="relative flex min-w-0 flex-col items-start gap-2 rounded-2xl bg-surface p-3 text-left text-[15px] text-ink shadow-[inset_0_0_0_1px_var(--color-border)] aria-pressed:shadow-[inset_0_0_0_1.5px_var(--color-ink)]"
                 >
                   <CategoryIcon icon={v.icon} color={v.color} size={36} variant="soft" />
@@ -629,6 +640,32 @@ export function EntryList({
               );
             })}
           </div>
+          {/* Marcou a categoria: as subcategorias dela que aparecem no período, como chips. Marcar
+              uma filtra só ela (18/10/2026, a Dani). */}
+          {rascunhoCategorias
+            .filter((k) => !lerChave(k).sub && (subsDoPeriodo[k]?.length ?? 0) > 0)
+            .map((k) => (
+              <div key={k} className="flex flex-col gap-2" data-subcategorias-de={k}>
+                <span className="text-sm text-ink-muted">{nomeDaChave(k)}</span>
+                <div className="flex flex-wrap gap-2" role="group" aria-label={`Subcategorias de ${nomeDaChave(k)}`}>
+                  {subsDoPeriodo[k].map((sc) => {
+                    const chave = chaveDaSub(k, sc);
+                    const on = rascunhoCategorias.includes(chave);
+                    return (
+                      <button
+                        key={chave}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setRascunhoCategorias((l) => (on ? l.filter((x) => x !== chave) : [...l, chave]))}
+                        className={`min-h-10 rounded-full px-4 text-[15px] ${on ? "bg-ink text-canvas" : "bg-surface text-ink ring-1 ring-border"}`}
+                      >
+                        {sc}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setRascunhoCategorias([])} className="min-h-12 rounded-full bg-surface text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
               Limpar
