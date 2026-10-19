@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { CalendarDays, ChevronLeft, CreditCard } from "lucide-react";
 import { ErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { LogoDoBanco } from "@/components/cartao/LogoDoBanco";
-import { BANCOS_DO_CARTAO, bancoDoCartao } from "@/lib/cartao/bancos";
+import { BANCOS_DO_CARTAO, bancoDoCartao, nomeDoCartao, rotuloDoCartao } from "@/lib/cartao/bancos";
 import { diaCurto, faturaDe, melhorDiaParaComprar, nomeDaFatura, testesDeCompra, type Dia } from "@/lib/cartao/fatura";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { salvarCartaoAction, type CartaoNaTela } from "@/app/(app)/orcamento/cartao/cartoes-actions";
@@ -14,6 +14,10 @@ import { salvarCartaoAction, type CartaoNaTela } from "@/app/(app)/orcamento/car
  * cartão, que dia a fatura fecha, que dia vence. No fim, o cartão pronto com o melhor dia para
  * comprar e o "Testar uma compra", que mostra em que fatura ela cai. Ninguém sabe os dias de cor:
  * a dica diz onde achar.
+ *
+ * Apelido (18/10/2026, a Dani, pedido de uma cliente com dois cartões do mesmo banco): no fim,
+ * antes do "Salvar cartão", "Como você chama este cartão?", opcional. Vazio = o nome do banco.
+ * "Mudar nome ou dias" reabre aqui já preenchido, e é por aqui que ela renomeia.
  */
 export function CadastroDoCartao({ inicial, onSalvo }: { inicial?: CartaoNaTela | null; onSalvo: (c: CartaoNaTela) => void }) {
   const [passo, setPasso] = useState(inicial ? 3 : 0);
@@ -21,6 +25,7 @@ export function CadastroDoCartao({ inicial, onSalvo }: { inicial?: CartaoNaTela 
   const [fecha, setFecha] = useState(inicial?.diaFechamento ?? 0);
   const [vence, setVence] = useState(inicial?.diaVencimento ?? 0);
   const [teste, setTeste] = useState(0);
+  const [apelido, setApelido] = useState(inicial?.apelido ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, iniciar] = useTransition();
   const [hoje] = useState<Dia>(() => {
@@ -121,7 +126,7 @@ export function CadastroDoCartao({ inicial, onSalvo }: { inicial?: CartaoNaTela 
     setErro(null);
     iniciar(async () => {
       try {
-        const r = await salvarCartaoAction({ id: inicial?.id ?? null, banco, diaFechamento: fecha, diaVencimento: vence });
+        const r = await salvarCartaoAction({ id: inicial?.id ?? null, banco, apelido: apelido.trim() || null, diaFechamento: fecha, diaVencimento: vence });
         if (!r.ok) return setErro(r.error);
         onSalvo(r.cartao);
       } catch {
@@ -136,7 +141,7 @@ export function CadastroDoCartao({ inicial, onSalvo }: { inicial?: CartaoNaTela 
       <div className="flex flex-col gap-4 rounded-3xl bg-surface p-5 shadow-premium-sm ring-1 ring-border">
         <div className="flex min-w-0 items-center gap-3">
           <LogoDoBanco banco={banco} size={44} />
-          <p className="min-w-0 break-words text-[17px] font-semibold text-ink">{banco === "outro" ? "Cartão" : `Cartão ${bancoDoCartao(banco).nome}`}</p>
+          <p className="min-w-0 break-words text-[17px] font-semibold text-ink">{rotuloDoCartao({ banco, apelido })}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-surface-2 px-3 py-2.5">
@@ -171,6 +176,19 @@ export function CadastroDoCartao({ inicial, onSalvo }: { inicial?: CartaoNaTela 
           </span>
         </p>
       </div>
+
+      <label className="flex flex-col gap-2">
+        <span className="text-[15px] font-medium text-ink">Como você chama este cartão?</span>
+        <input
+          value={apelido}
+          onChange={(e) => setApelido(e.target.value.slice(0, 40))}
+          maxLength={40}
+          placeholder={nomeDoCartao({ banco, apelido: null })}
+          autoComplete="off"
+          enterKeyHint="done"
+          className="box-border min-h-12 w-full min-w-0 rounded-2xl border border-border bg-surface px-4 text-[16px] text-ink outline-none placeholder:text-ink-muted focus:border-ink"
+        />
+      </label>
 
       <div>
         <button type="button" onClick={salvar} disabled={salvando} className="min-h-12 w-full rounded-full bg-ink text-[16px] font-medium text-canvas disabled:opacity-40">

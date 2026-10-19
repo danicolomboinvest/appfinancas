@@ -31,6 +31,17 @@ export function nomeDoCartao(c: { banco: string; apelido: string | null }): stri
 }
 
 /**
+ * O nome do cartão com "Cartão" na frente ("Cartão Nubank", "Cartão Roxinho"), como as telas já
+ * escreviam. O apelido que ela escreveu já começando por "cartão" ("Cartão da firma") fica como
+ * está, sem "Cartão Cartão da firma" (18/10/2026, apelido no cadastro).
+ */
+export function rotuloDoCartao(c: { banco: string; apelido: string | null }): string {
+  const nome = nomeDoCartao(c);
+  if (nome === "Cartão" || /^cart[aã]o\b/i.test(nome)) return nome;
+  return `Cartão ${nome}`;
+}
+
+/**
  * O slug do banco que a importação reconheceu no arquivo ("Nubank", "Itaú", "C6 Bank", "BTG
  * Pactual", ver lib/import/profile.ts). Null quando não é um banco da lista.
  */

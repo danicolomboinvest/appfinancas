@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CalendarDays, CreditCard, Plus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { LogoDoBanco } from "@/components/cartao/LogoDoBanco";
-import { nomeDoCartao } from "@/lib/cartao/bancos";
+import { rotuloDoCartao } from "@/lib/cartao/bancos";
 import { diaCurto, diaDoLancamento, nomeDaFatura, type Dia } from "@/lib/cartao/fatura";
 import type { CartaoComFaturas } from "@/lib/repositories/cartao.repo";
 import type { FaturaComTotal } from "@/lib/planning/faturas-do-cartao";
@@ -42,14 +42,14 @@ export function SeusCartoes({ cartoes, hoje, money }: { cartoes: CartaoComFatura
     <div className="flex flex-col gap-5">
       {cartoes.map((c) => {
         const f = c.faturas;
-        const nome = nomeDoCartao(c);
+        const nome = rotuloDoCartao(c);
         return (
-          <section key={c.id} className="flex flex-col gap-3" aria-label={`Cartão ${nome}`} data-cartao={c.id}>
+          <section key={c.id} className="flex flex-col gap-3" aria-label={nome} data-cartao={c.id}>
             <Card className="flex flex-col gap-3 p-5">
               <div className="flex min-w-0 items-center gap-3">
                 <LogoDoBanco banco={c.banco} size={44} />
                 <div className="min-w-0">
-                  <p className="break-words text-body font-semibold text-ink">Cartão {nome}</p>
+                  <p className="break-words text-body font-semibold text-ink">{nome}</p>
                   {c.diaFechamento && c.diaVencimento ? (
                     <p className="text-caption text-ink-muted">
                       Fecha dia {c.diaFechamento}, vence dia {c.diaVencimento}

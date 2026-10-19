@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { LogoDoBanco } from "@/components/cartao/LogoDoBanco";
-import { nomeDoCartao, slugDoBancoLido } from "@/lib/cartao/bancos";
+import { rotuloDoCartao, slugDoBancoLido } from "@/lib/cartao/bancos";
 import { preencherDiasDoCartaoAction, salvarCartaoAction } from "@/app/(app)/orcamento/cartao/cartoes-actions";
 import type { ParseStats } from "@/app/(app)/mensal/import-actions";
 
@@ -40,7 +40,7 @@ export function CartaoDaFatura({ stats }: { stats: ParseStats }) {
   if (cartao) {
     const faltaFecha = cartao.diaFechamento === null && fecha !== null;
     const faltaVence = cartao.diaVencimento === null && vence !== null;
-    const nome = `Cartão ${nomeDoCartao(cartao)}`;
+    const nome = rotuloDoCartao(cartao);
     if (!feito && (faltaFecha || faltaVence)) {
       const dias = [faltaFecha ? `fecha dia ${fecha}` : null, faltaVence ? `vence dia ${vence}` : null].filter(Boolean).join(" e ");
       return linha(
