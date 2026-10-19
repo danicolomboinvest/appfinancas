@@ -125,15 +125,20 @@ export async function createCustomCategoryAction(
   } catch {
     return { error: "Você já tem uma categoria com esse nome." };
   }
-  revalidatePath("/orcamento");
+  // A categoria nova aparece também no orçamento de cada ano (/orcamento/2026: o "/orcamento"
+  // sozinho não pegava) e nas telas do mês (Transações, editar um lançamento) sem esperar a
+  // página recarregar (18/10/2026, a Dani), como já faz a criada pelo Digitar.
+  revalidatePath("/orcamento", "layout");
+  revalidatePath("/mensal", "layout");
+  revalidatePath("/configuracoes/categorias");
   return {};
 }
 
 export async function deleteCustomCategoryAction(id: string): Promise<void> {
   const ctx = await getRequiredSession();
   await deleteOwnCustomCategory(ctx, id);
-  revalidatePath("/orcamento");
-  revalidatePath("/orcamento/comparativo");
+  revalidatePath("/orcamento", "layout");
+  revalidatePath("/mensal", "layout");
 }
 
 /** O plano da categoria no mês de agora (0 sem plano). */
