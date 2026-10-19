@@ -516,7 +516,7 @@ function itemDoGrupo(segs: Segmento[], envio: string, dataAtual: string | null):
 export type PrintLido = {
   linhas: LinhaDoPrint[];
   cabecalhoNoFim: string | null;
-  /** O "Compras e despesas, Total R$ 6.179,58" que o resumo da fatura mostra no topo, quando está no print. */
+  /** O total da fatura que o print mostra ("Compras e despesas, Total R$ 6.179,58", "Fatura aberta R$ ..."), quando está nele. */
   totalDaFatura?: number | null;
 };
 
@@ -535,6 +535,27 @@ function totalDoResumo(grupo: Segmento[]): number | null {
 }
 
 /**
+ * O total que o app do banco mostra no topo da fatura aberta (19/10/2026): "Fatura aberta R$
+ * 4.338,49" (Bradesco, Inter, XP), "Fatura atual" (Nubank, C6, Santander), "Fatura em aberto"
+ * (BTG), "total até agora" (Itaú). O valor vem na mesma linha ou na de baixo; nunca o "Limite
+ * disponível" nem o "Disponível" que ficam ali perto.
+ */
+const TOTAL_DO_TOPO_RE = /^(fatura (aberta|atual|em aberto)\b|total ate agora\b)/;
+const PERTO_RE = /\b(limite|disponivel|anterior|minimo|pagamento)\b/;
+function totalDoTopo(grupo: Segmento[]): number | null {
+  const linhas = linhasDoGrupo(grupo).map((l) => l.segs.map((s) => s.texto).join(" "));
+  for (let i = 0; i < linhas.length; i++) {
+    if (!TOTAL_DO_TOPO_RE.test(simples(linhas[i]))) continue;
+    for (const t of [linhas[i], linhas[i + 1]]) {
+      if (!t || PERTO_RE.test(simples(t))) continue;
+      const v = lerValor(t);
+      if (v && !v.moeda) return v.valor;
+    }
+  }
+  return null;
+}
+
+/**
  * Lê as compras de UM print. `envio`: o dia em que a pessoa mandou ("AAAA-MM-DD", no fuso dela),
  * que resolve "Hoje", "Ontem" e o dia da semana.
  */
@@ -544,7 +565,7 @@ export function lerPrint(segmentos: Segmento[], envio: string): PrintLido {
   let cabecalhoNoFim: string | null = null;
   let totalDaFatura: number | null = null;
   for (const grupo of agrupar(segmentos)) {
-    totalDaFatura ??= totalDoResumo(grupo);
+    totalDaFatura ??= totalDoResumo(grupo) ?? totalDoTopo(grupo);
     const texto = linhasDoGrupo(grupo)
       .map((l) => l.segs.map((s) => s.texto).join(" "))
       .join(" ");

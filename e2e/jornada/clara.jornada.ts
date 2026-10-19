@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { Caderno, testeDosAvisos, conferirTelaVelha, dia, exigirSemAchados, novaPagina, passo, visitarPeloApp } from "./comum";
 import { agoraNaoNoResumo, comecarComExtrato, criarConta, foiPontual, importarArquivo, lancarAMao, montarPlano } from "./acoes";
 import { conferirAvisoDaCategoria, conferirGastoPorCategoria, conferirLivre, conferirMesPassado, conferirMetas, definirMesAtual } from "./conferir";
-import { lerOrcamento, lerResumo } from "./telas";
+import { conferirTextoELayout, lerOrcamento, lerResumo } from "./telas";
 import { bate, brl } from "./dinheiro";
 import { URL_DO_BANCO } from "./config";
 
@@ -54,7 +54,13 @@ test("Clara: conta nova do zero, números e telas iguais em todo lugar", async (
     await dia(c, "2026-10-16 12:10", [p]);
     await passo(c, "print da fatura aberta (cartão)", async () => {
       const antes = await lerOrcamento(p, c, OUT);
-      await importarArquivo(p, ARQ("print-fatura-itau.png"));
+      // O print mostra só o começo da lista: a tela diz quanto falta para o total do topo (19/10/2026).
+      await importarArquivo(p, ARQ("print-fatura-itau.png"), async (pg) => {
+        const falta = ((await pg.locator("[data-falta-total]").textContent().catch(() => null)) ?? "").replace(/\s/g, " ");
+        if (!/^Faltam R\$ [\d.]+,\d{2} para o total da fatura \(R\$ 4\.338,49\)\. Mande o print que falta\.$/.test(falta))
+          await c.anotar(pg, { tipo: "sumiu", telaDeOrigem: "print da fatura", telaErrada: "conferência do print", esperado: "Faltam R$ X para o total da fatura (R$ 4.338,49). Mande o print que falta.", visto: falta || "nada" });
+        await conferirTextoELayout(pg, c, "Conferência do print");
+      });
       const { orc } = await conferirGastoPorCategoria(p, c, OUT, "print");
       const soma = (o: typeof orc) => Object.values(o.categorias).reduce((s, x) => s + x.gasto, 0);
       if (!(soma(orc) > soma(antes) + 50)) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "print da fatura", telaErrada: "Orçamento", esperado: "as compras do cartão somadas ao mês", visto: `${brl(soma(antes))} → ${brl(soma(orc))}` });

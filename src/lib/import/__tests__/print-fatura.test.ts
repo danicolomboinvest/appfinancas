@@ -249,6 +249,20 @@ describe("prints de teste: nove layouts de banco", () => {
   }
 });
 
+describe("total da fatura no topo do print (19/10/2026)", () => {
+  const pasta = path.join(__dirname, "fixtures", "prints-fatura");
+  for (const banco of ["nubank", "itau", "inter", "c6", "btg", "santander", "bradesco", "xp", "btg-cartao"]) {
+    it(`${banco}: lê o total da fatura aberta, não o limite`, () => {
+      const p = lerPrint(JSON.parse(fs.readFileSync(path.join(pasta, `${banco}-1.json`), "utf8")) as Segmento[], "2026-10-13");
+      expect(p.totalDaFatura).toBe(4338.49);
+    });
+  }
+  it("print do meio da lista, sem o topo: sem total", () => {
+    const p = lerPrint(JSON.parse(fs.readFileSync(path.join(pasta, "nubank-2.json"), "utf8")) as Segmento[], "2026-10-13");
+    expect(p.totalDaFatura ?? null).toBeNull();
+  });
+});
+
 describe("semelhanca", () => {
   it("uma letra trocada ainda parece", () => {
     expect(semelhanca("farmaciavidaleve", "farmaclavidaleve")).toBeGreaterThan(0.9);

@@ -1853,7 +1853,8 @@ export function StatementImport({
                   <Check size={13} strokeWidth={2.6} />
                 </span>
                 {separadas === 1 ? "1 já separada" : `${separadas} já separadas`}
-                {stats?.conferencia.status === "fechou" && <span className="text-ink-muted" title={t.impBateuComTotal(money(stats.conferencia.esperado))}> · bateu com o total</span>}
+                {/* Print da fatura aberta: o "Bateu com o total da fatura" de baixo já diz (sem repetir aqui). */}
+                {stats?.conferencia.status === "fechou" && !aberta && <span className="text-ink-muted" title={t.impBateuComTotal(money(stats.conferencia.esperado))}> · bateu com o total</span>}
               </span>
               )}
               {docType === "fatura" && stats && <CartaoDaFatura key={ultimoArquivo?.file.name ?? "fatura"} stats={stats} />}

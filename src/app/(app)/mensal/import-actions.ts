@@ -14,7 +14,7 @@ import { veioDeImagem } from "@/lib/import/ocr-marca";
 import { acharParcelaExistente, controleDeProjecao, type ParcelaDoArquivo } from "@/lib/import/parcela-repetida";
 import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
-import { conferirLeitura, leituraIncompleta, type Conferencia } from "@/lib/import/conferencia";
+import { conferirLeitura, conferirPrints, leituraIncompleta, type Conferencia } from "@/lib/import/conferencia";
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
@@ -227,6 +227,14 @@ function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string |
       : null; // sem total pra conferir: a régua das linhas continua valendo pra esta linha
   }
   return conf.status === "fechou" ? `${MARCA_CONFERIDO} bateu com o total do arquivo (${reais(conf.esperado)})` : MARCA_CONFERIDO;
+}
+
+/** Prints: sempre "[conferido]" (não é erro do app), com o total quando o print mostrou um. */
+function mensagemDaConferenciaDoPrint(conf: Conferencia): string {
+  const reais = (n: number) => formatMoney(n, "BRL");
+  if (conf.status === "fechou") return `${MARCA_CONFERIDO} bateu com o total do print (${reais(conf.esperado)})`;
+  if (conf.status === "nao-fechou") return `${MARCA_CONFERIDO} print: somou ${reais(conf.lido)}, a fatura diz ${reais(conf.esperado)}`;
+  return MARCA_CONFERIDO;
 }
 
 /** A falha em texto curto para o diagnóstico, venha como Error, texto ou objeto. */
@@ -619,7 +627,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     }
   }
 
-  const conferencia = conferirLeitura(text, docType, parsed);
+  // Prints: a soma com o total do topo da fatura aberta (19/10/2026), não com o texto montado.
+  const conferencia = dosPrints ? conferirPrints(dosPrints.compras, dosPrints.total) : conferirLeitura(text, docType, parsed);
   const stats: ParseStats = {
     detectedKind,
     detectedReason,
@@ -675,7 +684,9 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       compras: linhas.length,
     });
   }
-  stats.leituraIncompleta = leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
+  // Print que não fecha com o total quase sempre é print que faltou, não leitura errada: não vira
+  // "leitura incompleta" (que guarda o arquivo e chama a cliente pelo suporte).
+  stats.leituraIncompleta = dosPrints ? false : leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
   // Antes de tudo: a compra que já entrou pelo print da fatura aberta (quase certo, sem pergunta).
   if (docType === "fatura") await marcarJaNaFaturaAberta(ctx, items);
@@ -714,7 +725,9 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     message:
       stats.suspeitas.length > 0
         ? mensagemImplausivel(stats.suspeitas.map((x) => x.texto))
-        : mensagemDaConferencia(stats.conferencia, stats.leituraIncompleta),
+        : dosPrints
+          ? mensagemDaConferenciaDoPrint(stats.conferencia)
+          : mensagemDaConferencia(stats.conferencia, stats.leituraIncompleta),
   });
   // Leu, mas achou muito menos do que o arquivo tinha: pra pessoa é "só veio um pedaço da
   // fatura". Guarda o arquivo também nesse caso — é o único jeito de conferir se o que ficou

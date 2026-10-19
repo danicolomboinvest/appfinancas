@@ -233,6 +233,20 @@ export function leituraIncompleta(conf: Conferencia, leitorDedicado: boolean, li
   return leitorDedicado ? false : linhasPartial;
 }
 
+/**
+ * Prints da fatura aberta (19/10/2026): a soma das compras lidas com o total que o app do banco
+ * mostra no topo. Bate com o total das compras ou com o líquido (compras menos estorno). Não
+ * bater aqui quase sempre é print que faltou, não leitura errada: quem chama não trata como erro.
+ */
+export function conferirPrints(compras: { amount: number }[], total: number | null): Conferencia {
+  if (total === null || compras.length === 0) return { status: "sem-referencia" };
+  const centavos = (n: number) => Math.round(n * 100) / 100;
+  const liquido = centavos(compras.reduce((s, c) => s + c.amount, 0));
+  const soCompras = centavos(compras.filter((c) => c.amount > 0).reduce((s, c) => s + c.amount, 0));
+  const lido = [liquido, soCompras].find((n) => bate(n, total));
+  return lido !== undefined ? { status: "fechou", lido, esperado: total } : { status: "nao-fechou", lido: liquido, esperado: total };
+}
+
 const BB_SALDO_ANTERIOR = /(\d{1,3}(?:\.\d{3})*,\d{2})\s*\(([+-])\)\s*Saldo\s+Anterior/i;
 /** O "S A L D O" sozinho na linha. As "Informações Adicionais" do fim trazem "9.821,19 (+) SALDO EM
  * CONTA-SALARIO", que não é o saldo desta conta: lido como final, acusava erro numa leitura certa. */

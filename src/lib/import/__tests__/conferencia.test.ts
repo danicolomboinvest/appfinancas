@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { leituraIncompletaDoRegistro, MARCA_CONFERIDO, MARCA_NAO_FECHOU } from "@/lib/repositories/import-diagnostic.repo";
-import { conferirLeitura, leituraIncompleta } from "../conferencia";
+import { conferirLeitura, conferirPrints, leituraIncompleta } from "../conferencia";
 import type { ParsedTransaction } from "../statement-parser";
 
 const t = (amount: number, description = "LOJA EXEMPLO"): ParsedTransaction => ({ date: "2026-09-10", description, amount });
@@ -139,5 +139,21 @@ describe("leituraIncompletaDoRegistro: o que o relatório diário e o aviso de s
   it("falha e gravação não são leitura incompleta (têm conta própria)", () => {
     expect(leituraIncompletaDoRegistro({ ...base, ok: false })).toBe(false);
     expect(leituraIncompletaDoRegistro({ ...base, stage: "confirm" })).toBe(false);
+  });
+});
+
+describe("conferirPrints: a soma dos prints com o total da fatura aberta (19/10/2026)", () => {
+  const compras = [{ amount: 100 }, { amount: 50.5 }, { amount: -20 }];
+  it("bate com o total líquido (compras menos estorno)", () => {
+    expect(conferirPrints(compras, 130.5)).toEqual({ status: "fechou", lido: 130.5, esperado: 130.5 });
+  });
+  it("bate com o total só das compras", () => {
+    expect(conferirPrints(compras, 150.5)).toMatchObject({ status: "fechou", esperado: 150.5 });
+  });
+  it("faltou print: não fecha, com quanto leu e quanto a fatura diz", () => {
+    expect(conferirPrints(compras, 400)).toEqual({ status: "nao-fechou", lido: 130.5, esperado: 400 });
+  });
+  it("sem total no print: sem referência", () => {
+    expect(conferirPrints(compras, null)).toEqual({ status: "sem-referencia" });
   });
 });
