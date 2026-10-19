@@ -44,6 +44,8 @@ export type MonthlyEntryInput = {
   exchangeRate?: number;
   /** Série de despesa fixa a que ele pertence (só o "Desfazer" devolve por aqui; quem cria é createRecurringMonthlyEntries). */
   recurrenceId?: string;
+  /** Compra parcelada à mão a que ele pertence (só o "Desfazer" devolve por aqui; quem cria é createParcelasDaCompra). */
+  parcelamentoId?: string;
   /** Perfil dono deste lançamento, quando é OUTRO que não o ativo na sessão — o import de
    * fatura manda pra cá compra que é da Empresa mas caiu no cartão Pessoal. `undefined` = o
    * perfil ativo de sempre. Quem chama já validou que o id é mesmo de um perfil do usuário. */
@@ -191,6 +193,58 @@ export async function createRecurringMonthlyEntries(
       };
     }),
   });
+}
+
+/**
+ * Compra parcelada lançada à mão no Digitar (18/10/2026): uma linha por parcela, cada uma no mês
+ * da fatura dela, com o valor, a data e a descrição "(k/N)" que vêm prontos de quem chama (a
+ * regra mora em lib/cartao/parcelas.ts). Todas levam o mesmo parcelamentoId.
+ */
+export async function createParcelasDaCompra(
+  ctx: AuthContext,
+  input: MonthlyEntryInput,
+  parcelas: { year: number; month: number; entryDate: Date; amount: number; description: string }[],
+) {
+  const refs = await resolveOwnRefs(ctx, ctx.profileId, input);
+  const parcelamentoId = randomUUID();
+  return prisma.monthlyEntry.createMany({
+    data: parcelas.map((p) => ({
+      ...input,
+      ...refs,
+      goalId: refs.goalId ?? null,
+      customCategoryId: refs.customCategoryId ?? null,
+      year: p.year,
+      month: p.month,
+      entryDate: p.entryDate,
+      amount: p.amount,
+      description: semNulo(p.description),
+      subcategory: semNulo(input.subcategory),
+      parcelamentoId,
+      userId: ctx.userId,
+      profileId: ctx.profileId,
+    })),
+  });
+}
+
+/**
+ * As subcategorias que ela já usou em cada categoria que ela criou (18/10/2026): os chips do
+ * Digitar depois de escolher uma delas, as mais usadas primeiro.
+ */
+export async function listSubcategoriasDasCriadas(ctx: AuthContext, limit = 8): Promise<Record<string, string[]>> {
+  const linhas = await prisma.monthlyEntry.groupBy({
+    by: ["customCategoryId", "subcategory"],
+    where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", customCategoryId: { not: null }, subcategory: { not: null } },
+    _count: { subcategory: true },
+    orderBy: { _count: { subcategory: "desc" } },
+  });
+  const out: Record<string, string[]> = {};
+  for (const l of linhas) {
+    const sub = l.subcategory?.trim();
+    if (!l.customCategoryId || !sub) continue;
+    const lista = (out[l.customCategoryId] ??= []);
+    if (lista.length < limit && !lista.includes(sub)) lista.push(sub);
+  }
+  return out;
 }
 
 /**

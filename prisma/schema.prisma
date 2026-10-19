@@ -777,6 +777,11 @@ model MonthlyEntry {
   /// que conta no orçamento continua o year/month de sempre. Apagar o cartão solta os lançamentos.
   cartaoId           String?
   cartao             Cartao?                  @relation(fields: [cartaoId], references: [id], onDelete: SetNull)
+  /// Compra parcelada lançada à mão no Digitar (18/10/2026): as N parcelas da mesma compra levam o
+  /// mesmo id, como o recurrenceId liga as cópias do "Repetir todo mês". Cada parcela conta no mês
+  /// da fatura dela (year/month) e tem "(k/N)" na descrição. Nulo = lançamento avulso (a parcela
+  /// que vem da fatura importada é reconhecida pela descrição, como sempre).
+  parcelamentoId     String?                  @db.VarChar(40)
   createdAt          DateTime                 @default(now())
 
   @@unique([userId, profileId, externalId])
@@ -787,6 +792,7 @@ model MonthlyEntry {
   @@index([importBatchId])
   @@index([contaAPagarId])
   @@index([cartaoId])
+  @@index([userId, parcelamentoId])
 }
 
 /// Orçamento mensal planejado por categoria-mãe (para a barra "gasto realizado vs. planejado").

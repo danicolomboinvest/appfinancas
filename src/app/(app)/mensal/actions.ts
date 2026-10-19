@@ -2,7 +2,7 @@
 
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession } from "@/lib/auth/session";
-import { listRecentSubcategories } from "@/lib/repositories/monthly-entry.repo";
+import { listRecentSubcategories, listSubcategoriasDasCriadas } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { listGoals } from "@/lib/repositories/goal.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
@@ -13,6 +13,12 @@ import { casaAtiva } from "@/lib/casa/regras";
 export async function getRecentSubcategoriesAction(): Promise<Record<ParentCategory, string[]>> {
   const ctx = await getRequiredSession();
   return listRecentSubcategories(ctx);
+}
+
+/** Os tipos que ela já usou em cada categoria criada por ela (os chips do Digitar, 18/10/2026). */
+export async function subcategoriasDasCriadasAction(): Promise<Record<string, string[]>> {
+  const ctx = await getRequiredSession();
+  return listSubcategoriasDasCriadas(ctx);
 }
 
 export async function getCustomCategoriesAction(): Promise<{ id: string; name: string; icon: string }[]> {

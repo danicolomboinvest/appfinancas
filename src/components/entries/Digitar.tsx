@@ -14,11 +14,12 @@ import { CurrencySwitch, ExchangeRateLine } from "@/components/forms/CurrencySwi
 import { CasalFields } from "@/components/forms/CasalFields";
 import { CasalNoDigitar, type CasalDaFala } from "@/components/casa/CasalNoDigitar";
 import { createMonthlyEntryAction, type MonthlyEntryState } from "@/app/(app)/mensal/[year]/[month]/actions";
+import { subcategoriasDasCriadasAction } from "@/app/(app)/mensal/actions";
 import { NovaCategoria } from "./NovaCategoria";
 import { CartaoNoDigitar, type EscolhaDoCartao } from "./CartaoNoDigitar";
-import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor } from "@/lib/categories";
+import { CUSTOM_CATEGORY_ICON_MAP, PARENT_CATEGORIES, PARENT_CATEGORY_COLOR, PARENT_CATEGORY_ICON, categoriaOculta, categoryLabel, corEscolhida, incomeTypesFor, investmentTypesFor, subcategoriesFor } from "@/lib/categories";
 import { nowInBrazil } from "@/lib/date/brazil-now";
-import { chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclar, textoDoRepetir } from "@/lib/entries/digitar";
+import { centavosDoCampo, chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclaDoTeclado, teclar, textoDoRepetir } from "@/lib/entries/digitar";
 import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
 import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
@@ -110,6 +111,16 @@ export function Digitar({
   });
   const [repetir, setRepetir] = useState(false);
   const [cartao, setCartao] = useState<EscolhaDoCartao>({ id: null, temCartoes: false });
+  // Compra parcelada no cartão (18/10/2026): 1 = à vista. Não convive com o "Repetir todo mês".
+  const [vezes, setVezes] = useState(1);
+  // Subcategoria do gasto (18/10/2026): chips opcionais depois da categoria. A da voz já vem.
+  const [sub, setSub] = useState<string>(() =>
+    !rascunho && inicial?.subcategoria && inicial.tipo !== "INCOME" && inicial.tipo !== "INVESTMENT_CONTRIBUTION" ? inicial.subcategoria : "",
+  );
+  // Categoria criada por ela não tem lista pronta: os tipos que ela já usou nela (pedido só ao escolher).
+  const [subsDasCriadas, setSubsDasCriadas] = useState<Record<string, string[]> | null>(null);
+  const pedindoSubs = useRef(false);
+  const raiz = useRef<HTMLDivElement>(null);
   const [mais, setMais] = useState(() => Boolean(inicial?.moeda && inicial.moeda !== moedaDoApp));
   const [descricao, setDescricao] = useState(rascunho?.descricao ?? inicial?.descricao ?? "");
   const [moeda, setMoeda] = useState<CurrencyCode>(inicial?.moeda ?? moedaDoApp);
@@ -153,6 +164,25 @@ export function Digitar({
   // Em outra moeda o valor grande mostra o símbolo dela: "50 dólares" falado aparecia "R$ 50,00" e
   // parecia que ia gravar 50 reais (14/10/2026). A conversão fica em Mais opções, que já abre.
   const valorTexto = estrangeira ? formatMoney(centavos / 100, moeda) : money(centavos / 100);
+  const podeParcelar = ehGasto && Boolean(cartao.id) && !repetir && !estrangeira;
+  const parcelado = podeParcelar && vezes > 1;
+  const nomeDaCategoria = (k: string | null) =>
+    !k ? "" : (PARENT_CATEGORIES as readonly string[]).includes(k) ? categoryLabel(categorias, k as ParentCategory) : (personalizadas.find((c) => c.id === k)?.name ?? "");
+  const ehPai = (k: string | null): k is ParentCategory => Boolean(k) && (PARENT_CATEGORIES as readonly string[]).includes(k as string);
+  // As subcategorias da categoria escolhida: as do app para as padrão; para a criada por ela, os
+  // tipos que ela já usou. O tipo que veio da voz entra na lista se não estiver.
+  const subsDaCategoria = !ehGasto || !categoria ? [] : ehPai(categoria) ? subcategoriesFor(categorias, categoria) : (subsDasCriadas?.[categoria] ?? []);
+  const subs = sub && !subsDaCategoria.includes(sub) ? [sub, ...subsDaCategoria] : subsDaCategoria;
+  const escolherCategoria = (chave: string) => {
+    if (chave !== categoria) setSub("");
+    setCategoria(chave);
+    if (!ehPai(chave) && subsDasCriadas === null && !pedindoSubs.current) {
+      pedindoSubs.current = true;
+      subcategoriasDasCriadasAction()
+        .then(setSubsDasCriadas)
+        .catch(() => setSubsDasCriadas({}));
+    }
+  };
 
   const salvar = () => {
     // Sem valor, o toque não pode morrer calado (o botão some de cinza no sol e parece ativo).
@@ -191,7 +221,7 @@ export function Digitar({
     const custom = ehGasto && categoria && !pai ? categoria : "";
     fd.set("parentCategory", pai);
     fd.set("customCategoryId", custom);
-    fd.set("subcategory", ehGasto ? (inicial?.categoria && categoria === inicial.categoria ? (inicial.subcategoria ?? "") : "") : tipoLivre);
+    fd.set("subcategory", ehGasto ? sub : tipoLivre);
     fd.set("entryDate", dataDoChip(chip, hoje));
     // Veio da voz: o servidor compara a sugestão com o que ela escolheu e, se ela trocou, aprende.
     if (ehGasto && inicial?.chaveDaFala) {
@@ -211,6 +241,12 @@ export function Digitar({
     // Campos do Casal e a cotação (quando vierem): os inputs reais dentro de "Mais opções".
     const form = document.getElementById("digitar-mais") as HTMLFormElement | null;
     if (form) for (const [k, v] of new FormData(form).entries()) fd.set(k, v);
+    // Parcelado (18/10/2026): o servidor divide o total em N lançamentos, um por fatura, com
+    // "(1/N)" na descrição. Sem descrição, vai o nome do tipo ou da categoria ("Hobbies (1/3)").
+    if (parcelado) {
+      fd.set("parcelas", String(vezes));
+      if (!descricao.trim()) fd.set("description", sub || nomeDaCategoria(categoria));
+    }
     iniciarEnvio(async () => {
       // Nada falha em silêncio (12/10/2026, caso da Hadas no iPhone): a ação que nem chega ao
       // servidor (rede caiu, módulo que não carregou) vira aviso na tela e registro no AppError, e o
@@ -248,6 +284,7 @@ export function Digitar({
       onClick={() => {
         setTipo(valor);
         setCategoria(null);
+        setSub("");
         setTipoLivre("");
       }}
       className={`min-h-11 rounded-full text-[15px] transition-colors ${tipo === valor ? "bg-surface font-medium text-ink shadow-premium-sm" : "text-ink-muted"}`}
@@ -267,7 +304,7 @@ export function Digitar({
     </button>
   );
   const bloco = (chave: string, rotulo: string, Icone: typeof Shapes, cor: string) => (
-    <button key={chave} type="button" aria-pressed={categoria === chave || tipoLivre === chave} onClick={() => (ehGasto ? setCategoria(chave) : setTipoLivre(chave), setState((st) => (st.error ? {} : st)))} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] leading-tight text-ink-muted aria-pressed:font-medium aria-pressed:text-ink">
+    <button key={chave} type="button" aria-pressed={categoria === chave || tipoLivre === chave} onClick={() => (ehGasto ? escolherCategoria(chave) : setTipoLivre(chave), setState((st) => (st.error ? {} : st)))} className="flex min-w-0 flex-col items-center gap-1.5 py-1 text-[13px] leading-tight text-ink-muted aria-pressed:font-medium aria-pressed:text-ink">
       <span
         className={`flex size-12 items-center justify-center rounded-full transition-shadow ${categoria === chave || tipoLivre === chave ? "shadow-[0_0_0_2px_var(--color-surface),0_0_0_3.5px_var(--color-ink)]" : ""}`}
         style={{ background: `color-mix(in srgb, ${cor} 18%, var(--color-surface))`, color: cor }}
@@ -278,6 +315,36 @@ export function Digitar({
     </button>
   );
 
+  // O teclado de verdade (18/10/2026, a Dani): números e Backspace mexem no valor, Enter salva
+  // quando já dá para salvar. Não quando ela está escrevendo em outro campo (descrição, data,
+  // o campo do valor do celular, que cuida de si) nem numa folha aberta por cima (Novo cartão).
+  const doTeclado = useRef({ salvar, pode: false, ocupado: false });
+  useEffect(() => {
+    doTeclado.current = { salvar, pode: !faltaParaSalvar(centavos, ehGasto, categoria), ocupado: isPending };
+  });
+  useEffect(() => {
+    if (criando) return;
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      const alvo = e.target instanceof HTMLElement ? e.target : null;
+      if (alvo && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName))) return;
+      const dentro = raiz.current;
+      if (!dentro || (alvo && alvo !== document.body && !dentro.contains(alvo) && !alvo.contains(dentro))) return;
+      if (e.key === "Enter") {
+        if (!doTeclado.current.pode || doTeclado.current.ocupado) return;
+        e.preventDefault();
+        doTeclado.current.salvar();
+        return;
+      }
+      const tecla = teclaDoTeclado(e.key);
+      if (!tecla) return;
+      e.preventDefault();
+      setCentavos((c) => teclar(c, tecla));
+    };
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [criando]);
+
   if (criando)
     return (
       <NovaCategoria
@@ -286,13 +353,14 @@ export function Digitar({
         onCriada={(c) => {
           setExtras((e) => (e.some((x) => x.id === c.id) ? e : [...e, c]));
           setCategoria(c.id);
+          setSub("");
           setCriando(false);
         }}
       />
     );
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div ref={raiz} className="flex flex-col gap-3.5">
       <div className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1" role="group" aria-label="Gasto ou entrada">
         {segmento("EXPENSE", "Gasto")}
         {segmento("INCOME", "Entrada")}
@@ -301,9 +369,34 @@ export function Digitar({
         <p className="text-center text-sm text-ink-muted">{tipo === "RESGATE" ? "Resgatei" : "Guardei"} (em Mais opções)</p>
       )}
 
-      <p className={`py-1 text-center text-[2.5rem] font-light leading-none tracking-[-0.035em] tabular-nums ${entrada && centavos ? "text-success" : "text-ink"}`} aria-live="polite">
-        {valorTexto}
-      </p>
+      {/* Tocar no valor abre o teclado numérico do celular (18/10/2026): um campo invisível por
+          cima do número grande, que alimenta os mesmos centavos do teclado da tela. */}
+      <div className="relative">
+        <p className={`py-1 text-center text-[2.5rem] font-light leading-none tracking-[-0.035em] tabular-nums ${entrada && centavos ? "text-success" : "text-ink"}`} aria-live="polite" data-valor-digitado={centavos}>
+          {valorTexto}
+        </p>
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          enterKeyHint="done"
+          aria-label="Valor"
+          data-valor-do-celular
+          value={centavos ? String(centavos) : ""}
+          onChange={(e) => {
+            const novo = centavosDoCampo(e.target.value);
+            if (novo !== null) setCentavos(novo);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+            if (!faltaParaSalvar(centavos, ehGasto, categoria)) salvar();
+          }}
+          className="absolute inset-0 h-full w-full cursor-pointer bg-transparent text-[16px] text-transparent caret-transparent opacity-0 outline-none"
+        />
+      </div>
       <div className="grid grid-cols-3 gap-2" role="group" aria-label="Teclado do valor">
         {TECLAS.map((k) => (
           <button key={k} type="button" aria-label={k === "del" ? "Apagar" : k} onClick={() => setCentavos((c) => teclar(c, k))} className="flex h-[50px] items-center justify-center rounded-2xl bg-surface text-[1.375rem] text-ink shadow-premium-sm active:scale-95">
@@ -335,6 +428,16 @@ export function Digitar({
         )}
       </div>
 
+      {subs.length > 0 && (
+        <div className="animate-fade-in flex flex-wrap gap-2" role="group" aria-label="Subcategoria" data-subcategorias>
+          {subs.map((sc) => (
+            <button key={sc} type="button" aria-pressed={sub === sc} onClick={() => setSub((v) => (v === sc ? "" : sc))} className={`min-h-10 rounded-full px-4 text-sm ${sub === sc ? "bg-ink text-canvas" : "bg-surface text-ink ring-1 ring-border"}`}>
+              {sc}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2" role="group" aria-label="Quando">
         {[["hoje", "Hoje"], ["ontem", "Ontem"]].map(([k, r]) => (
           <button key={k} type="button" aria-pressed={!outraData && chip === k} onClick={() => (setChip(k), setOutraData(false))} className={`min-h-10 rounded-full px-4 text-sm ${!outraData && chip === k ? "bg-ink text-canvas" : "bg-surface text-ink ring-1 ring-border"}`}>
@@ -353,11 +456,19 @@ export function Digitar({
       {casa && ehGasto && (
         <CasalNoDigitar casa={casa} ano={year} mes={month} valor={centavos / 100} categoria={categoria} descricao={descricao} money={money} daFala={inicial?.casal} />
       )}
-      {ehGasto && <CartaoNoDigitar data={dataDoChip(chip, hoje)} escolha={cartao} onEscolha={setCartao} />}
+      {ehGasto && (
+        <CartaoNoDigitar
+          data={dataDoChip(chip, hoje)}
+          escolha={cartao}
+          onEscolha={setCartao}
+          parcelado={podeParcelar ? { totalCentavos: centavos, vezes, onVezes: setVezes, money } : undefined}
+        />
+      )}
 
+      {/* Parcelado e "Repetir todo mês" não vão juntos: com parcelas, o Repetir some. */}
       <div className="flex flex-col divide-y divide-border">
         {cartaoComLimite && ehGasto && !cartao.temCartoes && linhaSw("No cartão de crédito", noCartao, () => setNoCartao((v) => !v))}
-        {linhaSw("Repetir todo mês", repetir, () => setRepetir((v) => !v))}
+        {!parcelado && linhaSw("Repetir todo mês", repetir, () => (setRepetir((v) => !v), setVezes(1)))}
       </div>
       {repetir && <p className="-mt-1 text-sm text-ink-muted">{textoDoRepetir(dataDoChip(chip, hoje))}</p>}
 

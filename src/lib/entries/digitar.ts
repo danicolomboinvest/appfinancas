@@ -59,3 +59,27 @@ export function textoDoRepetir(data: string): string {
   if (mes === 11) return "Lança também em dezembro.";
   return `Lança também de ${MESES_POR_EXTENSO[mes]} a dezembro.`;
 }
+
+/**
+ * O teclado de verdade no Digitar (18/10/2026, a Dani, pedido de uma cliente no computador): a
+ * tecla do teclado físico vira a tecla da tela. Números entram, Backspace e Delete apagam; o resto
+ * (Enter, letras, setas) não mexe no valor. Null = não é tecla do valor.
+ */
+export function teclaDoTeclado(key: string): string | null {
+  if (/^\d$/.test(key)) return key;
+  if (key === "Backspace" || key === "Delete") return "del";
+  return null;
+}
+
+/**
+ * O teclado numérico do celular (18/10/2026): tocar no valor grande abre o teclado do aparelho, e
+ * o que está no campo vira centavos como na maquininha ("4590" → 45,90). Só os dígitos contam
+ * (vírgula, ponto e espaço que o teclado do aparelho põe são ignorados). Null = passou do
+ * máximo, o valor fica como estava (como no teclado da tela).
+ */
+export function centavosDoCampo(texto: string): number | null {
+  const digitos = texto.replace(/\D/g, "").replace(/^0+/, "");
+  if (!digitos) return 0;
+  const n = Number(digitos);
+  return n > MAX_CENTAVOS ? null : n;
+}

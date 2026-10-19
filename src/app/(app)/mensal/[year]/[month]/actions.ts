@@ -9,6 +9,7 @@ import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-t
 import {
   createMonthlyEntry,
   createRecurringMonthlyEntries,
+  createParcelasDaCompra,
   updateOwnMonthlyEntry,
   deleteOwnMonthlyEntry,
   deleteOwnMonthlyEntries,
@@ -29,6 +30,7 @@ import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { cartaoDoPerfil } from "@/lib/repositories/cartao.repo";
 import { mesDoGastoNoCartao } from "@/lib/cartao/fatura";
+import { descricaoDaParcela, dividirEmParcelas, parcelasNasFaturas, parcelasValidas } from "@/lib/cartao/parcelas";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { serverMoney } from "@/lib/money-server";
 import type { z } from "zod";
@@ -242,8 +244,14 @@ export async function createMonthlyEntryAction(
   // A despesa fixa no cartão: cada cópia nasce no mês da compra dela e conta no da fatura.
   const mesDaCompra = { year: entry.year, month: entry.month };
   const cartao = await ligarAoCartao(ctx, formData, entry);
+  // Compra parcelada (18/10/2026): só gasto num cartão dela, sem "Repetir" e na moeda dela.
+  const vezes = cartao && !parsed.data.repeatMonthly && !entry.originalCurrency ? parcelasValidas(formData.get("parcelas")) : 1;
+  const parcelas = cartao && vezes > 1 && entry.entryDate ? parcelasDaCompra(entry, vezes, cartao) : null;
   try {
-    if (parsed.data.repeatMonthly) {
+    if (parcelas) {
+      await createParcelasDaCompra(ctx, entry, parcelas);
+      Object.assign(entry, { year: parcelas[0].year, month: parcelas[0].month, amount: parcelas[0].amount });
+    } else if (parsed.data.repeatMonthly) {
       await createRecurringMonthlyEntries(ctx, cartao ? { ...entry, ...mesDaCompra } : entry, cartao ? (d) => mesDoGastoNoCartao(d, cartao) : undefined);
     } else {
       await createMonthlyEntry(ctx, entry);
@@ -260,8 +268,35 @@ export async function createMonthlyEntryAction(
     revalidatePath(`/mensal/${entry.year}`);
     revalidatePath(`/mensal/${entry.year}/${entry.month}`);
   }
+  // As parcelas caem em vários meses (e às vezes no ano seguinte): todas as telas do mês e do orçamento.
+  if (parcelas) {
+    revalidatePath("/mensal", "layout");
+    revalidatePath("/orcamento", "layout");
+  }
   const aviso = await depoisDoGasto(ctx, entry);
   return aviso ? { aviso } : {};
+}
+
+/**
+ * As parcelas de uma compra no cartão (18/10/2026): o total digitado dividido em `vezes` (a 1ª
+ * leva os centavos que sobram, a soma bate exata), cada uma no mês da fatura dela e com "(k/N)"
+ * na descrição. A regra mora em lib/cartao/parcelas.ts.
+ */
+function parcelasDaCompra(entry: MonthlyEntryInput, vezes: number, cartao: { diaFechamento: number | null; diaVencimento: number | null }) {
+  const d = entry.entryDate!;
+  const data = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const meses = parcelasNasFaturas(data, vezes, cartao);
+  const valores = dividirEmParcelas(Math.round(entry.amount * 100), vezes);
+  if (meses.length !== valores.length) return null;
+  const base = entry.description?.trim() || "Compra parcelada";
+  return meses.map((m, i) => ({
+    year: m.year,
+    month: m.month,
+    // Meio-dia local, como a data do formulário (monthly-entry.schema).
+    entryDate: new Date(`${m.data}T12:00:00`),
+    amount: valores[i] / 100,
+    description: descricaoDaParcela(base, m.numero, vezes),
+  }));
 }
 
 /**
@@ -443,6 +478,8 @@ export type DeletedEntrySnapshot = {
   externalId?: string | null;
   /** Série de despesa fixa: o "Desfazer" devolve a cópia pra mesma série. */
   recurrenceId?: string | null;
+  /** Parcela de uma compra parcelada à mão: o "Desfazer" devolve a parcela à mesma compra. */
+  parcelamentoId?: string | null;
   /** Dividido com alguém: o "Desfazer" do Ignorar devolve a divisão junto. */
   divididoCom?: string | null;
   parteDeOutro?: number | null;
@@ -529,6 +566,7 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
       importBatchId,
       externalId: snapshot.externalId ?? undefined,
       recurrenceId: typeof snapshot.recurrenceId === "string" && snapshot.recurrenceId.length <= 60 ? snapshot.recurrenceId : undefined,
+      parcelamentoId: typeof snapshot.parcelamentoId === "string" && snapshot.parcelamentoId.length <= 40 ? snapshot.parcelamentoId : undefined,
     });
     if (typeof snapshot.divididoCom === "string" && snapshot.divididoCom.trim()) {
       const parte = Number(snapshot.parteDeOutro ?? 0);
