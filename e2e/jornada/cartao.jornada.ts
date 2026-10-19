@@ -330,6 +330,8 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
       if (!bate(parc.reduce((s2, l) => s2 + l.amount, 0), 1000, 0.001)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar (parcelado)", telaErrada: "soma das parcelas", esperado: "R$ 1.000,00", visto: brl(parc.reduce((s2, l) => s2 + l.amount, 0)) });
       // Seu cartão: cada fatura soma os lançamentos ligados (a parcela do mês dela, nunca o total).
       await p.goto("/orcamento/cartao");
+      // As faturas chegam depois do load (a tela carrega em partes): ler antes dava "não está".
+      await p.getByText(/^Fatura de /).first().waitFor({ timeout: 20_000 });
       const texto = await conferirTextoELayout(p, c, "Seu cartão com parcelas");
       for (const [chave, nome] of [["2026-10", "outubro"], ["2026-11", "novembro"], ["2026-12", "dezembro"]] as const) {
         const total = totalDaFatura(cartao, linhas, chave);
@@ -434,6 +436,8 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
       // Seu cartão: as faturas de novembro e dezembro sem as parcelas.
       const { cartao, linhas } = await lancadosNoCartao();
       await p.goto("/orcamento/cartao");
+      // As faturas chegam depois do load (a tela carrega em partes): ler antes dava "não está".
+      await p.getByText(/^Fatura de /).first().waitFor({ timeout: 20_000 });
       const texto = await conferirTextoELayout(p, c, "Seu cartão sem as parcelas");
       for (const [chave, nome] of [["2026-10", "outubro"], ["2026-11", "novembro"], ["2026-12", "dezembro"]] as const) {
         const total = totalDaFatura(cartao, linhas, chave);
