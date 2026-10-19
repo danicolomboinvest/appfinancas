@@ -2,8 +2,8 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import { Caderno, dia, exigirSemAchados, novaPagina, passo, testeDosAvisos } from "./comum";
-import { entrar, pularTutoriais } from "./acoes";
-import { conferirTextoELayout, lerOrcamento, lerResumo } from "./telas";
+import { abrirLancamento, entrar, pilula, pularTutoriais } from "./acoes";
+import { conferirTextoELayout, lerOrcamento, lerResumo, lerTransacoes } from "./telas";
 import { conferirGastoPorCategoria, conferirLivre } from "./conferir";
 import { textoVisivel } from "./texto";
 import { bate, brl } from "./dinheiro";
@@ -59,6 +59,25 @@ async function lerLancadosNoCartao() {
     };
   } finally {
     await db.$disconnect();
+  }
+}
+
+/** As parcelas da compra parcelada à mão do Edu (com ou sem cartão: o Desfazer tem de devolver o cartão). */
+async function parcelasNoBanco(): Promise<{ description: string | null; year: number; month: number; amount: number; cartaoId: string | null; parcelamentoId: string | null }[]> {
+  for (let i = 0; ; i++) {
+    const db = new PrismaClient({ datasourceUrl: `${URL_DO_BANCO}?connection_limit=1` });
+    try {
+      const linhas = await db.monthlyEntry.findMany({ where: { user: { email: EMAIL }, parcelamentoId: { not: null } }, orderBy: [{ year: "asc" }, { month: "asc" }] });
+      return linhas.map((l) => ({ description: l.description, year: l.year, month: l.month, amount: Number(l.amount), cartaoId: l.cartaoId, parcelamentoId: l.parcelamentoId }));
+    } catch (e) {
+      if (i < 20 && /too many clients|Too many database connections/i.test(String(e))) {
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      throw e;
+    } finally {
+      await db.$disconnect();
+    }
   }
 }
 
@@ -285,11 +304,11 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
       await d.getByRole("button", { name: "Mais uma vez" }).click();
       await d.getByRole("button", { name: "Mais uma vez" }).click();
       await expect(d.locator("[data-vezes]")).toHaveText("3x");
+      // Uma linha só (18/10/2026, a Dani): "3x de R$ 333,33 · até dezembro". Nada da 1ª com centavos nem do total.
       const linha = d.locator("[data-valor-da-parcela]");
-      await expect(linha).toContainText(/3x de R\$\s?333,33/);
-      await expect(linha).toContainText(/A 1ª de R\$\s?333,34/);
-      await expect(linha).toContainText(/Total da compra R\$\s?1\.000,00/);
-      await expect(d.locator("[data-ultima-parcela]")).toContainText("Última na fatura de dezembro");
+      await expect(linha).toHaveText(/^3x de R\$\s?333,33 · até dezembro$/);
+      await expect(linha).toHaveAttribute("data-ultima-parcela", "2026-12");
+      await expect(d.getByText(/A 1ª de|Total da compra|Última na fatura/)).toHaveCount(0);
       // Parcelado e "Repetir todo mês" não vão juntos.
       await expect(d.getByRole("switch", { name: /Repetir todo mês/ })).toHaveCount(0);
       await conferirTextoELayout(p, c, "Digitar parcelado");
@@ -362,6 +381,67 @@ test("Edu: cadastra o cartão, compra no dia do fechamento e a fatura certa soma
       const todos = await linhasDaLista.allInnerTexts();
       if (!todos.some((x) => /Cinema\/Shows|R\$\s?20,00/.test(x)) || !todos.some((x) => /Hobbies/.test(x)))
         await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "filtro Lazer", telaErrada: "Transações 10/2026", esperado: "o Cinema/Shows e o Hobbies (1/3)", visto: todos.map((x) => x.replace(/\n/g, " ")).join(" | ") || "nenhuma" });
+    });
+
+    // ---------------------------------------------------------------- 18/10/2026, apagar parcelas
+    await passo(c, "apagar a 2ª parcela com \"Esta e as próximas\": sobra só a 1ª em todas as telas", async () => {
+      const apagarA2a = async () => {
+        await abrirLancamento(p, 2026, 11, "Hobbies (2/3)");
+        await p.getByRole("dialog").getByRole("button", { name: "Remover", exact: true }).click();
+        const pergunta = p.getByRole("dialog", { name: "Apagar parcela" });
+        await expect(pergunta.getByRole("button", { name: "Só esta", exact: true })).toBeVisible();
+        await conferirTextoELayout(p, c, "Apagar parcela");
+        await pergunta.getByRole("button", { name: "Esta e as próximas", exact: true }).click();
+        const t = pilula(p, "2 apagados");
+        await t.waitFor({ timeout: 15_000 });
+        return t;
+      };
+      const soA1a = async (quando: string) => {
+        const sobra = await parcelasNoBanco();
+        const visto = sobra.map((l) => `${l.description} ${l.month}/${l.year}`).join(" | ") || "nenhuma";
+        if (sobra.length !== 1 || sobra[0].description !== "Hobbies (1/3)") await c.anotar(p, { tipo: "numero", telaDeOrigem: `Esta e as próximas (${quando})`, telaErrada: "lançamentos", esperado: "só Hobbies (1/3)", visto });
+      };
+
+      // 1) Apaga e desfaz: as duas voltam, no cartão (na fatura certa).
+      const t = await apagarA2a();
+      await soA1a("antes do Desfazer");
+      await t.getByRole("button", { name: "Desfazer" }).click();
+      await expect.poll(async () => (await parcelasNoBanco()).length, { timeout: 15_000 }).toBe(3);
+      const voltaram = await parcelasNoBanco();
+      if (new Set(voltaram.map((l) => l.parcelamentoId)).size !== 1 || voltaram.some((l) => !l.cartaoId))
+        await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Desfazer de Esta e as próximas", telaErrada: "lançamentos", esperado: "as 3 parcelas da mesma compra, no cartão", visto: voltaram.map((l) => `${l.description} ${l.cartaoId ? "cartão" : "sem cartão"}`).join(" | ") });
+
+      // 2) Apaga de novo, de verdade.
+      await apagarA2a();
+      await p.waitForLoadState("networkidle").catch(() => undefined);
+      await soA1a("depois");
+
+      // Transações: novembro e dezembro sem Hobbies; outubro com a 1ª.
+      for (const mes of [10, 11, 12]) {
+        const tr = await lerTransacoes(p, c, { ano: 2026, mes });
+        const tem = tr.linhas.filter((l) => /Hobbies/.test(l.descricao)).map((l) => l.descricao);
+        const esperado = mes === 10 ? ["Hobbies (1/3)"] : [];
+        if (tem.join("|") !== esperado.join("|")) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Esta e as próximas", telaErrada: `Transações ${mes}/2026`, esperado: esperado.join(" | ") || "sem parcela", visto: tem.join(" | ") || "sem parcela" });
+      }
+      // Orçamento, Gastos e Resumo de cada mês batem com o banco (Lazer de nov e dez sem parcela).
+      for (const mes of [10, 11, 12]) {
+        const esperado = await gastoNoBanco("LAZER", 2026, mes);
+        const { orc } = await conferirGastoPorCategoria(p, c, { ano: 2026, mes }, `apagou parcelas ${mes}/2026`, { atual: mes === 10 });
+        if (!bate(orc.categorias.LAZER?.gasto ?? 0, esperado))
+          await c.anotar(p, { tipo: "numero", telaDeOrigem: "Esta e as próximas", telaErrada: `Orçamento ${mes}/2026`, esperado: `Lazer ${brl(esperado)}`, visto: orc.categorias.LAZER?.texto ?? "sem Lazer" });
+        if (mes === 10) await conferirLivre(p, c, orc, "apagou parcelas");
+      }
+      // Seu cartão: as faturas de novembro e dezembro sem as parcelas.
+      const { cartao, linhas } = await lancadosNoCartao();
+      await p.goto("/orcamento/cartao");
+      const texto = await conferirTextoELayout(p, c, "Seu cartão sem as parcelas");
+      for (const [chave, nome] of [["2026-10", "outubro"], ["2026-11", "novembro"], ["2026-12", "dezembro"]] as const) {
+        const total = totalDaFatura(cartao, linhas, chave);
+        const valor = `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const l = texto.split("\n").find((x) => x.startsWith(`Fatura de ${nome}:`))?.replace(/\s/g, " ") ?? "";
+        if (total > 0 && !l.includes(valor)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Esta e as próximas", telaErrada: "Seu cartão", esperado: `Fatura de ${nome}: ${valor}`, visto: l || "não está" });
+        if (linhas.some((x) => /Hobbies \([23]\/3\)/.test(x.description ?? ""))) await c.anotar(p, { tipo: "sumiu", telaDeOrigem: "Esta e as próximas", telaErrada: "Seu cartão", esperado: "sem a 2ª e a 3ª parcela", visto: "ainda ligadas ao cartão" });
+      }
     });
   } finally {
     c.salvar();

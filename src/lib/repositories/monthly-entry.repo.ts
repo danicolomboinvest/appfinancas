@@ -9,6 +9,7 @@ import type { Intervalo } from "@/lib/visao-geral/periodo";
 import { dentroDoIntervalo, mesesDoIntervalo } from "@/lib/visao-geral/intervalo-dados";
 import { aReceberPorPessoa } from "@/lib/entries/divisao";
 import { janelaDasParcelas, type LancamentoParcelavel, type Mes as MesDaParcela } from "@/lib/contas/parcelas-do-mes";
+import { parcelasDaquiPraFrente } from "@/lib/cartao/parcelas";
 
 export async function listMonthlyEntries(ctx: AuthContext, year: number, month: number) {
   return prisma.monthlyEntry.findMany({
@@ -263,6 +264,19 @@ export async function listSeriesFrom(ctx: AuthContext, id: string) {
     },
     orderBy: [{ year: "asc" }, { month: "asc" }],
   });
+}
+
+/**
+ * "Esta e as próximas" numa compra parcelada à mão (18/10/2026): as parcelas do mesmo
+ * parcelamentoId a partir do mês desta (ela inclusa), só da dona e do perfil aberto. A regra
+ * de quais entram mora em lib/cartao/parcelas.ts (parcelasDaquiPraFrente). Vazio se o
+ * lançamento não é dela ou não é parcela.
+ */
+export async function listParcelasFrom(ctx: AuthContext, id: string) {
+  const base = await prisma.monthlyEntry.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
+  if (!base?.parcelamentoId) return [];
+  const todas = await prisma.monthlyEntry.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId, parcelamentoId: base.parcelamentoId } });
+  return parcelasDaquiPraFrente(base, todas);
 }
 
 /**

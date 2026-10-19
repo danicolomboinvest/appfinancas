@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { faturaDoLancamento } from "../fatura";
-import { descricaoDaParcela, dividirEmParcelas, parcelasNasFaturas, parcelasValidas, resumoDasParcelas } from "../parcelas";
+import { descricaoDaParcela, dividirEmParcelas, parcelasNasFaturas, parcelasValidas, resumoDasParcelas, parcelasDaquiPraFrente } from "../parcelas";
 import { parseInstallment } from "@/lib/entries/recurrence";
 
 describe("parcelas: a divisão do total", () => {
@@ -70,5 +70,30 @@ describe("parcelas: o mês de cada uma", () => {
   });
   it("data inválida: nada", () => {
     expect(parcelasNasFaturas("ontem", 3, nubank)).toEqual([]);
+  });
+});
+
+describe("parcelasDaquiPraFrente (apagar esta e as próximas)", () => {
+  const p = (id: string, year: number, month: number, parcelamentoId: string | null = "compra-a") => ({ id, year, month, parcelamentoId });
+  const compra = [p("1", 2026, 10), p("2", 2026, 11), p("3", 2026, 12), p("4", 2027, 1)];
+  const outra = [p("x1", 2026, 11, "compra-b"), p("x2", 2026, 12, "compra-b")];
+  const solto = p("s", 2026, 12, null);
+
+  it("a 2ª de 4: ela e as seguintes, em ordem, inclusive a do ano seguinte", () => {
+    expect(parcelasDaquiPraFrente(compra[1], [...outra, ...compra.slice().reverse(), solto]).map((l) => l.id)).toEqual(["2", "3", "4"]);
+  });
+
+  it("a 1ª leva a compra inteira; a última, só ela", () => {
+    expect(parcelasDaquiPraFrente(compra[0], compra).map((l) => l.id)).toEqual(["1", "2", "3", "4"]);
+    expect(parcelasDaquiPraFrente(compra[3], compra).map((l) => l.id)).toEqual(["4"]);
+  });
+
+  it("nunca leva parcela de outra compra nem lançamento solto", () => {
+    const r = parcelasDaquiPraFrente(compra[1], [...compra, ...outra, solto]);
+    expect(r.every((l) => l.parcelamentoId === "compra-a")).toBe(true);
+  });
+
+  it("sem parcelamentoId: só ele mesmo", () => {
+    expect(parcelasDaquiPraFrente(solto, [...compra, solto]).map((l) => l.id)).toEqual(["s"]);
   });
 });

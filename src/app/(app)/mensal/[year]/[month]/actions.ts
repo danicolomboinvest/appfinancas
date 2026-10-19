@@ -11,6 +11,7 @@ import {
   createRecurringMonthlyEntries,
   createParcelasDaCompra,
   updateOwnMonthlyEntry,
+  listParcelasFrom,
   deleteOwnMonthlyEntry,
   deleteOwnMonthlyEntries,
   updateOwnMonthlyEntriesCategory,
@@ -480,6 +481,8 @@ export type DeletedEntrySnapshot = {
   recurrenceId?: string | null;
   /** Parcela de uma compra parcelada à mão: o "Desfazer" devolve a parcela à mesma compra. */
   parcelamentoId?: string | null;
+  /** Cartão da compra: o "Desfazer" devolve o gasto ao cartão (e à fatura dele). */
+  cartaoId?: string | null;
   /** Dividido com alguém: o "Desfazer" do Ignorar devolve a divisão junto. */
   divididoCom?: string | null;
   parteDeOutro?: number | null;
@@ -497,11 +500,33 @@ export async function deleteSeriesFromAction(
   id: string,
 ): Promise<{ apagados: number; jaNaCarteira: number; snapshots: DeletedEntrySnapshot[] }> {
   const ctx = await getRequiredSession();
-  const serie = await listSeriesFrom(ctx, String(id));
-  if (serie.length === 0) return { apagados: 0, jaNaCarteira: 0, snapshots: [] };
-  const ids = serie.map((e) => e.id);
+  return apagarComDesfazer(ctx, await listSeriesFrom(ctx, String(id)));
+}
+
+/**
+ * "Esta e as próximas" numa parcela de compra parcelada à mão (18/10/2026, a Dani): as parcelas
+ * da mesma compra deste mês em diante, só da dona e do perfil aberto. Mesmo Desfazer da despesa
+ * fixa: todas voltam, com o cartão (e por isso na fatura certa).
+ */
+export async function deleteParcelasFromAction(
+  id: string,
+): Promise<{ apagados: number; jaNaCarteira: number; snapshots: DeletedEntrySnapshot[] }> {
+  const ctx = await getRequiredSession();
+  const r = await apagarComDesfazer(ctx, await listParcelasFrom(ctx, String(id)));
+  // As parcelas caem em vários meses (e às vezes no ano seguinte): o Orçamento também.
+  if (r.apagados > 0) revalidatePath("/orcamento", "layout");
+  return r;
+}
+
+/** Apaga as linhas (já filtradas pela dona) e devolve o snapshot de cada uma para o Desfazer. */
+async function apagarComDesfazer(
+  ctx: Sessao,
+  linhasParaApagar: Awaited<ReturnType<typeof listSeriesFrom>>,
+): Promise<{ apagados: number; jaNaCarteira: number; snapshots: DeletedEntrySnapshot[] }> {
+  if (linhasParaApagar.length === 0) return { apagados: 0, jaNaCarteira: 0, snapshots: [] };
+  const ids = linhasParaApagar.map((e) => e.id);
   const linhas = await allocationsOf(ctx, ids);
-  const snapshots: DeletedEntrySnapshot[] = serie.map((e) => ({
+  const snapshots: DeletedEntrySnapshot[] = linhasParaApagar.map((e) => ({
     year: e.year,
     month: e.month,
     category: e.category,
@@ -517,6 +542,8 @@ export async function deleteSeriesFromAction(
     exchangeRate: e.exchangeRate === null ? null : Number(e.exchangeRate),
     allocations: linhas.filter((l) => l.entryId === e.id).map((l) => ({ assetId: l.assetId, amount: Number(l.amount) })),
     recurrenceId: e.recurrenceId,
+    parcelamentoId: e.parcelamentoId,
+    cartaoId: e.cartaoId,
   }));
   const { count } = await deleteOwnMonthlyEntries(ctx, ids);
   revalidatePath("/mensal", "layout");
@@ -549,7 +576,10 @@ export async function undoDeleteEntryAction(snapshot: DeletedEntrySnapshot): Pro
       });
       if (jaVoltou) return { ok: true };
     }
+    // O cartão vem do cliente: só volta se ainda for um cartão dela neste perfil.
+    const cartao = typeof snapshot.cartaoId === "string" ? await cartaoDoPerfil(ctx, snapshot.cartaoId) : null;
     const entry = await createMonthlyEntry(ctx, {
+      ...(cartao ? { cartaoId: cartao.id, noCartao: true } : {}),
       year: snapshot.year,
       month: snapshot.month,
       category: snapshot.category,

@@ -142,6 +142,10 @@ export type TextosShell = {
   uiFixoSoEste: string;
   uiFixoEsteEProximos: string;
   uiFixoNaoAchei: string;
+  /** Apagar uma parcela de compra parcelada à mão (18/10/2026): só esta ou esta e as próximas. */
+  uiParcelaApagarTitulo: string;
+  uiParcelaSoEsta: string;
+  uiParcelaEstaEProximas: string;
   /** Aviso no mês: aporte lançado que ainda não entrou em nenhum ativo da carteira. `mes` vem
    * null quando a página é a do mês atual ("neste mês") e com o nome no mês anterior. */
   uiAporteSemDestino(valor: string, mes: string | null): string;
@@ -309,6 +313,9 @@ export const PADRAO_SHELL: TextosShell = {
   uiFixoSoEste: "Só este mês",
   uiFixoEsteEProximos: "Este e os próximos meses",
   uiFixoNaoAchei: "Não achei. Recarregue a tela.",
+  uiParcelaApagarTitulo: "Apagar parcela",
+  uiParcelaSoEsta: "Só esta",
+  uiParcelaEstaEProximas: "Esta e as próximas",
   uiAporteSemDestino: (valor, mes) => `${valor} guardados ${mes ? `em ${mes}` : "neste mês"} ainda não estão na carteira`,
   uiAporteSemDestinoSub: "Diga em quais investimentos esse dinheiro entrou e suas metas andam junto.",
   uiAporteSemDestinoLink: "Dizer onde foi →",

@@ -91,3 +91,17 @@ export function parcelasNasFaturas(dataDaCompra: string, n: number, cartao: { di
   }
   return out;
 }
+
+/**
+ * "Esta e as próximas" (18/10/2026, a Dani): ao apagar uma parcela, as da MESMA compra
+ * (parcelamentoId) desta em diante, pelo mês em que cada uma conta (o da fatura). As que já
+ * passaram ficam. Sem parcelamentoId, só ela mesma. Só a regra: quem chama já trouxe só as
+ * linhas da dona (userId e perfil).
+ */
+export function parcelasDaquiPraFrente<T extends { id: string; parcelamentoId: string | null; year: number; month: number }>(base: T, linhas: T[]): T[] {
+  if (!base.parcelamentoId) return [base];
+  const chave = (l: { year: number; month: number }) => l.year * 12 + l.month;
+  return linhas
+    .filter((l) => l.parcelamentoId === base.parcelamentoId && chave(l) >= chave(base))
+    .sort((a, b) => chave(a) - chave(b));
+}

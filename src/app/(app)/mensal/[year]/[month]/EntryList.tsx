@@ -33,6 +33,7 @@ import { casaComABusca } from "@/lib/entries/busca";
 import {
   deleteMonthlyEntriesAction,
   deleteSeriesFromAction,
+  deleteParcelasFromAction,
   undoDeleteEntriesAction,
   updateMonthlyEntriesCategoryAction,
   type DeletedEntrySnapshot,
@@ -172,6 +173,7 @@ function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntry
     exchangeRate: entry.exchangeRate ?? null,
     recurrenceId: entry.recurrenceId ?? null,
     parcelamentoId: entry.parcelamentoId ?? null,
+    cartaoId: entry.cartaoId ?? null,
   };
 }
 
@@ -255,6 +257,7 @@ export function EntryList({
   }
   // Despesa fixa: antes de apagar, pergunta se é só este mês ou este e os próximos.
   const [apagandoFixa, setApagandoFixa] = useState<ListEntry | null>(null);
+  const apagandoParcela = Boolean(apagandoFixa && !apagandoFixa.recurrenceId && apagandoFixa.parcelamentoId);
 
   // Transações (versão nova): busca, Saídas/Entradas/Cartão e uma categoria, como no protótipo.
   const [busca, setBusca] = useState("");
@@ -315,19 +318,22 @@ export function EntryList({
     });
   }
 
+  // Parcela de compra parcelada à mão (18/10/2026): mesma pergunta, "Só esta" ou "Esta e as próximas".
   function pedirRemocao(entry: ListEntry) {
-    if (entry.recurrenceId) setApagandoFixa(entry);
+    if (entry.recurrenceId || entry.parcelamentoId) setApagandoFixa(entry);
     else removeEntries([entry]);
   }
 
-  /** "Este e os próximos": a série inteira daqui pra frente, com Desfazer pra todas as cópias. */
+  /** "Este e os próximos": a série inteira daqui pra frente, com Desfazer pra todas as cópias.
+   * Numa parcela, as parcelas da mesma compra desta em diante. */
   function removeSerie(entry: ListEntry) {
+    const parcela = !entry.recurrenceId && Boolean(entry.parcelamentoId);
     startTransition(async () => {
       let resultado: Awaited<ReturnType<typeof deleteSeriesFromAction>>;
       try {
-        resultado = await deleteSeriesFromAction(entry.id);
+        resultado = parcela ? await deleteParcelasFromAction(entry.id) : await deleteSeriesFromAction(entry.id);
       } catch (err) {
-        console.error("deleteSeriesFromAction falhou", err);
+        console.error(parcela ? "deleteParcelasFromAction falhou" : "deleteSeriesFromAction falhou", err);
         showError(t.acaoFalhou);
         return;
       }
@@ -909,11 +915,11 @@ export function EntryList({
       <Modal
         open={apagandoFixa !== null}
         onClose={() => setApagandoFixa(null)}
-        title={t.uiFixoApagarTitulo(apagandoFixa?.category ?? "EXPENSE")}
+        title={apagandoParcela ? t.uiParcelaApagarTitulo : t.uiFixoApagarTitulo(apagandoFixa?.category ?? "EXPENSE")}
       >
         {apagandoFixa && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-ink-muted">{t.uiFixoApagarTexto(apagandoFixa.category)}</p>
+            {!apagandoParcela && <p className="text-sm text-ink-muted">{t.uiFixoApagarTexto(apagandoFixa.category)}</p>}
             <button
               type="button"
               onClick={() => {
@@ -923,7 +929,7 @@ export function EntryList({
               }}
               className="inline-flex min-h-12 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-sm font-semibold text-ink transition-colors hover:bg-surface-hover"
             >
-              {t.uiFixoSoEste}
+              {apagandoParcela ? t.uiParcelaSoEsta : t.uiFixoSoEste}
             </button>
             <button
               type="button"
@@ -934,7 +940,7 @@ export function EntryList({
               }}
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-danger-soft text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-canvas"
             >
-              {t.uiFixoEsteEProximos}
+              {apagandoParcela ? t.uiParcelaEstaEProximas : t.uiFixoEsteEProximos}
             </button>
           </div>
         )}
