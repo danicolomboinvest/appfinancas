@@ -265,6 +265,11 @@ describe("valor falado: centavos e jeitos de escrever o número (14/10/2026)", (
     expect(parseVoiceEntry("recebi 4 mil e 500").amount).toBe(4500);
     expect(parseVoiceEntry("mercado 18 e 5").amount).toBe(18);
   });
+  it("só centavos: 99 centavos é R$ 0,99, não R$ 99 (19/10/2026)", () => {
+    expect(parseVoiceEntry("gastei 99 centavos no app")).toMatchObject({ amount: 0.99, description: "App" });
+    expect(parseVoiceEntry("bala 50 centavos")).toMatchObject({ amount: 0.5, description: "Bala" });
+    expect(parseVoiceEntry("paguei noventa centavos na bala")).toMatchObject({ amount: 0.9, description: "Bala" });
+  });
   it("100.50 é cem e cinquenta, não dez mil", () => {
     expect(parseVoiceEntry("gastei 100.50 no mercado").amount).toBe(100.5);
   });

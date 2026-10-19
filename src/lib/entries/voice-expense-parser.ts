@@ -196,11 +196,16 @@ function amountCandidates(normalized: string): { value: number; index: number; h
     }
     // "12 reais e 50 centavos", "12 reais e 50 na padaria": os centavos ditos depois do real.
     if (!m[3]) value = Math.round((value + centavosDepois(resto)) * 100) / 100;
+    // Só centavos: "99 centavos no app" é R$ 0,99, não R$ 99 (19/10/2026). Não vale para o
+    // "e 32 centavos" de "75 e 32 centavos", que já entrou no número de antes.
+    const soCentavos =
+      !m[1] && !m[3] && /^\d{1,2}$/.test(m[2]) && /^\s*centavos?\b/.test(resto) && !/\be\s*$/.test(normalized.slice(0, m.index ?? 0));
+    if (soCentavos) value = num / 100;
     out.push({
       value,
       index: m.index ?? 0,
       hasCurrency:
-        Boolean(m[1]) || new RegExp(`^\\s*(milhoes|milhao|mil)?\\s*(?:(?:${MONEY_WORDS})\\b|€|£|₪)`).test(resto),
+        Boolean(m[1]) || soCentavos || new RegExp(`^\\s*(milhoes|milhao|mil)?\\s*(?:(?:${MONEY_WORDS})\\b|€|£|₪)`).test(resto),
     });
   }
   return out;
@@ -225,6 +230,12 @@ function extractAmount(normalized: string): number | null {
     const trecho = reaisIdx > -1 ? normalized.slice(0, reaisIdx).trim().split(/\s+/).slice(-6).join(" ") : normalized;
     const fromWords = wordsToNumber(trecho);
     if (fromWords !== null) return Math.round((fromWords + (reaisIdx > -1 ? centavosDepois(normalized.slice(reaisIdx)) : 0)) * 100) / 100;
+  }
+  // Só centavos por extenso: "noventa centavos" é R$ 0,90.
+  const centavosIdx = normalized.search(/\bcentavos?\b/);
+  if (centavosIdx > -1) {
+    const n = wordsToNumber(normalized.slice(0, centavosIdx).trim().split(/\s+/).slice(-3).join(" "));
+    if (n !== null && n > 0 && n < 100) return n / 100;
   }
   return null;
 }
@@ -372,6 +383,11 @@ export function descricaoDaFala(text: string): string {
           if (comCentavos) fora.add(j);
         }
       }
+    }
+    // "99 centavos", "noventa centavos" sem o real antes: o "centavos" também é valor.
+    if (/^centavos?$/.test(t) && i > 0 && (EH_NUMERO.test(limpos[i - 1]) || PALAVRA_DE_NUMERO(limpos[i - 1]))) {
+      fora.add(i);
+      for (let j = i - 1; j >= 0 && (PALAVRA_DE_NUMERO(limpos[j]) || EH_NUMERO.test(limpos[j])); j -= 1) fora.add(j);
     }
     // "pesos argentinos": o "argentinos" só é moeda logo depois de "pesos".
     if (t === "argentinos" && limpos[i - 1]?.startsWith("peso")) fora.add(i);
