@@ -67,5 +67,9 @@ export function comprasDaFaturaSaoPositivas(parsed: Pick<ParsedTransaction, "amo
  * Não some calado: a revisão mostra a linha em "fica de fora", com "Contar mesmo assim".
  */
 export function pareceCreditoDePagamento(description: string): boolean {
+  // "NAT*Natura Pagamentos", "PG *Loja": o asterisco colado no nome é a loja que passou pela
+  // maquininha ou pelo gateway, e "Pagamentos" ali é parte do nome dela. O crédito é uma
+  // devolução de compra, não o pagamento da fatura anterior.
+  if (/[A-Za-z]\s?\*\s?\S/.test(description)) return false;
   return /\b(pagamentos?|pagto|pgto)\b/i.test(description) && !pareceEstorno(description);
 }

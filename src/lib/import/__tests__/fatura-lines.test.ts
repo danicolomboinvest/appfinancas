@@ -92,6 +92,9 @@ describe("pareceCreditoDePagamento: crédito da fatura que é pagamento, não de
 
   it("estorno de compra continua estorno", () => {
     expect(pareceCreditoDePagamento("ESTORNO PAGAMENTO LOJA X")).toBe(false);
+    // Loja com "Pagamentos" no nome (gateway): devolução de compra, a fatura só fecha se contar.
+    expect(pareceCreditoDePagamento("NAT*Natura Pagamentos")).toBe(false);
+    expect(pareceCreditoDePagamento("XYZ*Loja Pagamentos")).toBe(false);
     expect(pareceCreditoDePagamento("AMAZON MARKETPLACE")).toBe(false);
   });
 });
