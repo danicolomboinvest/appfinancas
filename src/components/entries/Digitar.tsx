@@ -429,9 +429,9 @@ export function Digitar({
       </div>
 
       {subs.length > 0 && (
-        <div className="animate-fade-in flex flex-wrap gap-2" role="group" aria-label="Subcategoria" data-subcategorias>
+        <div className="animate-fade-in -mt-1 flex flex-wrap gap-1.5" role="group" aria-label="Subcategoria" data-subcategorias>
           {subs.map((sc) => (
-            <button key={sc} type="button" aria-pressed={sub === sc} onClick={() => setSub((v) => (v === sc ? "" : sc))} className={`min-h-10 rounded-full px-4 text-sm ${sub === sc ? "bg-ink text-canvas" : "bg-surface text-ink ring-1 ring-border"}`}>
+            <button key={sc} type="button" aria-pressed={sub === sc} onClick={() => setSub((v) => (v === sc ? "" : sc))} className={`min-h-10 rounded-full px-3 text-sm ${sub === sc ? "bg-ink text-canvas" : "bg-surface text-ink ring-1 ring-border"}`}>
               {sc}
             </button>
           ))}
