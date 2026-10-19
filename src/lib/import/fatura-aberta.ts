@@ -1,3 +1,4 @@
+import { faturaDe, type DiasDoCartao } from "@/lib/cartao/fatura";
 import { parseInstallment } from "@/lib/entries/recurrence";
 import { semAcentoNemPontuacao } from "./comerciante";
 import { nomeParecido } from "./parecido-manual";
@@ -112,4 +113,42 @@ export function casarComFaturaAberta(linhas: LinhaQueChega[], gravadas: CompraDo
  */
 export function prometeParcelasSeguintes(installment: { current: number; total: number; confident: boolean } | null | undefined, faturaAberta: boolean): boolean {
   return !!installment?.confident && installment.current < installment.total && !faturaAberta;
+}
+
+/**
+ * As compras dos prints de ANTES que o print de hoje não trouxe de novo (19/10/2026, a Dani: "se
+ * teve uma compra ontem e hoje o print é pequeno"). O total do topo da fatura aberta soma tudo
+ * desde o fechamento; sem estas, o print pequeno de hoje dizia "Faltam R$ X" sem faltar nada.
+ *
+ * Com o cartão (dias de fechamento), só as da mesma fatura de hoje, e `certo`. Sem cartão, as dos
+ * últimos 40 dias, sem certeza: a tela só diz que bateu, nunca que falta. Parcela sem dia também
+ * tira a certeza. `usadas`: as que o print de hoje já casou (contam lá, não aqui).
+ */
+export function printsAnterioresDaFatura(
+  gravadas: CompraDoPrintGravada[],
+  usadas: Set<string>,
+  hoje: string,
+  cartao: DiasDoCartao | null,
+): { soma: number; certo: boolean } | null {
+  const ate = Date.parse(`${hoje}T12:00:00Z`);
+  const comoDia = (iso: string) => ({ ano: Number(iso.slice(0, 4)), mes: Number(iso.slice(5, 7)), dia: Number(iso.slice(8, 10)) });
+  const faturaDeHoje = cartao ? faturaDe(comoDia(hoje), cartao).chave : null;
+  let soma = 0;
+  let certo = cartao !== null;
+  let achou = false;
+  for (const g of gravadas) {
+    if (usadas.has(g.id)) continue;
+    if (g.entryDate) {
+      const t = Date.parse(`${g.entryDate}T12:00:00Z`);
+      if (!(t <= ate && ate - t <= 40 * DIA_MS)) continue;
+      if (faturaDeHoje && cartao && faturaDe(comoDia(g.entryDate), cartao).chave !== faturaDeHoje) continue;
+    } else {
+      const m = Number(hoje.slice(0, 4)) * 12 + Number(hoje.slice(5, 7));
+      if (Math.abs(g.year * 12 + g.month - m) > 1) continue;
+      certo = false;
+    }
+    soma += g.amount;
+    achou = true;
+  }
+  return achou ? { soma: Math.round(soma * 100) / 100, certo } : null;
 }

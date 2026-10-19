@@ -1686,7 +1686,17 @@ export function StatementImport({
     // A conferência com o total da fatura é sobre a LEITURA: conta também o que já estava no app
     // (sem isso, os prints com quase tudo já lançado diziam que faltava quase o total inteiro).
     const somaDaLeitura = Math.round((items.filter((it) => !it.ignorar && it.category === "EXPENSE").reduce((s, it) => s + (it.estorno ? -it.amount : it.amount), 0) + doDolar) * 100) / 100;
-    const totalGap = stats?.invoiceTotal ? Math.round((stats.invoiceTotal - somaDaLeitura) * 100) / 100 : 0;
+    // Prints: o total do topo soma também o que só os prints de antes trouxeram (19/10/2026). Sem o
+    // cartão para saber a fatura, só diz que bateu (com ou sem os de antes), nunca que falta.
+    const antes = stats?.faturaAberta ? stats.printsAnteriores : null;
+    const gapDe = (soma: number) => (stats?.invoiceTotal ? Math.round((stats.invoiceTotal - soma) * 100) / 100 : 0);
+    const totalGap = !antes
+      ? gapDe(somaDaLeitura)
+      : antes.certo || Math.abs(gapDe(somaDaLeitura + antes.soma)) < 1
+        ? gapDe(somaDaLeitura + antes.soma)
+        : Math.abs(gapDe(somaDaLeitura)) < 1
+          ? 0
+          : null;
     // O que o app separou sozinho (regra dela, comunidade, banco ou dicionário): entra classificado,
     // e o "Revisar" mostra só essas linhas, todas, pra ela conferir e trocar o que quiser.
     const listaBase = separadosEmRevisao ? importable.filter((it) => separadosEmRevisao.has(it.key)) : importable;
@@ -1858,7 +1868,7 @@ export function StatementImport({
               </span>
               )}
               {docType === "fatura" && stats && <CartaoDaFatura key={ultimoArquivo?.file.name ?? "fatura"} stats={stats} />}
-              {aberta && stats?.invoiceTotal ? (
+              {aberta && stats?.invoiceTotal && totalGap !== null ? (
                 Math.abs(totalGap) >= 1 ? (
                   <span className="mt-1 text-sm text-accent-strong" data-falta-total>
                     {totalGap > 0
@@ -2100,7 +2110,7 @@ export function StatementImport({
 
         {/* A soma lida contra o total da fatura (12/10/2026): sem caixa nem vermelho. Bateu, nada;
             não bateu, um link pequeno no fim que abre os dois totais e as linhas. */}
-        {stats?.invoiceTotal && stats.conferencia.status !== "fechou" && Math.abs(totalGap) >= 1 ? (
+        {stats?.invoiceTotal && stats.conferencia.status !== "fechou" && totalGap !== null && Math.abs(totalGap) >= 1 ? (
           <button type="button" onClick={() => setConferirAberto(true)} className="inline-flex min-h-11 items-center justify-center text-sm text-ink-muted underline underline-offset-4 hover:text-ink" data-conferir-total>
             Conferir com o total da fatura
           </button>
@@ -2135,7 +2145,7 @@ export function StatementImport({
                 ))}
             </ul>
             <div className="flex justify-center">
-              <FalarComSuporte arquivo={fileName} problema={`a soma ficou ${money(Math.abs(totalGap))} diferente do total`} rotulo="Faltou alguma? Me mande o arquivo" discreto />
+              <FalarComSuporte arquivo={fileName} problema={`a soma ficou ${money(Math.abs(totalGap ?? 0))} diferente do total`} rotulo="Faltou alguma? Me mande o arquivo" discreto />
             </div>
           </div>
         </Modal>

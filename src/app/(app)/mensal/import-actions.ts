@@ -19,7 +19,7 @@ import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
 import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { bancoNoNomeDoArquivo, finalDoCartao } from "@/lib/cartao/bancos";
-import { mesDoGastoNoCartao } from "@/lib/cartao/fatura";
+import { diasValidos, mesDoGastoNoCartao } from "@/lib/cartao/fatura";
 import { acharCartaoDaFatura, ligarLoteAoCartao } from "@/lib/repositories/cartao.repo";
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
@@ -55,7 +55,7 @@ import { casaAtiva, chaveDaConta, comFiltro, doOutroVisivel } from "@/lib/casa/r
 import { lidasEmDobro } from "@/lib/import/repetidos";
 import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
 import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
-import { casarComFaturaAberta } from "@/lib/import/fatura-aberta";
+import { casarComFaturaAberta, printsAnterioresDaFatura, type CompraDoPrintGravada } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import {
@@ -208,6 +208,8 @@ export type ParseStats = {
   compras: number;
   /** Veio de prints da fatura ABERTA: parcial, "N compras até hoje" (ver lib/import/print-fatura). */
   faturaAberta?: boolean;
+  /** Prints: o que só os prints de antes trouxeram (entra na conta com o total do topo). `certo` = da mesma fatura, pelo cartão. */
+  printsAnteriores?: { soma: number; certo: boolean } | null;
   /** Prints: compra em moeda estrangeira (US$ 19,00) que a tela não mostra em real. Só entra quando ela digita o valor em real na revisão. */
   semValorEmReal?: CompraParaPreencher[];
 };
@@ -689,7 +691,20 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   stats.leituraIncompleta = dosPrints ? false : leituraIncompleta(stats.conferencia, leitor !== null, isPartialRead(moneyLines, items.length));
   if (docType !== "fatura") await separarDinheiroProprio(ctx, items);
   // Antes de tudo: a compra que já entrou pelo print da fatura aberta (quase certo, sem pergunta).
-  if (docType === "fatura") await marcarJaNaFaturaAberta(ctx, items);
+  const jaDosPrints = docType === "fatura" ? await marcarJaNaFaturaAberta(ctx, items) : [];
+  // Prints: o total do topo soma também o que só os prints de ANTES trouxeram (19/10/2026).
+  if (dosPrints) {
+    const envio = String(formData.get("envio") ?? "");
+    const hoje = /^\d{4}-\d{2}-\d{2}$/.test(envio) ? envio : items.map((i) => i.date).sort().at(-1) ?? "";
+    const usadas = new Set(items.flatMap((i) => (i.jaNoApp?.faturaAberta ? [i.jaNoApp.id] : [])));
+    const cartao = stats.cartao && diasValidos(stats.cartao) ? stats.cartao : null;
+    stats.printsAnteriores = hoje ? printsAnterioresDaFatura(jaDosPrints, usadas, hoje, cartao) : null;
+    if (stats.printsAnteriores && stats.conferencia.status !== "fechou" && dosPrints.total !== null) {
+      const comAntes = conferirPrints([...dosPrints.compras, { amount: stats.printsAnteriores.soma }], dosPrints.total);
+      if (comAntes.status === "fechou" || stats.printsAnteriores.certo) stats.conferencia = comAntes;
+      else stats.conferencia = { status: "sem-referencia" };
+    }
+  }
   // O pagamento de uma conta que ela já marcou como "Paguei" (antes da busca do lançado à mão, que
   // não olha os "Paguei"): vira "já estava no app (Paguei)" ou a pergunta "É o mesmo?".
   await marcarPagueiNoExtrato(ctx, items, origemDoArquivo(docType, uploadedName));
@@ -1050,9 +1065,9 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
  * `jaNoApp` com `faturaAberta` (ver lib/import/fatura-aberta). Ela não entra de novo; na gravação,
  * a compra do print passa para este lote com o valor, o dia e o nome que chegaram agora.
  */
-async function marcarJaNaFaturaAberta(ctx: AuthContext, items: ReviewItem[]) {
+async function marcarJaNaFaturaAberta(ctx: AuthContext, items: ReviewItem[]): Promise<CompraDoPrintGravada[]> {
   const datas = items.map((i) => Date.parse(`${i.date}T12:00:00Z`)).filter((t) => Number.isFinite(t));
-  if (datas.length === 0) return;
+  if (datas.length === 0) return [];
   const de = new Date(Math.min(...datas) - 40 * DIA_MS);
   const ate = new Date(Math.max(...datas) + 40 * DIA_MS);
   const meses: { year: number; month: number }[] = [];
@@ -1063,15 +1078,17 @@ async function marcarJaNaFaturaAberta(ctx: AuthContext, items: ReviewItem[]) {
     where: { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE", importBatch: { is: { faturaAberta: true } }, OR: meses },
     select: { id: true, amount: true, entryDate: true, year: true, month: true, description: true },
   });
-  if (doPrint.length === 0) return;
+  if (doPrint.length === 0) return [];
+  const gravadas = doPrint.map((e) => ({ id: e.id, amount: Number(e.amount), entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, year: e.year, month: e.month, description: e.description }));
   const casados = casarComFaturaAberta(
     items.flatMap((it) => (it.category === "EXPENSE" && !it.ignorar ? [{ key: it.key, date: it.date, description: it.description, valor: it.estorno ? -it.amount : it.amount }] : [])),
-    doPrint.map((e) => ({ id: e.id, amount: Number(e.amount), entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null, year: e.year, month: e.month, description: e.description })),
+    gravadas,
   );
   for (const item of items) {
     const g = casados.get(item.key);
     if (g) item.jaNoApp = { descricao: g.description ?? "(sem descrição)", data: g.entryDate, id: g.id, valor: g.amount, faturaAberta: true };
   }
+  return gravadas;
 }
 
 /**

@@ -74,6 +74,26 @@ test("Clara: conta nova do zero, números e telas iguais em todo lugar", async (
       if (!bate(depois - antes, 18.5)) await c.anotar(p, { tipo: "numero", telaDeOrigem: "Digitar", telaErrada: "Orçamento", esperado: `Alimentação ${brl(antes + 18.5)}`, visto: brl(depois) });
     });
 
+    // A Dani (19/10/2026): "se teve uma compra ontem e hoje o print é pequeno, a de ontem aparece de
+    // novo". O print do dia seguinte traz a compra nova e as duas de ontem: as de ontem não entram de
+    // novo, e o total do topo (que soma também o print de ontem) bate.
+    await dia(c, "2026-10-17 12:10", [p]);
+    await passo(c, "print pequeno do dia seguinte: a compra de ontem não dobra e o total bate", async () => {
+      await importarArquivo(p, ARQ("print-fatura-itau-dia-seguinte.png"), async (pg) => {
+        const falta = ((await pg.locator("[data-falta-total]").textContent().catch(() => null)) ?? "").replace(/\s/g, " ");
+        if (falta || !(await pg.locator("[data-bateu-total]").count()))
+          await c.anotar(pg, { tipo: "numero", telaDeOrigem: "print do dia seguinte", telaErrada: "conferência do print", esperado: "Bateu com o total da fatura (o print de ontem conta)", visto: falta || "nada" });
+        await conferirTextoELayout(pg, c, "Conferência do print do dia seguinte");
+      });
+      const db = new PrismaClient({ datasourceUrl: URL_DO_BANCO });
+      const doCartao = await db.monthlyEntry.findMany({ where: { user: { email: "clara@exemplo.test" }, importBatch: { is: { docType: "fatura" } } }, select: { description: true, amount: true } });
+      await db.$disconnect();
+      for (const [nome, valor] of [["PADARIA", 23.5], ["UBER", 18.92], ["LANCHONETE", 32.9]] as const) {
+        const iguais = doCartao.filter((l) => (l.description ?? "").toUpperCase().includes(nome) && Math.abs(Number(l.amount) - valor) < 0.01).length;
+        if (iguais !== 1) await c.anotar(p, { tipo: "numero", telaDeOrigem: "print do dia seguinte", telaErrada: "lançamentos do cartão", esperado: `${nome} ${brl(valor)} uma vez`, visto: `${iguais} vez(es)` });
+      }
+    });
+
     await dia(c, "2026-10-18 21:00", [p]);
     await passo(c, "Lazer corre rápido: Segurar em, no Decidir", async () => {
       const orc = await lerOrcamento(p, c, OUT);

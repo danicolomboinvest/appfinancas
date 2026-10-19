@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { casarComFaturaAberta, mesmaCompra, type CompraDoPrintGravada } from "../fatura-aberta";
+import { casarComFaturaAberta, mesmaCompra, printsAnterioresDaFatura, type CompraDoPrintGravada } from "../fatura-aberta";
 
 /** Compras que entraram por prints da fatura aberta (nomes do app do banco, como o OCR leu). */
 const doPrint: CompraDoPrintGravada[] = [
@@ -80,5 +80,33 @@ describe("a revisão só promete as parcelas seguintes quando a gravação lanç
     expect(prometeParcelasSeguintes(p, true)).toBe(false);
     expect(prometeParcelasSeguintes({ current: 3, total: 3, confident: true }, false)).toBe(false);
     expect(prometeParcelasSeguintes({ current: 2, total: 3, confident: false }, false)).toBe(false);
+  });
+});
+
+describe("printsAnterioresDaFatura: o total do topo conta também os prints de antes (19/10/2026)", () => {
+  // Ontem (19/10) ela mandou um print; hoje (20/10) manda outro, pequeno: a compra de 19 aparece de
+  // novo (casou, não conta duas vezes) e a de 18 ficou só no print de ontem.
+  const gravadas: CompraDoPrintGravada[] = [
+    { id: "a1", amount: 23.5, entryDate: "2026-10-19", year: 2026, month: 10, description: "Padaria Pão Dourado" },
+    { id: "a2", amount: 287.43, entryDate: "2026-10-18", year: 2026, month: 10, description: "Supermercado Bom Preço" },
+    { id: "a3", amount: -20, entryDate: "2026-10-18", year: 2026, month: 10, description: "Estorno Loja" },
+    { id: "velha", amount: 99, entryDate: "2026-08-20", year: 2026, month: 8, description: "Compra de agosto" },
+  ];
+  const casadasHoje = new Set(["a1"]);
+  it("sem cartão: soma as que não casaram nos últimos 40 dias, sem certeza da fatura", () => {
+    expect(printsAnterioresDaFatura(gravadas, casadasHoje, "2026-10-20", null)).toEqual({ soma: 267.43, certo: false });
+  });
+  it("com cartão: só as da fatura aberta de hoje, com certeza", () => {
+    // Fecha dia 19: a de 18 era da fatura que já fechou; a de hoje (20) é da nova.
+    expect(printsAnterioresDaFatura(gravadas, casadasHoje, "2026-10-20", { diaFechamento: 19, diaVencimento: 26 })).toBeNull();
+    // Fecha dia 5: as de 18 são da mesma fatura de hoje.
+    expect(printsAnterioresDaFatura(gravadas, casadasHoje, "2026-10-20", { diaFechamento: 5, diaVencimento: 12 })).toEqual({ soma: 267.43, certo: true });
+  });
+  it("nenhum print de antes: nada", () => {
+    expect(printsAnterioresDaFatura(gravadas, new Set(["a1", "a2", "a3", "velha"]), "2026-10-20", null)).toBeNull();
+  });
+  it("parcela sem dia no print de antes: soma, mas sem certeza", () => {
+    const comParcela = [...gravadas, { id: "p", amount: 150, entryDate: null, year: 2026, month: 10, description: "Loja Casa Nova 2/3" }];
+    expect(printsAnterioresDaFatura(comParcela, casadasHoje, "2026-10-20", { diaFechamento: 5, diaVencimento: 12 })).toEqual({ soma: 417.43, certo: false });
   });
 });
