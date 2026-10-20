@@ -130,6 +130,45 @@ function wordsToNumber(text: string): number | null {
   return matched ? total : null;
 }
 
+const EH_PALAVRA_DE_VALOR = (t: string) => t === "e" || t === "mil" || t in HUNDREDS || t in TENS || t in UNITS;
+
+/**
+ * O valor por extenso logo antes do "reais", com os centavos ditos no meio (20/10/2026): "vinte e
+ * três e cinquenta reais" é 23,50 (antes somava tudo e dava R$ 73). Só vale a sequência de números
+ * colada no "reais": em "dois pães por quinze reais" o valor é 15, não 17. Os centavos começam
+ * quando chega uma dezena ou unidade que não cabe mais no número (depois de "vinte e três", outro
+ * "e cinquenta" não compõe).
+ */
+function reaisPorExtenso(trecho: string): number | null {
+  const tokens = trecho.split(/\s+/).filter(Boolean);
+  let i = tokens.length;
+  while (i > 0 && EH_PALAVRA_DE_VALOR(tokens[i - 1])) i--;
+  const colados = tokens.slice(i);
+  if (!colados.some((t) => t !== "e")) return null;
+  let total = 0;
+  let current = 0;
+  for (let k = 0; k < colados.length; k++) {
+    const tok = colados[k];
+    if (tok === "e") continue;
+    // "vinte e três" (ou "quinze") já fechou a parte abaixo de cem: o que vier é centavo.
+    const resto = current % 100;
+    const fechado = (resto >= 10 && resto < 20) || resto % 10 !== 0;
+    const comecaCentavos = (tok in TENS && resto > 0) || (tok in UNITS && fechado);
+    if (comecaCentavos && total + current > 0) {
+      const centavos = wordsToNumber(colados.slice(k).join(" "));
+      if (centavos !== null && centavos > 0 && centavos < 100) return total + current + centavos / 100;
+      break;
+    }
+    if (tok === "mil") {
+      total += (current === 0 ? 1 : current) * 1000;
+      current = 0;
+    } else if (tok in HUNDREDS) current += HUNDREDS[tok];
+    else if (tok in TENS) current += TENS[tok];
+    else if (tok in UNITS) current += UNITS[tok];
+  }
+  return total + current;
+}
+
 /** "1.250,90" → 1250.9; "1,250.90" → 1250.9; "100.50" → 100.5; "45,9" → 45.9. */
 function lerNumeroEscrito(t: string): number {
   if (/^\d{1,3}(?:,\d{3})+\.\d{1,2}$/.test(t)) return parseFloat(t.replace(/,/g, ""));
@@ -229,8 +268,8 @@ function extractAmount(normalized: string): number | null {
   // senão "comprei UM presente" viraria um real.
   if (new RegExp(`\\b(${MONEY_WORDS}|mil|milhao|milhoes)\\b`).test(normalized)) {
     const reaisIdx = normalized.search(new RegExp(`\\b(${MONEY_WORDS})\\b`));
-    const trecho = reaisIdx > -1 ? normalized.slice(0, reaisIdx).trim().split(/\s+/).slice(-6).join(" ") : normalized;
-    const fromWords = wordsToNumber(trecho);
+    const trecho = reaisIdx > -1 ? normalized.slice(0, reaisIdx).trim().split(/\s+/).slice(-8).join(" ") : normalized;
+    const fromWords = reaisIdx > -1 ? reaisPorExtenso(trecho) : wordsToNumber(trecho);
     if (fromWords !== null) return Math.round((fromWords + (reaisIdx > -1 ? centavosDepois(normalized.slice(reaisIdx)) : 0)) * 100) / 100;
   }
   // Só centavos por extenso: "noventa centavos" é R$ 0,90.

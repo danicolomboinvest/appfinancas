@@ -308,3 +308,24 @@ describe("o dia dito na fala", () => {
   });
   it("sem dia, null", () => expect(parseVoiceEntry("gastei 45 no mercado").quando).toBeNull());
 });
+
+describe("valor por extenso com centavos antes do reais (20/10/2026)", () => {
+  it("vinte e três e cinquenta reais é R$ 23,50, não R$ 73", () => {
+    expect(parseVoiceEntry("padaria vinte e três e cinquenta reais").amount).toBe(23.5);
+  });
+  it("cinco e cinquenta reais, dez e noventa reais, vinte e dois e trinta e cinco reais", () => {
+    expect(parseVoiceEntry("café cinco e cinquenta reais").amount).toBe(5.5);
+    expect(parseVoiceEntry("uber dez e noventa reais").amount).toBe(10.9);
+    expect(parseVoiceEntry("mercado vinte e dois e trinta e cinco reais").amount).toBe(22.35);
+  });
+  it("número composto inteiro continua inteiro", () => {
+    expect(parseVoiceEntry("gastei cento e vinte e três reais no mercado").amount).toBe(123);
+    expect(parseVoiceEntry("aluguel mil e quinhentos reais").amount).toBe(1500);
+    expect(parseVoiceEntry("conta noventa e nove reais").amount).toBe(99);
+    expect(parseVoiceEntry("dois mil quinhentos e cinquenta reais de aluguel").amount).toBe(2550);
+    expect(parseVoiceEntry("almoço trinta e dois reais e noventa centavos").amount).toBe(32.9);
+  });
+  it("só os números colados no reais: dois pães por quinze reais é R$ 15", () => {
+    expect(parseVoiceEntry("comprei dois pães por quinze reais").amount).toBe(15);
+  });
+});
