@@ -1,5 +1,6 @@
 "use client";
 
+import { classeDoSaldoNoCartao } from "@/lib/ui/numero-que-cabe";
 import { textoDaMedia } from "@/lib/planning/renda-media";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
@@ -296,7 +297,7 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
                   <button type="button" onClick={() => abrirDivida(d.id)} aria-label={`${d.nome}: ${m0(d.saldo)}, ${caiEm(d.id)}. Abrir`} className="absolute inset-0 z-[1] rounded-[20px]" />
                   <small className="pr-8 text-xs font-medium opacity-80">{j === 0 ? "Agora, foque em" : "Depois"}</small>
                   <b className="text-[15px] font-medium leading-tight">{d.nome}</b>
-                  <ValorDestaque texto={m0(d.saldo)} className="whitespace-nowrap text-[clamp(1.375rem,6.5cqw,1.625rem)] font-light leading-[1.15] tracking-[-0.02em] tabular-nums" />
+                  <ValorDestaque texto={m0(d.saldo)} className={`whitespace-nowrap ${classeDoSaldoNoCartao(m0(d.saldo))} font-light leading-[1.15] tracking-[-0.02em] tabular-nums`} />
                   <span className={`text-xs font-medium ${d.atrasada && j > 0 ? "text-danger" : "opacity-80"}`}>
                     {d.atrasada ? "atrasada · " : ""}
                     {caiEm(d.id)}

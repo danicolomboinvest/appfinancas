@@ -23,6 +23,7 @@ import { centavosDoCampo, chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, 
 import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
 import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
+import { classeDoVisor } from "@/lib/ui/numero-que-cabe";
 
 const ULTIMO_NO_CARTAO = "spi-ultimo-no-cartao";
 type Tipo = "EXPENSE" | "INCOME" | "INVESTMENT_CONTRIBUTION" | "RESGATE";
@@ -375,7 +376,7 @@ export function Digitar({
       {/* Tocar no valor abre o teclado numérico do celular (18/10/2026): um campo invisível por
           cima do número grande, que alimenta os mesmos centavos do teclado da tela. */}
       <div className="relative">
-        <p className={`py-1 text-center text-[2.5rem] font-light leading-none tracking-[-0.035em] tabular-nums ${entrada && centavos ? "text-success" : "text-ink"}`} aria-live="polite" data-valor-digitado={centavos}>
+        <p className={`whitespace-nowrap py-1 text-center ${classeDoVisor(valorTexto)} font-light leading-none tracking-[-0.035em] tabular-nums ${entrada && centavos ? "text-success" : "text-ink"}`} aria-live="polite" data-valor-digitado={centavos}>
           {valorTexto}
         </p>
         <input

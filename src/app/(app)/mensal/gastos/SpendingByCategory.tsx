@@ -191,15 +191,15 @@ export function SpendingByCategory({
                   >
                     <CategoryIcon icon={icone} color={cor} size={44} emoji={emoji} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[17px] font-semibold leading-tight text-ink">
+                      <span className="block hyphens-auto break-words text-[17px] font-semibold leading-tight text-ink max-[359px]:text-[15px]">
                         {slice.name}
                       </span>
                       {comparacao && (
-                        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${comparacao.tone}`}>{comparacao.text}</span>
+                        <span className={`mt-1 inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${comparacao.tone}`}>{comparacao.text}</span>
                       )}
                     </span>
                     <span className="shrink-0 text-right">
-                      <span className="block text-[17px] font-semibold leading-tight tabular-nums text-ink">
+                      <span className="block whitespace-nowrap text-[17px] font-semibold leading-tight tabular-nums text-ink max-[359px]:text-[15px]">
                         {money(slice.value, { round: true })}
                       </span>
                       <span className="mt-0.5 block text-caption tabular-nums text-ink-muted">{parcela}%</span>

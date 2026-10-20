@@ -330,7 +330,7 @@ export function MeusAtivos({
                       <span className="size-2.5 rounded-[3px]" style={{ background: COR_DO_GRUPO[g.grupo] }} />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-[15px] font-medium text-ink">{g.nome}</span>
+                      <span className="block break-words text-[15px] font-medium leading-tight text-ink">{g.nome}</span>
                       <span className="block break-words text-[12.5px] text-ink-muted">{sub}</span>
                     </span>
                     <span className="text-right">
