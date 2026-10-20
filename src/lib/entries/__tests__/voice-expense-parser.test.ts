@@ -164,6 +164,16 @@ describe("voz com shekel (cliente em Israel, 12/10/2026)", () => {
     expect(parseVoiceEntry("AR$ 1200 de taxi")).toMatchObject({ amount: 1200, currency: "ARS" });
     expect(parseVoiceEntry("mercado 120")).toMatchObject({ amount: 120, currency: null });
   });
+  it("entende o peso chileno, e 'pesos' sozinho é o peso do app dela", () => {
+    expect(parseVoiceEntry("gastei 5 mil pesos chilenos no mercado")).toMatchObject({ amount: 5000, currency: "CLP" });
+    expect(parseVoiceEntry("CL$ 12500 de uber")).toMatchObject({ amount: 12500, currency: "CLP" });
+    expect(parseVoiceEntry("gastei 8000 clp no almoço")).toMatchObject({ amount: 8000, currency: "CLP" });
+    // Sem contexto, "pesos" continua sendo o argentino; com o app em peso chileno, é o chileno.
+    expect(parseVoiceEntry("gastei 500 pesos no mercado")).toMatchObject({ currency: "ARS" });
+    expect(parseVoiceEntry("gastei 5000 pesos no mercado", { moedaDoApp: "CLP" })).toMatchObject({ amount: 5000, currency: "CLP" });
+    expect(parseVoiceEntry("gastei 500 pesos argentinos no mercado", { moedaDoApp: "CLP" })).toMatchObject({ currency: "ARS" });
+    expect(parseVoiceEntry("gastei 500 pesos no mercado", { moedaDoApp: "ARS" })).toMatchObject({ currency: "ARS" });
+  });
   it("continua entendendo dólar e euro", () => {
     expect(parseVoiceEntry("gastei 30 dólares no uber")).toMatchObject({ amount: 30, currency: "USD" });
     expect(parseVoiceEntry("paguei 2 mil euros de aluguel")).toMatchObject({ amount: 2000, currency: "EUR" });

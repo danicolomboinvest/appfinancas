@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
 import { centavosDoTexto } from "@/lib/dinheiro/digitado";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, moedaSemCentavos } from "@/lib/money";
 import { useCurrency } from "@/components/money/MoneyProvider";
 
 // A regra única de dinheiro digitado (dígitos como centavos) mora em lib/dinheiro/digitado.
@@ -64,7 +64,7 @@ export function CurrencyInputControlled({
         inputMode="decimal"
         value={mask(cents)}
         onChange={(e) => {
-          const nextCents = parseDigitsToCents(e.target.value);
+          const nextCents = parseDigitsToCents(e.target.value, moedaSemCentavos(currency));
           setCents(nextCents);
           onChange(nextCents === null ? undefined : nextCents / 100);
         }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney, type CurrencyCode } from "@/lib/money";
+import { formatMoney, moedaSemCentavos, type CurrencyCode } from "@/lib/money";
 import { centavosDoTexto } from "@/lib/dinheiro/digitado";
 import { useCurrency } from "@/components/money/MoneyProvider";
 
@@ -41,7 +41,7 @@ export function CampoDeDinheiro({ valor, onValor, comSimbolo = false, max, curre
         onFocus?.(e);
       }}
       onChange={(e) => {
-        const c = centavosDoTexto(e.target.value);
+        const c = centavosDoTexto(e.target.value, moedaSemCentavos(moeda));
         if (c === null) return onValor(null);
         const reais = c / 100;
         onValor(max !== undefined ? Math.min(reais, max) : reais);

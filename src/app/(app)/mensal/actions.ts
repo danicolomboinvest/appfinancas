@@ -8,6 +8,7 @@ import { listGoals } from "@/lib/repositories/goal.repo";
 import { listProfiles } from "@/lib/repositories/profile.repo";
 import { listTransactionRules } from "@/lib/repositories/transaction-rule.repo";
 import { parseVoiceEntry, type ParsedVoiceEntry } from "@/lib/entries/voice-expense-parser";
+import { getUserCurrency } from "@/lib/money-server";
 import { casaAtiva } from "@/lib/casa/regras";
 
 export async function getRecentSubcategoriesAction(): Promise<Record<ParentCategory, string[]>> {
@@ -52,6 +53,7 @@ export async function entenderFalaAction(transcricao: string): Promise<ParsedVoi
   const ctx = await getRequiredSession();
   const [regras, personalizadas] = await Promise.all([listTransactionRules(ctx), listCustomCategories(ctx)]);
   return parseVoiceEntry(texto, {
+    moedaDoApp: await getUserCurrency(),
     profileKind: ctx.profileKind,
     regras: regras.map((r) => ({
       pattern: r.pattern,

@@ -19,11 +19,12 @@
  */
 export const MAIOR_VALOR = 10_000_000_000;
 
-export function centavosDoTexto(texto: string): number | null {
+export function centavosDoTexto(texto: string, semCentavos = false): number | null {
   const digitos = texto.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
   if (digitos === "") return null;
   // 13 dígitos = R$ 99 bilhões: acima disso o Number perde a conta, e nenhum valor real chega lá.
-  return Number(digitos.slice(0, 13));
+  // Peso chileno (semCentavos): os dígitos são pesos inteiros, e o "centavo" interno é sempre 00.
+  return semCentavos ? Number(digitos.slice(0, 11)) * 100 : Number(digitos.slice(0, 13));
 }
 
 /** O valor em reais (1234.56) do texto digitado, ou null se o campo está vazio. */

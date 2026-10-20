@@ -6,7 +6,15 @@ import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
  */
 export const MAX_CENTAVOS = MAIOR_VALOR * 100 - 1; // 9.999.999.999,99 na moeda dela (pesos: ver MAIOR_VALOR)
 
-export function teclar(centavos: number, tecla: string): number {
+export function teclar(centavos: number, tecla: string, semCentavos = false): number {
+  // Peso chileno: cada tecla entra nos pesos inteiros (o "centavo" interno fica sempre 00).
+  if (semCentavos) {
+    const pesos = Math.floor(centavos / 100);
+    if (tecla === "del") return Math.floor(pesos / 10) * 100;
+    if (!/^\d{1,2}$/.test(tecla)) return centavos;
+    const novo = Number(String(pesos) + tecla) * 100;
+    return novo > MAX_CENTAVOS ? centavos : novo;
+  }
   if (tecla === "del") return Math.floor(centavos / 10);
   if (!/^\d{1,2}$/.test(tecla)) return centavos;
   const novo = Number(String(centavos) + tecla);
@@ -78,9 +86,9 @@ export function teclaDoTeclado(key: string): string | null {
  * (vírgula, ponto e espaço que o teclado do aparelho põe são ignorados). Null = passou do
  * máximo, o valor fica como estava (como no teclado da tela).
  */
-export function centavosDoCampo(texto: string): number | null {
+export function centavosDoCampo(texto: string, semCentavos = false): number | null {
   const digitos = texto.replace(/\D/g, "").replace(/^0+/, "");
   if (!digitos) return 0;
-  const n = Number(digitos);
+  const n = Number(digitos) * (semCentavos ? 100 : 1);
   return n > MAX_CENTAVOS ? null : n;
 }

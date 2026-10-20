@@ -19,18 +19,41 @@ import type { ParsedTransaction } from "./statement-parser";
  * extrato que imprime todo valor sem sinal.
  */
 
+/**
+ * Dois jeitos de escrever dinheiro: com centavos ("1.600,00", real e peso argentino) e em pesos
+ * inteiros ("12.500", peso chileno, que não tem centavo: 20/10/2026, pedido dela para quem gasta
+ * em peso chileno). O de pesos inteiros só entra quando o dos centavos não leu nada, e a conta do
+ * saldo continua mandando: dois números soltos no fim de uma linha só valem se o saldo fechar.
+ */
+interface Modo {
+  valor: string;
+  doisValoresNoFim: RegExp;
+  saldoAnterior: RegExp;
+  temDinheiro: RegExp;
+  numero: RegExp;
+  decimal: boolean;
+}
+const montarModo = (valor: string, temDinheiro: RegExp, numero: RegExp, decimal: boolean): Modo => ({
+  valor,
+  doisValoresNoFim: new RegExp(String.raw`^(.*?)\s*(${valor})\s+(${valor})\s*$`, "i"),
+  saldoAnterior: new RegExp(String.raw`saldo\s+(?:anterior|inicial)[^\n\d-]*?(${valor})`, "i"),
+  temDinheiro,
+  numero,
+  decimal,
+});
 const VALOR = String.raw`(?:\(\s*)?[-−]?\s?(?:R\$\s?)?[-−]?\s?\d{1,3}(?:\.\d{3})*,\d{2}(?:\s?\))?(?:\s?[CD](?![a-zà-ú])|-)?`;
-const DOIS_VALORES_NO_FIM_RE = new RegExp(String.raw`^(.*?)\s*(${VALOR})\s+(${VALOR})\s*$`, "i");
+const VALOR_INTEIRO = String.raw`(?:\(\s*)?[-−]?\s?(?:(?:CLP|\$)\s?)?[-−]?\s?\d{1,3}(?:\.\d{3})*(?!\d|,)(?:\s?\))?(?:\s?[CD](?![a-zà-ú])|-)?`;
+const COM_CENTAVOS = montarModo(VALOR, /\d{1,3}(?:\.\d{3})*,\d{2}/, /\d{1,3}(?:\.\d{3})*,\d{2}/, true);
+const EM_PESOS_INTEIROS = montarModo(VALOR_INTEIRO, /\d{1,3}(?:\.\d{3})+(?!\d)/, /\d{1,3}(?:\.\d{3})*/, false);
 const DATA_RE = /(?<![\d/])(\d{2})\/(\d{2})(?:\/(\d{4}|\d{2}))?(?![\d/])/;
 /** "10 SET", "10 set 2026", "10 de Setembro de 2026" (Inter). */
 const DATA_MES_RE = /(?<![\d])(\d{1,2}) (?:de )?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*\.?(?: (?:de )?(\d{4}))?(?![a-zç])/i;
 const MESES: Record<string, number> = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
 const HORA_RE = /\b\d{2}:\d{2}(?::\d{2})?\b/g;
 /** Linha que é título, rodapé ou resumo, nunca nome de lançamento. */
-const NAO_E_NOME_RE = /^(data\b|descri[çc][ãa]o|hist[óo]rico|lan[çc]amentos?$|valor|saldo|extrato|p[áa]gina|-- \d+ of|ag[êe]ncia|conta\b|cliente|per[íi]odo|documento)/i;
+const NAO_E_NOME_RE = /^(data\b|fecha\b|glosa\b|concepto\b|descripci[oó]n|descri[çc][ãa]o|hist[óo]rico|lan[çc]amentos?$|valor|saldo|extrato|p[áa]gina|-- \d+ of|ag[êe]ncia|conta\b|cliente|per[íi]odo|documento)/i;
 /** Linha de saldo (saldo anterior, saldo do dia, saldo final): é conferência, não lançamento. */
 const LINHA_DE_SALDO_RE = /\bsaldo\b|\bs\s+a\s+l\s+d\s+o\b/i;
-const SALDO_ANTERIOR_RE = new RegExp(String.raw`saldo\s+(?:anterior|inicial)[^\n\d-]*?(${VALOR})`, "i");
 
 interface Linha {
   date: string | null;
@@ -40,11 +63,11 @@ interface Linha {
   saldo: number;
 }
 
-function numero(token: string): { n: number; negativo: boolean } {
+function numero(token: string, modo: Modo): { n: number; negativo: boolean } {
   const t = token.replace(/\s/g, "");
-  const negativo = /^\(|[-−]|D$/i.test(t.replace(/^R\$/, "")) && !/C$/i.test(t);
-  const m = t.match(/\d{1,3}(?:\.\d{3})*,\d{2}/);
-  const n = m ? Number(m[0].replace(/\./g, "").replace(",", ".")) : NaN;
+  const negativo = /^\(|[-−]|D$/i.test(t.replace(/^(?:R\$|CLP|\$)/i, "")) && !/C$/i.test(t);
+  const m = t.match(modo.numero);
+  const n = m ? Number(modo.decimal ? m[0].replace(/\./g, "").replace(",", ".") : m[0].replace(/\./g, "")) : NaN;
   return { n, negativo };
 }
 
@@ -78,6 +101,10 @@ const semDataNemHora = (s: string) =>
   s.replace(DATA_RE, " ").replace(DATA_MES_RE, " ").replace(HORA_RE, " ").replace(/\bàs\b/gi, " ").replace(/\s+/g, " ").trim();
 
 export function lerExtratoPeloSaldo(texto: string, refYear?: number): ParsedTransaction[] | null {
+  return lerNoModo(texto, refYear, COM_CENTAVOS) ?? lerNoModo(texto, refYear, EM_PESOS_INTEIROS);
+}
+
+function lerNoModo(texto: string, refYear: number | undefined, modo: Modo): ParsedTransaction[] | null {
   const ano = anoDoTexto(texto, refYear);
   const linhas: Linha[] = [];
   let dataAtual: string | null = null;
@@ -86,7 +113,7 @@ export function lerExtratoPeloSaldo(texto: string, refYear?: number): ParsedTran
   for (const bruta of texto.split(/\r?\n/)) {
     const linha = bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim();
     if (!linha) continue;
-    const m = linha.match(DOIS_VALORES_NO_FIM_RE);
+    const m = linha.match(modo.doisValoresNoFim);
     const data = lerData(linha, ano);
     if (!m) {
       if (data) {
@@ -94,7 +121,7 @@ export function lerExtratoPeloSaldo(texto: string, refYear?: number): ParsedTran
         antes = [];
       }
       const resto = semDataNemHora(linha);
-      if (resto && !NAO_E_NOME_RE.test(resto) && !/\d{1,3}(?:\.\d{3})*,\d{2}/.test(resto)) antes = [...antes, resto].slice(-2);
+      if (resto && !NAO_E_NOME_RE.test(resto) && !modo.temDinheiro.test(resto)) antes = [...antes, resto].slice(-2);
       else if (!data) antes = [];
       continue;
     }
@@ -104,8 +131,8 @@ export function lerExtratoPeloSaldo(texto: string, refYear?: number): ParsedTran
       antes = [];
       continue;
     }
-    const v = numero(m[2]);
-    const s = numero(m[3]);
+    const v = numero(m[2], modo);
+    const s = numero(m[3], modo);
     if (!Number.isFinite(v.n) || !Number.isFinite(s.n) || v.n === 0) {
       antes = [];
       continue;
@@ -144,8 +171,8 @@ export function lerExtratoPeloSaldo(texto: string, refYear?: number): ParsedTran
     // O primeiro lançamento no tempo não tem saldo antes dele no arquivo: o sinal vem do
     // "Saldo anterior" impresso, do sinal impresso, ou de começar do zero. Sem nenhum, desiste.
     const primeiro = lista[0];
-    const anterior = texto.match(SALDO_ANTERIOR_RE);
-    const saldoAnterior = anterior ? numero(anterior[1]) : null;
+    const anterior = texto.match(modo.saldoAnterior);
+    const saldoAnterior = anterior ? numero(anterior[1], modo) : null;
     const v0 = centavos(Math.abs(primeiro.valor));
     if (saldoAnterior && Number.isFinite(saldoAnterior.n)) {
       const d0 = centavos(primeiro.saldo) - centavos(saldoAnterior.negativo ? -saldoAnterior.n : saldoAnterior.n);

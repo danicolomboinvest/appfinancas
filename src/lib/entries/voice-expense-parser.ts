@@ -43,6 +43,10 @@ const SPOKEN_CURRENCY: { code: CurrencyCode; pattern: RegExp }[] = [
   { code: "GBP", pattern: /£|\blibras?\b/ },
   // Quem mora em Israel (12/10/2026): "50 shekels", "₪ 50", "50 sheqel", "50 nis".
   { code: "ILS", pattern: /₪|\b(?:shekels?|sheqels?|shequels?|chekels?|siclos?|nis|ils)\b/ },
+  // Chile (20/10/2026): "5 mil pesos chilenos", "CL$ 5.000", "5000 clp". Antes do argentino: "pesos
+  // chilenos" não pode cair no "pesos" solto. Quem tem o app em peso chileno e diz só "pesos" fica
+  // com o dele (ver extractCurrency).
+  { code: "CLP", pattern: /cl\$|\bclp\b|\bpesos? chilen[oa]s?\b/ },
   // Argentina (14/10/2026): "500 pesos", "AR$ 500", "500 pesos argentinos".
   { code: "ARS", pattern: /ar\$|\bpesos?(?: argentinos?)?\b|\bars\b/ },
   { code: "BRL", pattern: /\breais?\b|r\$/ },
@@ -51,8 +55,11 @@ const SPOKEN_CURRENCY: { code: CurrencyCode; pattern: RegExp }[] = [
 /** Palavras de dinheiro que ancoram um número ("45 reais", "2 mil euros"). */
 const MONEY_WORDS = "reais?|real|contos?|euros?|dolar(?:es)?|libras?|shekels?|sheqels?|shequels?|chekels?|siclos?|nis|pesos?";
 
-function extractCurrency(normalized: string): CurrencyCode | null {
-  return SPOKEN_CURRENCY.find((c) => c.pattern.test(normalized))?.code ?? null;
+function extractCurrency(normalized: string, moedaDoApp?: string | null): CurrencyCode | null {
+  const achada = SPOKEN_CURRENCY.find((c) => c.pattern.test(normalized))?.code ?? null;
+  // "Pesos" sem dizer de onde: é o peso do app dela. O argentino era o único peso conhecido.
+  if (achada === "ARS" && moedaDoApp === "CLP" && !/argentin|ar\$|\bars\b/.test(normalized)) return "CLP";
+  return achada;
 }
 
 /**
@@ -509,7 +516,7 @@ export function parseVoiceEntry(falado: string, contexto: ContextoDaFala = {}, c
   const limpa = descricaoDaFala(doCasal.texto);
   // "Gastei 45 no mercado ontem" era gravado com a data de hoje (14/10/2026).
   const quando = /\banteontem\b/.test(normalized) ? ("anteontem" as const) : /\bontem\b/.test(normalized) ? ("ontem" as const) : null;
-  const base = { category, amount: extractAmount(normalized), currency: extractCurrency(normalized), quando };
+  const base = { category, amount: extractAmount(normalized), currency: extractCurrency(normalized, contexto.moedaDoApp), quando };
 
   if (category === "EXPENSE") {
     // "3x de 100": o valor falado é o da parcela; o Digitar recebe sempre o total.

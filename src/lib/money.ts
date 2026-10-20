@@ -21,6 +21,9 @@ export const CURRENCIES = {
   // Quem mora na Argentina (14/10/2026, pedido da Dani). "AR$" e não "$": o "$" solto confunde
   // com o dólar e com o real.
   ARS: { label: "Peso argentino", symbol: "AR$" },
+  // Quem mora no Chile (20/10/2026, pedido da Dani). "CL$" pelo mesmo motivo do "AR$". O peso
+  // chileno não tem centavos: o Intl já formata sem casas decimais.
+  CLP: { label: "Peso chileno", symbol: "CL$" },
 } as const;
 
 /** Ordem dos seletores de moeda: a do Brasil primeiro, depois as mais comuns de quem mora fora. */
@@ -44,6 +47,14 @@ export function isCurrencyCode(value: string): value is CurrencyCode {
 /** Nunca confia no que veio do banco: moeda antiga/inválida cai no padrão em vez de quebrar a tela. */
 export function toCurrencyCode(value: string | null | undefined): CurrencyCode {
   return value && isCurrencyCode(value) ? value : DEFAULT_CURRENCY;
+}
+
+/**
+ * Moeda sem centavos (peso chileno): o valor digitado entra em pesos inteiros, não "na maquininha"
+ * (12500 é doze mil e quinhentos pesos, e não 125,00).
+ */
+export function moedaSemCentavos(currency: CurrencyCode): boolean {
+  return currency === "CLP";
 }
 
 export function currencySymbol(currency: CurrencyCode): string {
@@ -74,10 +85,11 @@ export function formatMoney(
   const { round = false, compact = false, bare = false } = options;
 
   if (bare) {
+    const casas = round || moedaSemCentavos(currency) ? 0 : 2;
     return value
       .toLocaleString("pt-BR", {
-        minimumFractionDigits: round ? 0 : 2,
-        maximumFractionDigits: round ? 0 : 2,
+        minimumFractionDigits: casas,
+        maximumFractionDigits: casas,
       })
       .replace(/^-/, "−");
   }

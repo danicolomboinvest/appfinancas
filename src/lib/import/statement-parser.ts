@@ -265,14 +265,15 @@ function splitCsvLine(line: string, delimiter: string): string[] {
 
 /** "fecha", "concepto", "importe", "monto": os mesmos papéis nas exportações dos bancos argentinos. */
 const DATE_HEADERS = ["data", "date", "dt", "fecha"];
-const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title", "concepto", "detalle"];
+const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title", "concepto", "detalle", "glosa"];
 /** "R$" sozinho é o nome da coluna de valor na fatura do Santander em Excel. */
 const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value", "r$", "reais", "importe", "monto", "pesos"];
 /** Coluna de valor que NÃO é a certa: "Valor (em US$)" do C6 vinha antes de "Valor (em R$)" e levava tudo. */
 const AMOUNT_AVOID = ["us$", "u$s", "usd", "dólar", "dolar", "cotação", "cotacao", "cotización", "cotizacion"];
 /** Extratos com duas colunas (Bradesco, Santander, Sicoob, Caixa): crédito e débito separados. */
-const CREDIT_HEADERS = ["crédito", "credito", "entrada", "credit"];
-const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit"];
+/** "Abonos" e "Cargos" são o crédito e o débito dos bancos do Chile (Banco de Chile, BancoEstado). */
+const CREDIT_HEADERS = ["crédito", "credito", "entrada", "credit", "abono"];
+const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit", "cargo"];
 /** Coluna "D/C", "Natureza", "Tipo" com D ou C: o sinal vem dela. */
 const DC_HEADERS = ["d/c", "c/d", "natureza", "tipo"];
 /**
@@ -322,8 +323,8 @@ function findAmountColumn(headers: string[]): number {
   if (candidates.length === 0) return -1;
   const good = candidates.filter(({ h }) => !AMOUNT_AVOID.some((a) => h.includes(a)));
   const pool = good.length > 0 ? good : candidates;
-  // A moeda do perfil: real no Brasil, peso ("Importe en pesos", "Pesos", "ARS") na Argentina.
-  const brl = pool.find(({ h }) => /r\$|brl|reais|pesos|\bars\b/.test(h));
+  // A moeda do perfil: real no Brasil, peso ("Importe en pesos", "Pesos", "ARS") na Argentina, "CLP" no Chile.
+  const brl = pool.find(({ h }) => /r\$|brl|reais|pesos|\bars\b|\bclp\b/.test(h));
   return (brl ?? pool[0]).i;
 }
 

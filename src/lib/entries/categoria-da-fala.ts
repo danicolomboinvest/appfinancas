@@ -28,6 +28,8 @@ export type ContextoDaFala = {
   profileKind?: string | null;
   /** As categorias que ela criou neste perfil. */
   personalizadas?: { id: string; name: string }[];
+  /** A moeda do app dela: "pesos" sem dizer qual valem o peso dela (argentino ou chileno). */
+  moedaDoApp?: string | null;
 };
 
 /** A categoria dela para pet ("Pets", "Cachorro", "Animais") e para filhos ("Filhos", "Crianças", "Bebê"). */

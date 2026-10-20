@@ -22,7 +22,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { centavosDoCampo, chipDaFala, dataDoChip, faltaParaSalvar, paraDecimal, teclaDoTeclado, teclar, textoDoRepetir } from "@/lib/entries/digitar";
 import { CHAVE_RASCUNHO_LANCAR, lerRascunho, montarRascunho, type RascunhoLancar } from "@/lib/entries/rascunho-lancar";
 import { aoRecarregarParaVersaoNova, ehVersaoNovaERecarrega } from "@/lib/erros/versao-nova";
-import { formatMoney, type CurrencyCode } from "@/lib/money";
+import { formatMoney, moedaSemCentavos, type CurrencyCode } from "@/lib/money";
 import { classeDoVisor } from "@/lib/ui/numero-que-cabe";
 
 const ULTIMO_NO_CARTAO = "spi-ultimo-no-cartao";
@@ -165,6 +165,8 @@ export function Digitar({
   const pais = PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc));
   const personalizadas = [...customCategories, ...extras];
   const estrangeira = moeda !== moedaDoApp;
+  // Peso chileno não tem centavo: as teclas entram em pesos inteiros (20/10/2026).
+  const semCentavos = moedaSemCentavos(moeda);
   // Em outra moeda o valor grande mostra o símbolo dela: "50 dólares" falado aparecia "R$ 50,00" e
   // parecia que ia gravar 50 reais (14/10/2026). A conversão fica em Mais opções, que já abre.
   const valorTexto = estrangeira ? formatMoney(centavos / 100, moeda) : money(centavos / 100);
@@ -343,11 +345,11 @@ export function Digitar({
       const tecla = teclaDoTeclado(e.key);
       if (!tecla) return;
       e.preventDefault();
-      setCentavos((c) => teclar(c, tecla));
+      setCentavos((c) => teclar(c, tecla, semCentavos));
     };
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
-  }, [criando]);
+  }, [criando, semCentavos]);
 
   if (criando)
     return (
@@ -387,9 +389,9 @@ export function Digitar({
           enterKeyHint="done"
           aria-label="Valor"
           data-valor-do-celular
-          value={centavos ? String(centavos) : ""}
+          value={centavos ? String(semCentavos ? Math.round(centavos / 100) : centavos) : ""}
           onChange={(e) => {
-            const novo = centavosDoCampo(e.target.value);
+            const novo = centavosDoCampo(e.target.value, semCentavos);
             if (novo !== null) setCentavos(novo);
           }}
           onKeyDown={(e) => {
@@ -403,7 +405,7 @@ export function Digitar({
       </div>
       <div className="grid grid-cols-3 gap-2" role="group" aria-label="Teclado do valor">
         {TECLAS.map((k) => (
-          <button key={k} type="button" aria-label={k === "del" ? "Apagar" : k} onClick={() => setCentavos((c) => teclar(c, k))} className="flex h-[50px] items-center justify-center rounded-2xl bg-surface text-[1.375rem] text-ink shadow-premium-sm active:scale-95">
+          <button key={k} type="button" aria-label={k === "del" ? "Apagar" : k} onClick={() => setCentavos((c) => teclar(c, k, semCentavos))} className="flex h-[50px] items-center justify-center rounded-2xl bg-surface text-[1.375rem] text-ink shadow-premium-sm active:scale-95">
             {k === "del" ? <Delete size={20} aria-hidden /> : k}
           </button>
         ))}
@@ -499,7 +501,14 @@ export function Digitar({
           </div>
           <div className="flex items-center justify-between gap-3 text-sm text-ink-muted">
             Moeda
-            <CurrencySwitch value={moeda} onChange={setMoeda} />
+            <CurrencySwitch
+              value={moeda}
+              onChange={(nova) => {
+                setMoeda(nova);
+                // Para peso chileno com centavos já digitados (12,50 em dólar): vira peso inteiro.
+                if (moedaSemCentavos(nova)) setCentavos((c) => (c % 100 === 0 ? c : Math.round(c / 100) * 100));
+              }}
+            />
           </div>
           {estrangeira && <ExchangeRateLine key={moeda} from={moeda} to={moedaDoApp} amount={centavos / 100} />}
           {goals.length > 0 && (

@@ -4,7 +4,7 @@ import { Explica } from "@/components/ui/Explica";
 import { useId, useState } from "react";
 import { CONTROL_CLASSES } from "./Field";
 import { centavosDoTexto } from "@/lib/dinheiro/digitado";
-import { formatMoney, type CurrencyCode } from "@/lib/money";
+import { formatMoney, moedaSemCentavos, type CurrencyCode } from "@/lib/money";
 import { useCurrency } from "@/components/money/MoneyProvider";
 
 // A regra única de dinheiro digitado (dígitos como centavos) mora em lib/dinheiro/digitado.
@@ -81,7 +81,7 @@ export function CurrencyField({
         required={required}
         value={mask(cents)}
         onChange={(e) => {
-          const parsed = parseDigitsToCents(e.target.value);
+          const parsed = parseDigitsToCents(e.target.value, moedaSemCentavos(currency));
           setCents(parsed);
           onValueChange?.(parsed === null ? 0 : parsed / 100);
         }}
