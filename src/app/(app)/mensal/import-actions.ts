@@ -20,7 +20,7 @@ import type { ParentCategory } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { bancoNoNomeDoArquivo, finalDoCartao } from "@/lib/cartao/bancos";
 import { diasValidos, mesDoGastoNoCartao } from "@/lib/cartao/fatura";
-import { acharCartaoDaFatura, ligarLoteAoCartao } from "@/lib/repositories/cartao.repo";
+import { acharCartaoDaFatura, ligarComprasJaNoAppAoCartao, ligarLoteAoCartao, type CompraJaNoApp } from "@/lib/repositories/cartao.repo";
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
 import { PREFIXO_COMPRA_APAGADA, PREFIXO_NAO_PARCELA, projecaoRecusada } from "@/lib/contas/parcelas-do-mes";
@@ -1327,11 +1327,12 @@ async function marcarParcelasJaNoApp(ctx: AuthContext, items: ReviewItem[], cont
  * cartão (mesmo final ou, sem final, o único cartão do mesmo banco). Só liga; o mês que conta no
  * orçamento não muda. Falha aqui não desfaz a importação.
  */
-async function ligarFaturaAoCartao(ctx: AuthContext, loteId: string, fatura: { banco?: string | null; final?: string | null } | null | undefined) {
+async function ligarFaturaAoCartao(ctx: AuthContext, loteId: string | null, fatura: { banco?: string | null; final?: string | null } | null | undefined, jaExistentes: CompraJaNoApp[] = []) {
   try {
     const lido = { banco: fatura?.banco ?? null, final: fatura?.final && /^\d{4}$/.test(fatura.final) ? fatura.final : null };
     const cartao = await acharCartaoDaFatura(ctx, lido);
-    if (cartao) await ligarLoteAoCartao(ctx, loteId, cartao, lido.final);
+    if (cartao && loteId) await ligarLoteAoCartao(ctx, loteId, cartao, lido.final);
+    if (cartao) await ligarComprasJaNoAppAoCartao(ctx, cartao, jaExistentes);
   } catch (err) {
     console.error("importTransactionsAction: ligar ao cartão (a importação segue)", err);
   }
@@ -1789,6 +1790,8 @@ export async function importTransactionsAction(
   // Duas etapas: primeiro o que bate EXATO (mesma descrição), depois, só entre os que sobraram,
   // o que bate por data + valor com a descrição do mesmo jeito (ver casarPorDataEValor).
   const pular = new Set<number>();
+  /** Compras da fatura que já estavam no app (de outro envio): se o cartão foi cadastrado depois, ganham o cartão. */
+  const jaExistentes: CompraJaNoApp[] = [];
   // Parcela pulada que era projeção de outro lote: índice → a parcela (ver `adotar`).
   const confirmadas = new Map<number, ParcelaExistente>();
   // Parcela já no app que foi gravada sem dia: a fatura que chega agora diz o dia (ver abaixo).
@@ -1976,6 +1979,7 @@ export async function importTransactionsAction(
     }
     if (pular.has(indice)) {
       skipped += 1;
+      if (ehFatura && item.category === "EXPENSE" && item.amount > 0) jaExistentes.push({ profileId, year: ym.year, month: ym.month, description: item.description, amount: item.amount });
       // A parcela que estava em "Sem data" ganha o dia que esta fatura diz. Só o dia, e só se
       // continua sem dia: nada do que ela mudou na linha é tocado.
       const semDia = parcelasSemDia.get(indice);
@@ -2052,7 +2056,13 @@ export async function importTransactionsAction(
   // Upload que só tinha duplicata não criou nada: não polui o histórico com lote vazio. (O que
   // só confirmou parcelas projetadas por outro lote não está vazio: agora elas são dele.)
   if (created === 0 && adotados === 0) await deleteEmptyImportBatch(ctx, batch.id);
-  else if (ehFatura) await ligarFaturaAoCartao(ctx, batch.id, { banco: fatura?.banco ?? bancoNoNomeDoArquivo(fileName), final: fatura?.final ?? null });
+  // Fatura do cartão cadastrado: liga o lote e também o que já estava no app de um envio de antes
+  // (20/10/2026: a compra do Mercado Livre foi lida antes de o cartão existir e ficava de fora do
+  // total do cartão e da conferência, mesmo a fatura reimportada trazendo ela).
+  if (ehFatura) {
+    const vazio = created === 0 && adotados === 0;
+    await ligarFaturaAoCartao(ctx, vazio ? null : batch.id, { banco: fatura?.banco ?? bancoNoNomeDoArquivo(fileName), final: fatura?.final ?? null }, jaExistentes);
+  }
   // O lote de print que ficou sem nenhuma compra (todas passaram para este) sai do histórico.
   for (const id of lotesDePrintMexidos) if (id !== batch.id) await deleteEmptyImportBatch(ctx, id);
 

@@ -110,6 +110,38 @@ export async function ligarLoteAoCartao(ctx: AuthContext, loteId: string, cartao
   return r.count;
 }
 
+/** Uma compra da fatura que o app já tinha de um envio de antes (a gravação pulou). */
+export type CompraJaNoApp = { profileId: string; year: number; month: number; description: string; amount: number };
+
+/**
+ * Compra que veio de uma fatura enviada ANTES de o cartão ser cadastrado ficava sem cartão: fora do
+ * total do cartão e da conferência, mesmo quando a pessoa reenviava a fatura (a gravação pula o
+ * que já existe e só o lote novo era ligado). Liga também essas, só as de lote de fatura, sem
+ * cartão, do mesmo mês, nome e valor.
+ */
+export async function ligarComprasJaNoAppAoCartao(ctx: AuthContext, cartao: CartaoGravado, compras: CompraJaNoApp[]): Promise<number> {
+  let ligadas = 0;
+  // O cartão é do perfil da sessão: a linha mandada para outro perfil (a Empresa) fica de fora.
+  for (const c of compras.filter((x) => x.profileId === ctx.profileId)) {
+    const r = await prisma.monthlyEntry.updateMany({
+      where: {
+        userId: ctx.userId, profileId: ctx.profileId,
+        category: "EXPENSE",
+        cartaoId: null,
+        year: c.year,
+        month: c.month,
+        description: c.description,
+        amount: c.amount,
+        OR: [{ noCartao: null }, { noCartao: true }],
+        importBatch: { is: { docType: "fatura" } },
+      },
+      data: { cartaoId: cartao.id, noCartao: true },
+    });
+    ligadas += r.count;
+  }
+  return ligadas;
+}
+
 /** O cartão ainda não tem os dias (nasceu sem eles) e a fatura importada traz: dá para oferecer. */
 export function faltamDias(c: Pick<CartaoComDias, "diaFechamento" | "diaVencimento">): boolean {
   return !diasValidos(c);
