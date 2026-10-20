@@ -25,7 +25,7 @@ import { CartaoSugestao } from "./CartaoSugestao";
 import { AbrirDetalhe } from "./AbrirDetalhe";
 import { PainelDoNumero } from "./DetalheDoNumero";
 import { HeroiDaPrimeiraVez, HeroiDoDiaADia, HeroiDoDigitou, HeroiDoMesFechado, HeroiDoNada, type CorDoHeroi } from "./Heroi";
-import { type Mes } from "./regras";
+import { mesesDoProximoPasso, type Mes } from "./regras";
 import { ListaDeCategorias } from "./ListaDeCategorias";
 import { ResumoEditavel, type CartaoNaTela } from "./ResumoEditavel";
 import { carregarCartoesNovos } from "./cartoes-novos";
@@ -275,7 +275,8 @@ function ProximoPasso({ r, money }: { r: Dados; money: (v: number) => string }) 
     texto = `A fatura de ${money(p.faturaUmGasto)} entrou como um gasto só. Mande a fatura e eu abro por categoria.`;
     botoes = [{ rotulo: "Mandar a fatura", href: ENVIAR }];
   } else {
-    texto = `Com o extrato de ${nome(r.mes)}, eu comparo com ${p ? nome(p.mes) : nome(r.passado)} no mesmo dia.`;
+    const { pedir, comparar } = mesesDoProximoPasso(r.mes, r.passado, p?.mes ?? null);
+    texto = `Com o extrato de ${nome(pedir)}, eu comparo com ${nome(comparar)} no mesmo dia.`;
     botoes = [{ rotulo: "Mandar o extrato", href: ENVIAR }];
   }
   return (

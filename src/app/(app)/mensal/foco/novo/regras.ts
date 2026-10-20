@@ -19,6 +19,16 @@ export type GastoDoDia = { valor: number; dia: number | null; categoria: string 
 export const diasNoMes = (m: Mes) => new Date(m.ano, m.mes, 0).getDate();
 export const mesAnterior = (m: Mes): Mes => (m.mes === 1 ? { ano: m.ano - 1, mes: 12 } : { ano: m.ano, mes: m.mes - 1 });
 
+/**
+ * O "Próximo passo" depois do primeiro extrato: qual extrato pedir e com que mês comparar. Quem
+ * mandou um mês antigo manda o de agora; quem já mandou o de agora (20/10/2026: a tela dizia "Com
+ * o extrato de outubro, eu comparo com outubro") manda o do mês passado.
+ */
+export function mesesDoProximoPasso(atual: Mes, passado: Mes, primeiro: Mes | null): { pedir: Mes; comparar: Mes } {
+  if (primeiro && primeiro.ano === atual.ano && primeiro.mes === atual.mes) return { pedir: passado, comparar: atual };
+  return { pedir: atual, comparar: primeiro ?? passado };
+}
+
 /* ---------------------------------------------------------------- até o mesmo dia */
 
 /**

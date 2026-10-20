@@ -10,6 +10,7 @@ import {
   escolherCaso,
   escolherSugestao,
   limiteProposto,
+  mesesDoProximoPasso,
   porcentagemQueFicou,
   tipoPausadoAte,
   type Dispensa,
@@ -272,5 +273,19 @@ describe("soPeloGuardado: o mês que 'faltou' só porque ela guardou", () => {
   it("gastou mais do que entrou: aí sim saiu a mais", () => {
     expect(soPeloGuardado(1000 - 1500 - 200, 200)).toBe(false);
     expect(soPeloGuardado(-300, 0)).toBe(false);
+  });
+});
+
+describe("mesesDoProximoPasso", () => {
+  const out = { ano: 2026, mes: 10 };
+  const set = { ano: 2026, mes: 9 };
+  it("primeiro extrato já é do mês de agora: pede o do mês passado, nunca o mesmo mês dos dois lados", () => {
+    expect(mesesDoProximoPasso(out, set, out)).toEqual({ pedir: set, comparar: out });
+  });
+  it("primeiro extrato de um mês antigo: pede o de agora e compara com ele", () => {
+    expect(mesesDoProximoPasso(out, set, set)).toEqual({ pedir: out, comparar: set });
+  });
+  it("sem primeiro extrato: pede o de agora e compara com o mês passado", () => {
+    expect(mesesDoProximoPasso(out, set, null)).toEqual({ pedir: out, comparar: set });
   });
 });
