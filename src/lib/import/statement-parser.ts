@@ -510,8 +510,35 @@ function semLinhaSemData(txns: ParsedTransaction[]): ParsedTransaction[] {
   return comData.length >= 3 && comData.length > txns.length / 2 ? comData : txns;
 }
 
+/**
+ * Campo entre aspas com quebra de linha no meio ("Compra cartao deb mc⏎19/10 uber"): o extrato
+ * CSV de conta com cartão de débito faz isso em cada lançamento, e lido linha a linha só sobrava
+ * um lançamento de 40 (leitura parcial, 20/10/2026). Junta as linhas até as aspas fecharem; se
+ * não fecharem em 3 linhas, a aspa era solta e a linha fica como está.
+ */
+function juntarCelulasComQuebra(linhas: string[]): string[] {
+  const aspas = (l: string) => (l.match(/"/g) ?? []).length;
+  const out: string[] = [];
+  for (let i = 0; i < linhas.length; i++) {
+    let atual = linhas[i];
+    if (aspas(atual) % 2 === 1) {
+      let junto = atual;
+      for (let j = i + 1; j <= i + 3 && j < linhas.length; j++) {
+        junto += " " + linhas[j].trim();
+        if (aspas(junto) % 2 === 0) {
+          atual = junto;
+          i = j;
+          break;
+        }
+      }
+    }
+    out.push(atual);
+  }
+  return out;
+}
+
 export function parseCsv(content: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
-  const lines = content.split(/\r?\n/).filter((l) => l.trim() !== "");
+  const lines = juntarCelulasComQuebra(content.split(/\r?\n/).filter((l) => l.trim() !== ""));
   if (lines.length === 0) return [];
 
   // Excel de banco vem com VÁRIAS ABAS coladas uma na outra (fatura nacional, internacional,
