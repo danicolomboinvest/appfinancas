@@ -7,7 +7,7 @@
  * a descrição original, inteira.
  */
 const SEP = String.raw`\s*(?:[-–:·]\s*)?`;
-const PREFIXOS: { re: RegExp; meio: string }[] = [
+const PREFIXOS: { re: RegExp; meio: string; fim?: RegExp }[] = [
   { re: new RegExp(String.raw`^transfer[êe]ncia\s+(?:pix\s+)?enviad[ao]\s+(?:pelo\s+|via\s+)?(?:pix\s+)?(?:para\s+)?` + SEP, "i"), meio: "Pix enviado" },
   { re: new RegExp(String.raw`^transfer[êe]ncia\s+(?:pix\s+)?recebid[ao]\s+(?:pelo\s+|via\s+)?(?:pix\s+)?(?:de\s+)?` + SEP, "i"), meio: "Pix recebido" },
   { re: new RegExp(String.raw`^pix\s+enviad[ao]\s+(?:para\s+)?` + SEP, "i"), meio: "Pix enviado" },
@@ -15,6 +15,9 @@ const PREFIXOS: { re: RegExp; meio: string }[] = [
   { re: new RegExp(String.raw`^(?:ted|doc)\s+(?:enviad[ao]|recebid[ao])\s+` + SEP, "i"), meio: "Transferência" },
   { re: new RegExp(String.raw`^compra\s+(?:no\s+)?d[ée]bito\s+` + SEP, "i"), meio: "Débito" },
   { re: new RegExp(String.raw`^compra\s+(?:no\s+)?cr[ée]dito\s+` + SEP, "i"), meio: "Crédito" },
+  // "Compra cartao final 1234 01/10 PADARIA EXEMPLO .SAO PAULO BR" (extrato CSV de 20/10/2026): o
+  // cartão, o dia e a cidade depois do " ." saem do nome.
+  { re: /^compra\s+(?:com\s+)?(?:no\s+)?cart[ãa]o\s+(?:final\s+\d{4}\s+)?(?:\d{2}\/\d{2}\s+)?/i, meio: "Cartão", fim: /\s+\.\S.*$/ },
   // "Pagamento de boleto efetuado DAS-SIMPLES" (Nubank PJ): sem o "efetuado", a tela mostrava "efetuado DAS-SIMPLES".
   { re: new RegExp(String.raw`^pagamento\s+de\s+boleto\s+(?:efetuado\s+|devolvido\s+)?` + SEP, "i"), meio: "Boleto" },
   { re: new RegExp(String.raw`^d[ée]bito\s+autom[áa]tico\s+` + SEP, "i"), meio: "Débito automático" },
@@ -58,9 +61,10 @@ function capitalizar(nome: string): string {
 
 export function nomeNaTela(descricao: string): { nome: string; meio: string | null } {
   const texto = descricao.trim();
-  for (const { re, meio } of PREFIXOS) {
+  for (const { re, meio, fim } of PREFIXOS) {
     if (re.test(texto)) {
-      const resto = texto.replace(re, "").trim();
+      const semPrefixo = texto.replace(re, "").trim();
+      const resto = (fim ? semPrefixo.replace(fim, "").trim() : "") || semPrefixo;
       if (resto) return { nome: capitalizar(soONome(resto)), meio };
     }
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseStatement } from "../statement-parser";
+import { nomeNaTela } from "../nome-na-tela";
 
 describe("CSV com a descrição entre aspas quebrada em duas linhas", () => {
   // Mesmo formato de um extrato real (20/10/2026): o banco quebra a descrição da compra no
@@ -40,5 +41,13 @@ describe("CSV com a descrição entre aspas quebrada em duas linhas", () => {
     ].join("\n");
     const datas = parseStatement(quebrado).map((t) => t.date);
     expect(datas).toEqual(expect.arrayContaining(["2026-09-02", "2026-09-03", "2026-09-04"]));
+  });
+});
+
+describe("nome da compra no cartão desse extrato", () => {
+  it("mostra só a loja, sem o cartão, o dia e a cidade", () => {
+    expect(nomeNaTela("Compra cartao final 1234 31/08 PADARIA EXEMPLO .SAO PAULO BR")).toEqual({ nome: "Padaria Exemplo", meio: "Cartão" });
+    expect(nomeNaTela("Compra cartao final 1234 09/10 IFOOD *RESTAURANTE")).toEqual({ nome: "Ifood *restaurante", meio: "Cartão" });
+    expect(nomeNaTela("Compra cartao final 1234 03/09 FARMACIA DO BAIRRO")).toEqual({ nome: "Farmacia do Bairro", meio: "Cartão" });
   });
 });
