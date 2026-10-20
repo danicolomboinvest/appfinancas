@@ -4,7 +4,8 @@ import { formatMoney, isCurrencyCode } from "@/lib/money";
 import type { listMonthlyEntries } from "@/lib/repositories/monthly-entry.repo";
 import { quemGastou, type QuemLe } from "@/lib/casa/regras";
 
-type Linha = Awaited<ReturnType<typeof listMonthlyEntries>>[number];
+/** `customCategory` é opcional: a lista do mês traz o nome da categoria de quem lançou; outras telas (período, Empresa) não. */
+type Linha = Omit<Awaited<ReturnType<typeof listMonthlyEntries>>[number], "customCategory"> & { customCategory?: { name: string; icon: string } | null };
 
 function formatRelativeDay(date: Date | null): string | null {
   if (!date) return null;
@@ -58,6 +59,8 @@ export function linhasDaLista(entries: Linha[], ocultos: boolean, quem?: QuemLe,
     category: entry.category,
     parentCategory: entry.parentCategory,
     customCategoryId: entry.customCategoryId,
+    customCategoryName: entry.customCategory?.name ?? null,
+    customCategoryIcon: entry.customCategory?.icon ?? null,
     subcategory: entry.subcategory,
     description: entry.description,
     amount: Number(entry.amount),

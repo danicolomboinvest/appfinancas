@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { AuthContext } from "@/lib/auth/session";
 import { listBudgets, sumExpensesByParentCategory, sumExpensesByCustomCategory } from "@/lib/repositories/budget.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { categoriasDoParPorId } from "@/lib/repositories/casa.repo";
 import { PARENT_CATEGORIES, categoryLabel, isParentCategoryKey, colorForCategorySlice } from "@/lib/categories";
 import { buildMonthlyComparison } from "@/lib/planning/budget-comparison";
 import { buildBudgetBullets, elapsedRatioOfMonth } from "@/lib/planning/budget-bullets";
@@ -39,6 +40,9 @@ export async function BudgetSection({
 
   const titulo = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos.orcamentoPorCategoria;
   const customLabels = new Map(customCategories.map((c) => [c.id, c.name]));
+  // Casal simples: gasto do par numa categoria que ele criou. O nome vem dele (só para ler).
+  const semNome = [...new Set(spentCustom.map((s) => s.customCategoryId).filter((id): id is string => Boolean(id) && !customLabels.has(id as string)))];
+  for (const c of await categoriasDoParPorId(ctx, semNome)) customLabels.set(c.id, c.name);
   const categoryKeys: string[] = [...PARENT_CATEGORIES, ...customCategories.map((c) => c.id)];
   const comparison = buildMonthlyComparison(
     month,

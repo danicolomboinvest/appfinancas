@@ -547,3 +547,17 @@ export async function saidaRecenteDaCasa(userId: string, agora: Date = new Date(
     motivo: m.motivoSaida,
   };
 }
+
+/**
+ * O nome e o ícone das categorias que o PAR criou e que aparecem nos lançamentos dele que eu vejo
+ * (Casal simples). A categoria é de quem criou: só leitura, para escrever o nome onde aparecer
+ * (nunca para escolher). Sem casa ou com ids que não são do par, volta vazio.
+ */
+export async function categoriasDoParPorId(ctx: AuthContext, ids: string[]): Promise<{ id: string; name: string; icon: string }[]> {
+  const casa = casaAtiva(ctx);
+  if (!casa || ids.length === 0) return [];
+  return prisma.customCategory.findMany({
+    where: { id: { in: ids }, userId: casa.outro.userId, profileId: casa.outro.profileId },
+    select: { id: true, name: true, icon: true },
+  });
+}

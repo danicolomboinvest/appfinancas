@@ -42,6 +42,9 @@ import { rotuloDoDia } from "./rotulo-do-dia";
 
 export type ListEntry = {
   id: string;
+  /** Nome e ícone da categoria criada por quem lançou (o par não tem essa categoria na lista dele). */
+  customCategoryName?: string | null;
+  customCategoryIcon?: string | null;
   /** O mês do lançamento. Na lista de um período (trimestre, 7 dias) cada um tem o seu. */
   year?: number;
   month?: number;
@@ -140,9 +143,9 @@ function categoryVisual(
   if (entry.customCategoryId) {
     const custom = customCategories.find((c) => c.id === entry.customCategoryId);
     return {
-      icon: custom ? (CUSTOM_CATEGORY_ICON_MAP[custom.icon] ?? Receipt) : Receipt,
+      icon: custom || entry.customCategoryIcon ? (CUSTOM_CATEGORY_ICON_MAP[custom?.icon ?? entry.customCategoryIcon ?? ""] ?? Receipt) : Receipt,
       color: colorForCategorySlice({ kind: "custom", value: entry.customCategoryId }, kind),
-      emoji: emojiEscolhido(kind, entry.customCategoryId) ?? emojiDaCategoria(tema, { kind: "custom", iconKey: custom?.icon }),
+      emoji: emojiEscolhido(kind, entry.customCategoryId) ?? emojiDaCategoria(tema, { kind: "custom", iconKey: custom?.icon ?? entry.customCategoryIcon ?? undefined }),
     };
   }
   return { icon: Receipt, color: "var(--color-ink-faint)", emoji: emojiDaCategoria(tema, { kind: "none" }) };
@@ -150,7 +153,7 @@ function categoryVisual(
 
 function categoryName(entry: ListEntry, customCategories: { id: string; name: string }[], voz: Voz, kind: CategoriasDoPerfil): string {
   if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) return categoryLabel(kind, entry.parentCategory);
-  if (entry.customCategoryId) return customCategories.find((c) => c.id === entry.customCategoryId)?.name ?? voz.titulos.uiCategoriaSemNome;
+  if (entry.customCategoryId) return customCategories.find((c) => c.id === entry.customCategoryId)?.name ?? entry.customCategoryName ?? voz.titulos.uiCategoriaSemNome;
   return categoryKindLabel(entry.category, voz, entry.amount);
 }
 
@@ -524,7 +527,7 @@ export function EntryList({
   const nomeDaChave = (k: string): string => {
     const { categoria, sub } = lerChave(k);
     if (sub) return sub;
-    return categoria === "SEM" ? "Sem categoria" : isParentCategoryKey(categoria) ? categoryLabel(kind, categoria) : (customCategories.find((c) => c.id === categoria)?.name ?? "Categoria");
+    return categoria === "SEM" ? "Sem categoria" : isParentCategoryKey(categoria) ? categoryLabel(kind, categoria) : (customCategories.find((c) => c.id === categoria)?.name ?? entries.find((e) => e.customCategoryId === categoria)?.customCategoryName ?? "Categoria");
   };
   // As subcategorias que aparecem nos lançamentos do período, por categoria (os chips da folha).
   const subsDoPeriodo = subcategoriasDoPeriodo(entries);

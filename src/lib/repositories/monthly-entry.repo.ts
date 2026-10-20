@@ -18,7 +18,12 @@ export async function listMonthlyEntries(ctx: AuthContext, year: number, month: 
     orderBy: { createdAt: "desc" },
     // O tipo do lote diz se a linha veio da fatura (conta no limite do cartão; ver ehDoCartao).
     // ocultoDoPar: a conta que eu escondi do par aparece com o cadeado.
-    include: { importBatch: { select: { docType: true, ocultoDoPar: true } } },
+    include: {
+      importBatch: { select: { docType: true, ocultoDoPar: true } },
+      // O nome e o ícone da categoria que a PESSOA criou, para o par ler (a categoria é de quem criou,
+      // e o par só tem a lista das dele: sem isto aparecia "Categoria personalizada").
+      customCategory: { select: { name: true, icon: true } },
+    },
   });
 }
 
