@@ -13,7 +13,7 @@ import { parseQuantityInput } from "@/lib/portfolio/asset-form-values";
 import { taxaDoFormulario } from "@/lib/portfolio/taxa-compra";
 import { precoNaMoeda, reaisPorUnidadeDa } from "@/lib/portfolio/cotacao-na-moeda";
 import { getOwnUser } from "@/lib/repositories/user.repo";
-import { isCurrencyCode, toCurrencyCode } from "@/lib/money";
+import { CURRENCIES, isCurrencyCode, toCurrencyCode } from "@/lib/money";
 import { getExchangeRate } from "@/lib/fx/rates";
 import { fetchUsPrice } from "@/lib/analysis/us-price";
 import { CONTA_BRASIL, TICKER_EUA, ehDoExterior, naMoedaDoApp } from "@/lib/portfolio/conta-exterior";
@@ -43,7 +43,10 @@ async function parseAssetForm(formData: FormData) {
   const moedaDoApp = toCurrencyCode((await getOwnUser(await getRequiredSession())).currency);
   const moedaPedida = String(formData.get("assetCurrency") ?? CONTA_BRASIL);
   const moedaDoAtivo = isCurrencyCode(moedaPedida) ? moedaPedida : CONTA_BRASIL;
-  const noExterior = ehDoExterior(moedaDoAtivo);
+  // Quem usa o app em outra moeda (peso chileno) e investe em reais: digita em R$ e o app converte
+  // (20/10/2026). Sem este pedido a conta Brasil segue como sempre foi: valores na moeda do app.
+  const brasilEmReais = moedaDoAtivo === CONTA_BRASIL && moedaDoApp !== CONTA_BRASIL && formData.get("assetNativo") === "1";
+  const noExterior = ehDoExterior(moedaDoAtivo) || brasilEmReais;
   let currentUnitPrice: number | undefined;
   let precoNoExterior: number | null = null;
   let cambio = 1;
@@ -51,11 +54,15 @@ async function parseAssetForm(formData: FormData) {
   if (noExterior) {
     if (moedaDoAtivo !== moedaDoApp) {
       const r = await getExchangeRate(moedaDoAtivo, moedaDoApp);
-      if (!r) return { success: false as const, error: { issues: [{ message: "Não consegui a cotação do dólar agora. Tente de novo em instantes." }] } };
+      if (!r) return { success: false as const, error: { issues: [{ message: `Não consegui a cotação de ${CURRENCIES[moedaDoAtivo].label.toLowerCase()} agora. Tente de novo em instantes.` }] } };
       cambio = r.rate;
     }
     if (quantity && quantity > 0 && ticker && TICKER_EUA.test(ticker)) {
       precoNoExterior = await fetchUsPrice(ticker);
+      if (precoNoExterior) currentUnitPrice = Math.round(precoNoExterior * cambio * 1e6) / 1e6;
+    } else if (brasilEmReais && quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
+      // Ação e FII da B3: a cotação já vem em reais, que é a moeda dos campos deste ativo.
+      precoNoExterior = await fetchTickerPrice(ticker);
       if (precoNoExterior) currentUnitPrice = Math.round(precoNoExterior * cambio * 1e6) / 1e6;
     }
   } else if (quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
@@ -124,8 +131,9 @@ async function parseAssetForm(formData: FormData) {
 }
 
 /** Renda fixa e Tesouro na conta Brasil: os que o app acompanha pelo rendimento (atualizar-renda-fixa.ts). */
-function ehRendaFixaEmReais(d: { assetClass: string; currency?: string }): boolean {
-  return (d.assetClass === "RENDA_FIXA" || d.assetClass === "TESOURO_DIRETO") && (d.currency ?? CONTA_BRASIL) === CONTA_BRASIL;
+function ehRendaFixaEmReais(d: { assetClass: string; currency?: string; nativeCurrentValue?: number | null }): boolean {
+  // Com o lado em reais guardado (quem usa o app em peso e investe em R$) o valor é o que ela digitou.
+  return (d.assetClass === "RENDA_FIXA" || d.assetClass === "TESOURO_DIRETO") && (d.currency ?? CONTA_BRASIL) === CONTA_BRASIL && (d.nativeCurrentValue ?? null) === null;
 }
 
 export async function createAssetAction(_prevState: AssetFormState, formData: FormData): Promise<AssetFormState> {

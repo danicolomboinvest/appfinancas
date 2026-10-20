@@ -70,7 +70,7 @@ export async function ocultarConviteDaAssessoriaAction(): Promise<void> {
 export type CotacaoDoNovoAtivo = {
   /** Na moeda do ativo (R$ na B3, US$ lá fora). Null quando a fonte não respondeu. */
   preco: number | null;
-  /** US$ 1 = R$ X, só para ativo lá fora. */
+  /** US$ 1 = X na moeda do app (R$ para quem usa reais), só para ativo lá fora. */
   dolar: number | null;
   /** Quando o app buscou (ISO): a tela escreve "cotação de hoje · 10:15". */
   em: string;
@@ -89,7 +89,10 @@ export async function cotacaoDoNovoAtivoAction(ticker: string, exterior: boolean
   const { fetchUsPrice } = await import("@/lib/analysis/us-price");
   const { getExchangeRate } = await import("@/lib/fx/rates");
   if (exterior) {
-    const [preco, cambio] = await Promise.all([fetchUsPrice(t).catch(() => null), getExchangeRate("USD", "BRL").catch(() => null)]);
+    // Na moeda do app: quem usa o app em peso chileno via o dólar em reais com o símbolo do peso.
+    const { getUserCurrency } = await import("@/lib/money-server");
+    const moedaDoApp = await getUserCurrency();
+    const [preco, cambio] = await Promise.all([fetchUsPrice(t).catch(() => null), getExchangeRate("USD", moedaDoApp).catch(() => null)]);
     return { preco, dolar: cambio?.rate ?? null, em };
   }
   if (!/^[A-Z]{4}\d{1,2}$/.test(t)) return { preco: null, dolar: null, em };

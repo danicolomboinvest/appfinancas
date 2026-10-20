@@ -7,7 +7,7 @@ import { Explica } from "@/components/ui/Explica";
 import { useToast } from "@/components/ui/toast-context";
 import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, moedaSemCentavos } from "@/lib/money";
 import { editarGuardadoDoSonhoAction, excluirGuardadoDoSonhoAction } from "../actions";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -111,7 +111,8 @@ export function EditarGuardado({ item, onFechar }: { item: GuardadoDoSonho; onFe
             onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => {
               const digitos = e.target.value.replace(/\D/g, "");
-              setCents(digitos === "" ? null : Number(digitos));
+              // Peso chileno não tem centavo: os dígitos são pesos inteiros.
+              setCents(digitos === "" ? null : Number(digitos) * (moedaSemCentavos(currency) ? 100 : 1));
             }}
             // 16px: abaixo disso o Safari do iPhone dá zoom ao tocar no campo.
             className="min-h-11 rounded-xl border border-border-strong bg-surface px-3 text-base tabular-nums text-ink outline-none focus:border-accent"

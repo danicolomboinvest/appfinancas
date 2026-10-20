@@ -1,4 +1,5 @@
 import type { ParsedTransaction } from "./statement-parser";
+import { currencySymbol, moedaSemCentavos, type CurrencyCode } from "@/lib/money";
 
 /**
  * Freio contra leitura errada: o app olha o resultado da própria leitura e pergunta "isso aqui
@@ -30,6 +31,20 @@ export type Suspeita = {
 /** Acima disto não é gasto de pessoa física: é coluna errada ou conta de empresa. */
 export const VALOR_FORA_DE_ESCALA = 200_000;
 
+/**
+ * O "fora de escala" por moeda (20/10/2026). R$ 200 mil é muito para um lançamento de pessoa física,
+ * mas em peso chileno ou argentino é um salário comum (CL$ 800.000 são uns R$ 4.700): sem isto todo
+ * extrato de quem usa o app em peso era acusado de "valor fora de escala". Valores aproximados e
+ * folgados de propósito: a régua é pegar coluna errada e vírgula perdida, não o câmbio do dia.
+ */
+const VALOR_FORA_DE_ESCALA_POR_MOEDA: Partial<Record<CurrencyCode, number>> = {
+  USD: 50_000,
+  EUR: 50_000,
+  GBP: 40_000,
+  ARS: 50_000_000,
+  CLP: 40_000_000,
+};
+
 export function checarPlausibilidade(
   txns: ParsedTransaction[],
   docType: "extrato" | "fatura" | string,
@@ -38,14 +53,17 @@ export function checarPlausibilidade(
    * de alunas mostrava o alarme, e a leitura estava certa no centavo. Vale também pro "sem
    * centavos": Pix de valor redondo não é coluna errada quando a soma fecha. */
   conferido = false,
+  /** A moeda do app dela: define a escala e se os valores têm centavos. */
+  moeda: CurrencyCode = "BRL",
 ): Suspeita[] {
   const suspeitas: Suspeita[] = [];
   if (txns.length === 0) return suspeitas;
 
-  const money = (n: number) => `R$ ${Math.abs(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}`;
+  const money = (n: number) => `${currencySymbol(moeda)} ${Math.abs(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}`;
+  const limite = VALOR_FORA_DE_ESCALA_POR_MOEDA[moeda] ?? VALOR_FORA_DE_ESCALA;
 
   // 1. Valor fora de escala. Um só já basta pra desconfiar do arquivo inteiro.
-  const gigantes = txns.filter((t) => Math.abs(t.amount) > VALOR_FORA_DE_ESCALA);
+  const gigantes = txns.filter((t) => Math.abs(t.amount) > limite);
   if (gigantes.length > 0) {
     suspeitas.push({
       texto: `${gigantes.length === 1 ? "Um lançamento tem" : `${gigantes.length} lançamentos têm`} valor fora de escala. Quase sempre é o app lendo o arquivo errado, coluna trocada ou vírgula perdida.`,
@@ -85,7 +103,8 @@ export function checarPlausibilidade(
   // 3. Valores sem centavo nenhum. Dinheiro de extrato quase sempre tem centavo; número de
   //    documento, de autenticação e valor lido sem a vírgula nunca têm. É o sinal que pega a
   //    leitura torta mesmo quando os valores são pequenos demais pra chamar atenção sozinhos.
-  if (txns.length >= 8 && !conferido) {
+  // Peso chileno não tem centavo: valor redondo é o normal, não sinal de coluna errada.
+  if (txns.length >= 8 && !conferido && !moedaSemCentavos(moeda)) {
     const redondos = txns.filter((t) => Math.round(Math.abs(t.amount) * 100) % 100 === 0).length;
     if (redondos / txns.length >= 0.9) {
       suspeitas.push({

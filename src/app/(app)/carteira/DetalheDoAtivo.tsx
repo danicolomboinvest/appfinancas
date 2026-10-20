@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check, PencilLine, WalletMinimal } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
+import { currencySymbol, isCurrencyCode, toCurrencyCode } from "@/lib/money";
 import { useToast } from "@/components/ui/toast-context";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { NOME_DO_TIPO, TIPOS, type Onde, type Tipo } from "@/lib/portfolio/classificacao";
@@ -59,8 +60,9 @@ export function DetalheDoAtivo({
   const cor = COR_DO_GRUPO[grupoDoAtivo(a)];
   const ganho = a.investedValue !== null && a.investedValue > 0 ? a.currentValue - a.investedValue : null;
   const pct = ganho !== null && a.investedValue ? ganho / a.investedValue : null;
-  const emDolar = a.currency === "USD" && a.nativeCurrentValue !== null;
-  const usd = (v: number) => `US$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // O ativo guarda o lado na moeda dele (US$ no exterior; R$ para quem usa o app em peso e investe em reais).
+  const emDolar = a.nativeCurrentValue !== null && isCurrencyCode(a.currency);
+  const usd = (v: number) => `${currencySymbol(toCurrencyCode(a.currency))} ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const atualizado = new Date(a.atualizadoEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   const nomeDoObjetivo =
     a.objective === "RESERVA_EMERGENCIA" ? "Reserva de emergência" : a.objective === "LIBERDADE_FINANCEIRA" ? "Liberdade financeira" : a.objective === "META" ? (metas.find((m) => m.id === a.goalId)?.nome ?? "Uma meta") : "Nenhum objetivo";
@@ -86,7 +88,7 @@ export function DetalheDoAtivo({
             fixedIncomeIndex: a.fixedIncomeIndex ?? undefined,
             taxaCompra: a.taxaCompra,
             acquisitionDate: a.acquisitionDate ?? undefined,
-            ...(emDolar ? { currency: a.currency, currentValue: a.nativeCurrentValue ?? undefined, investedValue: a.nativeInvestedValue ?? undefined } : { currentValue: a.currentValue, investedValue: a.investedValue ?? undefined }),
+            ...(emDolar ? { currency: a.currency, nativo: true, currentValue: a.nativeCurrentValue ?? undefined, investedValue: a.nativeInvestedValue ?? undefined } : { currentValue: a.currentValue, investedValue: a.investedValue ?? undefined }),
           }}
         />
         <div className="flex justify-center pt-1">

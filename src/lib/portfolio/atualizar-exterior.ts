@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { fetchUsPrice } from "@/lib/analysis/us-price";
+import { fetchTickerPrice } from "@/lib/analysis/price-scraper";
 import { getExchangeRate } from "@/lib/fx/rates";
 import { isCurrencyCode, toCurrencyCode } from "@/lib/money";
 import { processarComPrazo } from "@/lib/cron/lote";
@@ -16,16 +17,20 @@ export async function atualizarAtivosDoExterior(
   opcoes: { prazo?: number } = {},
 ): Promise<{ updated: number; failed: string[] }> {
   const ativos = await prisma.asset.findMany({
-    where: { ...onde, currency: { not: CONTA_BRASIL } },
+    // Conta no exterior, e a conta em reais de quem usa o app em outra moeda (tem o lado em R$ guardado).
+    where: { ...onde, OR: [{ currency: { not: CONTA_BRASIL } }, { nativeCurrentValue: { not: null } }] },
     select: { id: true, ticker: true, quantity: true, currency: true, nativeCurrentValue: true, user: { select: { currency: true } } },
   });
   if (ativos.length === 0) return { updated: 0, failed: [] };
 
-  const comCotacao = (a: (typeof ativos)[number]) => Boolean(a.ticker && TICKER_EUA.test(a.ticker) && a.quantity && Number(a.quantity) > 0);
+  // Ticker da B3 (PETR4) na conta em reais de quem usa o app em outra moeda: o preço vem em R$.
+  const ehDaB3 = (t: string) => /^[A-Z]{4}\d{1,2}$/.test(t);
+  const comCotacao = (a: (typeof ativos)[number]) =>
+    Boolean(a.ticker && (TICKER_EUA.test(a.ticker) || (a.currency === CONTA_BRASIL && ehDaB3(a.ticker))) && a.quantity && Number(a.quantity) > 0);
   const tickers = [...new Set(ativos.filter(comCotacao).map((a) => a.ticker as string))];
   const precoPorTicker = new Map<string, number | null>();
   await processarComPrazo(tickers, { paralelo: 6, prazo: opcoes.prazo ?? Date.now() + 30_000 }, async (t) => {
-    precoPorTicker.set(t, await fetchUsPrice(t));
+    precoPorTicker.set(t, ehDaB3(t) ? await fetchTickerPrice(t) : await fetchUsPrice(t));
   });
 
   // Um câmbio por par (US$ → moeda do app), não por ativo.

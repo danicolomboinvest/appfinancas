@@ -24,7 +24,8 @@ import { acharCartaoDaFatura, ligarComprasJaNoAppAoCartao, ligarLoteAoCartao, ty
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
 import { PREFIXO_COMPRA_APAGADA, PREFIXO_NAO_PARCELA, projecaoRecusada } from "@/lib/contas/parcelas-do-mes";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, toCurrencyCode } from "@/lib/money";
+import { getOwnUser } from "@/lib/repositories/user.repo";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import {
   createImportBatch,
@@ -645,6 +646,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
 
   // Prints: a soma com o total do topo da fatura aberta (19/10/2026), não com o texto montado.
   const conferencia = dosPrints ? conferirPrints(dosPrints.compras, dosPrints.total) : conferirLeitura(text, docType, parsed);
+  // A régua do "fora de escala" muda com a moeda (peso chileno e argentino têm números enormes).
+  const moedaDoApp = await getOwnUser(ctx).then((u) => toCurrencyCode(u.currency)).catch(() => "BRL" as const);
   const stats: ParseStats = {
     detectedKind,
     detectedReason,
@@ -655,7 +658,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     invoiceTotal: docType === "fatura" ? (dosPrints?.total ?? detectInvoiceTotal(text)) : null,
     sumExpense: items.filter((i) => i.category === "EXPENSE").reduce((s, i) => s + (i.estorno ? -i.amount : i.amount), 0),
     sumIncome: items.filter((i) => i.category === "INCOME").reduce((s, i) => s + i.amount, 0),
-    suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType, conferencia.status === "fechou"),
+    suspeitas: checarPlausibilidade(parsed, detectedKind === "fatura" ? "fatura" : docType, conferencia.status === "fechou", moedaDoApp),
     conferencia,
     leituraIncompleta: false,
     // Também quando ela escolheu "extrato" e o arquivo parece fatura: a frase "é fatura?" já

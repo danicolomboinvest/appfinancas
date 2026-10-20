@@ -23,7 +23,7 @@ export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult>
   const ctx = await getRequiredSession();
   const allWithTicker = await prisma.asset.findMany({
     // Só a conta Brasil: os ativos de fora têm cotação em dólar (atualizarAtivosDoExterior).
-    where: { userId: ctx.userId, profileId: ctx.profileId, ticker: { not: null }, currency: CONTA_BRASIL },
+    where: { userId: ctx.userId, profileId: ctx.profileId, ticker: { not: null }, currency: CONTA_BRASIL, nativeCurrentValue: null },
     select: { id: true, ticker: true, quantity: true },
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como

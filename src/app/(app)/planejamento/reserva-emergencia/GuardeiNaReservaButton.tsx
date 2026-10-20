@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ErroNoBotao, TENTAR_DE_NOVO, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, moedaSemCentavos } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { guardeiNaReservaAction } from "./actions";
 
@@ -75,7 +75,8 @@ export function GuardeiNaReservaButton({
           value={centavos === null ? "" : formatMoney(centavos / 100, currency)}
           onChange={(e) => {
             const digitos = e.target.value.replace(/\D/g, "");
-            setCentavos(digitos === "" ? null : Number(digitos));
+            // Peso chileno não tem centavo: os dígitos são pesos inteiros.
+              setCentavos(digitos === "" ? null : Number(digitos) * (moedaSemCentavos(currency) ? 100 : 1));
           }}
           placeholder={money(valorCombinado, { round: true })}
           // 16px: abaixo disso o Safari do iPhone dá zoom na tela ao tocar no campo.

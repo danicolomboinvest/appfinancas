@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseStatement } from "../statement-parser";
 import { formatMoney } from "@/lib/money";
+import { checarPlausibilidade } from "../plausibility";
 import { centavosDoTexto } from "@/lib/dinheiro/digitado";
 import { centavosDoCampo, teclar } from "@/lib/entries/digitar";
 
@@ -82,5 +83,20 @@ describe("digitar valor em peso chileno (sem centavos)", () => {
   it("o campo de valor lê os dígitos como pesos", () => {
     expect(centavosDoTexto("CLP 12.500", true)! / 100).toBe(12500);
     expect(centavosDoTexto("12.500,00")! / 100).toBe(12500);
+  });
+});
+
+describe("os alarmes de leitura não acusam o peso chileno", () => {
+  const txns = (n: number, valor: number) => Array.from({ length: n }, (_, i) => ({ date: `2026-10-${String(i + 1).padStart(2, "0")}`, description: `Compra ${i}`, amount: i % 2 ? -valor : valor }));
+  it("salário de CL$ 800.000 não é 'valor fora de escala' (em real, R$ 200 mil seria)", () => {
+    expect(checarPlausibilidade([{ date: "2026-10-05", description: "Sueldo", amount: 800000 }], "extrato", true, "CLP")).toEqual([]);
+    expect(checarPlausibilidade([{ date: "2026-10-05", description: "Sueldo", amount: 800000 }], "extrato", true, "BRL").length).toBe(1);
+  });
+  it("mas um número absurdo continua sendo acusado", () => {
+    expect(checarPlausibilidade([{ date: "2026-10-05", description: "Lixo", amount: 900_000_000 }], "extrato", true, "CLP").length).toBe(1);
+  });
+  it("valores sem centavos são o normal em peso chileno", () => {
+    expect(checarPlausibilidade(txns(10, 12500), "extrato", false, "CLP")).toEqual([]);
+    expect(checarPlausibilidade(txns(10, 12500), "extrato", false, "BRL").length).toBeGreaterThan(0);
   });
 });

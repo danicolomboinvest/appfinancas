@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
   const allWithTicker = await prisma.asset.findMany({
     // Só a conta Brasil aqui; a conta no exterior (cotação em US$ e dólar do dia) vem no fim.
-    where: { ticker: { not: null }, currency: CONTA_BRASIL },
+    where: { ticker: { not: null }, currency: CONTA_BRASIL, nativeCurrentValue: null },
     select: { id: true, ticker: true, quantity: true, user: { select: { currency: true } } },
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como

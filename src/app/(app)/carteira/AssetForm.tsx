@@ -16,7 +16,7 @@ import { createAssetAction, updateAssetAction, type AssetFormState } from "./act
 import { useCurrency } from "@/components/money/MoneyProvider";
 import { getExchangeRateAction } from "@/lib/fx/actions";
 import { currencySymbol, type CurrencyCode } from "@/lib/money";
-import { CONTA_BRASIL, type MoedaDaConta } from "@/lib/portfolio/conta-exterior";
+import { CONTA_BRASIL } from "@/lib/portfolio/conta-exterior";
 
 const initialState: AssetFormState = {};
 
@@ -47,6 +47,8 @@ type Defaults = {
   taxaCompra?: number | null;
   /** "USD" na conta no exterior: aí investido, valor atual e preço médio vêm em dólar. */
   currency?: string;
+  /** Ativo com o lado na moeda dele guardado (R$ para quem usa o app em outra moeda). */
+  nativo?: boolean;
   /** Data da compra (AAAA-MM-DD): a renda fixa rende a partir dela. */
   acquisitionDate?: string;
 };
@@ -95,12 +97,21 @@ export function AssetForm({
   const moedaDoApp = useCurrency();
   // Conta Brasil ou exterior (07/10/2026): aparece em Internacional, e em qualquer ativo que já
   // está em dólar. Internacional novo começa no exterior, que é o caso da Avenue.
-  const [conta, setConta] = useState<MoedaDaConta>(defaults.currency === "USD" ? "USD" : assetId ? CONTA_BRASIL : "USD");
-  const mostraConta = assetClass === "INTERNACIONAL" || defaults.currency === "USD";
-  const moedaDoAtivo: CurrencyCode = mostraConta ? conta : CONTA_BRASIL;
-  const noExterior = moedaDoAtivo !== CONTA_BRASIL;
+  // Quem usa o app em outra moeda (peso chileno, 20/10/2026) tem três contas: a sua moeda (valores
+  // na moeda do app, como sempre foi), reais (digita em R$ e o app converte) e dólar.
+  type Conta = "SUA" | "BRL" | "USD";
+  const emOutraMoeda = moedaDoApp !== CONTA_BRASIL;
+  const [conta, setConta] = useState<Conta>(
+    defaults.currency === "USD" ? "USD" : defaults.currency === "BRL" && defaults.nativo ? "BRL" : assetId || emOutraMoeda ? "SUA" : "USD",
+  );
+  const mostraConta = emOutraMoeda || assetClass === "INTERNACIONAL" || defaults.currency === "USD";
+  const contasDoForm: Conta[] = emOutraMoeda ? (["SUA", "BRL", ...(moedaDoApp === "USD" ? [] : (["USD"] as const))] as Conta[]) : ["SUA", "USD"];
+  // A moeda em que o ativo está: na conta "sua moeda" é a conta de sempre (BRL no banco, sem câmbio).
+  const moedaDoAtivo: CurrencyCode = mostraConta && conta !== "SUA" ? conta : CONTA_BRASIL;
+  const brasilEmReais = emOutraMoeda && mostraConta && conta === "BRL";
+  const noExterior = moedaDoAtivo !== CONTA_BRASIL || brasilEmReais;
   // A busca muda com a conta: lá fora, ações e ETFs americanos; aqui, BDR e ETF da B3.
-  const pickerKinds = assetClass === "INTERNACIONAL" ? (noExterior ? (["STOCK_INTL", "ETF_INTL"] as TickerKind[]) : (["BDR", "ETF"] as TickerKind[])) : PICKER_KINDS[assetClass];
+  const pickerKinds = assetClass === "INTERNACIONAL" ? (moedaDoAtivo === "USD" ? (["STOCK_INTL", "ETF_INTL"] as TickerKind[]) : (["BDR", "ETF"] as TickerKind[])) : PICKER_KINDS[assetClass];
   const moedaDosCampos = noExterior ? moedaDoAtivo : undefined;
   // Ação, FII, ETF: quem compra sabe "10 ações a R$ 30", não o valor de hoje. Quantidade e
   // preço médio dão o investido; a cotação de hoje o app busca sozinho ao salvar.
@@ -152,8 +163,8 @@ export function AssetForm({
       {mostraConta && (
         <div className="flex w-full flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-muted">Conta</span>
-          <div role="radiogroup" aria-label="Conta" className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-0.5">
-            {([CONTA_BRASIL, "USD"] as const).map((c) => (
+          <div role="radiogroup" aria-label="Conta" className={`grid gap-1 rounded-full bg-surface-2 p-0.5 ${contasDoForm.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+            {contasDoForm.map((c) => (
               <button
                 key={c}
                 type="button"
@@ -162,13 +173,14 @@ export function AssetForm({
                 onClick={() => setConta(c)}
                 className={`min-h-10 rounded-full px-3 text-sm font-semibold transition-colors ${conta === c ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"}`}
               >
-                {c === CONTA_BRASIL ? "Conta Brasil" : `Exterior (${currencySymbol("USD")})`}
+                {c === "SUA" ? (emOutraMoeda ? `Minha conta (${currencySymbol(moedaDoApp)})` : "Conta Brasil") : c === "BRL" ? `Brasil (${currencySymbol("BRL")})` : `Exterior (${currencySymbol("USD")})`}
               </button>
             ))}
           </div>
         </div>
       )}
       <input type="hidden" name="assetCurrency" value={moedaDoAtivo} />
+      {brasilEmReais && <input type="hidden" name="assetNativo" value="1" />}
       {pickerKinds ? (
         // Escolher na lista preenche o nome junto — quem não sabe o código também não quer
         // digitar "Petrobras" duas vezes. O nome continua editável.
