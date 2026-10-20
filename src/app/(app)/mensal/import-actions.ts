@@ -268,7 +268,11 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
   const envio = String(formData.get("envio") ?? "");
   const nome = arquivo instanceof File ? arquivo.name : null;
   const falhou = async (detalhe: string): Promise<PrintDaFaturaResult> => {
-    await recordImportDiagnostic({ userId: ctx.userId, target: "fatura", stage: "parse", ok: false, fileName: nome, encoding: "imagem", kind: "print", message: `${MSG_PRINT_ILEGIVEL} [${detalhe}]`.slice(0, 500) });
+    const diagnosticId = await recordImportDiagnostic({ userId: ctx.userId, target: "fatura", stage: "parse", ok: false, fileName: nome, encoding: "imagem", kind: "print", message: `${MSG_PRINT_ILEGIVEL} [${detalhe}]`.slice(0, 500) });
+    // Guarda o print que não deu (20/10/2026, pedido dela): sem a imagem só sobra "não consegui ler"
+    // e não dá para ver o que o OCR enxergou nem ensinar o leitor. Mesmas regras dos outros arquivos
+    // (30 dias, só admin, apagado com a conta).
+    await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: arquivo, encoding: "imagem", reason: "falha" });
     return { ok: false, error: MSG_PRINT_ILEGIVEL };
   };
   if (!(arquivo instanceof Blob) || arquivo.size === 0) return { ok: false, error: MSG_PRINT_ILEGIVEL };
