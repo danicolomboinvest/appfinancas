@@ -12,6 +12,13 @@
  */
 
 /** Centavos inteiros do texto digitado, ou null se não há nenhum dígito. */
+/**
+ * O maior valor que o app aceita (20/10/2026): 10 bilhões na moeda dela. Em reais nunca chega
+ * perto; em pesos argentinos cobre um imóvel (antes o teto de 100 milhões cortava em silêncio um
+ * financiamento de ARS 150 milhões). As colunas de dinheiro do banco vão até 10^16.
+ */
+export const MAIOR_VALOR = 10_000_000_000;
+
 export function centavosDoTexto(texto: string): number | null {
   const digitos = texto.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
   if (digitos === "") return null;

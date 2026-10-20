@@ -13,6 +13,7 @@ import { ATIVIDADES_DO_MEI } from "@/lib/empresa/legal";
 import { ajustarEmpresaAction } from "../actions";
 import { Interruptor } from "../Assistente";
 import { Cartao, Chip, Titulo, Voltar } from "../partes";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 /**
  * Configurações da empresa (menu ☰ da Empresa). Cada mudança grava na hora. As taxas da maquininha são
@@ -102,7 +103,7 @@ export function ConfigDaEmpresa({ nome, config, seguro, temGuia }: { nome: strin
               valor={salario}
               placeholder={seguro !== null ? seguro.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0,00"}
               onValor={setSalario}
-              max={9_999_999}
+              max={MAIOR_VALOR}
               onBlur={() => salvar({ salario })}
               aria-label="Seu salário por mês, em reais"
               className="w-28 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none"

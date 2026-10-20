@@ -11,6 +11,7 @@ import { ehEmpresa } from "@/lib/profiles/empresa";
 import { desfazerAssinatura, revalidarAssinaturas } from "@/lib/assinaturas/respostas";
 import { noRaioX } from "@/lib/assinaturas/regra";
 import { definirDiaDoLembrete, desligarLembretes, ligarLembretes, type LembreteNaTela } from "@/lib/assinaturas/lembretes";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 /**
  * As respostas da pilha do Decidir (rodadas 38 e 49) que ainda não tinham uma ação pronta, e o
@@ -61,7 +62,7 @@ export type MetaAntes = { goalId: string; monthlyContribution: number | null; ta
  */
 export async function guardarMaisNaMetaAction(goalId: string, porMes: number): Promise<MetaAntes | null> {
   const id = z.string().min(1).max(60).parse(goalId);
-  const valor = z.number().positive().max(100_000_000).parse(Math.ceil(porMes));
+  const valor = z.number().positive().max(MAIOR_VALOR).parse(Math.ceil(porMes));
   const { ctx, meta } = await metaDela(id);
   if (!meta) return null;
   await prisma.goal.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { monthlyContribution: valor } });
@@ -86,7 +87,7 @@ export async function mudarDataDaMetaAction(goalId: string, ano: number, mes: nu
 /** Desfazer da meta: volta o valor e a data de antes, e o aviso volta para a pilha. */
 export async function restaurarMetaAction(antes: MetaAntes) {
   const id = z.string().min(1).max(60).parse(antes.goalId);
-  const valor = antes.monthlyContribution === null ? null : z.number().min(0).max(100_000_000).parse(antes.monthlyContribution);
+  const valor = antes.monthlyContribution === null ? null : z.number().min(0).max(MAIOR_VALOR).parse(antes.monthlyContribution);
   const data = antes.targetDate === null ? null : new Date(z.string().datetime().parse(antes.targetDate));
   const { ctx, meta } = await metaDela(id);
   if (!meta) return;
@@ -101,7 +102,7 @@ export async function restaurarMetaAction(antes: MetaAntes) {
  * a sobra só existe quando o mês acaba.
  */
 export async function combinarSobraNaReservaAction(valor: number) {
-  const v = z.number().min(0).max(100_000_000).parse(valor);
+  const v = z.number().min(0).max(MAIOR_VALOR).parse(valor);
   const ctx = await getRequiredSession();
   await registrarDecisaoUnica(ctx, { tipo: "reserva_sobra_combinada", chave: periodo("mes"), valor: v });
   await dispensar(ctx, "reserva", "sobra-reserva");

@@ -10,6 +10,7 @@ import { emergencyFundSchema } from "@/lib/validations/emergency-fund.schema";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { chaveDoMesDaReserva, valorDoGuardei } from "@/lib/planning/reserva-guardei";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 export type EmergencyFundState = { error?: string };
 
@@ -47,7 +48,7 @@ export async function usarReservaDaCarteiraAction(): Promise<void> {
 export type GuardeiNaReservaState = { ok?: boolean; error?: string; valor?: number; jaFeito?: boolean };
 
 const TIPO_GUARDEI: TipoDecisao = "reserva_guardei";
-const guardeiSchema = z.object({ valor: z.number().positive().max(100_000_000).optional() });
+const guardeiSchema = z.object({ valor: z.number().positive().max(MAIOR_VALOR).optional() });
 
 /**
  * "Guardei este mês" na reserva: lança o guardado no mês atual (como dinheiro guardado, não

@@ -21,6 +21,7 @@ import { planoDoSonho } from "@/lib/decisoes/sonho-da-compra";
 import { registrarCompraAction } from "@/app/(app)/mensal/foco/actions";
 import { criarSonhoDaCompraAction } from "@/app/(app)/planejamento/metas/actions";
 import { textoDaMedia } from "@/lib/planning/renda-media";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -268,7 +269,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
                   placeholder="0,00"
                   valor={valor}
                   onValor={(v) => setValor(v ?? 0)}
-                  max={9_999_999}
+                  max={MAIOR_VALOR}
                   className="w-full min-w-0 bg-transparent text-center text-[34px] font-light tabular-nums text-ink outline-none"
                 />
               </label>

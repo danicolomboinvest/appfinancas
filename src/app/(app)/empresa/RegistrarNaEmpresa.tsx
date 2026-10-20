@@ -20,6 +20,7 @@ import { PagueiDaConta, type PagueiFeito } from "../orcamento/contas/PagueiDaCon
 import { desfazerPagamentoAction } from "../orcamento/contas/actions";
 import { BOTAO_PRINCIPAL, Chip, Iniciais, LinhaDoRecibo } from "./partes";
 import { FileUp } from "lucide-react";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 type Modo = null | "vendi" | "paguei" | "recebi";
 
@@ -120,7 +121,7 @@ export function RegistrarNaEmpresa({ aberto, onFechar, dados, R, clientes }: { a
   const campoValor = (rotulo: string) => (
     <label className="mx-auto flex items-baseline justify-center gap-2 border-b border-border-strong px-2 pb-1">
       <span className="text-xl text-ink-muted">{simbolo}</span>
-      <CampoDeDinheiro autoFocus valor={valor} onValor={setValor} max={10_000_000} placeholder="0,00" aria-label={rotulo} className="w-44 bg-transparent text-center text-[2.5rem] font-light tabular-nums text-ink outline-none placeholder:text-ink-faint" />
+      <CampoDeDinheiro autoFocus valor={valor} onValor={setValor} max={MAIOR_VALOR} placeholder="0,00" aria-label={rotulo} className="w-44 bg-transparent text-center text-[2.5rem] font-light tabular-nums text-ink outline-none placeholder:text-ink-faint" />
     </label>
   );
   const voltar = (

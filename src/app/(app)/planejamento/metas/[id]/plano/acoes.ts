@@ -8,6 +8,7 @@ import { planoDaMeta } from "@/lib/planning/plano-da-meta";
 import { aplicarEscolhas } from "@/lib/planning/plano-gravado";
 import { cobrancasDeAssinatura, criarMetaDoRascunho, entradaDoPlano, gravarPlano, metaDoPlano, planoDisponivel, tirarPlano } from "@/lib/repositories/plano-da-meta.repo";
 import { ligarLembretes } from "@/lib/assinaturas/lembretes";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 /**
  * "Usar esse plano" e "Tirar o plano" (16/10/2026). A tela manda só as escolhas dela (que
@@ -19,9 +20,9 @@ type Resultado = { ok: true } | { ok: false; error: string };
 type ResultadoComMeta = { ok: true; id: string } | { ok: false; error: string };
 
 const escolhasSchema = z.object({
-  itens: z.array(z.object({ id: z.string().min(1).max(80), valor: z.number().min(0).max(1e8) })).max(30),
+  itens: z.array(z.object({ id: z.string().min(1).max(80), valor: z.number().min(0).max(MAIOR_VALOR) })).max(30),
   saida: z.enum(["nenhuma", "prazo", "menor", "daa"]),
-  trazer: z.array(z.object({ id: z.string().min(1).max(60), valor: z.number().min(0).max(1e8) })).max(30).optional(),
+  trazer: z.array(z.object({ id: z.string().min(1).max(60), valor: z.number().min(0).max(MAIOR_VALOR) })).max(30).optional(),
 });
 const idSchema = z.string().min(1).max(60);
 

@@ -1,3 +1,4 @@
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 /**
  * O começo da versão nova (rodada 33 dos protótipos, aprovada; implementado em 11/10/2026).
  *
@@ -182,7 +183,7 @@ export function rendaDaRegua(valor: unknown): number | null {
   if (!Number.isFinite(n) || n <= 0) return null;
   const passo = n > RENDA_MAX ? RENDA_PASSO_ALTO / 5 : RENDA_PASSO;
   const arredondado = Math.round(n / passo) * passo;
-  return Math.min(100_000_000, Math.max(RENDA_MIN, arredondado));
+  return Math.min(MAIOR_VALOR, Math.max(RENDA_MIN, arredondado));
 }
 
 /** Da posição da régua (0 a 1000) para a renda, com passos maiores acima de R$ 20 mil. */

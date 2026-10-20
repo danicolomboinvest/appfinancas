@@ -10,6 +10,7 @@ import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { quantoCobrar } from "@/lib/empresa/regras";
 import { BOTAO_PRINCIPAL, Cartao, Chip, Voltar } from "../partes";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 const MARGENS = [10, 15, 20, 30];
 
@@ -20,7 +21,7 @@ function Campo({ rotulo, valor, onMudar }: { rotulo: string; valor: number | nul
       <b className="text-[15px] font-medium text-ink">{rotulo}</b>
       <span className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2">
         <span className="text-sm text-ink-muted">{simbolo}</span>
-        <CampoDeDinheiro valor={valor} onValor={onMudar} max={9_999_999} placeholder="0,00" aria-label={`${rotulo}, em reais`} className="w-24 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none" />
+        <CampoDeDinheiro valor={valor} onValor={onMudar} max={MAIOR_VALOR} placeholder="0,00" aria-label={`${rotulo}, em reais`} className="w-24 bg-transparent text-right text-[17px] font-medium tabular-nums text-ink outline-none" />
       </span>
     </label>
   );

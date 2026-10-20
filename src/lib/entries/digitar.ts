@@ -1,9 +1,10 @@
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 /**
  * O "Digitar" do protótipo aprovado (11/10/2026): o valor sai de um teclado na tela, em
  * centavos, como numa maquininha ("4", "5", "9", "0" → 45,90). Sem teclado do celular, nada sobe
  * por cima da folha. Puro, para testar.
  */
-export const MAX_CENTAVOS = 99_999_999_99; // 99.999.999,99 na moeda dela
+export const MAX_CENTAVOS = MAIOR_VALOR * 100 - 1; // 9.999.999.999,99 na moeda dela (pesos: ver MAIOR_VALOR)
 
 export function teclar(centavos: number, tecla: string): number {
   if (tecla === "del") return Math.floor(centavos / 10);

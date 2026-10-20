@@ -235,7 +235,7 @@ describe("computeTripTotals / clampCategoryValue", () => {
   it("saneia valores editados: negativo/NaN viram 0, teto respeitado", () => {
     expect(clampCategoryValue(-50)).toBe(0);
     expect(clampCategoryValue(Number.NaN)).toBe(0);
-    expect(clampCategoryValue(99_999_999)).toBe(MAX_CATEGORY_VALUE);
+    expect(clampCategoryValue(MAX_CATEGORY_VALUE * 10)).toBe(MAX_CATEGORY_VALUE);
     expect(computeTripTotals([-100, Number.NaN, 1000]).subtotal).toBe(1000);
   });
 });

@@ -8,11 +8,12 @@ import { createGoal } from "@/lib/repositories/goal.repo";
 import { TIPOS, type TipoDeDivida } from "@/lib/dividas/tipos";
 import { criarRecibo, lerRecibo } from "@/lib/desfazer/recibo";
 import { apagarDivida, criarDivida, desfazerToque, editarDivida, pagarParcela, quitarDivida, restaurarDivida, type AntesDoToque, type DividaApagada } from "@/lib/repositories/divida.repo";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 const tipos = TIPOS.map((t) => t.id) as [TipoDeDivida, ...TipoDeDivida[]];
 const texto = (max: number) => z.string().trim().max(max).transform((s) => s.replace(/[<>]/g, ""));
 // Valor enorme não derruba a tela: corta em vez de recusar.
-const dinheiro = z.number().min(0).transform((v) => Math.min(Math.round(v * 100) / 100, 100_000_000));
+const dinheiro = z.number().min(0).transform((v) => Math.min(Math.round(v * 100) / 100, MAIOR_VALOR));
 
 const dividaSchema = z
   .object({
@@ -96,7 +97,7 @@ export async function desfazerApagarDividaAction(recibo: string): Promise<{ ok: 
 }
 
 
-const metaSchema = z.object({ total: z.number().positive().max(100_000_000), meses: z.number().int().min(1).max(600), ano: z.number().int().min(2000).max(2200), mes: z.number().int().min(1).max(12) });
+const metaSchema = z.object({ total: z.number().positive().max(MAIOR_VALOR), meses: z.number().int().min(1).max(600), ano: z.number().int().min(2000).max(2200), mes: z.number().int().min(1).max(12) });
 
 /**
  * "Virar meta": a meta "Sair das dívidas" com o total das dívidas para resolver e a data do plano.

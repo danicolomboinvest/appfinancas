@@ -18,6 +18,7 @@ import { guiaDoMeiDaEmpresa, MESES_CURTOS, MESES } from "@/lib/empresa/resumo";
 import type { DadosDaEmpresa } from "@/lib/empresa/dados";
 import { abrirNegocioAction } from "./actions";
 import { BOTAO_PRINCIPAL, BOTAO_SECUNDARIO, CARTAO } from "./partes";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 type Jeito = { chave: "maquininha" | "pix" | "boleto" | "dinheiro"; nome: string; sub: string; pct: number | null; logo: string | null; formas: Forma[] };
 
@@ -316,7 +317,7 @@ export function Assistente({ dados }: { dados: DadosDaEmpresa }) {
                   <span className="text-sm text-ink-muted">Quanto você quer tirar por mês?</span>
                   <span className="flex items-baseline gap-2 border-b border-border-strong pb-2">
                     <span className="text-lg text-ink-muted">{simbolo}</span>
-                    <CampoDeDinheiro valor={salario} onValor={setSalario} max={9_999_999} placeholder="0,00" className="w-full bg-transparent text-3xl font-light tabular-nums text-ink outline-none" aria-label="Seu salário por mês, em reais" />
+                    <CampoDeDinheiro valor={salario} onValor={setSalario} max={MAIOR_VALOR} placeholder="0,00" className="w-full bg-transparent text-3xl font-light tabular-nums text-ink outline-none" aria-label="Seu salário por mês, em reais" />
                   </span>
                 </label>
                 <p className="mt-2 text-left text-xs text-ink-muted">O salário seguro aparece depois do primeiro mês fechado.</p>

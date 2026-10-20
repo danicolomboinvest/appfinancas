@@ -1,4 +1,5 @@
 import { DESTINATION_PHOTOS } from "./fotos-destinos";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 /**
  * Planejador de viagem: estimativas de custo CURADAS, mantidas aqui no código — de propósito,
@@ -962,7 +963,7 @@ export const TRIP_LIMITS = {
 } as const;
 
 /** Teto por categoria quando a pessoa edita os valores na mão (contra dedo a mais em zero). */
-export const MAX_CATEGORY_VALUE = 1_000_000;
+export const MAX_CATEGORY_VALUE = MAIOR_VALOR;
 
 /** Máximo de categorias extras criadas pela pessoa (compras, seguro, chip...). */
 export const MAX_EXTRA_CATEGORIES = 10;

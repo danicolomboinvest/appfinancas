@@ -6,6 +6,7 @@ import { getRequiredSession, doDono } from "@/lib/auth/session";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { criarRecibo, lerRecibo } from "@/lib/desfazer/recibo";
 import { apagarCompraParcelada, desfazerMudancaDaParcela, editarParcela, naoEParcela, type MudancaDaParcela } from "@/lib/repositories/parcelas.repo";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 /**
  * O menu "…" das parcelas de Recorrentes (13/10/2026): Editar, Apagar esta compra e Não é parcela,
@@ -32,7 +33,7 @@ const chaveSchema = z.string().min(1).max(200);
 
 const edicaoSchema = z
   .object({
-    valor: z.number({ message: "Diga o valor da parcela." }).positive("Diga o valor da parcela.").max(10_000_000),
+    valor: z.number({ message: "Diga o valor da parcela." }).positive("Diga o valor da parcela.").max(MAIOR_VALOR),
     atual: z.number().int().min(1).max(48),
     total: z.number().int().min(2, "Parcela é de 2 vezes para cima.").max(48, "Até 48 vezes."),
     dia: z.number().int().min(1).max(31).nullable(),

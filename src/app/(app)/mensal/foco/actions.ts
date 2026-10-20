@@ -29,6 +29,7 @@ import { ehPrimeiroFechamento } from "@/lib/repositories/conquista.repo";
 import { mudarFechamento } from "@/lib/repositories/fechamento.repo";
 import { categoriaDoId, type ComoResolveu } from "@/lib/avisos/regra";
 import { dadosDaRespostaDeCategoria } from "@/lib/avisos/respostas";
+import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 
 /** Semanal ou mensal. Vale pra conta toda (é o jeito da PESSOA, não do perfil). */
 export async function escolherRitmoAction(ritmo: Ritmo) {
@@ -83,7 +84,7 @@ export async function responderCompraAmanhaAction(id: string, desistiu: boolean)
   revalidatePath("/decidir/comprar");
 }
 
-const tetoSchema = z.object({ categoria: z.string().min(1).max(60), valor: z.number().min(0).max(100_000_000) });
+const tetoSchema = z.object({ categoria: z.string().min(1).max(60), valor: z.number().min(0).max(MAIOR_VALOR) });
 
 /** "Teto de R$ 90 até o fim do mês" numa categoria. Um por categoria por mês. */
 export async function definirTetoAction(input: z.infer<typeof tetoSchema>) {
@@ -212,7 +213,7 @@ export async function mandarSobraPraReservaAction(ano: number, mes: number): Pro
 /** "Subir o orçamento de Restaurantes pra R$ 850" — só o mês atual. */
 export async function ajustarOrcamentoAction(categoria: string, valor: number) {
   if (!(PARENT_CATEGORIES as readonly string[]).includes(categoria)) return;
-  const v = z.number().positive().max(100_000_000).parse(valor);
+  const v = z.number().positive().max(MAIOR_VALOR).parse(valor);
   const ctx = await getRequiredSession();
   const now = nowInBrazil();
   await upsertBudget(ctx, { year: now.getFullYear(), month: now.getMonth() + 1, parentCategory: categoria as ParentCategory, plannedAmount: v });
@@ -268,7 +269,7 @@ const raioxSchema = z.object({
   chave: z.string().min(3).max(120),
   nome: z.string().max(80),
   decisao: z.enum(["raiox_cancelar", "raiox_metade", "raiox_manter"]),
-  economiaAnual: z.number().min(0).max(10_000_000),
+  economiaAnual: z.number().min(0).max(MAIOR_VALOR),
   /** A descrição da cobrança (RaioXItem.descricao): dá o comerciante, a marca das outras telas. */
   descricao: z.string().max(300).optional(),
 });
@@ -511,7 +512,7 @@ export async function dispensarAvisoAction(itemId: string, escopo: "mes" | "sema
   const periodo = escopo === "semana" ? chaveDaSemana(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const jeito = z.enum(["pontual", "cobrir", "livre", "deixar", "lapis"]).catch("deixar").parse(como ?? "deixar");
   // Quanto passava, como a tela mostrou (antes de cobrir, o plano ainda era o de antes).
-  const naTela = z.number().positive().max(100_000_000).optional().catch(undefined).parse(passou);
+  const naTela = z.number().positive().max(MAIOR_VALOR).optional().catch(undefined).parse(passou);
   const daCategoria = categoriaDoId(id);
   const estouro = daCategoria?.sobre === "estouro";
   const dados = daCategoria ? await dadosDaRespostaDeCategoria(ctx, daCategoria.categoria, jeito, now, estouro ? naTela : 0) : null;
