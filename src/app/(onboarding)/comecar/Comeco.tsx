@@ -1,7 +1,8 @@
 "use client";
 
 import { ACEITA_ARQUIVO_DE_EXTRATO } from "@/lib/import/limites";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { pareceForaDoBrasil } from "@/lib/onboarding/fora-do-brasil";
 import { ArrowRight, Building2, Check, ChevronDown, ChevronLeft, CircleHelp, Delete, FileText, Globe, Keyboard, Mail, Mic, Search, ShieldCheck, Wallet, X } from "lucide-react";
 import type { ParentCategory } from "@prisma/client";
 import { BrandMark } from "@/components/brand/BrandMark";
@@ -281,9 +282,22 @@ function BoasVindas1({ onSeguir, money }: { onSeguir: () => void; money: Money }
 // O primeiro lançamento
 // ---------------------------------------------------------------------------------------------
 
+const semAssinatura = () => () => {};
+function fusoForaDoBrasil(): boolean {
+  try {
+    return pareceForaDoBrasil(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  } catch {
+    return false;
+  }
+}
+
 /** "Como você quer começar?": os três caminhos do mesmo tamanho, e o link de quem mora fora. */
 function Porta({ moedaAtual, onMoeda, onEscolher }: { moedaAtual: CurrencyCode; onMoeda: (m: CurrencyCode) => void; onEscolher: (p: "extrato" | "digitar" | "falar") => void }) {
-  const [fora, setFora] = useState(moedaAtual !== "BRL");
+  const [abriuFora, setFora] = useState(moedaAtual !== "BRL");
+  // Celular com fuso fora do Brasil: as moedas já aparecem abertas (20/10/2026). O servidor não
+  // sabe o fuso do aparelho, então no servidor (e na hidratação) vale "Brasil".
+  const foraPeloFuso = useSyncExternalStore(semAssinatura, fusoForaDoBrasil, () => false);
+  const fora = abriuFora || foraPeloFuso;
   const [moeda, setMoeda] = useState<CurrencyCode>(moedaAtual);
   const cartao = "glass flex min-h-[104px] items-center gap-3.5 rounded-3xl px-[18px] py-4 text-left";
   return (
