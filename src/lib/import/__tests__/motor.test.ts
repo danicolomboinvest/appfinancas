@@ -46,8 +46,9 @@ describe("motor: a ordem das camadas", () => {
   });
 
   it("a comunidade (alta confiança) vem antes do dicionário", () => {
-    // Na base versionada, "cacau show" tem 79% de Lazer (presente); o dicionário diria Alimentação.
-    expect(motor("CACAU SHOW").motivo).toBe("comunidade");
+    // Na base versionada, "seguro carro" é Transporte; o dicionário diria Tarifas bancárias.
+    expect(motor("SEGURO CARRO").motivo).toBe("comunidade");
+    expect(motor("SEGURO CARRO").categoria?.parentCategory).toBe("TRANSPORTE");
   });
 
   it("personalizada apagada cai na categoria-mãe de reserva", () => {

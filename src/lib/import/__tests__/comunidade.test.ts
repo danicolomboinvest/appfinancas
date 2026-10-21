@@ -10,6 +10,7 @@ import {
   type Voto,
 } from "../comunidade";
 import { classify } from "../classify";
+import { categoriaDaLinha } from "../motor";
 
 // Votos FICTÍCIOS: cada linha é uma escolha de uma pessoa.
 const v = (pessoa: string, descricao: string, categoria: Voto["categoria"], perfil: Voto["perfil"] = "pessoal"): Voto => ({ pessoa, perfil, descricao, categoria });
@@ -118,5 +119,14 @@ describe("lojas que as clientes têm e o dicionário não conhecia (21/10/2026)"
     ["SMILES CLUBE SMILES", "LAZER"],
   ])("%s → %s", (descricao, categoria) => {
     expect(classify(descricao)?.parentCategory).toBe(categoria);
+  });
+});
+
+describe("erro do próprio app que a base aprendeu (21/10/2026)", () => {
+  it("Cacau Show é comida, não Lazer, mesmo que a base gerada de novo traga os votos antigos", () => {
+    const votos = ["a", "b", "c", "d"].map((p) => v(p, "CACAU SHOW SHOPPING", "LAZER"));
+    expect(montarBaseComunitaria(votos).pessoal).toEqual([]);
+    expect(classificarPelaComunidade("CACAU SHOW", "pessoal", indexarBase([{ comerciante: "cacau show", categoria: "LAZER", confianca: 0.79, pessoas: 14 }]))).toBeNull();
+    expect(categoriaDaLinha({ descricao: "CACAU SHOW", regras: [], gasto: true }).categoria?.parentCategory).toBe("ALIMENTACAO");
   });
 });

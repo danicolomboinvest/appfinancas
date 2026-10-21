@@ -29,6 +29,14 @@ import { chaveDoComerciante, chaveUtil, semAcentoNemPontuacao } from "./comercia
 export const MIN_PESSOAS = 3;
 export const CONFIANCA_MINIMA = 0.7;
 
+/**
+ * Lojas em que a base aprendeu um erro do PRÓPRIO app, não uma escolha das clientes: ficam de fora
+ * ao gerar e ao ler a base, e o dicionário decide. Cacau Show (21/10/2026): uma versão antiga lia
+ * o "show" do nome como Cinema/Shows, ninguém mexeu e a base passou a dizer Lazer (23 contas).
+ */
+export const FORA_DA_BASE = ["cacau show"];
+const foraDaBase = (chave: string) => FORA_DA_BASE.some((loja) => chave === loja || chave.startsWith(`${loja} `));
+
 export type PerfilDaBase = "pessoal" | "empresa";
 /** Uma linha do arquivo: comerciante, categoria, confiança (0 a 1) e quantas pessoas votaram. */
 export type EntradaDaBase = { comerciante: string; categoria: ParentCategory; confianca: number; pessoas: number };
@@ -97,7 +105,7 @@ export function montarBaseComunitaria(votos: Voto[], geradaEm = new Date().toISO
   const porComerciante = new Map<string, Map<string, Map<ParentCategory, number>>>();
   for (const v of votos) {
     const chave = chaveParaABase(v.descricao);
-    if (!chave) continue;
+    if (!chave || foraDaBase(chave)) continue;
     const k = `${v.perfil}|${chave}`;
     const pessoas = porComerciante.get(k) ?? new Map<string, Map<ParentCategory, number>>();
     const cats = pessoas.get(v.pessoa) ?? new Map<ParentCategory, number>();
@@ -135,6 +143,7 @@ export function indexarBase(entradas: EntradaDaBase[]): IndiceDaBase {
     // "99food", o app passou a separar letra de número ("99 food") e a busca caía no "99" das
     // corridas (99 Food virava Transporte). Duas que viram a mesma chave: vale a de mais pessoas.
     const chave = chaveParaABase(e.comerciante) ?? e.comerciante;
+    if (foraDaBase(chave)) continue;
     if ((pessoasDa.get(chave) ?? 0) >= e.pessoas) continue;
     pessoasDa.set(chave, e.pessoas);
     indice.set(chave, e.categoria);

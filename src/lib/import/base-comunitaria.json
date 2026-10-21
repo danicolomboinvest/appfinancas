@@ -356,12 +356,6 @@
    "pessoas": 12
   },
   {
-   "comerciante": "cacau show",
-   "categoria": "LAZER",
-   "confianca": 0.79,
-   "pessoas": 14
-  },
-  {
    "comerciante": "cafe manha",
    "categoria": "ALIMENTACAO",
    "confianca": 1,
