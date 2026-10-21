@@ -5,6 +5,7 @@ import {
   ehMenosQueMensal,
   estimativaAproximada,
   guardePorMes,
+  venceNesteMes,
   mediaPorMes,
   ocorrencias,
   previaDoze,
@@ -85,6 +86,15 @@ describe("contas do ano e guarde por mês", () => {
   it("Seguro do carro R$ 1.560 em junho de 2027: guarde R$ 195; IPVA R$ 2.400 em março: R$ 480", () => {
     expect(guardePorMes(1560, d(2027, 6, 10), hoje)).toBe(195);
     expect(guardePorMes(2400, d(2027, 3, 10), hoje)).toBe(480);
+  });
+
+  it("conta do ano que vence neste mês (ou já venceu) não vira \"R$ 2.500/mês\": não há o que separar aos poucos", () => {
+    // 21/10/2026: R$ 2.500 a cada ano com o primeiro vencimento no mesmo mês aparecia como R$ 2.500/mês.
+    expect(venceNesteMes(d(2026, 10, 21), hoje)).toBe(true);
+    expect(venceNesteMes(d(2026, 9, 30), hoje)).toBe(true);
+    expect(venceNesteMes(d(2026, 11, 1), hoje)).toBe(false);
+    expect(guardePorMes(2500, d(2026, 10, 21), hoje)).toBe(0);
+    expect(guardePorMes(2500, d(2026, 11, 21), hoje)).toBe(2500);
   });
 
   it("mensal não é conta do ano; anual, a cada 3 meses e meses escolhidos são", () => {

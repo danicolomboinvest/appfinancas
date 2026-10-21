@@ -205,7 +205,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
           </section>
         )}
         {/* O protótipo termina em Contas do ano; o limite do cartão mora em Configurações › Contas e cartões. */}
-        <ContasDoAno contas={contas} hoje={hoje} />
+        <ContasDoAno contas={contas} hoje={hoje} paguei={paguei} />
       </div>
     </div>
     </FolhaDasContas>

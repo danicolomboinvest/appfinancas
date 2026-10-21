@@ -300,11 +300,13 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
           </p>
           {frase && <p className="text-[15px] text-ink">{frase}</p>}
           <Previa meses={previa} aproximado={aproximado} valor={parcela} aoTocar={setTocado} tocado={tocado} />
-          {guarde !== null && (
+          {guarde !== null && guarde > 0 && (
             <p className="flex items-center justify-center gap-1.5 text-sm text-ink">
               <PiggyBank size={16} aria-hidden /> Guarde <b className="font-semibold">{money(guarde, { round: true })}</b> por mês
             </p>
           )}
+          {/* Vence neste mês: é para pagar agora, não para separar aos poucos (21/10/2026). */}
+          {guarde === 0 && <p className="text-center text-sm text-ink">Vence este mês</p>}
         </div>
       )}
 

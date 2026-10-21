@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { Explica } from "@/components/ui/Explica";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { lerData } from "@/lib/contas/contas";
-import { guardePorMes, mesesAte, regraDaConta, textoDaRegra } from "@/lib/contas/frequencia";
+import { guardePorMes, mesesAte, regraDaConta, textoDaRegra, venceNesteMes } from "@/lib/contas/frequencia";
 import { ehDoAno, faltaNoMes, pagaNoMes } from "@/lib/contas/recorrentes";
 import { vibrar } from "@/lib/celebrar";
 import { brilharQuandoAparecer } from "@/lib/ui/brilho";
@@ -109,13 +109,10 @@ function EntrouNosGastos({ feito }: { feito: PagueiFeito }) {
  * as que faltam com o dia da semana e o círculo para marcar como paga. As contas do ano moram na
  * seção delas.
  */
-export function ContasAPagar({ contas, pagas, hoje, selos, paguei }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string; /** Um selo a mais por conta (id → texto): a guia do MEI "estimado pelo app". */ selos?: Record<string, string>; paguei: DadosDoPagueiNaTela }) {
-  const money = useMoney();
-  const abrir = useAbrirConta();
+/** O "Paguei" de uma lista de contas: a linha aberta (uma por vez), o último gasto criado e o Desfazer. */
+function usePaguei() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [, iniciar] = useTransition();
-  // A linha aberta no "Paguei" (uma por vez) e o último gasto que ele criou.
   const [aberta, setAberta] = useState<string | null>(null);
   const [feito, setFeito] = useState<PagueiFeito | null>(null);
 
@@ -134,6 +131,15 @@ export function ContasAPagar({ contas, pagas, hoje, selos, paguei }: { contas: C
     });
     router.refresh();
   }
+  return { aberta, setAberta, feito, pago };
+}
+
+export function ContasAPagar({ contas, pagas, hoje, selos, paguei }: { contas: ContaSerial[]; pagas: ContaSerial[]; hoje: string; /** Um selo a mais por conta (id → texto): a guia do MEI "estimado pelo app". */ selos?: Record<string, string>; paguei: DadosDoPagueiNaTela }) {
+  const money = useMoney();
+  const abrir = useAbrirConta();
+  const router = useRouter();
+  const [, iniciar] = useTransition();
+  const { aberta, setAberta, feito, pago } = usePaguei();
   const hojeD = lerData(hoje)!;
   const doMes = contas.filter((c) => !ehDoAno(c));
   const falta = faltaNoMes(doMes, hojeD);
@@ -203,9 +209,10 @@ export function ContasAPagar({ contas, pagas, hoje, selos, paguei }: { contas: C
 }
 
 /** Contas do ano (rodada 4, 6a): cada uma com o "guarde por mês" e o total para separar. */
-export function ContasDoAno({ contas, hoje }: { contas: ContaSerial[]; hoje: string }) {
+export function ContasDoAno({ contas, hoje, paguei }: { contas: ContaSerial[]; hoje: string; paguei: DadosDoPagueiNaTela }) {
   const money = useMoney();
   const abrir = useAbrirConta();
+  const { aberta, setAberta, feito, pago } = usePaguei();
   const hojeD = lerData(hoje)!;
   const doAno = contas.filter(ehDoAno).sort((a, b) => a.vencimento.localeCompare(b.vencimento));
   const linhas = doAno.map((c) => {
@@ -228,26 +235,43 @@ export function ContasDoAno({ contas, hoje }: { contas: ContaSerial[]; hoje: str
       ) : (
         <>
           <ul className="divide-y divide-border rounded-3xl border border-border bg-surface px-3">
-            {linhas.map(({ c, venc, guarde, regra }) => (
-              <li key={c.id}>
-                <button type="button" onClick={() => abrir({ conta: c })} className="flex w-full items-center gap-3 py-3 text-left">
-                  <LogoDoLancamento descricao={c.nome} icon={iconeDaConta(c.nome)} cor="var(--color-ink-muted)" />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-                      <span className="min-w-0 break-words text-[16px] leading-snug text-ink">{c.nome}</span>
-                      <Selo>{regra.tipo === "a_cada" && regra.unidade === "anos" && regra.n === 1 ? "anual" : textoDaRegra(regra)}</Selo>
+            {linhas.map(({ c, venc, guarde, regra }) =>
+              aberta === c.id ? (
+                <li key={c.id} className="py-2">
+                  <PagueiDaConta conta={c} dados={paguei} hoje={hoje} onPago={pago} onFechar={() => setAberta(null)} />
+                </li>
+              ) : (
+                <li key={c.id} className="flex items-center gap-2.5" data-brilho={`conta-${c.id}`}>
+                  <button type="button" onClick={() => abrir({ conta: c })} className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left">
+                    <LogoDoLancamento descricao={c.nome} icon={iconeDaConta(c.nome)} cor="var(--color-ink-muted)" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span className="min-w-0 break-words text-[16px] leading-snug text-ink">{c.nome}</span>
+                        <Selo>{regra.tipo === "a_cada" && regra.unidade === "anos" && regra.n === 1 ? "anual" : textoDaRegra(regra)}</Selo>
+                      </span>
+                      <span className={`block text-[13px] ${venceNesteMes(venc, hojeD) && venc.getTime() < hojeD.getTime() ? "text-danger" : "text-ink-muted"}`}>
+                        {venceNesteMes(venc, hojeD)
+                          ? venc.getTime() < hojeD.getTime()
+                            ? `Venceu dia ${venc.getUTCDate()}`
+                            : `Vence dia ${venc.getUTCDate()}`
+                          : `${MES_LONGO[venc.getUTCMonth()]}${mesesAte(venc, hojeD) >= 12 ? ` de ${venc.getUTCFullYear()}` : ""}`}
+                        {c.valor ? ` · ${money(c.valor, { round: true })}` : ""}
+                      </span>
                     </span>
-                    <span className="block text-[13px] text-ink-muted">
-                      {MES_LONGO[venc.getUTCMonth()]}
-                      {mesesAte(venc, hojeD) >= 12 ? ` de ${venc.getUTCFullYear()}` : ""}
-                      {c.valor ? ` · ${money(c.valor, { round: true })}` : ""}
-                    </span>
-                  </span>
-                  {guarde > 0 && <span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{money(guarde, { round: true })}/mês</span>}
-                </button>
-              </li>
-            ))}
+                    {guarde > 0 && <span className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{money(guarde, { round: true })}/mês</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAberta(c.id)}
+                    aria-label={`Marcar ${c.nome} como paga`}
+                    data-paguei={c.id}
+                    className="relative flex size-9 shrink-0 items-center justify-center rounded-full border-[1.5px] border-border-strong before:absolute before:-inset-1 before:content-['']"
+                  />
+                </li>
+              ),
+            )}
           </ul>
+          {feito && <EntrouNosGastos feito={feito} />}
           <div className="flex items-center justify-between gap-3 rounded-3xl border border-border bg-surface px-4 py-3.5">
             <div>
               <p className="flex items-center gap-2 text-[13px] text-ink-muted">

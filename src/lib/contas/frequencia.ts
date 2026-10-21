@@ -106,8 +106,18 @@ export function mesesAte(vencimento: Date, hoje: Date): number {
   return Math.max(1, n);
 }
 
-/** "Guarde R$ X por mês": o valor dividido pelos meses até o vencimento, arredondado para cima. */
+/** Vence no mês de `hoje` ou já venceu (e não foi paga). */
+export function venceNesteMes(vencimento: Date, hoje: Date): boolean {
+  return (vencimento.getUTCFullYear() - hoje.getUTCFullYear()) * 12 + (vencimento.getUTCMonth() - hoje.getUTCMonth()) <= 0;
+}
+
+/**
+ * "Guarde R$ X por mês": o valor dividido pelos meses até o vencimento, arredondado para cima. A
+ * que vence neste mês é para pagar agora, não para separar aos poucos: 0 (21/10/2026, os R$ 2.500
+ * anuais com vencimento no mês apareciam como "R$ 2.500/mês").
+ */
 export function guardePorMes(valor: number, vencimento: Date, hoje: Date): number {
+  if (venceNesteMes(vencimento, hoje)) return 0;
   return Math.ceil(valor / mesesAte(vencimento, hoje));
 }
 
