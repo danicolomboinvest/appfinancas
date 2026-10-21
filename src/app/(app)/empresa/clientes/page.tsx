@@ -49,7 +49,7 @@ export default async function ClientesPage() {
               {fatias.map((f, k) => (
                 <span key={f.nome} className="flex items-center gap-2 text-sm text-ink">
                   <i className="size-2.5 shrink-0 rounded-full" style={{ background: CORES[k === fatias.length - 1 ? 3 : k] }} />
-                  <span className="truncate">{f.nome}</span>
+                  <span className="min-w-0 break-words">{f.nome}</span>
                   <b className="ml-auto font-medium tabular-nums">{f.pct}%</b>
                 </span>
               ))}
@@ -61,7 +61,7 @@ export default async function ClientesPage() {
                 <span className="w-4 text-sm tabular-nums text-ink-muted">{k + 1}</span>
                 <Iniciais nome={c.nome} />
                 <span className="min-w-0 flex-1">
-                  <b className="block truncate text-[15px] font-medium text-ink">{c.nome}</b>
+                  <b className="block break-words text-[15px] font-medium text-ink">{c.nome}</b>
                   <small className="text-xs text-ink-muted">{c.pct}% das entradas</small>
                 </span>
                 <b className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{m0(c.valor)}</b>
@@ -77,7 +77,7 @@ export default async function ClientesPage() {
             <Link key={d.id} href="/empresa/recebimentos" className="flex min-h-16 items-center gap-3 rounded-3xl bg-danger-soft px-4 py-3">
               <Iniciais nome={d.cliente} />
               <span className="min-w-0 flex-1">
-                <b className="block truncate text-[15px] font-medium text-ink">{d.cliente}</b>
+                <b className="block break-words text-[15px] font-medium text-ink">{d.cliente}</b>
                 <small className="text-sm text-danger">
                   {m0(d.valor)}, há {d.dias} {d.dias === 1 ? "dia" : "dias"}
                 </small>
