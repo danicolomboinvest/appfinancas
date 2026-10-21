@@ -128,8 +128,16 @@ export type IndiceDaBase = Map<string, ParentCategory>;
 /** Só o que tem alta confiança vira índice: comerciante → categoria. */
 export function indexarBase(entradas: EntradaDaBase[]): IndiceDaBase {
   const indice: IndiceDaBase = new Map();
+  const pessoasDa = new Map<string, number>();
   for (const e of entradas) {
-    if (e.pessoas >= MIN_PESSOAS && e.confianca >= CONFIANCA_MINIMA) indice.set(e.comerciante, e.categoria);
+    if (e.pessoas < MIN_PESSOAS || e.confianca < CONFIANCA_MINIMA) continue;
+    // A chave entra no jeito de HOJE de montar o nome da loja: o arquivo de 12/10/2026 tinha
+    // "99food", o app passou a separar letra de número ("99 food") e a busca caía no "99" das
+    // corridas (99 Food virava Transporte). Duas que viram a mesma chave: vale a de mais pessoas.
+    const chave = chaveParaABase(e.comerciante) ?? e.comerciante;
+    if ((pessoasDa.get(chave) ?? 0) >= e.pessoas) continue;
+    pessoasDa.set(chave, e.pessoas);
+    indice.set(chave, e.categoria);
   }
   return indice;
 }

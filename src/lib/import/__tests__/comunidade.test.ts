@@ -92,3 +92,31 @@ describe("palavras que as clientes ensinaram (out/2026)", () => {
     expect(classify(descricao)?.parentCategory).toBe(categoria);
   });
 });
+
+describe("base gerada com o jeito antigo de montar o nome da loja (21/10/2026)", () => {
+  it("\"99food\" do arquivo ainda vale para \"99 FOOD\", em vez de cair no \"99\" das corridas", () => {
+    const indice = indexarBase([
+      { comerciante: "99", categoria: "TRANSPORTE", confianca: 0.85, pessoas: 39 },
+      { comerciante: "99food", categoria: "ALIMENTACAO", confianca: 0.95, pessoas: 19 },
+    ]);
+    expect(classificarPelaComunidade("99 FOOD", "pessoal", indice)).toBe("ALIMENTACAO");
+    expect(classificarPelaComunidade("99 RIDE", "pessoal", indice)).toBe("TRANSPORTE");
+  });
+
+  it("toda loja do arquivo versionado é achada pela própria descrição", () => {
+    const arquivo = base as BaseComunitaria;
+    const indice = indexarBase(arquivo.pessoal);
+    for (const e of arquivo.pessoal.filter((x) => x.pessoas >= 3 && x.confianca >= 0.7)) {
+      expect(classificarPelaComunidade(e.comerciante, "pessoal", indice), e.comerciante).not.toBeNull();
+    }
+  });
+});
+
+describe("lojas que as clientes têm e o dicionário não conhecia (21/10/2026)", () => {
+  it.each([
+    ["KEETABR", "ALIMENTACAO"],
+    ["SMILES CLUBE SMILES", "LAZER"],
+  ])("%s → %s", (descricao, categoria) => {
+    expect(classify(descricao)?.parentCategory).toBe(categoria);
+  });
+});

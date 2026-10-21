@@ -69,7 +69,7 @@ const MORADIA_AR: RegraDoDicionario[] = [
   { keywords: KW_GAS_AR, parentCategory: "MORADIA", subcategory: "Gás" },
   { keywords: KW_TELEFONIA_AR, parentCategory: "MORADIA", subcategory: "Internet" },
 ];
-const KW_DELIVERY = ["pedidosya", "pedidos ya", "ifood", "ifd", "rappi", "uber eats", "ubereats", "ze delivery", "zedelivery", "ze delivey", "aiqfome", "james delivery", "delivery much", "99food", "keeta", "delivery"];
+const KW_DELIVERY = ["pedidosya", "pedidos ya", "ifood", "ifd", "rappi", "uber eats", "ubereats", "ze delivery", "zedelivery", "ze delivey", "aiqfome", "james delivery", "delivery much", "99food", "keeta", "keetabr", "delivery"];
 
 /**
  * Ferramentas e assinaturas digitais. Na pessoa física vão pra Outros › Assinaturas e apps (não há
@@ -313,7 +313,7 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   {
     keywords: [
       "hotel", "hoteis", "hotéis", "pousada", "hostel", "resort", "airbnb", "booking", "decolar", "123milhas", "123 milhas",
-      "maxmilhas", "hurb", "trivago", "expedia", "hospedagem", "passagem", "passagens", "latam", "gol linhas", "gol transportes",
+      "maxmilhas", "clube smiles", "hurb", "trivago", "expedia", "hospedagem", "passagem", "passagens", "latam", "gol linhas", "gol transportes",
       "voegol", "azul linhas", "azul viagens", "voeazul", "iberia", "tap air", "air france", "american airlines", "airlines",
       "lineas aereas", "aereas", "aéreas", "cvc", "loungekey", "getyourguide", "get your guide", "rentcars", "rent car", "civitatis",
     ],
