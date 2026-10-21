@@ -203,7 +203,10 @@ export function EntryList({
   pessoasDaDivisao = [],
   perfisDestino = [],
   divisaoDaCasa = null,
+  importacoes = null,
 }: {
+  /** O botãozinho dos arquivos enviados (ImportHistory), no fim da fileira de filtros. */
+  importacoes?: React.ReactNode;
   /** Casal simples: a regra da casa no mês, vista por quem olha (os selinhos e as escolhas). */
   divisaoDaCasa?: DivisaoDaCasa | null;
   /** Os outros perfis dela, para o "Enviar para" (vazio: um perfil só, ou o par do Casal). */
@@ -616,6 +619,8 @@ export function EntryList({
           >
             Categoria <ChevronDown size={15} aria-hidden />
           </button>
+          {/* Os arquivos enviados, com o Desfazer (21/10/2026, escolha da Dani: no fim dos filtros). */}
+          {importacoes}
         </div>
         <div className={`flex flex-wrap items-center gap-2 ${categoriasFiltro.length ? "" : "hidden"}`} data-filtro-categoria>
           {categoriasFiltro.map((k) => (

@@ -39,26 +39,34 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
     listImportBatches(ctx),
   ]);
 
+  // Os arquivos enviados (com o Desfazer): o botãozinho "Importações" no fim dos filtros
+  // (21/10/2026). No fim da lista ninguém achava, e no período nem existia.
+  const importacoes = (
+    <ImportHistory
+      batches={importBatches.map((b) => ({
+        id: b.id,
+        docType: b.docType,
+        fileName: b.fileName,
+        createdAt: b.createdAt.toISOString(),
+        entryCount: b.entryCount,
+        parcelasFuturas: b.parcelasFuturas,
+        totalAmount: b.totalAmount,
+        months: b.months,
+      }))}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-6 lg:gap-5">
       <CartaoAReceber aReceber={divisao.aReceber} />
-      {/* Os arquivos enviados também aqui: no período não havia como desfazer um envio errado. */}
-      <ImportHistory
-        batches={importBatches.map((b) => ({
-          id: b.id,
-          docType: b.docType,
-          fileName: b.fileName,
-          createdAt: b.createdAt.toISOString(),
-          entryCount: b.entryCount,
-          parcelasFuturas: b.parcelasFuturas,
-          totalAmount: b.totalAmount,
-          months: b.months,
-        }))}
-      />
       {entries.length === 0 ? (
-        <VazioDeTransacoes />
+        <>
+          <VazioDeTransacoes />
+          <div className="flex justify-center">{importacoes}</div>
+        </>
       ) : (
         <EntryList
+          importacoes={importacoes}
           year={intervalo.ate.ano}
           month={intervalo.ate.mes}
           recentSubcategories={recentSubcategories}

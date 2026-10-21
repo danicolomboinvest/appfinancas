@@ -72,6 +72,23 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   const voz = vozDoTema(ctx.profileTheme, ctx.profileKind);
   const estado = estadoDoMes({ income: summary.totalIncome, expense: summary.totalExpense, investment: summary.totalInvestment });
 
+  // Os arquivos enviados (com o Desfazer): o botãozinho "Importações" no fim dos filtros
+  // (21/10/2026). No fim da lista ninguém achava, e no período nem existia.
+  const importacoes = (
+    <ImportHistory
+      batches={importBatches.map((b) => ({
+        id: b.id,
+        docType: b.docType,
+        fileName: b.fileName,
+        createdAt: b.createdAt.toISOString(),
+        entryCount: b.entryCount,
+        parcelasFuturas: b.parcelasFuturas,
+        totalAmount: b.totalAmount,
+        months: b.months,
+      }))}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-6 lg:gap-5">
 
@@ -81,27 +98,14 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       {previsto && moneyP && <MesPrevistoNaTela m={previsto} money={(v) => moneyP(v, { round: true })} />}
       <CartaoAReceber aReceber={divisao.aReceber} />
-      {/* Os arquivos enviados, com "Desfazer" por envio (upload errado ou duplicado some inteiro, sem
-          caçar lançamento por lançamento). No topo: no fim da lista ninguém achava (21/10/2026).
-          A âncora é o destino do "Gasto do cartão" no "Isso está errado?". */}
-      <div id="importacoes" className="scroll-mt-24">
-        <ImportHistory
-          batches={importBatches.map((b) => ({
-            id: b.id,
-            docType: b.docType,
-            fileName: b.fileName,
-            createdAt: b.createdAt.toISOString(),
-            entryCount: b.entryCount,
-            parcelasFuturas: b.parcelasFuturas,
-            totalAmount: b.totalAmount,
-            months: b.months,
-          }))}
-        />
-      </div>
       {entries.length === 0 && previsto ? null : entries.length === 0 ? (
-        <VazioDeTransacoes />
+        <>
+          <VazioDeTransacoes />
+          <div className="flex justify-center">{importacoes}</div>
+        </>
       ) : (
         <EntryList
+          importacoes={importacoes}
           year={year}
           month={month}
           recentSubcategories={recentSubcategories}

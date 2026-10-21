@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ChevronRight, FileText, CreditCard, Trash2, Landmark, Upload } from "lucide-react";
+import { FileText, CreditCard, Trash2, Landmark } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -38,9 +38,10 @@ function formatMonthChip(ym: string) {
 }
 
 /**
- * O botão no TOPO das Transações (do mês e do período) que abre os arquivos enviados. Antes era uma
- * linha fechada no fim da lista, depois de todos os lançamentos, e ninguém achava (21/10/2026: uma
- * cliente mandou a fatura errada e disse que "ainda não tem como" apagar; a Dani também não achou).
+ * O botãozinho "Importações" no fim dos filtros das Transações (do mês e do período) que abre os
+ * arquivos enviados. Antes era uma linha fechada no fim da lista, depois de todos os lançamentos, e
+ * ninguém achava (21/10/2026: uma cliente mandou a fatura errada e disse que "ainda não tem como"
+ * apagar; a Dani também não achou).
  * Quem chega pelo "#importacoes" (o "Isso está errado?") já encontra a folha aberta.
  */
 export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
@@ -60,16 +61,8 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
   if (batches.length === 0) return null;
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setAberta(true)}
-        data-envios
-        className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 text-left active:scale-[0.99]"
-      >
-        <Upload size={18} className="shrink-0 text-ink-muted" aria-hidden />
-        <span className="min-w-0 flex-1 text-[15px] text-ink">{voz.titulos.impHistoricoTitulo}</span>
-        <span className="shrink-0 text-sm tabular-nums text-ink-muted">{batches.length}</span>
-        <ChevronRight size={18} className="shrink-0 text-ink-muted" aria-hidden />
+      <button type="button" onClick={() => setAberta(true)} data-envios className="min-h-10 shrink-0 rounded-full bg-surface-2 px-4 text-[15px] text-ink">
+        Importações
       </button>
       <Modal open={aberta} onClose={() => setAberta(false)} title={voz.titulos.impHistoricoTitulo}>
         <ListaDeEnvios batches={batches} />
