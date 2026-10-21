@@ -59,6 +59,7 @@ import { isNubankInvoice, parseNubankInvoice } from "./nubank-fatura-pdf";
 import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement } from "./santander-pdf";
 import { isRecargaPayStatement, parseRecargaPayStatement } from "./recargapay-pdf";
 import { isSofisaStatement, parseSofisaStatement } from "./sofisa-pdf";
+import { isExtratoDeAppPdf, parseExtratoDeAppPdf } from "./extrato-de-app-pdf";
 import { isBtgContaInvestimento, parseBtgContaInvestimento } from "./btg-conta-investimento-pdf";
 
 export type ParsedTransaction = {
@@ -996,6 +997,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "wise", reconhece: isWiseStatement, le: (t) => parseWiseStatement(t) },
   { nome: "recargapay", reconhece: isRecargaPayStatement, le: (t) => parseRecargaPayStatement(t) },
   { nome: "sofisa", reconhece: isSofisaStatement, le: (t) => parseSofisaStatement(t) },
+  { nome: "extrato-de-app", reconhece: isExtratoDeAppPdf, le: (t) => parseExtratoDeAppPdf(t) },
   { nome: "btg-conta-investimento", reconhece: isBtgContaInvestimento, le: (t) => parseBtgContaInvestimento(t) },
 ];
 

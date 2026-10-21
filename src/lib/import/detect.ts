@@ -15,6 +15,7 @@ import { isCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement } from "./cora-pdf";
 import { isRecargaPayStatement } from "./recargapay-pdf";
 import { isSofisaStatement, sofisaSemMovimento } from "./sofisa-pdf";
+import { isExtratoDeAppPdf } from "./extrato-de-app-pdf";
 import { isInterInvoice, isInterStatement } from "./inter-pdf";
 import { isItauInvoice } from "./itau-fatura-pdf";
 import { isMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
@@ -62,6 +63,7 @@ const MOLDES_DE_EXTRATO: [(t: string) => boolean, string][] = [
   [isArgentinaCuenta, "extrato de banco argentino"],
   [isRecargaPayStatement, "extrato do RecargaPay"],
   [isSofisaStatement, "extrato do Sofisa"],
+  [isExtratoDeAppPdf, "extrato de outro app de finanças"],
 ];
 const MOLDES_DE_FATURA: [(t: string) => boolean, string][] = [
   [isNubankInvoice, "fatura do Nubank"],
