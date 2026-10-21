@@ -60,6 +60,7 @@ import { isSantanderConsolidatedStatement, parseSantanderConsolidatedStatement }
 import { isRecargaPayStatement, parseRecargaPayStatement } from "./recargapay-pdf";
 import { isSofisaStatement, parseSofisaStatement } from "./sofisa-pdf";
 import { isExtratoDeAppPdf, parseExtratoDeAppPdf } from "./extrato-de-app-pdf";
+import { isFaturaCartaoWeb, parseFaturaCartaoWeb } from "./fatura-cartao-web-pdf";
 import { isBtgContaInvestimento, parseBtgContaInvestimento } from "./btg-conta-investimento-pdf";
 
 export type ParsedTransaction = {
@@ -960,6 +961,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "banco-do-brasil", reconhece: isBancoDoBrasilStatement, le: (t) => parseBancoDoBrasilStatement(t) },
   { nome: "bradesco", reconhece: isBradescoStatement, le: (t) => parseBradescoStatement(t) },
   { nome: "bradesco-fatura", reconhece: isBradescoInvoice, le: (t, ano) => parseBradescoInvoice(t, ano) },
+  { nome: "fatura-cartao-web", reconhece: isFaturaCartaoWeb, le: (t, ano) => parseFaturaCartaoWeb(t, ano) },
   { nome: "cora", reconhece: isCoraStatement, le: (t) => parseCoraStatement(t) },
   { nome: "infinitepay", reconhece: isInfinitePayStatement, le: (t) => parseInfinitePayStatement(t) },
   { nome: "safra-json", reconhece: isSafraJsonPdf, le: (t) => parseSafraJsonPdf(t) },
