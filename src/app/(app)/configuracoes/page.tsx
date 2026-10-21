@@ -87,7 +87,7 @@ export default async function ConfiguracoesPage() {
       </Grupo>
 
       <Grupo titulo="Seu dinheiro">
-        <Linha href="/configuracoes/renda" icone={i(Wallet)} cor={COR.dinheiro} rotulo="Renda e dia do pagamento" sub={[rendaDoPlano ? money(rendaDoPlano, { round: true }) : null, user.diaDoPagamento ? `dia ${user.diaDoPagamento}` : null].filter(Boolean).join(" · ") || "Quanto entra e quando"} />
+        <Linha href="/configuracoes/renda" icone={i(Wallet)} cor={COR.dinheiro} rotulo="Renda e dia do pagamento" sub={[rendaDoPlano ? money(rendaDoPlano, { round: true }) : null, user.diaDoPagamento ? `dia ${user.diaDoPagamento}` : null, user.diaInicioMes ? `mês de ${user.diaInicioMes} a ${user.diaInicioMes - 1}` : null].filter(Boolean).join(" · ") || "Quanto entra e quando"} />
         <Linha href="/configuracoes/categorias" icone={i(Tags)} cor={COR.dinheiro} rotulo="Categorias" sub="Criar, esconder e o que o app aprendeu" />
         <Linha href="/configuracoes/contas-e-cartoes" icone={i(Landmark)} cor={COR.dinheiro} rotulo="Contas e cartões" sub="Importar extrato e limite do cartão" />
         <Linha href="/configuracoes/taxas" icone={i(Percent)} cor={COR.dinheiro} rotulo="Taxas de referência" sub="CDI, Selic e IPCA" />

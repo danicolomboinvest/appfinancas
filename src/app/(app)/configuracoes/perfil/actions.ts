@@ -1,5 +1,6 @@
 "use server";
 
+import { diaDeInicioDoMes } from "@/lib/mes/periodo";
 import { reaisDoCampo } from "@/lib/dinheiro/digitado";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -77,7 +78,10 @@ export async function salvarRendaAction(_prev: RendaState, formData: FormData): 
   if (!Number.isInteger(dia) || dia < 1 || dia > 31) return { error: "O dia do pagamento vai de 1 a 31." };
   const agora = nowInBrazil();
   await definirRendaPlanejada(ctx, agora.getFullYear(), renda, mesesQueOSalvarGrava(agora.getFullYear(), agora));
-  await updateOwnProfile(ctx, { diaDoPagamento: dia });
+  // Dia em que o mês começa (21/10/2026). Campo ausente = não mexe; "1" ou vazio = o mês de sempre.
+  const inicioTexto = formData.get("diaInicioMes");
+  const diaInicioMes = typeof inicioTexto === "string" ? diaDeInicioDoMes(inicioTexto) : undefined;
+  await updateOwnProfile(ctx, { diaDoPagamento: dia, ...(diaInicioMes === undefined ? {} : { diaInicioMes }) });
   revalidatePath("/configuracoes");
   revalidatePath("/orcamento", "layout");
   revalidatePath("/mensal", "layout");

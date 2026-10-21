@@ -31,6 +31,8 @@ import { situacaoDoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { agendarAvisoDoCartao } from "@/lib/cartao/agendar";
 import { cartaoDoPerfil } from "@/lib/repositories/cartao.repo";
 import { mesDoGastoNoCartao } from "@/lib/cartao/fatura";
+import { mesDoPeriodo } from "@/lib/mes/periodo";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
 import { descricaoDaParcela, dividirEmParcelas, parcelasNasFaturas, parcelasValidas } from "@/lib/cartao/parcelas";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { serverMoney } from "@/lib/money-server";
@@ -79,6 +81,30 @@ async function ligarAoCartao(ctx: Sessao, formData: FormData, entry: MonthlyEntr
 
 /** "AAAA-MM-DD" de uma data do formulário (meio-dia local) ou do banco (@db.Date, meia-noite UTC). */
 const diaDoForm = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+
+/**
+ * O mês que a pessoa definiu (lib/mes/periodo.ts, 21/10/2026): quem fecha o mês do dia 15 ao 14
+ * tem o lançamento de 3/11 em outubro. Só gasto ou entrada À VISTA com data: o cartão tem o mês
+ * da fatura, "para o mês seguinte" é escolha dela e a despesa fixa mensal segue o mês da tela.
+ * Na edição só muda se a data mudou, para editar outra coisa não mover o lançamento de mês.
+ */
+async function aplicarMesDaPessoa(ctx: Sessao, formData: FormData, entry: MonthlyEntryInput, repete: boolean, entryId?: string) {
+  if (entry.cartaoId || repete || formData.get("paraMesSeguinte") === "on" || !entry.entryDate) return;
+  const dia = await getDiaInicioMes(ctx);
+  if (!dia) return;
+  if (entryId) {
+    const atual = await prisma.monthlyEntry.findFirst({
+      where: { id: entryId, userId: ctx.userId, profileId: ctx.profileId },
+      select: { entryDate: true, cartaoId: true },
+    });
+    if (atual?.cartaoId) return;
+    const igual = atual?.entryDate && atual.entryDate.toISOString().slice(0, 10) === diaDoForm(entry.entryDate);
+    if (!atual || igual) return;
+  }
+  const mes = mesDoPeriodo(entry.entryDate, dia);
+  if (mes) Object.assign(entry, mes);
+}
 
 /**
  * Edição de um gasto (15/10/2026): o cartão vem do formulário quando a folha mostra a escolha
@@ -245,6 +271,7 @@ export async function createMonthlyEntryAction(
   // A despesa fixa no cartão: cada cópia nasce no mês da compra dela e conta no da fatura.
   const mesDaCompra = { year: entry.year, month: entry.month };
   const cartao = await ligarAoCartao(ctx, formData, entry);
+  await aplicarMesDaPessoa(ctx, formData, entry, parsed.data.repeatMonthly === true);
   // Compra parcelada (18/10/2026): só gasto num cartão dela, sem "Repetir" e na moeda dela.
   const vezes = cartao && !parsed.data.repeatMonthly && !entry.originalCurrency ? parcelasValidas(formData.get("parcelas")) : 1;
   const parcelas = cartao && vezes > 1 && entry.entryDate ? parcelasDaCompra(entry, vezes, cartao) : null;
@@ -350,6 +377,7 @@ export async function updateMonthlyEntryAction(
   if ("error" in entry) return entry;
   aplicarEscolhasDoCasal(ctx, parsed.data, entry);
   await cartaoNaEdicao(ctx, formData, entryId, entry);
+  await aplicarMesDaPessoa(ctx, formData, entry, false, entryId);
   // Empresa: o cliente da venda (só vem quando a folha mostra o campo; vazio limpa).
   const cliente = formData.get("cliente");
   if (typeof cliente === "string" && entry.category === "INCOME") entry.cliente = cliente.trim().slice(0, 80) || null;

@@ -16,7 +16,7 @@ const createRecurringMonthlyEntries = vi.fn(async () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getRequiredSession: vi.fn(async () => ({ userId: "u1", profileId: "pessoal" })) }));
 vi.mock("@/lib/db/prisma", () => ({
-  prisma: { monthlyEntry: { findMany: (args: unknown) => findMany(args) }, customCategory: { findMany: vi.fn(async () => []) } },
+  prisma: { user: { findUnique: vi.fn(async () => ({ diaInicioMes: null })) }, monthlyEntry: { findMany: (args: unknown) => findMany(args) }, customCategory: { findMany: vi.fn(async () => []) } },
 }));
 vi.mock("@/lib/repositories/import-batch.repo", () => ({
   createImportBatch: () => createImportBatch(),

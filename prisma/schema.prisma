@@ -209,6 +209,9 @@ model User {
   /// Meus dados (versão nova, 12/10/2026): a data de nascimento e o dia em que a renda cai.
   nascimento              DateTime? @db.Date
   diaDoPagamento          Int?
+  /// O dia em que o mês dela começa (21/10/2026), de 2 a 28; nulo = o mês de sempre, do dia 1 ao
+  /// fim. Só vale para o que é lançado depois (lib/mes/periodo.ts).
+  diaInicioMes            Int?
   /// O começo da versão nova (11/10/2026): respostas e progresso de quem entrou pelo onboarding
   /// novo (apelido, renda aproximada, o que quer agora, porta, banco, Primeiros passos). Nulo =
   /// nunca passou por ele; quem já usava o app continua nulo e não vê o começo. Ver

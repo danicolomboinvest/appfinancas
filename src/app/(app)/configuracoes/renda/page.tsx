@@ -15,7 +15,7 @@ export default async function RendaPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <Cabecalho titulo="Renda e dia do pagamento" sub="É a renda do plano do mês. As contas do app partem dela." />
-      <FormDaRenda renda={plano && plano.plannedIncome > 0 ? plano.plannedIncome : null} dia={user.diaDoPagamento ?? null} />
+      <FormDaRenda renda={plano && plano.plannedIncome > 0 ? plano.plannedIncome : null} dia={user.diaDoPagamento ?? null} diaInicioMes={user.diaInicioMes ?? null} />
     </div>
   );
 }

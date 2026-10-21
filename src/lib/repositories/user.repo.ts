@@ -1,3 +1,4 @@
+import { diaDeInicioDoMes } from "@/lib/mes/periodo";
 import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
@@ -137,10 +138,16 @@ export async function touchLastSeen(userId: string, previous: Date | null): Prom
   }
 }
 
+/** O dia em que o mês dela começa (lib/mes/periodo.ts); nulo = o mês de sempre. */
+export async function getDiaInicioMes(ctx: AuthContext): Promise<number | null> {
+  const u = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { diaInicioMes: true } });
+  return diaDeInicioDoMes(u?.diaInicioMes ?? null);
+}
+
 /** E-mail fica de fora de propósito: é a chave do acesso (allowlist), só muda via suporte. */
 export async function updateOwnProfile(
   ctx: AuthContext,
-  input: { name?: string; phone?: string | null; nascimento?: Date | null; diaDoPagamento?: number | null },
+  input: { name?: string; phone?: string | null; nascimento?: Date | null; diaDoPagamento?: number | null; diaInicioMes?: number | null },
 ) {
   return prisma.user.update({ where: { id: ctx.userId }, data: input });
 }

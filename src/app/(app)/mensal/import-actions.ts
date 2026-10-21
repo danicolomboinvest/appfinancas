@@ -25,7 +25,8 @@ import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-t
 import { prisma } from "@/lib/db/prisma";
 import { PREFIXO_COMPRA_APAGADA, PREFIXO_NAO_PARCELA, projecaoRecusada } from "@/lib/contas/parcelas-do-mes";
 import { formatMoney, toCurrencyCode } from "@/lib/money";
-import { getOwnUser } from "@/lib/repositories/user.repo";
+import { getDiaInicioMes, getOwnUser } from "@/lib/repositories/user.repo";
+import { mesDoPeriodo } from "@/lib/mes/periodo";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import {
   createImportBatch,
@@ -1205,6 +1206,7 @@ async function marcarPossiveisDuplicatas(ctx: AuthContext, items: ReviewItem[]) 
 export async function conciliarJaNoAppAction(lista: { id: string; valor: number; data: string; descricao: string }[]): Promise<{ error?: string }> {
   const ctx = await getRequiredSession();
   if (!Array.isArray(lista) || lista.length > 500) return { error: "Dados inválidos." };
+  const diaInicioDoMesDela = await getDiaInicioMes(ctx);
   for (const l of lista) {
     const valor = Math.round(Number(l?.valor) * 100) / 100;
     const dia = new Date(`${l?.data}T12:00:00`);
@@ -1216,7 +1218,7 @@ export async function conciliarJaNoAppAction(lista: { id: string; valor: number;
     });
     if (!atual) continue;
     // Gasto num cartão cadastrado conta no mês da fatura do dia do arquivo (lib/cartao/fatura.ts).
-    const mes = (atual.cartao && mesDoGastoNoCartao(dia, atual.cartao)) || { year: dia.getFullYear(), month: dia.getMonth() + 1 };
+    const mes = (atual.cartao && mesDoGastoNoCartao(dia, atual.cartao)) || mesDoPeriodo(dia, diaInicioDoMesDela) || { year: dia.getFullYear(), month: dia.getMonth() + 1 };
     // Nunca mais longe que o critério: protege de um id trocado no cliente.
     // A gorjeta (até 12% com o nome que bate, lib/import/ja-no-app) também.
     if (Math.abs(Number(atual.amount) - valor) > Math.max(0.011, Math.abs(valor) * TOLERANCIA_JA_NO_APP.gorjeta + 0.001)) continue;
@@ -1529,8 +1531,11 @@ export async function importTransactionsAction(
   // parcelas que a fatura de setembro já tinha lançado, e a cada mês sobrava mais uma cópia.
   // A chave leva o PERFIL de destino junto: mesma data/valor/descrição em perfis diferentes
   // (Pessoal e Empresa) não é duplicata uma da outra, é o mesmo gasto do cartão dividido em duas contas.
+  // Extrato de conta cai no mês que ela definiu (dia 15 a 14, lib/mes/periodo.ts, 21/10/2026).
+  // Fatura de cartão segue o mês da fatura, que é regra do cartão.
+  const diaInicioDoMes = ehFatura ? null : await getDiaInicioMes(ctx);
   const monthOf = (item: ConfirmedItem) =>
-    faturaTarget ?? destinoPelaCompra(item)?.mes ?? yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
+    faturaTarget ?? destinoPelaCompra(item)?.mes ?? mesDoPeriodo(item.date, diaInicioDoMes) ?? yearMonthFromISO(item.date) ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
   /** O dia que vai no lançamento (e na chave): fatura pelo mês escolhido não tem dia; pela data
    * da compra, a compra à vista e a parcela com certeza têm (a parcela no dia da compra original,
    * como as projetadas); a parcela é reconhecida pelo mês e pela descrição, sem o dia. */

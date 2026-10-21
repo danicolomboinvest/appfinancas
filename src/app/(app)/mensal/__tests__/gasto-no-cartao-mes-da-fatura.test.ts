@@ -16,7 +16,7 @@ const NUBANK = { id: "c1", banco: "nubank", apelido: null, diaFechamento: 15, di
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getRequiredSession: vi.fn(async () => ({ userId: "u1", profileId: "pessoal", profileKind: "PESSOAL", profileTheme: "girly" })) }));
-vi.mock("@/lib/db/prisma", () => ({ prisma: { monthlyEntry: { findFirst: vi.fn(async () => gravado), findMany: vi.fn(async () => []) } } }));
+vi.mock("@/lib/db/prisma", () => ({ prisma: { user: { findUnique: vi.fn(async () => ({ diaInicioMes: null })) }, monthlyEntry: { findFirst: vi.fn(async () => gravado), findMany: vi.fn(async () => []) } } }));
 vi.mock("@/lib/repositories/cartao.repo", () => ({ cartaoDoPerfil: vi.fn(async (_ctx: unknown, id: string) => (id === "c1" ? NUBANK : null)) }));
 vi.mock("@/lib/repositories/monthly-entry.repo", async (original) => ({
   ...(await original<Record<string, unknown>>()),
