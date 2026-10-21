@@ -81,6 +81,23 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
       {previsto && moneyP && <MesPrevistoNaTela m={previsto} money={(v) => moneyP(v, { round: true })} />}
       <CartaoAReceber aReceber={divisao.aReceber} />
+      {/* Os arquivos enviados, com "Desfazer" por envio (upload errado ou duplicado some inteiro, sem
+          caçar lançamento por lançamento). No topo: no fim da lista ninguém achava (21/10/2026).
+          A âncora é o destino do "Gasto do cartão" no "Isso está errado?". */}
+      <div id="importacoes" className="scroll-mt-24">
+        <ImportHistory
+          batches={importBatches.map((b) => ({
+            id: b.id,
+            docType: b.docType,
+            fileName: b.fileName,
+            createdAt: b.createdAt.toISOString(),
+            entryCount: b.entryCount,
+            parcelasFuturas: b.parcelasFuturas,
+            totalAmount: b.totalAmount,
+            months: b.months,
+          }))}
+        />
+      </div>
       {entries.length === 0 && previsto ? null : entries.length === 0 ? (
         <VazioDeTransacoes />
       ) : (
@@ -99,23 +116,6 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
 
 
 
-      {/* Histórico do que foi importado em massa, com "Desfazer" por lote (upload errado ou
-          duplicado some inteiro, sem caçar lançamento por lançamento). */}
-      {/* A âncora é o destino do "Gasto do cartão" no "Isso está errado?". */}
-      <div id="importacoes" className="scroll-mt-24">
-      <ImportHistory
-        batches={importBatches.map((b) => ({
-          id: b.id,
-          docType: b.docType,
-          fileName: b.fileName,
-          createdAt: b.createdAt.toISOString(),
-          entryCount: b.entryCount,
-          parcelasFuturas: b.parcelasFuturas,
-          totalAmount: b.totalAmount,
-          months: b.months,
-        }))}
-      />
-      </div>
 
       <ThemeFooter texto={voz.rodape(estado)} />
     </div>

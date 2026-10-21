@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { FileText, CreditCard, Trash2, Landmark } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { ChevronRight, FileText, CreditCard, Trash2, Landmark, Upload } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/toast-context";
 import { deleteImportBatchAction } from "../../import-actions";
 import { useMoney } from "@/components/money/MoneyProvider";
@@ -38,12 +38,53 @@ function formatMonthChip(ym: string) {
 }
 
 /**
+ * O botão no TOPO das Transações (do mês e do período) que abre os arquivos enviados. Antes era uma
+ * linha fechada no fim da lista, depois de todos os lançamentos, e ninguém achava (21/10/2026: uma
+ * cliente mandou a fatura errada e disse que "ainda não tem como" apagar; a Dani também não achou).
+ * Quem chega pelo "#importacoes" (o "Isso está errado?") já encontra a folha aberta.
+ */
+export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
+  const { voz } = useProfileTheme();
+  const [aberta, setAberta] = useState(false);
+  useEffect(() => {
+    const ver = () => {
+      if (window.location.hash === "#importacoes") setAberta(true);
+    };
+    const t = window.setTimeout(ver, 0);
+    window.addEventListener("hashchange", ver);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("hashchange", ver);
+    };
+  }, []);
+  if (batches.length === 0) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setAberta(true)}
+        data-envios
+        className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 text-left active:scale-[0.99]"
+      >
+        <Upload size={18} className="shrink-0 text-ink-muted" aria-hidden />
+        <span className="min-w-0 flex-1 text-[15px] text-ink">{voz.titulos.impHistoricoTitulo}</span>
+        <span className="shrink-0 text-sm tabular-nums text-ink-muted">{batches.length}</span>
+        <ChevronRight size={18} className="shrink-0 text-ink-muted" aria-hidden />
+      </button>
+      <Modal open={aberta} onClose={() => setAberta(false)} title={voz.titulos.impHistoricoTitulo}>
+        <ListaDeEnvios batches={batches} />
+      </Modal>
+    </>
+  );
+}
+
+/**
  * Histórico do que foi importado em massa (extrato/fatura), com opção de desfazer um lote
- * inteiro — pra quando um arquivo subiu errado ou duplicado, sem caçar lançamento por
+ * inteiro, para quando um arquivo subiu errado ou duplicado, sem caçar lançamento por
  * lançamento. Apagar é destrutivo (some tudo que aquele upload criou), então exige um
  * segundo toque de confirmação no próprio botão.
  */
-export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
+function ListaDeEnvios({ batches }: { batches: ImportBatchView[] }) {
   const money = useMoney();
   const { showToast, showError } = useToast();
   // Rótulos e avisos vêm da voz do tema; o que apaga continua sendo o servidor.
@@ -54,7 +95,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
   const [isPending, startTransition] = useTransition();
 
   const visible = batches.filter((b) => !removedIds.has(b.id));
-  if (visible.length === 0) return null;
+  if (visible.length === 0) return <p className="text-sm text-ink-muted">{t.impHistoricoNota}</p>;
 
   function handleDelete(batch: ImportBatchView) {
     if (confirmingId !== batch.id) {
@@ -81,54 +122,52 @@ export function ImportHistory({ batches }: { batches: ImportBatchView[] }) {
   }
 
   return (
-    <CollapsibleSection label={t.impHistoricoTitulo}>
-      <div className="flex flex-col gap-2">
-        {visible.map((batch) => {
-          const Icon = batch.docType === "fatura" ? CreditCard : batch.docType === "openfinance" ? Landmark : FileText;
-          const confirming = confirmingId === batch.id;
-          return (
-            <Card key={batch.id} className="flex items-center justify-between gap-3 p-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <Icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">
-                    {batch.docType === "fatura" ? t.impHistoricoFatura : batch.docType === "openfinance" ? t.impHistoricoBanco : t.impHistoricoExtrato}
-                    {batch.fileName ? `, ${batch.fileName}` : ""}
-                  </p>
-                  <p className="truncate text-xs text-ink-faint">
-                    <span className="tabular-nums">{formatDateTime(batch.createdAt)}</span>
-                    {", "}
-                    {t.impHistoricoLancamentos(batch.entryCount)}
-                    {batch.parcelasFuturas > 0 && ` ${t.impParcelasFuturas(batch.parcelasFuturas)}`}
-                    {", "}
-                    {/* Extrato mostra o saldo com sinal, como na confirmação: somar renda e gasto
-                        juntos dava um número maior que o arquivo e parecia importação duplicada. */}
-                    <span className="tabular-nums">
-                      {batch.docType === "fatura" ? money(batch.totalAmount) : `${batch.totalAmount >= 0 ? "+" : "−"} ${money(Math.abs(batch.totalAmount))}`}
-                    </span>
-                    {batch.months.length > 0 && `, ${batch.months.map(formatMonthChip).join(", ")}`}
-                  </p>
-                  {/* O "Remover" do pagamento no extrato apaga de vez (não há onde guardar o que
-                      saiu): desfazer a fatura depois deixava o mês sem as compras E sem o pagamento. */}
-                  {confirming && batch.docType === "fatura" && <p className="mt-1 text-xs text-danger">{t.impHistoricoFaturaAviso}</p>}
-                </div>
+    <div className="flex flex-col gap-2">
+      {visible.map((batch) => {
+        const Icon = batch.docType === "fatura" ? CreditCard : batch.docType === "openfinance" ? Landmark : FileText;
+        const confirming = confirmingId === batch.id;
+        return (
+          <Card key={batch.id} className="flex items-center justify-between gap-3 p-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <Icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-ink [overflow-wrap:anywhere]">
+                  {batch.docType === "fatura" ? t.impHistoricoFatura : batch.docType === "openfinance" ? t.impHistoricoBanco : t.impHistoricoExtrato}
+                  {batch.fileName ? `, ${batch.fileName}` : ""}
+                </p>
+                <p className="text-xs text-ink-faint [overflow-wrap:anywhere]">
+                  <span className="tabular-nums">{formatDateTime(batch.createdAt)}</span>
+                  {", "}
+                  {t.impHistoricoLancamentos(batch.entryCount)}
+                  {batch.parcelasFuturas > 0 && ` ${t.impParcelasFuturas(batch.parcelasFuturas)}`}
+                  {", "}
+                  {/* Extrato mostra o saldo com sinal, como na confirmação: somar renda e gasto
+                      juntos dava um número maior que o arquivo e parecia importação duplicada. */}
+                  <span className="tabular-nums">
+                    {batch.docType === "fatura" ? money(batch.totalAmount) : `${batch.totalAmount >= 0 ? "+" : "−"} ${money(Math.abs(batch.totalAmount))}`}
+                  </span>
+                  {batch.months.length > 0 && `, ${batch.months.map(formatMonthChip).join(", ")}`}
+                </p>
+                {/* O "Remover" do pagamento no extrato apaga de vez (não há onde guardar o que
+                    saiu): desfazer a fatura depois deixava o mês sem as compras E sem o pagamento. */}
+                {confirming && batch.docType === "fatura" && <p className="mt-1 text-xs text-danger">{t.impHistoricoFaturaAviso}</p>}
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant={confirming ? "danger" : "secondary"}
-                disabled={isPending}
-                onClick={() => handleDelete(batch)}
-                onBlur={() => setConfirmingId((id) => (id === batch.id ? null : id))}
-              >
-                <Trash2 className="size-3.5" aria-hidden />
-                {confirming ? t.impHistoricoConfirmar : t.impHistoricoDesfazer}
-              </Button>
-            </Card>
-          );
-        })}
-        <p className="text-xs text-ink-faint">{t.impHistoricoNota}</p>
-      </div>
-    </CollapsibleSection>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={confirming ? "danger" : "secondary"}
+              disabled={isPending}
+              onClick={() => handleDelete(batch)}
+              onBlur={() => setConfirmingId((id) => (id === batch.id ? null : id))}
+            >
+              <Trash2 className="size-3.5" aria-hidden />
+              {confirming ? t.impHistoricoConfirmar : t.impHistoricoDesfazer}
+            </Button>
+          </Card>
+        );
+      })}
+      <p className="text-xs text-ink-faint">{t.impHistoricoNota}</p>
+    </div>
   );
 }

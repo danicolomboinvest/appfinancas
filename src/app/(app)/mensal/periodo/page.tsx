@@ -12,6 +12,8 @@ import { VazioDeTransacoes } from "@/components/ui/VazioDeTransacoes";
 import { EntryList } from "../[year]/[month]/EntryList";
 import { linhasDaLista } from "../[year]/[month]/linhas";
 import { CartaoAReceber } from "../[year]/[month]/CartaoAReceber";
+import { ImportHistory } from "../[year]/[month]/ImportHistory";
+import { listImportBatches } from "@/lib/repositories/import-batch.repo";
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
 
@@ -26,7 +28,7 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
   if (!intervalo) redirect(`/mensal/${agora.getFullYear()}/${agora.getMonth() + 1}`);
 
   const ctx = await getRequiredSession();
-  const [ocultos, entries, recentSubcategories, customCategories, goals, divisao, perfisDestino] = await Promise.all([
+  const [ocultos, entries, recentSubcategories, customCategories, goals, divisao, perfisDestino, importBatches] = await Promise.all([
     valoresOcultos(),
     listEntriesInInterval(ctx, intervalo),
     listRecentSubcategories(ctx),
@@ -34,11 +36,25 @@ export default async function TransacoesDoPeriodo(props: { searchParams: Promise
     listGoals(ctx),
     dadosDaDivisao(ctx),
     perfisDeDestino(ctx),
+    listImportBatches(ctx),
   ]);
 
   return (
     <div className="flex flex-col gap-6 lg:gap-5">
       <CartaoAReceber aReceber={divisao.aReceber} />
+      {/* Os arquivos enviados também aqui: no período não havia como desfazer um envio errado. */}
+      <ImportHistory
+        batches={importBatches.map((b) => ({
+          id: b.id,
+          docType: b.docType,
+          fileName: b.fileName,
+          createdAt: b.createdAt.toISOString(),
+          entryCount: b.entryCount,
+          parcelasFuturas: b.parcelasFuturas,
+          totalAmount: b.totalAmount,
+          months: b.months,
+        }))}
+      />
       {entries.length === 0 ? (
         <VazioDeTransacoes />
       ) : (
