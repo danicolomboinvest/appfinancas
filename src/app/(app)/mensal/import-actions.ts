@@ -56,6 +56,7 @@ import { casarJaNoApp, TOLERANCIA_JA_NO_APP, type JaNoApp, type LinhaNova } from
 import { casaAtiva, chaveDaConta, comFiltro, doOutroVisivel } from "@/lib/casa/regras";
 import { lidasEmDobro } from "@/lib/import/repetidos";
 import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
+import { lerTabelaDaFatura } from "@/lib/import/print-tabela";
 import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
 import { casarComFaturaAberta, printsAnterioresDaFatura, type CompraDoPrintGravada } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
@@ -255,6 +256,9 @@ function descreverFalha(err: unknown): string {
 
 /** O que a tela diz quando um print não deu: o mesmo para ilegível, cortado e sem nenhum valor. */
 const MSG_PRINT_ILEGIVEL = "Não consegui ler este print. Tente com a tela mais clara ou sem zoom.";
+/** Print de uma página da fatura em PDF (boleto, resumo) sem a lista de compras (22/10/2026). */
+const MSG_PRINT_DO_PDF = "Este print é da fatura em PDF. Mande o próprio PDF, que eu leio a fatura inteira.";
+const PAGINA_DO_PDF_RE = /hist[óo]rico de despesas|total deste cart[ãa]o|resumo da fatura|recibo do pagador|linha digit[áa]vel|ficha de compensa[çc][ãa]o/i;
 
 export type PrintDaFaturaResult = { ok: true; print: PrintLido; banco: string | null } | { ok: false; error: string };
 
@@ -269,13 +273,13 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
   const arquivo = formData.get("file");
   const envio = String(formData.get("envio") ?? "");
   const nome = arquivo instanceof File ? arquivo.name : null;
-  const falhou = async (detalhe: string): Promise<PrintDaFaturaResult> => {
-    const diagnosticId = await recordImportDiagnostic({ userId: ctx.userId, target: "fatura", stage: "parse", ok: false, fileName: nome, encoding: "imagem", kind: "print", message: `${MSG_PRINT_ILEGIVEL} [${detalhe}]`.slice(0, 500) });
+  const falhou = async (detalhe: string, mensagem = MSG_PRINT_ILEGIVEL): Promise<PrintDaFaturaResult> => {
+    const diagnosticId = await recordImportDiagnostic({ userId: ctx.userId, target: "fatura", stage: "parse", ok: false, fileName: nome, encoding: "imagem", kind: "print", message: `${mensagem} [${detalhe}]`.slice(0, 500) });
     // Guarda o print que não deu (20/10/2026, pedido dela): sem a imagem só sobra "não consegui ler"
     // e não dá para ver o que o OCR enxergou nem ensinar o leitor. Mesmas regras dos outros arquivos
     // (30 dias, só admin, apagado com a conta).
     await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: arquivo, encoding: "imagem", reason: "falha" });
-    return { ok: false, error: MSG_PRINT_ILEGIVEL };
+    return { ok: false, error: mensagem };
   };
   if (!(arquivo instanceof Blob) || arquivo.size === 0) return { ok: false, error: MSG_PRINT_ILEGIVEL };
   if (arquivo.size > UPLOAD_MAX_BYTES) return { ok: false, error: "Esse print é grande demais. Mande a captura de tela original, sem editar." };
@@ -283,8 +287,13 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
   try {
     const { lerSegmentosDoPrint } = await import("@/lib/import/ocr-print");
     const { segmentos } = await lerSegmentosDoPrint(Buffer.from(await arquivo.arrayBuffer()));
-    const print = lerPrint(segmentos, envio);
-    if (print.linhas.length === 0) return await falhou(`nenhuma compra; ${segmentos.length} pedaços de texto`);
+    const daTela = lerPrint(segmentos, envio);
+    // Print da fatura em PDF (tabela com o total no fim): só vale se a soma fechar com o total.
+    const print = daTela.linhas.length > 0 ? daTela : (lerTabelaDaFatura(segmentos) ?? daTela);
+    if (print.linhas.length === 0) {
+      const doPdf = segmentos.some((x) => PAGINA_DO_PDF_RE.test(x.texto));
+      return await falhou(`nenhuma compra; ${segmentos.length} pedaços de texto${doPdf ? "; página do PDF" : ""}`, doPdf ? MSG_PRINT_DO_PDF : MSG_PRINT_ILEGIVEL);
+    }
     return { ok: true, print, banco: bancoDoPrint(segmentos.map((x) => x.texto)) };
   } catch (err) {
     console.error("lerPrintDaFaturaAction: OCR falhou", err);
