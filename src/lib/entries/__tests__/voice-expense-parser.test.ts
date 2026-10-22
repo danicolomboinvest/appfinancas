@@ -339,3 +339,18 @@ describe("valor por extenso com centavos antes do reais (20/10/2026)", () => {
     expect(parseVoiceEntry("comprei dois pães por quinze reais").amount).toBe(15);
   });
 });
+
+describe("valor só por extenso, sem o reais (22/10/2026)", () => {
+  it("dois ou mais números ligados por e viram o valor", () => {
+    expect(parseVoiceEntry("uber doze e noventa")).toMatchObject({ amount: 12.9, description: "Uber" });
+    expect(parseVoiceEntry("mercado oitenta e sete")).toMatchObject({ amount: 87, description: "Mercado" });
+    expect(parseVoiceEntry("mercado oitenta e sete e quarenta e três")).toMatchObject({ amount: 87.43, description: "Mercado" });
+    expect(parseVoiceEntry("padaria sete e cinquenta")).toMatchObject({ amount: 7.5, description: "Padaria" });
+    expect(parseVoiceEntry("luz cento e cinquenta e seis e setenta e oito").amount).toBe(156.78);
+    expect(parseVoiceEntry("gastei dezoito e noventa na farmácia")).toMatchObject({ amount: 18.9, description: "Farmácia" });
+  });
+  it("número solto continua sem virar valor", () => {
+    expect(parseVoiceEntry("comprei um presente").amount).toBeNull();
+    expect(parseVoiceEntry("farmácia dezoito").amount).toBeNull();
+  });
+});

@@ -285,6 +285,30 @@ function extractAmount(normalized: string): number | null {
     const n = wordsToNumber(normalized.slice(0, centavosIdx).trim().split(/\s+/).slice(-3).join(" "));
     if (n !== null && n > 0 && n < 100) return n / 100;
   }
+  const palavras = normalized.split(/\s+/).map((t) => t.replace(/[^a-z]/g, ""));
+  const soPorExtenso = valorSoPorExtenso(palavras);
+  if (soPorExtenso) {
+    const valor = reaisPorExtenso(palavras.slice(soPorExtenso.inicio, soPorExtenso.fim + 1).join(" "));
+    if (valor) return Math.round(valor * 100) / 100;
+  }
+  return null;
+}
+
+/**
+ * O valor dito só por extenso, sem "reais" (22/10/2026): "uber doze e noventa", "mercado oitenta
+ * e sete". Vale a primeira sequência de dois ou mais números ligados por "e"; número solto continua
+ * fora ("comprei um presente" não é R$ 1), e "dia vinte e dois" é data. Devolve onde ela está.
+ */
+function valorSoPorExtenso(palavras: string[]): { inicio: number; fim: number } | null {
+  for (let i = 0; i < palavras.length; i++) {
+    if (!EH_PALAVRA_DE_VALOR(palavras[i]) || palavras[i] === "e") continue;
+    let fim = i;
+    while (fim + 1 < palavras.length && EH_PALAVRA_DE_VALOR(palavras[fim + 1])) fim++;
+    while (palavras[fim] === "e") fim--;
+    const trecho = palavras.slice(i, fim + 1);
+    if (trecho.includes("e") && palavras[i - 1] !== "dia" && !/^centavos?$/.test(palavras[fim + 1] ?? "")) return { inicio: i, fim };
+    i = fim;
+  }
   return null;
 }
 
@@ -440,6 +464,11 @@ export function descricaoDaFala(text: string): string {
     // "pesos argentinos": o "argentinos" só é moeda logo depois de "pesos".
     if (t === "argentinos" && limpos[i - 1]?.startsWith("peso")) fora.add(i);
   });
+  // Valor só por extenso, sem número nem moeda na frase: "uber doze e noventa" (ver extractAmount).
+  if (!limpos.some((t) => EH_NUMERO.test(t) || PALAVRA_DE_DINHEIRO.test(t) || /^(mil|milhao|milhoes)$/.test(t))) {
+    const soPorExtenso = valorSoPorExtenso(limpos);
+    if (soPorExtenso) for (let k = soPorExtenso.inicio; k <= soPorExtenso.fim; k++) fora.add(k);
+  }
   let palavras = crus.map((c, i) => ({ c: c.replace(/[,;:.!?]+$/, ""), n: limpos[i] })).filter((_, i) => !fora.has(i));
   while (palavras.length && INICIO_SEM_SENTIDO.has(palavras[0].n)) palavras = palavras.slice(1);
   while (palavras.length && FIM_SEM_SENTIDO.has(palavras[palavras.length - 1].n)) palavras = palavras.slice(0, -1);
