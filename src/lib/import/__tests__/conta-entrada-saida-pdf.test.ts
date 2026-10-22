@@ -81,4 +81,23 @@ describe("extrato PJ com colunas Entrada e Saída", () => {
     const errado = EXTRATO.replace("Total de saídas R$ 3.980,57", "Total de saídas R$ 3.000,00");
     expect(parseContaEntradaSaidaPdf(errado)).toEqual([]);
   });
+
+  it("PDF com dois bancos juntos: cada página é lida pelo seu leitor", () => {
+    const CORA = [
+      "Cora SCFI - CNPJ 00.000.000/0001-00",
+      "Extrato gerado no dia 26/09/2026 às 21:37 pág 1 de 1",
+      "01/09/2026 a 30/09/2026",
+      "Total de entradas \t+ R$ 1.000,00",
+      "Total de saídas \t- R$ 100,00",
+      "25/09/2026 \tSaldo do dia R$ 900,00",
+      "- R$ 100,00\tTransf Pix enviada \tFULANO DE TAL… 000.000.000-00",
+      "+ R$ 1.000,00\tTransferência recebida \tEMPRESA MODELO LTDA \t00.000.000/0001-00",
+    ].join("\n");
+    const junto = `${EXTRATO}\n-- 1 of 2 --\n${CORA}\n-- 2 of 2 --\n`;
+    const { txns, leitor } = parseStatementComLeitor(junto, "pdf", 2026);
+    expect(leitor).toBe("varios-bancos");
+    expect(txns).toHaveLength(11);
+    const soma = Math.round(txns.reduce((s, t) => s + t.amount, 0) * 100) / 100;
+    expect(soma).toBe(6855 - 3980.57 + 1000 - 100);
+  });
 });

@@ -1012,6 +1012,29 @@ const LEITORES_OCR: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "itau-ocr", reconhece: isItauOcrStatement, le: parseItauOcrStatement },
 ];
 
+
+/**
+ * PDF que junta extratos de VÁRIOS bancos num arquivo só (a pessoa une o extrato de cada conta): lido
+ * inteiro, o leitor do primeiro banco que reconhece o texto lê as outras contas pelo jeito errado
+ * ("li R$ 59.607, o arquivo diz R$ 10.835"). Aqui cada página passa sozinha pela leitura completa
+ * (leitor do banco, ou o que confere pelo saldo). Só vale quando as páginas são lidas por pelo menos
+ * DOIS leitores diferentes; PDF de um banco só segue lido inteiro, como sempre.
+ */
+function lerPorPartes(content: string, refYear?: number): { txns: ParsedTransaction[]; leitor: string } | null {
+  const paginas = content.split(/^-- \d+ of \d+ --$/m).filter((p) => p.trim());
+  if (paginas.length < 2) return null;
+  const txns: ParsedTransaction[] = [];
+  const leitores = new Set<string>();
+  for (const pagina of paginas) {
+    const r = parseStatementComLeitor(pagina, "pdf", refYear);
+    if (r.txns.length === 0) continue;
+    if (!r.leitor) return null;
+    leitores.add(r.leitor);
+    txns.push(...r.txns);
+  }
+  return leitores.size >= 2 ? { txns, leitor: "varios-bancos" } : null;
+}
+
 /** Igual a `parseStatement`, e diz QUEM leu: o nome do leitor próprio do banco, ou null quando
  * foi o leitor genérico (texto solto, CSV, OFX). */
 export function parseStatementComLeitor(
@@ -1048,6 +1071,11 @@ export function parseStatementComLeitor(
     // O leitor do banco vale, a menos que a soma dele NÃO bata com a fatura (layout novo do
     // mesmo banco). O genérico vale quando fecha. Senão, o leitor que testa jeitos de ler
     // (leitor-inteligente.ts) tenta — e só entra se fechar no centavo com o total impresso.
+    // Vários bancos no mesmo PDF: cada página pelo seu leitor, antes de aceitar o do primeiro banco.
+    if (proprio) {
+      const porPartes = lerPorPartes(content, refYear);
+      if (porPartes) return porPartes;
+    }
     if (proprio && fechaComoFatura(content, proprio.txns) !== "nao-fechou") return proprio;
     // Extrato de banco sem leitor próprio, mas com o saldo depois de cada linha: vale a leitura
     // em que o saldo fecha linha a linha no centavo (extrato-pelo-saldo.ts). Banco novo deixa de
