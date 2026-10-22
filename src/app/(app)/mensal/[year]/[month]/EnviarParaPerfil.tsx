@@ -15,11 +15,6 @@ const TIPO: Record<ProfileKind, string> = { PESSOAL: "Pessoal", EMPRESA: "Empres
 
 type Passo = "perfil" | "parcelas" | "confirmar";
 
-/** "kalunga sp" → "Kalunga Sp": a chave do comerciante, legível. */
-function nomeDoComerciante(chave: string): string {
-  return chave.replace(/\b\p{L}/gu, (l) => l.toUpperCase());
-}
-
 /** O círculo com o ícone do perfil nas cores do tema DELE (como em Perfis). */
 function SeloDoPerfil({ perfil, size = 48 }: { perfil: PerfilParaEnviar; size?: number }) {
   const tema = profileTheme(perfil.theme);
@@ -166,7 +161,7 @@ function Passos({ ids, perfis, onFechar, onEnviado }: { ids: string[]; perfis: P
         <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl bg-surface p-3 shadow-[inset_0_0_0_1px_var(--color-border)]">
           <span className="min-w-0 flex-1 text-[15px] leading-snug text-ink">
             {comerciantes.length === 1 ? (
-              <>Sempre mandar <b className="font-medium">{nomeDoComerciante(comerciantes[0])}</b> para lá</>
+              <>Sempre mandar <b className="font-medium">{comerciantes[0]}</b> para lá</>
             ) : (
               <>Sempre mandar estas {comerciantes.length} lojas para lá</>
             )}

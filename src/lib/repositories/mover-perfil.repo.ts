@@ -3,11 +3,11 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { listProfiles, type ProfileRow } from "@/lib/repositories/profile.repo";
 import { ehPessoa } from "@/lib/casal/acerto";
-import { chaveUtil } from "@/lib/import/comerciante";
 import {
   camposQueSaem,
   categoriaNoDestino,
   comerciantesParaLembrar,
+  nomesParaLembrar,
   parcelasDaMesmaCompra,
 } from "@/lib/perfis/mover-lancamentos";
 
@@ -252,5 +252,5 @@ export async function regrasDePerfil(ctx: AuthContext): Promise<{ pattern: strin
 export async function comerciantesDosLancamentos(ctx: AuthContext, ids: string[]): Promise<string[]> {
   if (ctx.par || ids.length === 0) return [];
   const linhas = await prisma.monthlyEntry.findMany({ where: { ...ondeDela(ctx, ids), category: "EXPENSE" }, select: { description: true } });
-  return comerciantesParaLembrar(linhas.map((l) => l.description)).filter(chaveUtil);
+  return nomesParaLembrar(linhas.map((l) => l.description));
 }

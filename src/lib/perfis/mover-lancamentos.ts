@@ -2,6 +2,7 @@ import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { parseInstallment, installmentCanonical, installmentDescription } from "@/lib/entries/recurrence";
 import { chaveCobre, chaveDoComerciante, chaveUtil } from "@/lib/import/comerciante";
 import { categorizarLinha } from "@/lib/import/motor";
+import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import type { LearnedRule } from "@/lib/import/classify";
 
 /**
@@ -165,6 +166,20 @@ export function parcelasDaMesmaCompra(
  */
 export function comerciantesParaLembrar(descricoes: (string | null)[]): string[] {
   return [...new Set(descricoes.map((d) => chaveDoComerciante(d)).filter((k) => chaveUtil(k)))];
+}
+
+/**
+ * Os mesmos comerciantes, com o nome que ela vê na lista (22/10/2026): a chave sem acento virava
+ * "Sempre mandar Curso Ingles para lá" para um lançamento chamado "Curso de inglês".
+ */
+export function nomesParaLembrar(descricoes: (string | null)[]): string[] {
+  const porChave = new Map<string, string>();
+  for (const d of descricoes) {
+    const chave = chaveDoComerciante(d);
+    if (!chaveUtil(chave) || porChave.has(chave)) continue;
+    porChave.set(chave, nomeNaTela(d ?? "").nome || chave.replace(/\b\p{L}/gu, (l) => l.toUpperCase()));
+  }
+  return [...porChave.values()];
 }
 
 /**

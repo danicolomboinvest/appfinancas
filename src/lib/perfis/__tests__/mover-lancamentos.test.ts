@@ -8,6 +8,7 @@ import {
   destinoPelaRegra,
   parcelasDaMesmaCompra,
   type LancamentoParaMover,
+  nomesParaLembrar,
 } from "../mover-lancamentos";
 
 const gasto = (o: Partial<LancamentoParaMover>): LancamentoParaMover => ({
@@ -142,5 +143,16 @@ describe("sempre mandar para a Empresa", () => {
     expect(destinoPelaRegra("UBER *TRIP", regras)).toBe("empresa");
     expect(destinoPelaRegra("UBER EATS", regras)).toBe("casal");
     expect(destinoPelaRegra("IFOOD", regras)).toBeNull();
+  });
+});
+
+describe("nomesParaLembrar (22/10/2026)", () => {
+  it("o nome como ela vê na lista, não a chave sem acento", () => {
+    expect(nomesParaLembrar(["Curso de inglês", "Curso de inglês"])).toEqual(["Curso de inglês"]);
+  });
+  it("loja do extrato segue legível e sem repetir", () => {
+    const nomes = nomesParaLembrar(["Compra no débito - NETFLIX.COM", "Compra no débito - NETFLIX.COM"]);
+    expect(nomes).toHaveLength(1);
+    expect(nomes[0]).toMatch(/netflix/i);
   });
 });
