@@ -47,6 +47,7 @@ import { isNubankStatement, parseNubankStatement } from "./nubank-pdf";
 import { isOurocardInvoice, parseOurocardInvoice } from "./ourocard-pdf";
 import { isItauOpenInvoice, parseItauOpenInvoice } from "./itau-fatura-aberta-pdf";
 import { isItauInvoice, parseItauInvoice } from "./itau-fatura-pdf";
+import { isItauTabelaInvoice, parseItauTabelaInvoice } from "./itau-fatura-tabela-pdf";
 import { isItauStatement, parseItauStatement } from "./itau-extrato-pdf";
 import { isItauOcrStatement, isNubankOcrStatement, parseItauOcrStatement, parseNubankOcrStatement } from "./ocr-conferido";
 import { isMidwayInvoice, parseMidwayInvoice } from "./midway-fatura-pdf";
@@ -978,6 +979,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "ourocard", reconhece: isOurocardInvoice, le: (t, ano) => parseOurocardInvoice(t, ano) },
   { nome: "itau-extrato", reconhece: isItauStatement, le: (t) => parseItauStatement(t) },
   { nome: "itau-fatura-aberta", reconhece: isItauOpenInvoice, le: (t) => parseItauOpenInvoice(t) },
+  { nome: "itau-fatura-tabela", reconhece: isItauTabelaInvoice, le: (t) => parseItauTabelaInvoice(t) },
   { nome: "itau-fatura", reconhece: isItauInvoice, le: (t, ano) => parseItauInvoice(t, ano) },
   { nome: "riachuelo-midway", reconhece: isMidwayInvoice, le: (t) => parseMidwayInvoice(t) },
   { nome: "carrefour-fatura", reconhece: isCarrefourInvoice, le: (t, ano) => parseCarrefourInvoice(t, ano) },
