@@ -40,7 +40,7 @@ import {
   type EventoDoComeco,
   type PassoDoComeco,
 } from "@/lib/onboarding/comeco";
-import { MAX_PERGUNTAS_DO_COMECO } from "@/lib/onboarding/conferencia-inicial";
+import { MAX_PERGUNTAS_DO_COMECO, notaDasQueFicam } from "@/lib/onboarding/conferencia-inicial";
 import { CAMINHO_GENERICO, caminhoDaFatura, caminhoDoExtrato, leMelhor } from "@/lib/onboarding/bancos";
 
 /** Por que a ajuda do banco abriu (muda só a frase de cima). */
@@ -726,7 +726,7 @@ function Lendo({ money, onTerminar, onOutroArquivo, onAjuda }: { money: Money; o
           {lido && estado ? (
             <div className="passo-entra flex flex-col gap-3" data-resumo-da-leitura>
               <Titulo sub={agora > 0 ? `Só ${agora} ${agora === 1 ? "precisa" : "precisam"} de você agora.` : "Está tudo no lugar."}>{separados > 0 ? `Separei ${separados}.` : "Li tudo."}</Titulo>
-              {depois > 0 && <Nota>Os outros {depois} ficam para quando quiser.</Nota>}
+              {depois > 0 && <Nota>{notaDasQueFicam(depois)}</Nota>}
               {estado.amostra.length > 0 && (
                 <div className="glass flex flex-col rounded-2xl px-3.5 py-1.5">
                   {estado.amostra.slice(0, 3).map((a, i) => (

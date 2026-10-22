@@ -47,3 +47,8 @@ export function perguntasDeMaiorValor(fila: number[], pendentes: LinhaDaConferen
   );
   return fila.filter((k) => escolhidas.has(k));
 }
+
+/** A nota das que ficam "A conferir" depois das perguntas do começo: "Os outros 1" era o que aparecia. */
+export function notaDasQueFicam(n: number): string {
+  return n === 1 ? "O outro fica para quando quiser." : `Os outros ${n} ficam para quando quiser.`;
+}
