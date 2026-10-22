@@ -39,6 +39,7 @@ import {
   type DeletedEntrySnapshot,
 } from "./actions";
 import { rotuloDoDia } from "./rotulo-do-dia";
+import { rotuloSemCategoria } from "./sem-categoria";
 
 export type ListEntry = {
   id: string;
@@ -154,7 +155,7 @@ function categoryVisual(
 function categoryName(entry: ListEntry, customCategories: { id: string; name: string }[], voz: Voz, kind: CategoriasDoPerfil): string {
   if (entry.parentCategory && isParentCategoryKey(entry.parentCategory)) return categoryLabel(kind, entry.parentCategory);
   if (entry.customCategoryId) return customCategories.find((c) => c.id === entry.customCategoryId)?.name ?? entry.customCategoryName ?? voz.titulos.uiCategoriaSemNome;
-  return categoryKindLabel(entry.category, voz, entry.amount);
+  return rotuloSemCategoria(entry.category, categoryKindLabel(entry.category, voz, entry.amount));
 }
 
 function toSnapshot(entry: ListEntry, year: number, month: number): DeletedEntrySnapshot {
