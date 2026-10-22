@@ -57,3 +57,14 @@ export async function lerSegmentosDoPrint(imagem: Buffer): Promise<{ segmentos: 
     await worker.terminate();
   }
 }
+
+/**
+ * Segunda tentativa do OCR (22/10/2026): a imagem 2 vezes maior, em cinza e mais nítida. Print de
+ * PDF tirado no celular sai com letra pequena e o OCR trocava um dígito ("R$ 10,00 a mais") ou
+ * perdia a barra da data. Nos prints guardados, os que só a IA paga lia passaram a fechar assim.
+ */
+export async function ampliarParaOcr(imagem: Buffer): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  const { width } = await sharp(imagem).metadata();
+  return sharp(imagem).resize({ width: Math.min(4000, (width ?? 1000) * 2) }).grayscale().sharpen().png().toBuffer();
+}

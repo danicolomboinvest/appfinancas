@@ -12,6 +12,7 @@ vi.mock("@/lib/auth/session", () => ({ getRequiredSession: vi.fn(async () => ({ 
 vi.mock("@/lib/db/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/repositories/import-diagnostic.repo", async (original) => ({ ...(await original<object>()), recordImportDiagnostic }));
 vi.mock("@/lib/import/ocr-print", () => ({
+  ampliarParaOcr: vi.fn(async (imagem: Buffer) => imagem),
   lerSegmentosDoPrint: vi.fn(async () => {
     throw "Error attempting to read image.";
   }),

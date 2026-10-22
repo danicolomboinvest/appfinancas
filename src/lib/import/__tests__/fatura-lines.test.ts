@@ -98,3 +98,9 @@ describe("pareceCreditoDePagamento: crédito da fatura que é pagamento, não de
     expect(pareceCreditoDePagamento("AMAZON MARKETPLACE")).toBe(false);
   });
 });
+
+describe("pagamento por Pix da fatura Bradesco (22/10/2026)", () => {
+  it("PAGAMENTO VIA QR CODE PIX é o pagamento da anterior, também com o OCR lendo OR", () => {
+    for (const description of ["PAGAMENTO VIA QR CODE PIX", "PAGAMENTO VIA OR CODE PIX"]) expect(isFaturaSummaryLine({ date: "2026-09-15", description, amount: 300 })).toBe(true);
+  });
+});

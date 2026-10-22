@@ -56,8 +56,8 @@ import { casarJaNoApp, TOLERANCIA_JA_NO_APP, type JaNoApp, type LinhaNova } from
 import { casaAtiva, chaveDaConta, comFiltro, doOutroVisivel } from "@/lib/casa/regras";
 import { lidasEmDobro } from "@/lib/import/repetidos";
 import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
-import { lerTabelaDaFatura } from "@/lib/import/print-tabela";
-import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
+import { lerQualquerPrint } from "@/lib/import/print-testando";
+import { bancoDoPrint, comprasDosPrints, juntarPrints, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
 import { casarComFaturaAberta, printsAnterioresDaFatura, type CompraDoPrintGravada } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { ArquivoGrandeSumiu, trazerArquivoGrande } from "@/lib/import/arquivo-grande";
@@ -285,11 +285,16 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
   if (arquivo.size > UPLOAD_MAX_BYTES) return { ok: false, error: "Esse print é grande demais. Mande a captura de tela original, sem editar." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(envio)) return { ok: false, error: MSG_PRINT_ILEGIVEL };
   try {
-    const { lerSegmentosDoPrint } = await import("@/lib/import/ocr-print");
-    const { segmentos } = await lerSegmentosDoPrint(Buffer.from(await arquivo.arrayBuffer()));
-    const daTela = lerPrint(segmentos, envio);
-    // Print da fatura em PDF (tabela com o total no fim): só vale se a soma fechar com o total.
-    const print = daTela.linhas.length > 0 ? daTela : (lerTabelaDaFatura(segmentos) ?? daTela);
+    const { ampliarParaOcr, lerSegmentosDoPrint } = await import("@/lib/import/ocr-print");
+    const imagem = Buffer.from(await arquivo.arrayBuffer());
+    let { segmentos } = await lerSegmentosDoPrint(imagem);
+    let lido = lerQualquerPrint(segmentos, envio);
+    // Não achou nada: a mesma imagem ampliada (letra pequena de PDF fotografado).
+    if (!lido) {
+      segmentos = (await lerSegmentosDoPrint(await ampliarParaOcr(imagem))).segmentos;
+      lido = lerQualquerPrint(segmentos, envio);
+    }
+    const print = lido ?? { linhas: [], cabecalhoNoFim: null };
     if (print.linhas.length === 0) {
       const doPdf = segmentos.some((x) => PAGINA_DO_PDF_RE.test(x.texto));
       return await falhou(`nenhuma compra; ${segmentos.length} pedaços de texto${doPdf ? "; página do PDF" : ""}`, doPdf ? MSG_PRINT_DO_PDF : MSG_PRINT_ILEGIVEL);
