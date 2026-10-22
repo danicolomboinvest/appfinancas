@@ -189,6 +189,11 @@ function lerItauEspacado(texto: string, refYear: number): ParsedTransaction[] {
   // Só compra pode ser parcela do quadro das próximas faturas. O cancelamento das parcelas
   // ("CANC PARCELAS 01/02 -111,19" e "02/02 -111,18", mesmo dia) parecia parcela seguinte de si
   // mesmo, e o crédito de R$ 111 sumia: a fatura não fechava por esse valor.
+  // Antes disso, o quadro inteiro pelo total que a fatura imprime ("Próxima fatura"): parcela
+  // seguinte de valor DIFERENTE da atual (GOL 01/03 699,56 e 02/03 560,86) não casa com a
+  // compra do mês, ficava na leitura e a fatura não fechava (R$ 1.572,11 a mais).
+  const semQuadro = semProximasFaturas(texto, out, true);
+  if (semQuadro !== out && fechaComOMes(texto, semQuadro)) return semQuadro;
   const compras = semParcelaSeguinte(out.filter((t) => t.amount > 0));
   return out.filter((t) => t.amount <= 0 || compras.includes(t));
 }
@@ -257,6 +262,7 @@ const VALOR = String.raw`(\d{1,3}(?:\.\d{3})*,\d{2})`;
 const TOTAL_ATUAL_RE = new RegExp(String.raw`Total dos lan[çc]amentos atuais\s*${VALOR}`, "i");
 const TOTAL_ATUAL_JUNTO_RE = new RegExp(String.raw`Totaldoslan[çc]amentosatuais${VALOR}`, "i");
 const PROXIMA_RE = new RegExp(String.raw`^Pr[óo]xima fatura\s*${VALOR}`, "im");
+const PROXIMA_JUNTO_RE = new RegExp(String.raw`Pr[óo]ximafatura${VALOR}`, "i");
 const centavos = (n: number) => Math.round(n * 100);
 const somaDoMes = (txns: ParsedTransaction[]) => centavos(txns.filter((t) => !/^pagamento/i.test(t.description)).reduce((s, t) => s + t.amount, 0));
 
@@ -273,19 +279,25 @@ function fechaComOMes(texto: string, txns: ParsedTransaction[]): boolean {
  * leitura passou do total do mês exatamente nesse valor, tira o bloco seguido de linhas que soma
  * isso. Só mexe quando as duas contas batem no centavo.
  */
-function semProximasFaturas(texto: string, txns: ParsedTransaction[]): ParsedTransaction[] {
-  const total = texto.match(TOTAL_ATUAL_RE);
-  const proxima = texto.match(PROXIMA_RE);
+function semProximasFaturas(texto: string, txns: ParsedTransaction[], doFim = false): ParsedTransaction[] {
+  // Com espaço no meio das palavras ("Total dos lançamen tos atu ais", "Próxima fat ura") só o
+  // texto sem espaços é reconhecido.
+  const junto = semEspacos(texto);
+  const total = texto.match(TOTAL_ATUAL_RE) ?? junto.match(TOTAL_ATUAL_JUNTO_RE);
+  const proxima = texto.match(PROXIMA_RE) ?? junto.match(PROXIMA_JUNTO_RE);
   if (!total || !proxima) return txns;
   const alvo = centavos(parseBrazilianNumber(proxima[1]));
   const lido = somaDoMes(txns);
   if (lido - centavos(parseBrazilianNumber(total[1])) !== alvo || alvo <= 0) return txns;
-  for (let a = 0; a < txns.length; a++) {
+  // `doFim`: o quadro vem depois das compras do mês, então vale o último bloco que soma isso
+  // (um bloco igual no meio das compras não é o quadro).
+  for (let i = 0; i < txns.length; i++) {
+    const a = doFim ? txns.length - 1 - i : i;
     let soma = 0;
     for (let b = a; b < txns.length; b++) {
       soma += centavos(txns[b].amount);
       if (soma === alvo) return [...txns.slice(0, a), ...txns.slice(b + 1)];
-      if (soma > alvo) break;
+      if (!doFim && soma > alvo) break;
     }
   }
   return txns;
