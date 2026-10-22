@@ -1,4 +1,5 @@
 import { chaveDoComerciante, chaveUtil } from "./comerciante";
+import { nomeNaTela } from "./nome-na-tela";
 
 /**
  * A revisão da importação decidindo os IGUAIS de uma vez.
@@ -100,4 +101,37 @@ export function filaPorComerciante<T extends LinhaDaRevisao>(pendentes: T[]): { 
     vezes.set(it.key, 1);
   }
   return { keys, vezes };
+}
+
+/**
+ * O mesmo Pix para a própria conta todo mês (22/10/2026): no começo, as 3 perguntas iam todas no
+ * mesmo "Pix para Fulana (conta sua)", um por mês do extrato. Mesma pessoa, mesmo valor e mesmo
+ * sentido viram uma pergunta, e a resposta vale para as outras. Só a dúvida de conta própria:
+ * resgate e aplicação seguem uma por uma.
+ */
+function chaveDaDuvidaRepetida(it: LinhaDaRevisao & { amount: number }): string | null {
+  if (it.duvida !== "conta_propria") return null;
+  const nome = nomeNaTela(it.description).nome.trim().toLowerCase();
+  if (!nome) return null;
+  return `${it.profileId ?? ""}|${it.category}|${nome}|${Math.abs(it.amount).toFixed(2)}`;
+}
+
+/** As dúvidas de uma linha, sem as repetidas: fica a primeira de cada grupo. */
+export function semDuvidaRepetida<T extends LinhaDaRevisao & { amount: number }>(linhas: T[]): T[] {
+  const vistas = new Set<string>();
+  return linhas.filter((it) => {
+    const chave = chaveDaDuvidaRepetida(it);
+    if (chave === null) return true;
+    if (vistas.has(chave)) return false;
+    vistas.add(chave);
+    return true;
+  });
+}
+
+/** As OUTRAS linhas que ainda esperam a mesma resposta que ela acabou de dar para `alvoKey`. */
+export function duvidasIguais<T extends LinhaDaRevisao & { amount: number }>(items: T[], alvoKey: number): number[] {
+  const alvo = items.find((it) => it.key === alvoKey);
+  const chave = alvo ? chaveDaDuvidaRepetida(alvo) : null;
+  if (!chave) return [];
+  return items.filter((it) => it.key !== alvoKey && !it.ignorar && chaveDaDuvidaRepetida(it) === chave).map((it) => it.key);
 }

@@ -34,7 +34,7 @@ import { prometeParcelasSeguintes } from "@/lib/import/fatura-aberta";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
 import { ArquivoNaoAbriu, comNovaTentativa, erroComOArquivo, montarEnvio } from "./enviar-arquivo";
 import { TEXTO_JA_NO_APP, tituloDoGrupo } from "@/lib/import/ja-no-app-texto";
-import { filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria } from "@/lib/import/revisao-em-grupo";
+import { duvidasIguais, filaPorComerciante, iguaisPraAplicar, proximaPendente, semCategoria as gastoSemCategoria, semDuvidaRepetida } from "@/lib/import/revisao-em-grupo";
 import { perguntasDeMaiorValor } from "@/lib/onboarding/conferencia-inicial";
 import { foiSeparada, porqueDaLinha } from "@/lib/import/porque";
 import { comprasDaFatura, faixaDosMeses, levarRespostas, resumoDoArquivo } from "@/lib/import/varios-arquivos";
@@ -146,7 +146,8 @@ function filaDePerguntas(linhas: ReviewItem[], pular: Set<number> = new Set()): 
   const pendentes = linhas.filter((it) => precisaResposta(it) && !pular.has(it.key));
   // "Parece já estar no app" (lib/import/ja-no-app): todas numa pergunta só, na primeira delas.
   const altaChance = pendentes.filter((it) => it.possivelDuplicata?.altaChance);
-  const umaPorUma = pendentes.filter((it) => (it.possivelDuplicata && !it.possivelDuplicata.altaChance) || it.duvida);
+  // O mesmo Pix para a própria conta todo mês: uma pergunta só (revisao-em-grupo).
+  const umaPorUma = semDuvidaRepetida(pendentes.filter((it) => (it.possivelDuplicata && !it.possivelDuplicata.altaChance) || it.duvida));
   const porCategoria = filaPorComerciante(pendentes.filter((it) => !it.possivelDuplicata && !it.duvida));
   return [...(altaChance.length > 0 ? [altaChance[0].key] : []), ...umaPorUma.map((it) => it.key), ...porCategoria.keys];
 }
@@ -770,6 +771,7 @@ export function StatementImport({
    * (só passou de uma conta pra outra, ou voltou da aplicação: fica de fora).
    */
   function responderDinheiroProprio(itemKey: number, resposta: "gasto" | "guardei" | "renda" | "mudei") {
+    // A resposta vale também para o mesmo Pix dos outros meses (mesma pessoa e mesmo valor).
     responderNaFila(itemKey, (it) => {
         // Voltou do que ela guardou: entra como resgate (guardado negativo), não fica de fora.
         // Ficando de fora, o dinheiro aparecia na conta e o investimento nunca diminuía.
@@ -780,21 +782,22 @@ export function StatementImport({
         if (resposta === "guardei") return { ...it, category: "INVESTMENT_CONTRIBUTION", parentCategory: null, customCategoryId: null, duvida: null };
         if (resposta === "renda") return { ...it, category: "INCOME", parentCategory: null, customCategoryId: null, duvida: null };
         return { ...it, ignorar: true, duvida: null, nota: "Dinheiro seu mudando de lugar: fica de fora." };
-    });
+    }, duvidasIguais(items, itemKey));
   }
 
   /**
    * Responde uma pergunta da fila e anda (ou fica, quando a mesma linha ainda pede a categoria:
    * "são diferentes" de um gasto sem categoria segue nele, agora perguntando o que é).
    */
-  function responderNaFila(itemKey: number, muda: (it: ReviewItem) => ReviewItem) {
+  function responderNaFila(itemKey: number, muda: (it: ReviewItem) => ReviewItem, iguais: number[] = []) {
     const atual = items.find((it) => it.key === itemKey);
     if (!atual) return;
     const novo = muda(atual);
-    setItems((prev) => prev.map((it) => (it.key === itemKey ? novo : it)));
+    const junto = new Set(iguais);
+    setItems((prev) => prev.map((it) => (it.key === itemKey ? novo : junto.has(it.key) ? muda(it) : it)));
     if (phase !== "review") return;
     if (precisaResposta(novo)) return;
-    advanceReview(new Set([itemKey]));
+    advanceReview(new Set([itemKey, ...iguais]));
   }
 
   /** "É o mesmo que já está no app?": sim, a linha não entra (fica em "já estavam no app", com desfazer). */
