@@ -7,7 +7,7 @@ import type { EmailPronto } from "./emails";
 import { podeReceberEmail } from "./presente";
 
 /** O endereço do app nos e-mails (produção; a prévia da Vercel pede login). */
-export const URL_DO_APP = (process.env.EMAIL_ASSETS_URL ?? "https://financas.danicolombo.com.br").replace(/\/+$/, "");
+export { URL_DO_APP } from "@/lib/email/url-do-app";
 
 /** Para quem o e-mail vai: nome, tema do perfil que abre ao entrar, e se ainda pode receber. */
 export async function destinatario(userId: string, agora: Date = new Date()) {

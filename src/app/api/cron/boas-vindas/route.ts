@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { urlDoAppPara } from "@/lib/email/url-do-app";
 import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { prisma } from "@/lib/db/prisma";
 import { abrirEnvioEmLote } from "@/lib/email/send";
@@ -141,9 +142,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ ok: true, dryRun, atrasados, parouPorTempo, contagem });
 }
 
-/** URL do app a partir do próprio request: localhost ou o domínio de produção. */
+/** URL do app nos links dos e-mails: localhost no computador, senão sempre o domínio de produção (ver url-do-app.ts). */
 function appBaseUrl(request: Request): string {
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "localhost:3000";
-  const proto = request.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
+  return urlDoAppPara(request.headers.get("x-forwarded-host") ?? request.headers.get("host"));
 }
