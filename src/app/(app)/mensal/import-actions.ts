@@ -24,7 +24,7 @@ import { acharCartaoDaFatura, ligarComprasJaNoAppAoCartao, ligarLoteAoCartao, ty
 import { MSG_TROCOU_DE_PERFIL, trocouDePerfil } from "@/lib/profiles/perfil-da-tela";
 import { prisma } from "@/lib/db/prisma";
 import { PREFIXO_COMPRA_APAGADA, PREFIXO_NAO_PARCELA, projecaoRecusada } from "@/lib/contas/parcelas-do-mes";
-import { formatMoney, toCurrencyCode } from "@/lib/money";
+import { formatMoney, toCurrencyCode, type CurrencyCode } from "@/lib/money";
 import { getDiaInicioMes, getOwnUser } from "@/lib/repositories/user.repo";
 import { mesDoPeriodo } from "@/lib/mes/periodo";
 import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
@@ -224,9 +224,9 @@ export type ParseStatementResult =
 
 /** A conferência vai na mensagem do diagnóstico: é o que o relatório diário e o aviso de suporte
  * leem pra saber se faltou coisa (ver `leituraIncompletaDoRegistro`). */
-function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string | null {
-  // O documento importado é em real: o valor impresso nele vem em real, seja qual for a moeda da conta.
-  const reais = (n: number) => formatMoney(n, "BRL");
+function mensagemDaConferencia(conf: Conferencia, incompleta: boolean, moeda: CurrencyCode = "BRL"): string | null {
+  // O documento vem na moeda da conta (euro para quem ganha em euro): o relatório não pode dizer "R$".
+  const reais = (n: number) => formatMoney(n, moeda);
   if (incompleta) {
     return conf.status === "nao-fechou"
       ? `${MARCA_NAO_FECHOU} li ${reais(conf.lido)}, o arquivo diz ${reais(conf.esperado)}`
@@ -236,8 +236,8 @@ function mensagemDaConferencia(conf: Conferencia, incompleta: boolean): string |
 }
 
 /** Prints: sempre "[conferido]" (não é erro do app), com o total quando o print mostrou um. */
-function mensagemDaConferenciaDoPrint(conf: Conferencia): string {
-  const reais = (n: number) => formatMoney(n, "BRL");
+function mensagemDaConferenciaDoPrint(conf: Conferencia, moeda: CurrencyCode = "BRL"): string {
+  const reais = (n: number) => formatMoney(n, moeda);
   if (conf.status === "fechou") return `${MARCA_CONFERIDO} bateu com o total do print (${reais(conf.esperado)})`;
   if (conf.status === "nao-fechou") return `${MARCA_CONFERIDO} print: somou ${reais(conf.lido)}, a fatura diz ${reais(conf.esperado)}`;
   return MARCA_CONFERIDO;
@@ -768,8 +768,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       stats.suspeitas.length > 0
         ? mensagemImplausivel(stats.suspeitas.map((x) => x.texto))
         : dosPrints
-          ? mensagemDaConferenciaDoPrint(stats.conferencia)
-          : mensagemDaConferencia(stats.conferencia, stats.leituraIncompleta),
+          ? mensagemDaConferenciaDoPrint(stats.conferencia, moedaDoApp)
+          : mensagemDaConferencia(stats.conferencia, stats.leituraIncompleta, moedaDoApp),
   });
   // Leu, mas achou muito menos do que o arquivo tinha: pra pessoa é "só veio um pedaço da
   // fatura". Guarda o arquivo também nesse caso — é o único jeito de conferir se o que ficou

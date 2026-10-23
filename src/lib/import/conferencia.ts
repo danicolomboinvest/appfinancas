@@ -3,6 +3,7 @@ import { detectInvoiceTotal } from "./detect";
 import { lerExtratoPeloSaldo } from "./extrato-pelo-saldo";
 import { comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "./fatura-lines";
 import type { ParsedTransaction } from "./statement-parser";
+import { isWiseStatement, saldosDoExtratoWise } from "./wise-extrato-pdf";
 
 /**
  * A leitura bateu com o que o PRÓPRIO documento diz?
@@ -191,6 +192,15 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
   // (Pix de valor redondo parecia "coluna errada" e dava alarme falso: 05/10/2026.)
   const porSaldo = conferirPorSaldoBB(texto, txns);
   if (porSaldo) return porSaldo;
+
+  // Wise: saldo final no alto, saldo inicial pela linha mais antiga. Saldo inicial + o que as
+  // linhas somam tem que dar o final (extrato em euro, dólar, libra).
+  const saldosWise = isWiseStatement(texto) ? saldosDoExtratoWise(texto) : null;
+  if (saldosWise) {
+    const esperado = Math.round((saldosWise.final - saldosWise.inicial) * 100) / 100;
+    const lido = Math.round(txns.reduce((s, t) => s + t.amount, 0) * 100) / 100;
+    return Math.abs(lido - esperado) <= 0.01 ? { status: "fechou", lido, esperado } : { status: "nao-fechou", lido, esperado };
+  }
 
   // Extrato: só o que é inequívoco. Saldo inicial/final muda de nome e de sinal a cada banco, e
   // uma referência lida errada acusaria (e mandaria mensagem pra) quem teve a leitura certa.

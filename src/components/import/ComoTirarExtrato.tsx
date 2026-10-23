@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { BANCOS_EXTRATO } from "./bancos-extrato";
+import { useCurrency } from "@/components/money/MoneyProvider";
+import { BANCOS_EXTRATO, BANCOS_EXTRATO_EURO } from "./bancos-extrato";
 
 /**
  * "Como tiro o extrato do meu banco?", embaixo do botão de subir o arquivo.
@@ -17,7 +18,9 @@ export function ComoTirarExtrato({ abertoDeInicio = false }: { abertoDeInicio?: 
   const t = voz.titulos;
   const [aberto, setAberto] = useState(abertoDeInicio);
   const [banco, setBanco] = useState<string | null>(null);
-  const escolhido = BANCOS_EXTRATO.find((b) => b.banco === banco) ?? null;
+  // Quem ganha em euro vê os bancos de lá primeiro (e os do Brasil logo depois).
+  const bancos = useCurrency() === "EUR" ? [...BANCOS_EXTRATO_EURO, ...BANCOS_EXTRATO] : BANCOS_EXTRATO;
+  const escolhido = bancos.find((b) => b.banco === banco) ?? null;
 
   return (
     <div className="rounded-2xl border border-border bg-surface-2">
@@ -35,7 +38,7 @@ export function ComoTirarExtrato({ abertoDeInicio = false }: { abertoDeInicio?: 
         <div className="flex flex-col gap-3 border-t border-border px-4 pb-4 pt-3">
           <p className="rounded-xl bg-accent-soft px-3 py-2 text-sm text-ink">{t.impComoTirarAviso}</p>
           <div className="grid grid-cols-2 gap-2">
-            {BANCOS_EXTRATO.map((b) => (
+            {bancos.map((b) => (
               <button
                 key={b.banco}
                 type="button"

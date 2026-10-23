@@ -36,7 +36,7 @@ interface Modo {
 const montarModo = (valor: string, temDinheiro: RegExp, numero: RegExp, decimal: boolean): Modo => ({
   valor,
   doisValoresNoFim: new RegExp(String.raw`^(.*?)\s*(${valor})\s+(${valor})\s*$`, "i"),
-  saldoAnterior: new RegExp(String.raw`saldo\s+(?:anterior|inicial)[^\n\d-]*?(${valor})`, "i"),
+  saldoAnterior: new RegExp(String.raw`(?:saldo\s+(?:anterior|inicial|iniziale)|opening\s+balance|anfangssaldo|solde\s+(?:pr[ée]c[ée]dent|initial)|saldo\s+de\s+abertura)[^\n\d-]*?(${valor})`, "i"),
   temDinheiro,
   numero,
   decimal,
@@ -51,7 +51,7 @@ const DATA_MES_RE = /(?<![\d])(\d{1,2}) (?:de )?(jan|fev|mar|abr|mai|jun|jul|ago
 const MESES: Record<string, number> = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
 const HORA_RE = /\b\d{2}:\d{2}(?::\d{2})?\b/g;
 /** Linha que é título, rodapé ou resumo, nunca nome de lançamento. */
-const NAO_E_NOME_RE = /^(data\b|fecha\b|glosa\b|concepto\b|descripci[oó]n|descri[çc][ãa]o|hist[óo]rico|lan[çc]amentos?$|valor|saldo|extrato|p[áa]gina|-- \d+ of|ag[êe]ncia|conta\b|cliente|per[íi]odo|documento)/i;
+const NAO_E_NOME_RE = /^(data\b|datum\b|date\b|description\b|beschreibung|buchung|bedrag|betrag|omschrijving|descrizione|libell|montant|importo|transaction\b|operaci|fecha\b|glosa\b|concepto\b|descripci[oó]n|descri[çc][ãa]o|hist[óo]rico|lan[çc]amentos?$|valor|saldo|extrato|p[áa]gina|-- \d+ of|ag[êe]ncia|conta\b|cliente|per[íi]odo|documento)/i;
 /** Linha de saldo (saldo anterior, saldo do dia, saldo final): é conferência, não lançamento. */
 const LINHA_DE_SALDO_RE = /\bsaldo\b|\bs\s+a\s+l\s+d\s+o\b/i;
 
@@ -98,7 +98,15 @@ function lerData(trecho: string, ano: number): string | null {
 }
 
 const semDataNemHora = (s: string) =>
-  s.replace(DATA_RE, " ").replace(DATA_MES_RE, " ").replace(HORA_RE, " ").replace(/\bàs\b/gi, " ").replace(/\s+/g, " ").trim();
+  s
+    .replace(DATA_RE, " ")
+    .replace(DATA_MES_RE, " ")
+    .replace(HORA_RE, " ")
+    .replace(/\bàs\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    // Extrato europeu com duas colunas de data (movimento e valor): a segunda não é parte do nome.
+    .replace(/^(?:\d{2}\/\d{2}(?:\/\d{2,4})?)\s+/, "");
 
 export function lerExtratoPeloSaldo(texto: string, refYear?: number): ParsedTransaction[] | null {
   return lerNoModo(texto, refYear, COM_CENTAVOS) ?? lerNoModo(texto, refYear, EM_PESOS_INTEIROS);
