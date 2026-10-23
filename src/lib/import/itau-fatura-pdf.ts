@@ -62,10 +62,16 @@ export function parseItauInvoice(texto: string, refYear: number = new Date().get
   const duasColunas = lerItauDuasColunas(texto, refYear);
   if (fechaComOMes(texto, duasColunas)) return duasColunas;
   const espacado = lerItauEspacado(texto, refYear);
-  return fechaComOMes(texto, espacado) ? espacado : porSecao;
+  if (fechaComOMes(texto, espacado)) return espacado;
+  // Mesmo PDF esfarelado, mas com o quadro das próximas faturas no fim e parcelas de valor
+  // DIFERENTE da parcela do mês (a Gol 01/03 de R$ 699,56 vira 02/03 de R$ 560,86): a parcela
+  // seguinte não some pela "mesma compra", então o quadro inteiro é cortado pelo título dele.
+  const semQuadro = lerItauEspacado(texto, refYear, true);
+  return fechaComOMes(texto, semQuadro) ? semQuadro : porSecao;
 }
 
 const TITULO_PROXIMAS_RE = /Compras parceladas\s*-\s*pr[óo]ximas faturas/i;
+const TITULO_PROXIMAS_JUNTO_RE = /Comprasparceladas-?pr[óo]ximasfaturas/i;
 const QUEBRA_DE_PAGINA_RE = /^-- \d+ of \d+ --$/;
 const CABECALHO_CARTAO_RE = /^[A-ZÀ-Þ][A-ZÀ-Þ .'-]*\s*\(final \d{4}\)/;
 const SUBTOTAL_CARTAO_RE = /^Lan[çc]amentos no cart[ãa]o \(final \d{4}\)/i;
@@ -163,12 +169,14 @@ function lerItauDuasColunas(texto: string, refYear: number): ParsedTransaction[]
  * quadro das próximas faturas sai pela parcela seguinte da MESMA compra. Só vale se fechar no
  * centavo com o total do mês (ver `parseItauInvoice`).
  */
-function lerItauEspacado(texto: string, refYear: number): ParsedTransaction[] {
+function lerItauEspacado(texto: string, refYear: number, cortarNoQuadro = false): ParsedTransaction[] {
   const emissao = texto.match(EMISSAO_RE);
   const mesEmissao = emissao ? Number(emissao[2]) : null;
   const anoEmissao = emissao ? Number(emissao[3]) : refYear;
   const out: ParsedTransaction[] = [];
   for (const bruta of texto.split(/\r?\n/)) {
+    // O título vem esfarelado também ("C om p ras p ar cel ad as - p ró x im as fa tur as").
+    if (cortarNoQuadro && TITULO_PROXIMAS_JUNTO_RE.test(semEspacos(bruta))) break;
     const linha = remendarNumeros(bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim());
     // Com as colunas misturadas, o "Repasse de IOF em R$ 17,04" vem no meio da linha, colado no
     // texto da outra coluna.

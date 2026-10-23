@@ -107,3 +107,36 @@ describe("fatura do cartão Itaú em duas colunas", () => {
     expect(txns.reduce((s, t) => s + t.amount, 0)).toBeCloseTo(252);
   });
 });
+
+/**
+ * Fatura FICTÍCIA no formato esfarelado (espaço no meio de palavras e números, duas colunas na
+ * mesma linha) com o quadro das próximas faturas no FIM, e parcelas seguintes de valor diferente
+ * da parcela do mês (caso real de 22/10/2026: R$ 2.644 lidos de uma fatura de R$ 7.906, porque a
+ * parcela 02/03 de R$ 560,86 entrava como compra do mês e o título do quadro estava esfarelado).
+ */
+const ITAU_ESFARELADO = `1
+Platinum Itaú Cartões
+Postagem: 03/09/2026
+Vencimento: 10/09/2026 = Total desta fatura 600 ,00
+Emissão: 03/09/2026
+Pagamentos efetuados Lançamentos: compras e saques
+DATA VA LOR EM R$ DAT A ESTA BE LECIME NT O VAL OR EM R$
+03/08 Pagamento via conta -1.000 ,00 20/08 LOJA EX EMPLO UM 100,0 0
+02/ 08 VIAGEM EX EMPLO 01/ 03 300, 00 23/08 REST AURANTE EXEM PLO 50 ,00
+06/ 08 FARM ACIA EXEM PLO 150,00
+L Total dos lançam ent os atuais 600 ,00
+C om p ras p ar cel ad as - p ró x im as fa tur as
+DATA ESTA BEL ECIMENTO VA LOR EM R$
+02/ 08 VIAGEM EX EMPLO 02/ 03 280, 00
+Próxima fat ura 280,00`;
+
+describe("fatura do cartão Itaú esfarelada, com o quadro das próximas no fim", () => {
+  it("corta o quadro pelo título esfarelado e fecha no centavo com o total do mês", () => {
+    const txns = parseStatement(ITAU_ESFARELADO, "pdf", 2026);
+    const compras = txns.filter((t) => !isFaturaSummaryLine(t));
+    expect(compras.reduce((s, t) => s + t.amount, 0)).toBeCloseTo(600);
+    expect(compras.some((t) => t.amount === 280)).toBe(false);
+    expect(compras.some((t) => t.amount === 300)).toBe(true);
+    expect(conferirLeitura(ITAU_ESFARELADO, "fatura", compras)).toMatchObject({ status: "fechou" });
+  });
+});
