@@ -13,6 +13,7 @@
 import { normalizeLetterSpacedText } from "./letter-spaced";
 import { pdfTextQuality, textoEmbaralhado } from "./pdf-quality";
 import { linhasPorPosicao, precisaRemontarPorPosicao } from "./pdf-por-posicao";
+import { textoPorLayout, type PaginaDoPdf } from "./pdf-layout";
 
 export type UploadEncoding = "text" | "xlsx" | "pdf";
 
@@ -172,7 +173,8 @@ function semLixoAntesDoPdf(buffer: Buffer): Buffer {
   return inicio > 0 ? Buffer.from(buffer.subarray(inicio)) : buffer;
 }
 
-async function pdfToText(buffer: Buffer, password: string | undefined): Promise<string> {
+/** `layout`: o mesmo PDF lido coluna por coluna (pdf-layout.ts), para quem lê depois testar. */
+async function pdfToText(buffer: Buffer, password: string | undefined): Promise<{ texto: string; layout: string | null }> {
   await prepararAmbienteDoPdf();
   let PDFParse: typeof import("pdf-parse").PDFParse;
   try {
@@ -189,9 +191,11 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
     // Extrato guardado por coluna (o do app do Itaú): remonta as linhas pela posição na página.
     if (precisaRemontarPorPosicao(texto)) {
       const remontado = await textoPorPosicao(parser).catch(() => null);
-      if (remontado) return remontado;
+      if (remontado) return { texto: remontado, layout: null };
     }
-    return texto;
+    // Melhor esforço: se a leitura pela posição falhar, segue só com o texto de sempre.
+    const layout = await textoPorColuna(parser).catch(() => null);
+    return { texto, layout: layout ? normalizeLetterSpacedText(layout) : null };
   } catch (err) {
     // Arquivo trancado não é servidor quebrado. Dizer "manda em Excel" aqui era mandar a pessoa
     // procurar um arquivo que o banco nem oferece — a fatura sai em PDF e só em PDF. O Excel
@@ -219,6 +223,37 @@ async function pdfToText(buffer: Buffer, password: string | undefined): Promise<
   }
 }
 
+/** O texto do PDF coluna por coluna, com os números remendados (pdf-layout.ts). */
+async function textoPorColuna(parser: import("pdf-parse").PDFParse): Promise<string | null> {
+  type Doc = {
+    numPages: number;
+    getPage(n: number): Promise<{
+      getViewport(o: { scale: number }): { width: number };
+      getTextContent(): Promise<{ items: { str?: string; transform?: number[]; width?: number }[] }>;
+    }>;
+  };
+  const doc = await (parser as unknown as { load(): Promise<Doc> }).load();
+  const paginas: PaginaDoPdf[] = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const pagina = await doc.getPage(n);
+    const conteudo = await pagina.getTextContent();
+    paginas.push({
+      largura: pagina.getViewport({ scale: 1 }).width,
+      pedacos: conteudo.items
+        .filter((i) => typeof i.str === "string" && Array.isArray(i.transform))
+        .map((i) => ({
+          str: i.str as string,
+          x: i.transform![4],
+          y: i.transform![5],
+          w: i.width ?? 0,
+          fs: Math.abs(i.transform![0]) || Math.abs(i.transform![3]) || 8,
+        })),
+    });
+  }
+  const texto = textoPorLayout(paginas);
+  return texto.trim() ? texto : null;
+}
+
 /** O texto do PDF linha a linha pela posição de cada pedaço na página (pdf-por-posicao.ts). */
 async function textoPorPosicao(parser: import("pdf-parse").PDFParse): Promise<string | null> {
   type Doc = {
@@ -244,11 +279,12 @@ async function textoPorPosicao(parser: import("pdf-parse").PDFParse): Promise<st
  * que os parsers entendem.
  * - text: CSV/OFX, decodifica os bytes como UTF-8 (ou Windows-1252, ver decodificarTexto)
  * - xlsx: Excel → CSV
- * - pdf: PDF → texto cru (source "pdf" para o parser de linhas)
+ * - pdf: PDF → texto cru (source "pdf" para o parser de linhas) e, em `layout`, o mesmo PDF lido
+ *   coluna por coluna (só vale se fechar com o total: escolherTextoDoPdf)
  */
 export async function extractUploadFromForm(
   formData: FormData,
-): Promise<{ text: string; source: "auto" | "pdf" }> {
+): Promise<{ text: string; source: "auto" | "pdf"; layout?: string | null }> {
   const file = formData.get("file");
   const encoding = String(formData.get("encoding") ?? "text") as UploadEncoding;
   const passwordRaw = formData.get("password");
@@ -267,7 +303,7 @@ export async function extractUploadFromForm(
   }
   if (encoding === "xlsx") return { text: semNulo(await xlsxToCsv(buffer, password)), source: "auto" };
   if (encoding === "pdf") {
-    const texto = await pdfToText(buffer, password);
+    const { texto, layout } = await pdfToText(buffer, password);
     // PDF que é só imagem (extrato impresso como foto) ou com o texto embaralhado pela fonte: lê
     // por OCR aqui mesmo no servidor. Falhou ou não leu nada? segue com o texto que saiu, que
     // mostra a mensagem de sempre.
@@ -280,7 +316,7 @@ export async function extractUploadFromForm(
         console.error("leitura por imagem falhou", causa(err));
       }
     }
-    return { text: semNulo(texto), source: "pdf" };
+    return { text: semNulo(texto), source: "pdf", layout: layout ? semNulo(layout) : null };
   }
   return { text: semNulo(decodificarTexto(buffer)), source: "auto" };
 }

@@ -42,6 +42,7 @@ import { aplicarNosOutrosMeses, listTransactionRules, upsertTransactionRule } fr
 import { parseStatementComLeitor, type ParsedTransaction } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
 import { extractUploadFromForm, UploadReadError, PasswordRequiredError } from "@/lib/import/extract-text";
+import { escolherTextoDoPdf } from "@/lib/import/escolher-texto-do-pdf";
 import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { type LearnedRule } from "@/lib/import/classify";
 import { chaveDoComerciante, chaveUtil, ehLojaDeTudo } from "@/lib/import/comerciante";
@@ -439,7 +440,10 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     text = dosPrints.compras.map((c) => `${c.date.split("-").reverse().join("/")} ${c.description} ${c.amount.toFixed(2).replace(".", ",")}`).join("\n");
     source = "pdf";
   } else try {
-    ({ text, source } = await extractUploadFromForm(formData));
+    let layout: string | null | undefined;
+    ({ text, source, layout } = await extractUploadFromForm(formData));
+    // Fatura em duas ou três colunas: vale a leitura coluna por coluna quando só ela fecha.
+    if (encoding === "pdf") text = escolherTextoDoPdf(text, layout, Number(String(formData.get("faturaMonth") ?? "").slice(0, 4)) || undefined);
   } catch (err) {
     if (err instanceof PasswordRequiredError) {
       // A senha errada continua no diagnóstico (é como se vê quem tenta 20 vezes e desiste).

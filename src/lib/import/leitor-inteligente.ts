@@ -66,7 +66,7 @@ const CABECALHO_RE =
   /^(lan[çc]amentos?\b|transa[çc][õo]es\b|detalhamento da fatura|detalhes de consumo|movimenta[çc][õo]es\b|hist[óo]rico de (despesas|lan[çc]amentos|transa[çc][õo]es)|data\s+(descri[çc][ãa]o|hist[óo]rico|estabelecimento|loja|movimenta))/i;
 /** Começo de um pedaço que NÃO é gasto deste mês. */
 const BLOCO_FUTURO_RE =
-  /(pr[óo]xim[ao]s?\s+faturas?|parcelamentos?\s+pr[óo]xim|total\s+parcelado\s+para|ficha\s+de\s+compensa|recibo\s+do\s+pagador|formas\s+de\s+pagamento|op[çc][õo]es\s+de\s+pagamento|parcele\s+(sua|esta)\s+fatura|limites?\s+de\s+cr[ée]dito|encargos\s+financeiros)/i;
+  /(pr[óo]xim[ao]s?\s*faturas?|parcelamentos?\s*pr[óo]xim|total\s*parcelado\s*para|ficha\s*de\s*compensa|recibo\s*do\s*pagador|formas\s*de\s*pagamento|op[çc][õo]es\s*de\s*pagamento|parcele\s*(sua|esta)\s*fatura|limites?\s*de\s*cr[ée]dito|encargos\s*financeiros)/i;
 const REPASSE_IOF_RE = /repasse\s+de\s+iof\s+em\s+R\$\s*\d{1,3}(?:\.\d{3})*,\d{2}/gi;
 const IOF_SEM_DATA_RE = /^(repasse\s+de\s+)?iof\b/i;
 const VIRA_PAGINA_RE = /^(--\s*\d+\s+of\s+\d+\s*--|p[áa]gina\s+\d+)/i;
