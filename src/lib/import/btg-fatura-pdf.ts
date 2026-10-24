@@ -137,5 +137,13 @@ export function parseBtgInvoice(texto: string, refYear: number = new Date().getF
     aplicar(e, candidatos[0]);
     resolvidas.push({ e, cotacao: soltos[candidatos[0]] });
   }
+  // Mensalidade do cartão que o resumo cobra mas a lista de lançamentos não traz (fatura de junho
+  // de uma cliente: R$ 90,00 de fora e a conferência acusava "não fechou"). Só entra quando não
+  // há linha de mensalidade na lista (senão dobra); o valor do resumo já vem com o desconto.
+  const mensalidade = texto.match(/^Mensalidade do cart[ãa]o de cr[ée]dito\s+R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})/im);
+  if (mensalidade && venc && !out.some((t) => /mensalidade/i.test(t.description))) {
+    const valor = parseBrazilianNumber(mensalidade[1]);
+    if (valor > 0) out.push({ date: `${anoFatura}-${venc[2]}-${venc[1]}`, description: "Mensalidade cartão de crédito", amount: valor });
+  }
   return out;
 }
