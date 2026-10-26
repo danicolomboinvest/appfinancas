@@ -58,6 +58,7 @@ import { casaAtiva, chaveDaConta, comFiltro, doOutroVisivel } from "@/lib/casa/r
 import { lidasEmDobro } from "@/lib/import/repetidos";
 import { conversaoDaCompra, moedaDeForaValida, type CompraParaPreencher, type MoedaDeFora } from "@/lib/import/moeda-de-fora";
 import { lerTabelaDaFatura } from "@/lib/import/print-tabela";
+import { lerNotificacoes } from "@/lib/import/print-notificacao";
 import { bancoDoPrint, comprasDosPrints, juntarPrints, lerPrint, semValorEmReal, type CompraDoPrint, type CompraSemValorEmReal, type PrintLido } from "@/lib/import/print-fatura";
 import { casarComFaturaAberta, printsAnterioresDaFatura, type CompraDoPrintGravada } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
@@ -290,7 +291,8 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
     const { segmentos } = await lerSegmentosDoPrint(Buffer.from(await arquivo.arrayBuffer()));
     const daTela = lerPrint(segmentos, envio);
     // Print da fatura em PDF (tabela com o total no fim): só vale se a soma fechar com o total.
-    const print = daTela.linhas.length > 0 ? daTela : (lerTabelaDaFatura(segmentos) ?? daTela);
+    // Notificação de compra no cartão (26/10/2026): cada aviso vira uma compra.
+    const print = daTela.linhas.length > 0 ? daTela : (lerTabelaDaFatura(segmentos) ?? lerNotificacoes(segmentos, envio) ?? daTela);
     if (print.linhas.length === 0) {
       const doPdf = segmentos.some((x) => PAGINA_DO_PDF_RE.test(x.texto));
       return await falhou(`nenhuma compra; ${segmentos.length} pedaços de texto${doPdf ? "; página do PDF" : ""}`, doPdf ? MSG_PRINT_DO_PDF : MSG_PRINT_ILEGIVEL);
