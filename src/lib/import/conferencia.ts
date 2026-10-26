@@ -58,6 +58,12 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
  * deste mês, então o total a pagar menos ele é o que as linhas têm que somar. */
 const REMANESCENTE = new RegExp(String.raw`valor\s+remanescente\s+da\s+fatura\s+anterior\s*${VALOR}`, "i");
 
+/** BTG (cartão EQI): "Juros e encargos R$ 26,80" (IOF rotativo, encargos por atraso) fica fora do
+ * "Total de compras e despesas dessa fatura", mas vem linha a linha. Sem somar, a leitura certa no
+ * centavo caía em "não fechou" (fatura de julho, 26/10/2026). */
+const COMPRAS_DESSA_FATURA_BTG = new RegExp(String.raw`^total\s+de\s+compras\s+e\s+despesas\s+dessa\s+fatura\s*${VALOR}`, "im");
+const JUROS_E_ENCARGOS_BTG = new RegExp(String.raw`^juros\s+e\s+encargos\s*${VALOR}`, "im");
+
 /** App Bradesco Cartões com a fatura "EM ABERTO": o "Total da Fatura em Real" soma o saldo da
  * anterior ("10/10 SALDO ANTERIOR BRL 0,00 0,00 R$ 0,00 1.097,14"), que não é compra deste mês. */
 const SALDO_ANTERIOR_BRADESCO_APP = /SALDO ANTERIOR BRL\s+[\d.,]+\s+[\d.,]+\s+R\$\s*[\d.,]+\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i;
@@ -150,6 +156,9 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     if (outros !== null && comprasNubank !== null) referencias.push(Math.round((comprasNubank + outros) * 100) / 100);
     const remanescente = numero(texto.match(REMANESCENTE));
     if (total !== null && remanescente !== null) referencias.push(Math.round((total - remanescente) * 100) / 100);
+    const comprasBtg = numero(texto.match(COMPRAS_DESSA_FATURA_BTG));
+    const jurosBtg = numero(texto.match(JUROS_E_ENCARGOS_BTG));
+    if (comprasBtg !== null && jurosBtg !== null) referencias.push(Math.round((comprasBtg + jurosBtg) * 100) / 100);
     const antecipadoC6 = numero(texto.match(PAGAMENTO_ANTECIPADO_C6));
     if (total !== null && antecipadoC6 !== null) referencias.push(Math.round((total + antecipadoC6) * 100) / 100);
     const saldoAnteriorBradesco = numero(texto.match(SALDO_ANTERIOR_BRADESCO_APP));
