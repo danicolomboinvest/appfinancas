@@ -313,13 +313,20 @@ export function VoiceRecorder({ onParsed, onDigitar }: { onParsed: (parsed: Pars
       // microfone, não uma falha da pessoa: tenta de novo uma vez, sem a onda. Com o dedo já
       // solto, foi o próprio app que parou, e o "onend" cuida do que foi dito.
       if (event.error === "aborted") {
-        if (isHeldRef.current && tentativa === 1) {
+        if (isHeldRef.current && tentativa < 3) {
           recognition.onend = null;
           stopVisualizer();
-          startRecording(2);
+          startRecording(tentativa + 1);
           return;
         }
         if (!isHeldRef.current) return;
+        // Cortado de novo mesmo depois de tentar duas vezes (outro app com o microfone, ligação):
+        // não é erro dela nem do app. Pede para tentar de novo, sem código na tela e sem registrar.
+        isHeldRef.current = false;
+        setRecording(false);
+        setErrorMessage(voz.titulos.impVozNaoEntendi);
+        stopVisualizer();
+        return;
       }
       isHeldRef.current = false;
       setRecording(false);
