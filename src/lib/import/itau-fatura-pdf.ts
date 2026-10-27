@@ -52,6 +52,14 @@ export function isItauInvoice(texto: string): boolean {
 const semEspacos = (texto: string) => texto.replace(/[ \t]+/g, "");
 
 export function parseItauInvoice(texto: string, refYear: number = new Date().getFullYear()): ParsedTransaction[] {
+  // "PAG AM ENT O DEB AU TOM ATIC" (PDF esfarelado) é o pagamento da fatura anterior: com o nome
+  // inteiro, a revisão o reconhece como linha de resumo e não como crédito do mês.
+  return lerFatura(texto, refYear).map((t) =>
+    /^pagamento/i.test(t.description.replace(/\s+/g, "")) && !/^pagamento/i.test(t.description) ? { ...t, description: "Pagamento efetuado" } : t,
+  );
+}
+
+function lerFatura(texto: string, refYear: number): ParsedTransaction[] {
   const porSecao = lerItau(texto, refYear, true);
   if (fechaComOMes(texto, porSecao)) return porSecao;
   // PDF de duas colunas: a extração mistura as colunas e há compras do mês ANTES do primeiro
@@ -266,7 +274,8 @@ const TOTAL_ATUAL_RE = new RegExp(String.raw`Total dos lan[çc]amentos atuais\s*
 const TOTAL_ATUAL_JUNTO_RE = new RegExp(String.raw`Totaldoslan[çc]amentosatuais${VALOR}`, "i");
 const PROXIMA_RE = new RegExp(String.raw`^Pr[óo]xima fatura\s*${VALOR}`, "im");
 const centavos = (n: number) => Math.round(n * 100);
-const somaDoMes = (txns: ParsedTransaction[]) => centavos(txns.filter((t) => !/^pagamento/i.test(t.description)).reduce((s, t) => s + t.amount, 0));
+// Sem espaços: no PDF esfarelado o pagamento vem como "PAG AM ENT O DEB AU TOM ATIC".
+const somaDoMes = (txns: ParsedTransaction[]) => centavos(txns.filter((t) => !/^pagamento/i.test(t.description.replace(/\s+/g, ""))).reduce((s, t) => s + t.amount, 0));
 
 /** A leitura soma exatamente o "Total dos lançamentos atuais" impresso? */
 function fechaComOMes(texto: string, txns: ParsedTransaction[]): boolean {

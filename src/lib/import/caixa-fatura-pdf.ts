@@ -20,6 +20,9 @@ import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser
  */
 
 const LINHA_RE = /^(\d{2})\/(\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*([DC])$/;
+// Anuidade vem sem data, na seção "ANUIDADE" antes das compras: "ANUIDADE DIFERENCIADA TIT 04/ 12 17,25D".
+const ANUIDADE_RE = /^(ANUIDADE\b.*?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*([DC])$/i;
+const FECHAMENTO_RE = /^FT (\d{2})\/(\d{2})\/(\d{4})/m;
 const VENCIMENTO_RE = /^VENCIMENTO\s*\n\s*(\d{2})\/(\d{2})\/(\d{4})/m;
 const FORA_RE = /^(TOTAL DA FATURA ANTERIOR|OBRIGADO PELO PAGAMENTO|PAGAMENTO\b)/i;
 
@@ -42,6 +45,16 @@ export function parseCaixaInvoice(texto: string, refYear: number = new Date().ge
     if (!dentro) continue;
     // Só depois do demonstrativo: o topo da fatura também diz "VALOR TOTAL DESTA FATURA".
     if (/^Valor total desta fatura\b/i.test(linha)) break;
+    const anuidade = linha.match(ANUIDADE_RE);
+    if (anuidade) {
+      const valor = parseBrazilianNumber(anuidade[2]);
+      const fech = texto.match(FECHAMENTO_RE);
+      const data = fech ? `${fech[3]}-${fech[2]}-${fech[1]}` : venc ? `${venc[3]}-${venc[2]}-${venc[1]}` : null;
+      if (valor > 0 && data) {
+        out.push({ date: data, description: anuidade[1].replace(/\s+(\d{2})\/\s*(\d{2})$/, " $1/$2"), amount: anuidade[3].toUpperCase() === "C" ? -valor : valor });
+      }
+      continue;
+    }
     const m = linha.match(LINHA_RE);
     if (!m) continue;
     const [, dd, mm, descricao, valor, dc] = m;

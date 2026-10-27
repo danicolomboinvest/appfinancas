@@ -27,6 +27,8 @@ const VALOR = String.raw`-?\d{1,3}(?:\.\d{3})*,\d{2}`;
 const LINHA_RE = new RegExp(
   String.raw`^(?:\d\s+)?(\d{2})\/(\d{2})\s+(.+?)(?:\s+(\d{2}\/\d{2}))?\s+(${VALOR})(?:\s+${VALOR})?$`,
 );
+// IOF de compra no exterior vem sem data, no fim das despesas: "IOF DESPESA NO EXTERIOR 3,75".
+const IOF_RE = new RegExp(String.raw`^(IOF\b.*?)\s+(${VALOR})$`);
 const ATE_RE = /realizad[oa]s\s+at[ée]\s+(\d{2})\/(\d{2})/i;
 const VENCIMENTO_RE = /Vencimento\s+\d{2}\/(\d{2})\/(\d{4})/i;
 const INICIO_RE = /^Detalhamento da Fatura/i;
@@ -56,6 +58,14 @@ export function parseSantanderInvoice(texto: string, refYear: number = new Date(
     if (!dentro) continue;
     if (FIM_RE.test(linha)) {
       dentro = false;
+      continue;
+    }
+    const iof = linha.match(IOF_RE);
+    if (iof && ate) {
+      const valorIof = parseBrazilianNumber(iof[2]);
+      if (valorIof > 0) {
+        out.push({ date: `${anoFechamento}-${ate[2]}-${ate[1]}`, description: iof[1], amount: valorIof });
+      }
       continue;
     }
     const m = linha.match(LINHA_RE);

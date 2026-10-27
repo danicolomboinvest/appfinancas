@@ -50,6 +50,8 @@ const TOTAIS_DE_COMPRAS: RegExp[] = [
   // "O valor total é / R$ 7.437,33" (Porto Seguro), "1.900,04 <TAB> Total R$" (Renner/Realize).
   new RegExp(String.raw`\bo\s+valor\s+total\s+[ée]\s*${VALOR}`, "i"),
   /^(\d{1,3}(?:\.\d{3})*,\d{2})\s+total\s+R\$\s*$/im,
+  // Santander: "(=) Saldo Desta Fatura 2.072,07" já desconta os créditos (devolução, estorno) do mês.
+  new RegExp(String.raw`^\(=\)\s*saldo\s+desta\s+fatura\s*${VALOR}`, "im"),
   // Itaú: "Lançamentos atuais 5.271,04" é só o mês; o total da fatura soma o que sobrou da anterior.
   new RegExp(String.raw`^(?:total\s+dos\s+)?lan[çc]amentos\s+atuais\s*${VALOR}`, "im"),
 ];
