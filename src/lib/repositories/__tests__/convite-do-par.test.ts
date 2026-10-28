@@ -115,7 +115,7 @@ vi.mock("@/lib/db/prisma", async () => {
     findUnique: async ({ where }: { where: { id: string } }) => perfilDe(where.id),
     update: async ({ where, data }: { where: { id: string }; data: { casal: unknown } }) => Object.assign(db.perfis.find((p) => p.id === where.id)!, data),
   };
-  const tx = { conviteCasal, membroCasal, user, financialProfile };
+  const tx = { conviteCasal, membroCasal, user, financialProfile, $executeRawUnsafe: async () => 0 };
   // Transação de mentira com volta atrás: se der erro no meio, nada do que ela fez fica.
   const $transaction = async (arg: unknown) => {
     const copia = JSON.parse(JSON.stringify({ c: db.convites, m: db.membros, u: db.usuarios }), (k, v) => (typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v) : v));
