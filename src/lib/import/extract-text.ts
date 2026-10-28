@@ -286,7 +286,7 @@ export async function extractUploadFromForm(
   formData: FormData,
 ): Promise<{ text: string; source: "auto" | "pdf"; layout?: string | null }> {
   const file = formData.get("file");
-  const encoding = String(formData.get("encoding") ?? "text") as UploadEncoding;
+  let encoding = String(formData.get("encoding") ?? "text") as UploadEncoding;
   const passwordRaw = formData.get("password");
   const password = typeof passwordRaw === "string" && passwordRaw !== "" ? passwordRaw : undefined;
   if (!(file instanceof Blob)) {
@@ -301,6 +301,10 @@ export async function extractUploadFromForm(
       "arquivo com 0 bytes",
     );
   }
+  // PDF salvo sem ".pdf" no nome (a pessoa renomeou "fatura outubro", ou o celular baixou sem
+  // extensão) chega marcado como texto: o leitor de CSV lia os bytes do PDF e dizia "não encontrei
+  // transações". O que vale é o começo do arquivo, não o nome.
+  if (encoding === "text" && buffer.subarray(0, 1024).indexOf("%PDF-") >= 0) encoding = "pdf";
   if (encoding === "xlsx") return { text: semNulo(await xlsxToCsv(buffer, password)), source: "auto" };
   if (encoding === "pdf") {
     const { texto, layout } = await pdfToText(buffer, password);
