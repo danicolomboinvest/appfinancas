@@ -175,5 +175,37 @@ export function pareceContaPropria(descricao: string | null | undefined, nomeDaP
   if (partes.length < 2) return false;
   const primeiro = partes[0];
   const ultimo = partes[partes.length - 1];
-  return /\b(pix|ted|doc|transf|transferencia)\b/.test(d) && new RegExp(`\\b${primeiro}\\b`).test(d) && new RegExp(`\\b${ultimo}\\b`).test(d);
+  if (!/\b(pix|ted|doc|transf|transferencia)\b/.test(d)) return false;
+  if (new RegExp(`\\b${primeiro}\\b`).test(d) && new RegExp(`\\b${ultimo}\\b`).test(d)) return true;
+  return nomeCortadoDoBanco(d, partes);
+}
+
+/**
+ * O banco corta o nome na descrição ("Isabela Espago", "DES: Letícia Gonçalves Bez"): o sobrenome
+ * não aparece inteiro e o teste do último nome falhava. Vale quando, logo depois do primeiro nome,
+ * as palavras seguem o nome dela na ordem e a ÚLTIMA delas é só o começo (3 letras ou mais) de uma
+ * parte do nome. Palavra que não bate ("Letícia Gonçalves Silva") ou nome que acaba antes do
+ * sobrenome ("Isabela") continua de fora. A tela só pergunta, nunca tira sozinha.
+ */
+function nomeCortadoDoBanco(d: string, partes: string[]): boolean {
+  const tokens = d.match(/[a-z]+|\d+/g) ?? [];
+  const i = tokens.indexOf(partes[0]);
+  if (i < 0) return false;
+  // As palavras coladas ao primeiro nome, até um número (o saldo que alguns extratos colam na
+  // descrição) ou o fim do texto. Tem de ser o resto da descrição: palavra extra no fim não vale.
+  const seguintes: string[] = [];
+  for (let j = i + 1; j < tokens.length && /^[a-z]+$/.test(tokens[j]); j++) {
+    if (!["de", "da", "do", "das", "dos"].includes(tokens[j])) seguintes.push(tokens[j]);
+  }
+  if (seguintes.length === 0) return false;
+  const restantes = partes.slice(1);
+  let k = 0;
+  for (let n = 0; n < seguintes.length; n++) {
+    const w = seguintes[n];
+    const cortada = n === seguintes.length - 1 && w.length >= 3;
+    while (k < restantes.length && restantes[k] !== w && !(cortada && restantes[k].startsWith(w))) k++;
+    if (k >= restantes.length) return false;
+    k++;
+  }
+  return true;
 }

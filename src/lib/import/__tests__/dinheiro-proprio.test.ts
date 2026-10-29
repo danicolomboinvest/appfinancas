@@ -30,3 +30,18 @@ describe("dinheiro indo pra ela mesma", () => {
     expect(pareceAplicacao("Aplicação de cílios")).toBe(false);
   });
 });
+
+describe("conta própria com o nome cortado pelo banco (28/10/2026)", () => {
+  it("reconhece o nome cortado no fim da descrição ou antes do saldo colado", () => {
+    expect(pareceContaPropria("Pix - Recebido 38392308883 Isabela Espago 4.519,85 (+) Saldo do dia", "Isabela Espagolla Santos")).toBe(true);
+    expect(pareceContaPropria("PIX ENVIADO DES: Letícia Gonçalves Bez", "Letícia Gonçalves Bezerra de Carvalho")).toBe(true);
+    expect(pareceContaPropria("Transferência recebida pelo Pix LETICIA GONCALVES BEZERRA DE CARVALHO", "Letícia Gonçalves Bezerra de Carvalho")).toBe(true);
+  });
+  it("não confunde com outra pessoa nem com o primeiro nome sozinho", () => {
+    expect(pareceContaPropria("PIX ENVIADO DES: Letícia Gonçalves Silva", "Letícia Gonçalves Bezerra de Carvalho")).toBe(false);
+    expect(pareceContaPropria("Pix - Recebido Isabela Souza 100,00", "Isabela Espagolla Santos")).toBe(false);
+    expect(pareceContaPropria("PIX ENVIADO DES: Letícia", "Letícia Gonçalves Bezerra de Carvalho")).toBe(false);
+    expect(pareceContaPropria("Transferência enviada pelo Pix Margareth Espagolla Santos", "Isabela Espagolla Santos")).toBe(false);
+    expect(pareceContaPropria("Compra Isabela Espago", "Isabela Espagolla Santos")).toBe(false);
+  });
+});
