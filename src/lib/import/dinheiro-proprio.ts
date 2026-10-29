@@ -188,7 +188,7 @@ export function pareceContaPropria(descricao: string | null | undefined, nomeDaP
  * sobrenome ("Isabela") continua de fora. A tela só pergunta, nunca tira sozinha.
  */
 function nomeCortadoDoBanco(d: string, partes: string[]): boolean {
-  const tokens = d.match(/[a-z]+|\d+/g) ?? [];
+  const tokens: string[] = d.match(/[a-z]+|\d+/g) ?? [];
   const i = tokens.indexOf(partes[0]);
   if (i < 0) return false;
   // As palavras coladas ao primeiro nome, até um número (o saldo que alguns extratos colam na
