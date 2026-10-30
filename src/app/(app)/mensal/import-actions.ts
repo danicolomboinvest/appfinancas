@@ -1093,8 +1093,13 @@ export async function devolverPagamentosTiradosAction(chave: string): Promise<{ 
   const linhas = Array.isArray(dados?.linhas) ? dados!.linhas : [];
   const permitidos = new Set(Object.keys(CAMPOS_DO_PAGAMENTO_TIRADO));
   const lotes = new Set(linhas.map((l) => l.importBatchId).filter((x): x is string => typeof x === "string"));
-  // O lote tem de ser desta conta e perfil (o registro é só leitura, mas o lote pode ter sido desfeito).
-  const lotesValidos = new Set((await prisma.importBatch.findMany({ where: { id: { in: [...lotes] }, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } })).map((b) => b.id));
+  const categorias = new Set(linhas.map((l) => l.customCategoryId).filter((x): x is string => typeof x === "string"));
+  // O lote tem de ser desta conta e perfil (o registro é só leitura, mas o lote pode ter sido desfeito);
+  // a categoria criada por ela pode ter sido apagada nesse meio tempo: a linha volta sem ela.
+  const [lotesValidos, categoriasValidas] = await Promise.all([
+    prisma.importBatch.findMany({ where: { id: { in: [...lotes] }, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } }).then((r) => new Set(r.map((b) => b.id))),
+    categorias.size > 0 ? prisma.customCategory.findMany({ where: { id: { in: [...categorias] }, userId: ctx.userId }, select: { id: true } }).then((r) => new Set(r.map((c) => c.id))) : Promise.resolve(new Set<string>()),
+  ]);
   const data = linhas.flatMap((l) => {
     if (typeof l.id !== "string" || typeof l.year !== "number" || typeof l.month !== "number" || typeof l.amount !== "number" || l.category !== "EXPENSE") return [];
     const limpo: Record<string, unknown> = {};
@@ -1102,6 +1107,10 @@ export async function devolverPagamentosTiradosAction(chave: string): Promise<{ 
     limpo.entryDate = typeof l.entryDate === "string" ? new Date(l.entryDate) : null;
     limpo.createdAt = typeof l.createdAt === "string" ? new Date(l.createdAt) : undefined;
     if (typeof l.importBatchId === "string" && !lotesValidos.has(l.importBatchId)) limpo.importBatchId = null;
+    if (typeof l.customCategoryId === "string" && !categoriasValidas.has(l.customCategoryId)) {
+      limpo.customCategoryId = null;
+      if (!limpo.parentCategory) limpo.parentCategory = "OUTROS";
+    }
     return [{ ...limpo, userId: ctx.userId, profileId: ctx.profileId } as Prisma.MonthlyEntryCreateManyInput];
   });
   if (data.length === 0) return { ok: false, devolvidos: 0 };
