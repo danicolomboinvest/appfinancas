@@ -68,7 +68,18 @@ export type TipoDecisao =
    * Os ativos da Carteira de um dia (valor atual e investido de cada um), para o cartão de rendimento do
    * mês do Resumo (lib/carteira/rendimento). Um por dia e perfil, chave "AAAA-MM-DD".
    */
-  | "carteira_dia";
+  | "carteira_dia"
+  /**
+   * Os pagamentos de fatura que a importação da fatura tirou do extrato (30/10/2026), guardados
+   * inteiros para o "Desfazer" da tela devolver. Chave: o id do lote da fatura; `dados.linhas`.
+   */
+  | "pagamentos_tirados"
+  /**
+   * Casal simples (30/10/2026): o aceite do par levou o que a titular montou no perfil Casal para o
+   * Pessoal dela (chave = id do perfil Casal, valor = quantos registros). Fica com `resolvidaEm` nulo
+   * até ela tocar "Entendi" no cartão do Resumo (lib/casa/aviso-casal-no-pessoal).
+   */
+  | "casal_no_pessoal";
 
 export type NovaDecisao = {
   tipo: TipoDecisao;

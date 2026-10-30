@@ -1,4 +1,5 @@
 import { parseQuantityInput } from "@/lib/portfolio/asset-form-values";
+import type { CurrencyCode } from "@/lib/money";
 import { textoDoRendimento, type Rendimento } from "@/lib/portfolio/estimativa-renda-fixa";
 
 /**
@@ -96,6 +97,11 @@ const c2 = (v: number) => Math.round(v * 100) / 100;
  * em reais (1234.56), do CampoDeDinheiro; a quantidade vai com vírgula decimal, que é como o
  * servidor lê (parseQuantityInput: "1.000" seria mil).
  */
+/** Ativo do Brasil (cotado em reais) para quem usa o app em outra moeda: entra em R$, convertido. */
+export function ativoBrasileiroEmReais(x: Pick<Achado, "k">, moedaDoApp: CurrencyCode | undefined): boolean {
+  return moedaDoApp !== undefined && moedaDoApp !== "BRL" && x.k !== "ext";
+}
+
 export function formularioDoNovoAtivo(e: {
   x: Achado;
   investido: number;
@@ -116,10 +122,20 @@ export function formularioDoNovoAtivo(e: {
   quando: { ano: number; mes: number; dia?: number } | null;
   /** O valor de hoje é a estimativa do app (renda fixa sem "Digitar o valor exato"). */
   estimado?: boolean;
+  /**
+   * A moeda do app (30/10/2026). Quem usa o app em peso e cadastra Tesouro, CDB, ação ou fundo do
+   * Brasil digita em reais: o ativo vai com `assetCurrency` BRL e o lado nativo (como o "Brasil (R$)"
+   * do formulário manual), e o servidor converte pela cotação do dia. Em reais, nada muda.
+   */
+  moedaDoApp?: CurrencyCode;
 }): FormData {
   const { x, rendimento } = e;
   const fd = new FormData();
   const ehBolsa = x.k === "bolsa" || x.k === "ext";
+  if (ativoBrasileiroEmReais(x, e.moedaDoApp)) {
+    fd.set("assetCurrency", "BRL");
+    fd.set("assetNativo", "1");
+  }
   fd.set("name", ehBolsa ? x.ticker : x.k === "rf" && rendimento && !e.naoSei ? `${x.nome} ${textoDoRendimento(rendimento)}` : x.nome);
   if (ehBolsa) fd.set("ticker", x.ticker);
   fd.set("assetClass", x.k === "tesouro" ? "TESOURO_DIRETO" : x.k === "rf" ? "RENDA_FIXA" : x.k === "bolsa" ? x.classe : x.k === "ext" ? "INTERNACIONAL" : "FUNDO");

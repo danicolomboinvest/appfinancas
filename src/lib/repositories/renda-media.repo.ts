@@ -12,13 +12,18 @@ import { limiteDasMetas, type LimiteDasMetas } from "@/lib/metas/prazo-que-cabe"
  */
 export async function getRendaMedia(ctx: AuthContext, hoje: Date = nowInBrazil()): Promise<RendaMedia | null> {
   const meses = mesesDaMedia(hoje);
-  const linhas = await prisma.monthlyEntry.findMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, category: "INCOME", OR: meses },
-    select: { year: true, month: true, amount: true, description: true },
-  });
+  // O nome dela: o Pix recebido da própria conta em outro banco não é renda (ver ehRendaDeVerdade).
+  const [linhas, usuario] = await Promise.all([
+    prisma.monthlyEntry.findMany({
+      where: { userId: ctx.userId, profileId: ctx.profileId, category: "INCOME", OR: meses },
+      select: { year: true, month: true, amount: true, description: true },
+    }),
+    prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
+  ]);
   return mediaDaRenda(
     linhas.map((l) => ({ year: l.year, month: l.month, amount: Number(l.amount), description: l.description })),
     hoje,
+    usuario?.name ?? null,
   );
 }
 

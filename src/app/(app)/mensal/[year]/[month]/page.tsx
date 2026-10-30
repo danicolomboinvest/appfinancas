@@ -19,6 +19,7 @@ import { PrimeiroPassoDoMes } from "./PrimeiroPassoDoMes";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { ehFuturo, mesDeAgora } from "@/lib/visao-geral/periodo";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
 import { carregarMesesPrevistos } from "@/lib/repositories/previsao.repo";
 import { serverMoney } from "@/lib/money-server";
 import { MesPrevistoNaTela } from "@/components/previsao/MesesPrevistos";
@@ -38,8 +39,9 @@ export default async function MonthPage(props: PageProps<"/mensal/[year]/[month]
   // Mês que ainda não chegou (voltou em 14/10/2026): em cima, o previsto (parcelas, contas,
   // assinaturas); embaixo, o que já foi lançado para ele (conta que repete, parcela projetada).
   const agora = nowInBrazil();
-  const futuro = ehFuturo({ ano: year, mes: month }, agora);
-  const previsto = futuro ? (await carregarMesesPrevistos(ctx, mesDeAgora(agora), { ano: year, mes: month }, 1))[0] : null;
+  const diaInicio = await getDiaInicioMes(ctx);
+  const futuro = ehFuturo({ ano: year, mes: month }, agora, diaInicio);
+  const previsto = futuro ? (await carregarMesesPrevistos(ctx, mesDeAgora(agora, diaInicio), { ano: year, mes: month }, 1))[0] : null;
   const moneyP = previsto ? await serverMoney() : null;
   const ocultos = await valoresOcultos();
   // Só o que a lista precisa (a tela antiga também calculava gráficos, DRE e comparações que

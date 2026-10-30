@@ -33,7 +33,7 @@ const ordem = (d: Dia) => d.ano * 10000 + d.mes * 100 + d.dia;
  * toca no primeiro e no último dia. O período viaja na URL (lib/visao-geral/periodo.ts), então
  * trocar de aba mantém o período.
  */
-export function SeletorDeMes() {
+export function SeletorDeMes({ diaInicioMes = null }: { diaInicioMes?: number | null }) {
   const caminho = usePathname();
   const busca = useSearchParams();
   const router = useRouter();
@@ -54,17 +54,17 @@ export function SeletorDeMes() {
     };
   }, [caminho]);
   const agora = nowInBrazil();
-  const periodo = periodoCompletoDaRota(caminho, busca, agora);
+  const periodo = periodoCompletoDaRota(caminho, busca, agora, diaInicioMes);
   if (!periodo) return null;
   const { aba, mes, intervalo } = periodo;
-  const rotulo = intervalo ? rotuloDoIntervalo(intervalo) : rotuloDoPeriodo(mes!, agora);
-  const antes = mes ? mesAoLado(mes, -1, agora) : null;
-  const depois = mes ? mesAoLado(mes, 1, agora) : null;
+  const rotulo = intervalo ? rotuloDoIntervalo(intervalo) : rotuloDoPeriodo(mes!, agora, diaInicioMes);
+  const antes = mes ? mesAoLado(mes, -1, agora, diaInicioMes) : null;
+  const depois = mes ? mesAoLado(mes, 1, agora, diaInicioMes) : null;
   const seta = "flex size-11 shrink-0 items-center justify-center rounded-full text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)] transition-colors hover:bg-surface-2";
   const apagada = "flex size-11 shrink-0 items-center justify-center rounded-full text-ink-faint opacity-40 shadow-[inset_0_0_0_1px_var(--color-border)]";
-  const esse = mesDeAgora(agora);
-  const passado = mesAoLado(esse, -1, agora);
-  const queVem = mesAoLado(esse, 1, agora);
+  const esse = mesDeAgora(agora, diaInicioMes);
+  const passado = mesAoLado(esse, -1, agora, diaInicioMes);
+  const queVem = mesAoLado(esse, 1, agora, diaInicioMes);
 
   const ir = (href: string) => {
     setFolha(false);
@@ -72,11 +72,11 @@ export function SeletorDeMes() {
     router.push(href, { scroll: false });
   };
   const atalhos: { chave: string; nome: string; on: boolean; href: string }[] = [
-    { chave: "mes", nome: "Esse mês", on: !!mes && mesmoMes(mes, esse), href: hrefDoMes(aba, esse, agora) },
+    { chave: "mes", nome: "Esse mês", on: !!mes && mesmoMes(mes, esse), href: hrefDoMes(aba, esse, agora, diaInicioMes) },
     { chave: "7d", nome: "Últimos 7 dias", on: intervalo?.tipo === "7d", href: hrefDoIntervalo(aba, intervaloDoTipo("7d", agora)) },
-    { chave: "passado", nome: "Mês passado", on: !!mes && !!passado && mesmoMes(mes, passado), href: passado ? hrefDoMes(aba, passado, agora) : hrefDoMes(aba, esse, agora) },
+    { chave: "passado", nome: "Mês passado", on: !!mes && !!passado && mesmoMes(mes, passado), href: passado ? hrefDoMes(aba, passado, agora, diaInicioMes) : hrefDoMes(aba, esse, agora, diaInicioMes) },
     // Os próximos meses voltaram (14/10/2026): o que já está previsto (parcelas, contas, assinaturas).
-    ...(queVem ? [{ chave: "que-vem", nome: "Mês que vem", on: !!mes && mesmoMes(mes, queVem), href: hrefDoMes(aba, queVem, agora) }] : []),
+    ...(queVem ? [{ chave: "que-vem", nome: "Mês que vem", on: !!mes && mesmoMes(mes, queVem), href: hrefDoMes(aba, queVem, agora, diaInicioMes) }] : []),
     { chave: "tri", nome: "Esse trimestre", on: intervalo?.tipo === "tri", href: hrefDoIntervalo(aba, intervaloDoTipo("tri", agora)) },
     { chave: "tri-ant", nome: "Trimestre passado", on: intervalo?.tipo === "tri-ant", href: hrefDoIntervalo(aba, intervaloDoTipo("tri-ant", agora)) },
     { chave: "ano", nome: "Esse ano", on: intervalo?.tipo === "ano", href: hrefDoIntervalo(aba, intervaloDoTipo("ano", agora)) },
@@ -87,7 +87,7 @@ export function SeletorDeMes() {
     <>
       <div className={`-mt-2 mb-2 grid items-center gap-2 pb-1 ${lapis ? "grid-cols-[44px_minmax(0,1fr)_44px_44px]" : "grid-cols-[44px_minmax(0,1fr)_44px]"}`} aria-label="Período">
         {antes ? (
-          <Link href={hrefDoMes(aba, antes, agora)} aria-label="Mês anterior" className={seta} scroll={false}>
+          <Link href={hrefDoMes(aba, antes, agora, diaInicioMes)} aria-label="Mês anterior" className={seta} scroll={false}>
             <ChevronLeft size={18} aria-hidden />
           </Link>
         ) : (
@@ -109,7 +109,7 @@ export function SeletorDeMes() {
           <ChevronDown size={16} className="shrink-0 text-ink-muted" aria-hidden />
         </button>
         {depois ? (
-          <Link href={hrefDoMes(aba, depois, agora)} aria-label="Próximo mês" className={seta} scroll={false}>
+          <Link href={hrefDoMes(aba, depois, agora, diaInicioMes)} aria-label="Próximo mês" className={seta} scroll={false}>
             <ChevronRight size={18} aria-hidden />
           </Link>
         ) : (

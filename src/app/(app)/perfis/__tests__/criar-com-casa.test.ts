@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 const createProfile = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
-vi.mock("@/lib/auth/session", () => ({ getRequiredSession: async () => ({ userId: "ana", profileId: "pessoal", role: "CLIENT" }) }));
+vi.mock("@/lib/auth/session", () => ({
+  getRequiredSession: async () => ({ userId: "ana", profileId: "pessoal", role: "CLIENT" }),
+  casaDaRequisicao: async () => ({ eu: { nome: "Ana", papel: "titular" }, outro: { nome: "Lucas", papel: "par" } }),
+}));
 vi.mock("@/lib/db/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/adicionais/acesso", () => ({ temAdicional: async () => true }));
 vi.mock("@/lib/perfis/extras-liberados", () => ({ extrasLiberados: async () => ({ casal: true, empresa: true }) }));
@@ -28,5 +31,13 @@ describe("criarPerfilAction com casa simples", () => {
     const r = await criarPerfilAction({ name: "Nós dois", kind: "CASAL" });
     expect(r.ok).toBe(false);
     expect(createProfile).not.toHaveBeenCalled();
+  });
+  it("em vez de 'já existe', diz onde está o que ela montou e com quem é a casa (30/10/2026)", async () => {
+    const r = await criarPerfilAction({ name: "Nós dois", kind: "CASAL" });
+    if (r.ok) throw new Error("devia recusar");
+    expect(r.error).toContain("Lucas");
+    expect(r.error).toContain("Pessoal");
+    expect(r.error).toContain("Configurações › Casa");
+    expect(r.error).not.toMatch(/já existe|até 3 perfis/);
   });
 });

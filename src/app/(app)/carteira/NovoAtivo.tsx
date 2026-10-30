@@ -5,14 +5,14 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Compass, FileUp, Landmark, LineChart, Search, Wallet } from "lucide-react";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
-import { currencySymbol, type CurrencyCode } from "@/lib/money";
+import { currencySymbol, makeMoneyFormatter, type CurrencyCode } from "@/lib/money";
 import { useToast } from "@/components/ui/toast-context";
 import { Explica } from "@/components/ui/Explica";
 import { searchTickersAction } from "@/lib/market/actions";
 import type { TickerKind } from "@/lib/market/ticker-search";
 import { NOME_DO_TIPO } from "@/lib/portfolio/classificacao";
 import { estimarRendaFixa, mesesDesde, textoDoRendimento, type Rendimento } from "@/lib/portfolio/estimativa-renda-fixa";
-import { buscarLocal, CLASSES_DE_FUNDO, formularioDoNovoAtivo, lerCotas, lerNumero, nomeDoFundo, taxaDoTitulo, type Achado, type TituloParaBusca } from "./novo-ativo-dados";
+import { ativoBrasileiroEmReais, buscarLocal, CLASSES_DE_FUNDO, formularioDoNovoAtivo, lerCotas, lerNumero, nomeDoFundo, taxaDoTitulo, type Achado, type TituloParaBusca } from "./novo-ativo-dados";
 import { createAssetAction } from "./actions";
 import { cotacaoDoNovoAtivoAction, estimarRendaFixaAction, type CotacaoDoNovoAtivo, type EstimativaDoNovoAtivo } from "./carteira-nova-actions";
 import { linhaDoRendimento } from "@/lib/portfolio/rendimento-texto";
@@ -43,6 +43,8 @@ const PASSOS: Record<Achado["k"], Passo[]> = {
 
 const MES_A = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const usd = (v: number) => `US$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** Em reais, para quem usa o app em outra moeda e investe no Brasil. */
+const brl = makeMoneyFormatter("BRL");
 
 export function NovoAtivo({
   metas,
@@ -157,7 +159,11 @@ export function NovoAtivo({
   const dolar = cot?.dolar ?? null;
   // Exterior sem o dólar de hoje: os valores ficam em US$ na tela (nunca dólar com o símbolo do real).
   const semDolar = ehExt && !dolar;
-  const naTela = (v: number) => (semDolar ? usd(v) : money(v));
+  // Quem usa o app em peso e investe no Brasil digita e vê em R$ (30/10/2026): o Tesouro, o CDB e a
+  // cotação da B3 são em reais; o app converte ao salvar (ver formularioDoNovoAtivo).
+  const emReais = x ? ativoBrasileiroEmReais(x, moedaDoApp) : false;
+  const moedaDoAtivo: CurrencyCode = ehExt ? "USD" : emReais ? "BRL" : moedaDoApp;
+  const naTela = (v: number) => (semDolar ? usd(v) : emReais ? brl(v) : money(v));
   const horaDaCotacao = cot ? new Date(cot.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
   const meses = quando ? mesesDesde(quando.ano, quando.mes, hojeData) : null;
   const rendimento: Rendimento | null = naoSei ? { indexador: "cdi", percentual: 100 } : rende;
@@ -195,7 +201,7 @@ export function NovoAtivo({
 
   function salvar() {
     if (!x) return;
-    const fd = formularioDoNovoAtivo({ x, investido, valorHoje, qtd, precoMedio, cotacao: cot?.preco ?? null, rendimento, naoSei, fundo, meta, qtdTitulos: lerNumero(qtdTitulos), modoHoje, taxaTxt, taxaNaoSei, quando, estimado: x.k === "rf" && !exato && estimado !== null });
+    const fd = formularioDoNovoAtivo({ x, investido, valorHoje, qtd, precoMedio, cotacao: cot?.preco ?? null, rendimento, naoSei, fundo, meta, qtdTitulos: lerNumero(qtdTitulos), modoHoje, taxaTxt, taxaNaoSei, quando, estimado: x.k === "rf" && !exato && estimado !== null, moedaDoApp });
     const totalDepois = totalAntes + valorHoje;
     startSalvar(async () => {
       const r = await createAssetAction({}, fd);
@@ -261,7 +267,7 @@ export function NovoAtivo({
       <div className="flex flex-col gap-4">
         <div className="rounded-3xl p-5" style={{ background: "linear-gradient(145deg, var(--color-heroi-de), var(--color-heroi-para))", color: "var(--color-heroi-tinta)" }}>
           <p className="text-[14px] text-heroi-suave">Entrou na sua carteira</p>
-          <p className="mt-1 text-[2.25rem] font-light leading-none tracking-[-0.03em] tabular-nums">{semDolar ? naTela(valorHoje) : money(totalNoFim ?? totalAntes + valorHoje)}</p>
+          <p className="mt-1 text-[2.25rem] font-light leading-none tracking-[-0.03em] tabular-nums">{semDolar || emReais ? naTela(valorHoje) : money(totalNoFim ?? totalAntes + valorHoje)}</p>
           <p className="mt-1 text-[14px] text-heroi-suave">{textoDoFim(x)}</p>
         </div>
         <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 p-3.5">
@@ -409,11 +415,11 @@ export function NovoAtivo({
       {passo === "inv" && (
         <div className="flex flex-col gap-2.5">
           <p className="text-[18px] text-ink">Quanto você investiu?</p>
-          <Valor v={inv} set={setInv} rotulo="Quanto você investiu" />
+          <Valor v={inv} set={setInv} rotulo="Quanto você investiu" moeda={moedaDoAtivo} />
           <div className="flex flex-wrap gap-2">
             {[500, 1000, 3000, 5000, 10000].map((v) => (
               <button key={v} type="button" onClick={() => setInv(v)} className="min-h-10 rounded-full border border-border-strong px-3.5 text-[14px] text-ink">
-                {money(v, { round: true })}
+                {emReais ? brl(v, { round: true }) : money(v, { round: true })}
               </button>
             ))}
           </div>
@@ -533,14 +539,14 @@ export function NovoAtivo({
                 <input inputMode="decimal" value={qtdTitulos} onChange={(e) => setQtdTitulos(e.target.value)} placeholder="0,00" aria-label="Quantos títulos" className={campo} />
                 <span className="text-[15px] text-ink-muted">títulos</span>
               </label>
-              {lerNumero(qtdTitulos) > 0 && <p className="text-[14px] tabular-nums text-ink">= {money(lerNumero(qtdTitulos) * tit.preco)}</p>}
+              {lerNumero(qtdTitulos) > 0 && <p className="text-[14px] tabular-nums text-ink">= {naTela(lerNumero(qtdTitulos) * tit.preco)}</p>}
             </>
           ) : (
-            <Valor v={hojeTxt} set={setHojeTxt} rotulo="Quanto vale hoje" />
+            <Valor v={hojeTxt} set={setHojeTxt} rotulo="Quanto vale hoje" moeda={moedaDoAtivo} />
           )}
           {x.k === "tesouro" && tit && (
             <p className="text-[12.5px] text-ink-muted">
-              Preço do título: {money(tit.preco)} · {tit.fonte} · {tit.quando}. Estimado, antes do IR e da taxa da B3.
+              Preço do título: {naTela(tit.preco)} · {tit.fonte} · {tit.quando}. Estimado, antes do IR e da taxa da B3.
             </p>
           )}
           {x.k !== "tesouro" && <p className="text-[12.5px] text-ink-muted">{x.k === "fundo" && fundo !== "rf" ? "Fundo de ações e multimercado não dá para estimar: o valor está no app do banco, em posição." : "O valor está no app do banco."}</p>}
@@ -553,7 +559,7 @@ export function NovoAtivo({
             <p className="text-[13px] text-ink-muted">{cot === null ? "Buscando a cotação de hoje" : cot.preco ? "Cotação de hoje" : "A fonte da cotação não respondeu agora"}</p>
             {cot?.preco ? (
               <>
-                <p className="mt-0.5 text-[19px] font-medium tabular-nums text-ink">{ehExt ? `US$ ${cot.preco.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : money(cot.preco)}</p>
+                <p className="mt-0.5 text-[19px] font-medium tabular-nums text-ink">{ehExt ? usd(cot.preco) : naTela(cot.preco)}</p>
                 <p className="text-[12px] text-ink-muted">
                   cotação de hoje · {horaDaCotacao}
                   {ehExt && dolar ? ` · dólar ${money(dolar)} · hoje · ${horaDaCotacao}` : ""}
@@ -574,10 +580,10 @@ export function NovoAtivo({
       {passo === "pm" && (
         <div className="flex flex-col gap-3">
           <p className="text-[18px] text-ink">Quanto pagou em cada uma, em média?</p>
-          <Valor v={pm} set={setPm} rotulo="Preço médio" moeda={ehExt ? "USD" : moedaDoApp} />
+          <Valor v={pm} set={setPm} rotulo="Preço médio" moeda={moedaDoAtivo} />
           {precoMedio > 0 && qtd > 0 && (
             <p className="text-[14px] tabular-nums text-ink">
-              {cotas} cotas × {currencySymbol(ehExt ? "USD" : moedaDoApp)} {precoMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} = <b className="font-medium">{ehExt ? `US$ ${(qtd * precoMedio).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : money(qtd * precoMedio)}</b> investidos
+              {cotas} cotas × {currencySymbol(moedaDoAtivo)} {precoMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} = <b className="font-medium">{ehExt ? usd(qtd * precoMedio) : naTela(qtd * precoMedio)}</b> investidos
             </p>
           )}
           <p className="text-[12.5px] text-ink-muted">Na corretora aparece como preço médio.</p>
@@ -589,7 +595,7 @@ export function NovoAtivo({
           <p className="text-[18px] text-ink">Confere?</p>
           {x.k === "rf" && (exato || estimado === null) ? (
             <>
-              <Valor v={hojeTxt} set={setHojeTxt} rotulo="Quanto vale hoje" />
+              <Valor v={hojeTxt} set={setHojeTxt} rotulo="Quanto vale hoje" moeda={moedaDoAtivo} />
               <p className="text-[12.5px] text-ink-muted">{estimado === null ? "Sem a data da compra (ou sem o índice do Banco Central) não dá para estimar. O valor está no app do banco." : "O valor está no app do banco."}</p>
             </>
           ) : (

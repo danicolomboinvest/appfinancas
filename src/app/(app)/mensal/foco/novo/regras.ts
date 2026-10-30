@@ -60,8 +60,9 @@ export type Comparacao = {
   diferenca: number;
 };
 
-export function compararAteOMesmoDia(atual: GastoDoDia[], passado: GastoDoDia[], corte: number, mesPassado: Mes): Comparacao {
-  const cortePassado = Math.min(corte, diasNoMes(mesPassado));
+export function compararAteOMesmoDia(atual: GastoDoDia[], passado: GastoDoDia[], corte: number, mesPassado: Mes, diasDoMesPassado: number = diasNoMes(mesPassado)): Comparacao {
+  // `diasDoMesPassado`: os dias do mês da pessoa (15/10 a 14/11), quando ela escolheu o dia (30/10/2026).
+  const cortePassado = Math.min(corte, diasDoMesPassado);
   const a = somaAteODia(atual, corte);
   const p = somaAteODia(passado, cortePassado);
   return { corte, cortePassado, atual: a, passado: p, diferenca: centavos(a - p) };

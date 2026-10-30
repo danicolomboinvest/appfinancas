@@ -6,6 +6,8 @@ import { depoisDePagarComRegra, regraDaConta } from "@/lib/contas/frequencia";
 import { casaAtiva, daCasaAutomatico } from "@/lib/casa/regras";
 import { contaVaria, origemPadrao, origensDoPaguei, tipoDaOrigem, valoresDeAntes, type OrigemDoPaguei } from "@/lib/contas/paguei";
 import { categoriaDoPaguei } from "@/lib/contas/paguei-categoria";
+import { mesDoPeriodo } from "@/lib/mes/periodo";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
 
 /** Os campos da frequência livre (seção 3.17). Opcionais: quem chama sem eles grava como antes. */
 export type CamposDeFrequencia = {
@@ -162,6 +164,9 @@ export async function pagarContaComGasto(ctx: AuthContext, id: string, e: Escolh
   const cat = categoriaDoPaguei({ nome: c.nome, categoria: c.categoria, customCategoryId: c.customCategoryId, ultima: ultimo, contaEditadaDepois, profileKind: ctx.profileKind });
   const depois = depoisDePagarComRegra(c, regraDaConta(c), c.diaDoMes ?? undefined);
   const dia = new Date(`${e.dia}T12:00:00Z`);
+  // O mês em que o "Paguei" conta é o da pessoa (30/10/2026): com o mês começando dia 15, a luz
+  // paga em 10/11 é de outubro, como o lançamento à mão. Sem dia escolhido, o mês do calendário.
+  const mesDela = mesDoPeriodo(e.dia, await getDiaInicioMes(ctx)) ?? { year: dia.getUTCFullYear(), month: dia.getUTCMonth() + 1 };
   const casa = casaAtiva(ctx);
   const tipo = tipoDaOrigem(e.origem);
   const r = await prisma.$transaction(async (tx) => {
@@ -170,8 +175,8 @@ export async function pagarContaComGasto(ctx: AuthContext, id: string, e: Escolh
     const lancamento = await tx.monthlyEntry.create({
       data: {
         ...doDono(ctx),
-        year: dia.getUTCFullYear(),
-        month: dia.getUTCMonth() + 1,
+        year: mesDela.year,
+        month: mesDela.month,
         entryDate: dia,
         category: "EXPENSE",
         parentCategory: cat.customCategoryId ? null : cat.parentCategory,

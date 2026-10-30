@@ -7,8 +7,15 @@
  * - Orçamento: /orcamento/2026?mes=2026-09;
  * - Transações: /mensal/2026/9 (a rota já era por mês).
  *
- * Puro, sem React e sem banco: quem chama passa o "agora" (relógio do Brasil).
+ * Puro, sem React e sem banco: quem chama passa o "agora" (relógio do Brasil) e, desde 30/10/2026,
+ * o dia em que o mês da pessoa começa (`diaInicio`, lib/mes/periodo): com ele, o mês "de agora" é o
+ * período que contém hoje (em 05/11, com dia 15, ainda é outubro) e o seletor escreve "15/10 a 14/11".
+ * Sem ele (nulo ou 1), tudo é o mês de sempre, igual ao de antes.
  */
+import { intervaloDoMes, mesDeAgoraDaPessoa, periodoDoMes } from "@/lib/mes/periodo";
+
+/** O dia em que o mês da pessoa começa (2 a 28), ou nulo/1 para o mês de sempre. */
+export type DiaInicio = number | null | undefined;
 export type MesDoPeriodo = { ano: number; mes: number };
 export type AbaComMes = "resumo" | "orcamento" | "transacoes";
 
@@ -25,12 +32,15 @@ export const MESES_A_FRENTE = 6;
 
 const indice = (m: MesDoPeriodo) => m.ano * 12 + (m.mes - 1);
 const doIndice = (i: number): MesDoPeriodo => ({ ano: Math.floor(i / 12), mes: (i % 12) + 1 });
-export const mesDeAgora = (agora: Date): MesDoPeriodo => ({ ano: agora.getFullYear(), mes: agora.getMonth() + 1 });
+export const mesDeAgora = (agora: Date, diaInicio?: DiaInicio): MesDoPeriodo => {
+  const m = mesDeAgoraDaPessoa(agora, diaInicio);
+  return { ano: m.year, mes: m.month };
+};
 export const mesmoMes = (a: MesDoPeriodo, b: MesDoPeriodo) => a.ano === b.ano && a.mes === b.mes;
 
 /** "2026-09" → setembro de 2026. Inválido, além de MESES_A_FRENTE ou antes de 2000: o mês de agora. */
-export function lerMesEscolhido(valor: string | string[] | undefined | null, agora: Date): MesDoPeriodo {
-  const atual = mesDeAgora(agora);
+export function lerMesEscolhido(valor: string | string[] | undefined | null, agora: Date, diaInicio?: DiaInicio): MesDoPeriodo {
+  const atual = mesDeAgora(agora, diaInicio);
   const texto = Array.isArray(valor) ? valor[0] : valor;
   const m = typeof texto === "string" ? /^(\d{4})-(\d{1,2})$/.exec(texto.trim()) : null;
   if (!m) return atual;
@@ -40,58 +50,69 @@ export function lerMesEscolhido(valor: string | string[] | undefined | null, ago
 }
 
 /** O mês ainda não chegou: tudo nele é previsto (parcelas, contas, assinaturas). */
-export const ehFuturo = (m: MesDoPeriodo, agora: Date) => indice(m) > indice(mesDeAgora(agora));
+export const ehFuturo = (m: MesDoPeriodo, agora: Date, diaInicio?: DiaInicio) => indice(m) > indice(mesDeAgora(agora, diaInicio));
 
 export const paraParametro = (m: MesDoPeriodo) => `${m.ano}-${String(m.mes).padStart(2, "0")}`;
 
-/** O nome e a linha de baixo, como no protótipo: "Esse mês · 1 a 11 out", "Mês passado · set 2026", "Agosto · 2026". */
-export function rotuloDoPeriodo(m: MesDoPeriodo, agora: Date): { nome: string; sub: string } {
-  const atual = mesDeAgora(agora);
+/**
+ * O nome e a linha de baixo, como no protótipo: "Esse mês · 1 a 11 out", "Mês passado · set 2026",
+ * "Agosto · 2026". Com o dia da pessoa, a linha de baixo é o intervalo ("15/10 a 14/11"; no mês de
+ * agora, até hoje: "15/10 a 05/11").
+ */
+export function rotuloDoPeriodo(m: MesDoPeriodo, agora: Date, diaInicio?: DiaInicio): { nome: string; sub: string } {
+  const atual = mesDeAgora(agora, diaInicio);
   const nomeDoMes = MESES[m.mes - 1].charAt(0).toUpperCase() + MESES[m.mes - 1].slice(1);
+  const intervalo = intervaloDoMes(m.ano, m.mes, diaInicio);
   if (mesmoMes(m, atual)) {
+    if (intervalo) {
+      const p = periodoDoMes(m.ano, m.mes, diaInicio);
+      const hoje = `${String(agora.getDate()).padStart(2, "0")}/${String(agora.getMonth() + 1).padStart(2, "0")}`;
+      return { nome: "Esse mês", sub: p.inicioIso === isoLocal(agora) ? hoje : `${intervalo.split(" a ")[0]} a ${hoje}` };
+    }
     const dia = agora.getDate();
     return { nome: "Esse mês", sub: dia === 1 ? `1 ${CURTO[m.mes - 1]}` : `1 a ${dia} ${CURTO[m.mes - 1]}` };
   }
-  if (indice(m) === indice(atual) - 1) return { nome: "Mês passado", sub: `${CURTO[m.mes - 1]} ${m.ano}` };
-  if (indice(m) === indice(atual) + 1) return { nome: "Mês que vem", sub: `previsto · ${CURTO[m.mes - 1]}` };
-  if (indice(m) > indice(atual)) return { nome: nomeDoMes, sub: `previsto · ${m.ano}` };
-  return { nome: nomeDoMes, sub: String(m.ano) };
+  if (indice(m) === indice(atual) - 1) return { nome: "Mês passado", sub: intervalo ?? `${CURTO[m.mes - 1]} ${m.ano}` };
+  if (indice(m) === indice(atual) + 1) return { nome: "Mês que vem", sub: intervalo ? `previsto · ${intervalo}` : `previsto · ${CURTO[m.mes - 1]}` };
+  if (indice(m) > indice(atual)) return { nome: nomeDoMes, sub: intervalo ? `previsto · ${intervalo}` : `previsto · ${m.ano}` };
+  return { nome: nomeDoMes, sub: intervalo ?? String(m.ano) };
 }
+const isoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** O mês ao lado (−1 ou +1), ou nulo se passaria de MESES_A_FRENTE ou do limite da folha. */
-export function mesAoLado(m: MesDoPeriodo, passo: -1 | 1, agora: Date): MesDoPeriodo | null {
+export function mesAoLado(m: MesDoPeriodo, passo: -1 | 1, agora: Date, diaInicio?: DiaInicio): MesDoPeriodo | null {
   const alvo = indice(m) + passo;
-  const atual = indice(mesDeAgora(agora));
+  const atual = indice(mesDeAgora(agora, diaInicio));
   if (alvo > atual + MESES_A_FRENTE || alvo < atual - (MESES_NA_FOLHA - 1)) return null;
   return doIndice(alvo);
 }
 
 /** Os meses da folha "Ver o período", do mais recente ao mais antigo. */
-export function mesesDaFolha(agora: Date): MesDoPeriodo[] {
-  const atual = indice(mesDeAgora(agora));
+export function mesesDaFolha(agora: Date, diaInicio?: DiaInicio): MesDoPeriodo[] {
+  const atual = indice(mesDeAgora(agora, diaInicio));
   return Array.from({ length: MESES_NA_FOLHA }, (_, k) => doIndice(atual - k));
 }
 
 /** Para onde leva escolher este mês na aba aberta. O mês de agora não leva parâmetro. */
-export function hrefDoMes(aba: AbaComMes, m: MesDoPeriodo, agora: Date): string {
-  const deAgora = mesmoMes(m, mesDeAgora(agora));
+export function hrefDoMes(aba: AbaComMes, m: MesDoPeriodo, agora: Date, diaInicio?: DiaInicio): string {
+  const deAgora = mesmoMes(m, mesDeAgora(agora, diaInicio));
   if (aba === "transacoes") return `/mensal/${m.ano}/${m.mes}`;
   if (aba === "orcamento") return deAgora ? `/orcamento/${m.ano}` : `/orcamento/${m.ano}?mes=${paraParametro(m)}`;
   return deAgora ? "/mensal/foco" : `/mensal/foco?mes=${paraParametro(m)}`;
 }
 
 /** A aba de mês aberta e o mês que ela está mostrando, lidos da rota. Nulo fora das três abas. */
-export function periodoDaRota(caminho: string, parametroMes: string | null, agora: Date): { aba: AbaComMes; mes: MesDoPeriodo } | null {
+export function periodoDaRota(caminho: string, parametroMes: string | null, agora: Date, diaInicio?: DiaInicio): { aba: AbaComMes; mes: MesDoPeriodo } | null {
   const tr = /^\/mensal\/(\d{4})\/(\d{1,2})$/.exec(caminho);
-  if (tr) return { aba: "transacoes", mes: lerMesEscolhido(`${tr[1]}-${tr[2]}`, agora) };
-  if (caminho === "/mensal/foco") return { aba: "resumo", mes: lerMesEscolhido(parametroMes, agora) };
+  if (tr) return { aba: "transacoes", mes: lerMesEscolhido(`${tr[1]}-${tr[2]}`, agora, diaInicio) };
+  if (caminho === "/mensal/foco") return { aba: "resumo", mes: lerMesEscolhido(parametroMes, agora, diaInicio) };
   const orc = /^\/orcamento\/(\d{4})$/.exec(caminho);
   if (orc) {
-    const atual = mesDeAgora(agora);
+    const atual = mesDeAgora(agora, diaInicio);
     const ano = Number(orc[1]);
-    const doParam = parametroMes ? lerMesEscolhido(parametroMes, agora) : null;
+    const doParam = parametroMes ? lerMesEscolhido(parametroMes, agora, diaInicio) : null;
     if (doParam && doParam.ano === ano) return { aba: "orcamento", mes: doParam };
-    return { aba: "orcamento", mes: ano === atual.ano ? atual : lerMesEscolhido(`${ano}-12`, agora) };
+    return { aba: "orcamento", mes: ano === atual.ano ? atual : lerMesEscolhido(`${ano}-12`, agora, diaInicio) };
   }
   return null;
 }
@@ -187,10 +208,10 @@ export function soMesesInteiros(i: Intervalo): boolean {
 }
 
 /** A aba e o período da rota, contando com os intervalos. */
-export function periodoCompletoDaRota(caminho: string, busca: { get(nome: string): string | null }, agora: Date): { aba: AbaComMes; mes: MesDoPeriodo | null; intervalo: Intervalo | null } | null {
+export function periodoCompletoDaRota(caminho: string, busca: { get(nome: string): string | null }, agora: Date, diaInicio?: DiaInicio): { aba: AbaComMes; mes: MesDoPeriodo | null; intervalo: Intervalo | null } | null {
   const intervalo = lerIntervalo({ periodo: busca.get("periodo"), de: busca.get("de"), ate: busca.get("ate") }, agora);
-  if (caminho === "/mensal/periodo") return intervalo ? { aba: "transacoes", mes: null, intervalo } : { aba: "transacoes", mes: mesDeAgora(agora), intervalo: null };
-  const base = periodoDaRota(caminho, busca.get("mes"), agora);
+  if (caminho === "/mensal/periodo") return intervalo ? { aba: "transacoes", mes: null, intervalo } : { aba: "transacoes", mes: mesDeAgora(agora, diaInicio), intervalo: null };
+  const base = periodoDaRota(caminho, busca.get("mes"), agora, diaInicio);
   if (!base) return null;
   if (intervalo && base.aba !== "transacoes") return { aba: base.aba, mes: null, intervalo };
   return { aba: base.aba, mes: base.mes, intervalo: null };

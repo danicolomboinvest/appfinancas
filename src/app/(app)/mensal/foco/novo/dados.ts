@@ -23,6 +23,9 @@ import { quantosNoDecidir } from "@/lib/decisoes/pilha";
 import { parcelasProjetadas } from "@/lib/import/total-do-lote";
 import { gastoNoCartao } from "@/lib/repositories/limite-cartao.repo";
 import { ehDoCartao } from "@/lib/cartao/limite";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
+import { dentroDoPeriodo, diaNoPeriodo, periodoDeAgora, periodoDoMes } from "@/lib/mes/periodo";
+
 import { detalharONumero, type DetalheDoNumero, type LancamentoDoNumero } from "./detalhe-do-numero";
 import {
   categoriaQueCaiu,
@@ -31,7 +34,6 @@ import {
   compararAteOMesmoDia,
   curvaAcumulada,
   diaDeCorte,
-  diasNoMes,
   escolherCaso,
   limiteProposto,
   mesAnterior,
@@ -128,10 +130,16 @@ export type ResumoNovo = {
  */
 export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | null = null): Promise<ResumoNovo> {
   const hoje = hojeDeTeste ?? nowInBrazil();
-  const mes: Mes = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
+  // O mês de agora é o da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 ainda é
+  // outubro, `dia` é a posição de hoje nele e cada mês tem os dias do período dela. Sem dia
+  // escolhido, tudo aqui é o mês do calendário, igual ao de antes.
+  const diaInicio = await getDiaInicioMes(ctx);
+  const periodo = periodoDeAgora(hoje, diaInicio);
+  const mes: Mes = { ano: periodo.year, mes: periodo.month };
   const passado = mesAnterior(mes);
   const retrasado = mesAnterior(passado);
-  const dia = hoje.getDate();
+  const dia = diaNoPeriodo(hoje, periodo);
+  const diasDoMesDela = (m: Mes) => periodoDoMes(m.ano, m.mes, diaInicio).dias;
   const doze = mesesAte(mes.ano, mes.mes, 12);
   const base = lancamentosDosTotais(ctx);
 
@@ -192,16 +200,16 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
   // O dia de cada gasto dentro do mês dele. Sem data: o dia em que entrou no app, se foi naquele
   // mês (a fatura sem dia por compra vale pelo dia da importação); senão, desde o dia 1.
   const diaNoMes = (g: Pick<(typeof gastos)[number], "entryDate" | "year" | "month" | "createdAt">): number | null => {
+    const p = periodoDoMes(g.year, g.month, diaInicio);
     if (g.entryDate) {
-      const y = g.entryDate.getUTCFullYear();
-      const m = g.entryDate.getUTCMonth() + 1;
-      if (y === g.year && m === g.month) return g.entryDate.getUTCDate();
+      const iso = g.entryDate.toISOString().slice(0, 10);
+      if (dentroDoPeriodo(iso, p)) return diaNoPeriodo(iso, p);
       // Data de um mês depois (a conta de 02/10 lançada em setembro): conta no fim do mês, para a
       // curva de setembro inteiro fechar com o "gastou" dele, e fica fora do "até o mesmo dia".
-      return y * 12 + m < g.year * 12 + g.month ? null : diasNoMes({ ano: g.year, mes: g.month });
+      return iso < p.inicioIso ? null : p.dias;
     }
     const criado = nowInBrazil(g.createdAt);
-    return criado.getFullYear() === g.year && criado.getMonth() + 1 === g.month ? criado.getDate() : null;
+    return dentroDoPeriodo(criado, p) ? diaNoPeriodo(criado, p) : null;
   };
   // Com o id e o nome: o detalhe do número usa exatamente estes, para a soma bater.
   const lancamento = (g: (typeof gastos)[number] | (typeof aplicacoes)[number]): LancamentoDoNumero => ({
@@ -271,7 +279,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
 
   // ---------------------------------------------------------------- comparação até o mesmo dia
   const corte = diaDeCorte(gastosAtual, dia);
-  const comparacao = compararAteOMesmoDia(gastosAtual, gastosPassado, corte, passado);
+  const comparacao = compararAteOMesmoDia(gastosAtual, gastosPassado, corte, passado, diasDoMesDela(passado));
   const mudaram = categoriasQueMudaram(gastosAtual, gastosPassado, comparacao.corte, comparacao.cortePassado, CATEGORIAS_FIXAS, 99);
   const categorias = mudaram.slice(0, 4).map((c) => ({ ...info(c.categoria), ...c }));
 
@@ -289,8 +297,8 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     diaADia = {
       comparacao,
       curvaAtual: curvaAcumulada(gastosAtual, comparacao.corte),
-      curvaPassado: curvaAcumulada(gastosPassado, diasNoMes(passado)),
-      diasDoMes: diasNoMes(mes),
+      curvaPassado: curvaAcumulada(gastosPassado, diasDoMesDela(passado)),
+      diasDoMes: diasDoMesDela(mes),
       // "Ficou com você" só de mês com entrada (mês só com a fatura não tem o que ficou).
       ficouPassado: mesesComDado >= 2 && valorDe(passado).entrou > 0 ? { valor: ficouDe(passado), contraRetrasado: valorDe(retrasado).entrou > 0 ? ficouDe(passado) - ficouDe(retrasado) : null, guardou: valorDe(passado).guardou } : null,
       passadoVazio: !comDado(valorDe(passado)),
@@ -322,7 +330,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
     digitou = {
       total: doMesAgora.reduce((s, g) => s + Number(g.amount), 0),
       n: doMesAgora.length,
-      ultimo: ultimo ? { nome: info(chaveDe(ultimo)).nome, hoje: nowInBrazil(ultimo.createdAt).getDate() === dia && nowInBrazil(ultimo.createdAt).getMonth() === hoje.getMonth() } : null,
+      ultimo: ultimo ? { nome: info(chaveDe(ultimo)).nome, hoje: nowInBrazil(ultimo.createdAt).toDateString() === hoje.toDateString() } : null,
     };
   }
 

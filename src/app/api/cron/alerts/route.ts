@@ -4,6 +4,7 @@ import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { getOrCreateActiveProfile } from "@/lib/repositories/profile.repo";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { diaDeInicioDoMes, mesDeAgoraDaPessoa, periodoDoMes } from "@/lib/mes/periodo";
 import { buildBudgetAlerts, buildGoalAlerts, chaveDaMetaAtingida, metasQueChegaramLa, type Alert, type MetaAtingida } from "@/lib/insights/alerts";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
   const todos = await prisma.user.findMany({
     // Sem e-mail confirmado (conta criada com o e-mail de outra pessoa?), nada sai pra ela.
     where: { OR: [{ notifyBudgetAlerts: true }, { notifyLateGoals: true }], AND: [{ OR: [{ emailVerifiedAt: { not: null } }, { createdAt: { lt: CONFIRMACAO_DESDE } }] }], ...(onlyEmail ? { email: onlyEmail } : {}) },
-    select: { id: true, email: true, name: true, role: true, currency: true, notifyBudgetAlerts: true, notifyLateGoals: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, currency: true, notifyBudgetAlerts: true, notifyLateGoals: true, createdAt: true, diaInicioMes: true },
   });
   // Reembolso ou cancelamento: o app nem abre pra ela, e o aviso levaria pra uma tela trancada.
   // Quem sobrou do grátis continua recebendo (ver usoDoApp).
@@ -71,10 +72,18 @@ export async function GET(request: Request) {
     const perfil = await getOrCreateActiveProfile(user.id);
     const ctx = await contextoDoPerfil(user, perfil);
 
+    // O mês da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 o aviso de orçamento é de
+    // outubro (15/10 a 14/11). Sem dia escolhido, o mês do calendário, como sempre. As metas e o
+    // "chegou lá" seguem o calendário (year/month de fora).
+    const diaInicio = diaDeInicioDoMes(user.diaInicioMes);
+    const mesDela = mesDeAgoraDaPessoa(now, diaInicio);
+
     if (user.notifyBudgetAlerts) {
+      const { year, month } = mesDela;
+      const periodo = periodoDoMes(year, month, diaInicio);
       // Meia-noite do dia 1 em Brasília (03:00 UTC), a mesma fronteira de ritmoDoMes: o que foi
       // criado antes é conta marcada e não conta como ritmo no aviso de 80%.
-      const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
+      const inicioDoMes = new Date(Date.UTC(periodo.inicio.getFullYear(), periodo.inicio.getMonth(), periodo.inicio.getDate(), 3));
       // As mesmas leituras do Orçamento (budget.repo) e o livre da fonte única (carregarLivreDoMes):
       // só o perfil ativo, nunca Pessoal + Casal + Empresa somados.
       const [planos, spent, preCriado, gastosProprios, proprias, livreDoMes] = await Promise.all([
@@ -97,6 +106,7 @@ export async function GET(request: Request) {
           year,
           month,
           today: now,
+          diaInicio,
           planned: budgets.filter((b) => b.parentCategory && PARENT_CATEGORIES.includes(b.parentCategory)).map((b) => ({ parentCategory: b.parentCategory!, planned: Number(b.plannedAmount) })),
           spent,
           preCriado,
@@ -148,7 +158,7 @@ export async function GET(request: Request) {
     // não sai por push nem e-mail: a mesma regra das telas (lib/avisos). Sem gravar no log, para
     // sair se piorar bem depois. Com o contexto da sessão: no casal, "cobri Lazer" de um vale
     // para o outro, como nas telas.
-    const respostas = await carregarRespostasDoMes(ctx, { ano: year, mes: month }, now);
+    const respostas = await carregarRespostasDoMes(ctx, { ano: mesDela.year, mes: mesDela.month }, now);
     const fresh = novos.filter((a) => !alertaResolvido(respostas, a.key));
     if (fresh.length === 0) continue;
     preview.push({ email: user.email, alerts: fresh.map((a) => a.title) });

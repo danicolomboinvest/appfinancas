@@ -13,6 +13,14 @@ import { assinaturaDoMes, estadoDoFechamento, type EstadoDoFechamento } from "@/
 import { calcularMeuNoCasal, type MeuNoCasal } from "@/lib/casal-login/meu-no-casal";
 import { outraLetra } from "@/lib/casal-login/regras";
 import type { AcertoDoMes } from "@/lib/repositories/casal.repo";
+import { mesDoPeriodo } from "@/lib/mes/periodo";
+import { getDiaInicioMesDoUsuario } from "@/lib/repositories/user.repo";
+
+/** O mês em que o lançamento do Nós dois conta: o da titular (30/10/2026), que é a dona do perfil. */
+async function mesDoLancamentoDoCasal(ctx: AuthContext, dia: Date): Promise<{ year: number; month: number }> {
+  const iso = dia.toISOString().slice(0, 10);
+  return mesDoPeriodo(iso, await getDiaInicioMesDoUsuario(donoDoPerfil(ctx))) ?? { year: dia.getUTCFullYear(), month: dia.getUTCMonth() + 1 };
+}
 
 /**
  * O Nós dois com dois logins: o que a tela do casal lê e grava, para a titular e para o par. Toda
@@ -91,13 +99,14 @@ export type NovoLancamentoDoCasal = {
 /** Lança no Nós dois em nome de quem está logado (a pessoa do lançamento é sempre quem lançou). */
 export async function lancarNoCasal(ctx: AuthContext, input: NovoLancamentoDoCasal, letra: "A" | "B") {
   const soMeu = input.categoria === "EXPENSE" && input.destino === "so-meu";
+  const mes = await mesDoLancamentoDoCasal(ctx, input.dia);
   return prisma.monthlyEntry.create({
     data: {
       userId: donoDoNovoLancamento(ctx, soMeu),
       profileId: ctx.profileId,
       autorUserId: ctx.userId,
-      year: input.dia.getUTCFullYear(),
-      month: input.dia.getUTCMonth() + 1,
+      year: mes.year,
+      month: mes.month,
       entryDate: input.dia,
       category: input.categoria,
       parentCategory: input.categoria === "EXPENSE" ? (input.parentCategory ?? "OUTROS") : null,
@@ -118,12 +127,13 @@ export async function editarNoCasal(ctx: AuthContext, id: string, input: NovoLan
   const soMeu = input.categoria === "EXPENSE" && input.destino === "so-meu";
   // Trocar entre "só meu" e o resto muda o dono do registro (o só meu é de quem lançou).
   const userId = donoDoNovoLancamento(ctx, soMeu);
+  const mes = await mesDoLancamentoDoCasal(ctx, input.dia);
   const r = await prisma.monthlyEntry.updateMany({
     where: { id, ...lancamentosQuePodeMexer(ctx) },
     data: {
       userId,
-      year: input.dia.getUTCFullYear(),
-      month: input.dia.getUTCMonth() + 1,
+      year: mes.year,
+      month: mes.month,
       entryDate: input.dia,
       category: input.categoria,
       parentCategory: input.categoria === "EXPENSE" ? (input.parentCategory ?? "OUTROS") : null,

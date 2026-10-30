@@ -12,7 +12,8 @@ import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
 import { getEmergencyFund } from "@/lib/repositories/emergency-fund.repo";
 import { contarGastosReaisDoMes, getUltimoGastoAte, somarGastosPreCriados } from "@/lib/repositories/monthly-entry.repo";
-import { getOwnUser } from "@/lib/repositories/user.repo";
+import { getDiaInicioMes, getOwnUser } from "@/lib/repositories/user.repo";
+import { dentroDoPeriodo, diaNoPeriodo, relogioDoMes } from "@/lib/mes/periodo";
 import { prisma } from "@/lib/db/prisma";
 import { contarParaRevisar } from "./revisar/dados";
 import { lerFechamento } from "@/lib/repositories/fechamento.repo";
@@ -62,17 +63,13 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
   // ?hoje= do Resumo novo (só no banco local): a semana, o "falta o cartão" e o fechamento do
   // mesmo dia do topo. Sem ele, o topo era do dia 3 e a semana do dia de verdade.
   const now = agora ?? nowInBrazil();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const dia = now.getDate();
-  const diasNoMes = new Date(year, month, 0).getDate();
+  // O mês de agora é o da pessoa (30/10/2026): com o mês começando dia 15, de 15/10 a 14/11 é
+  // outubro, `dia` é a posição de hoje nele (05/11 é o dia 22) e `diasNoMes` são os dias dele. Sem
+  // dia escolhido, tudo aqui é o mês do calendário, igual ao de antes.
+  const { periodo, year, month, dia, diasNoMes, hojeUtc, hojeIso, inicioDoMes, inicioDaSemana } = relogioDoMes(now, await getDiaInicioMes(ctx), diaDaSemana(now).indice);
   const anterior = new Date(year, month - 2, 1);
   const mesAnterior = { year: anterior.getFullYear(), month: anterior.getMonth() + 1, label: MESES[anterior.getMonth()] };
   const semana = chaveDaSemana(now);
-
-  const inicioDoMes = new Date(Date.UTC(year, month - 1, 1, 3));
-  // Meia-noite (Brasília) da segunda desta semana, ou do dia 1 se a semana começou no mês passado.
-  const inicioDaSemana = new Date(Date.UTC(year, month - 1, Math.max(1, dia - diaDaSemana(now).indice), 3));
   const [user, budgets, spentByParent, spentByCustom, customCategories, summary, plan, goals, fund, lastExpense, tetos, pendentes, ritualFeito, fechamentoDoMesAnterior, raiox, gastosReais, preCriados, cancelamentos, viradaFeita, lancamentosAnoPassado, paraRevisar, respostasDoMes, gastosDoMes, orcamentoMesAnterior, linhasDoMes, contasDaLista, ultimoCartao, rendaConta, lancamentoAntesDaSemana, parcelaveis, naoParcelas, livreDoMes] =
     await Promise.all([
       getOwnUser(ctx),
@@ -84,7 +81,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       getMonthlyPlan(ctx, year, month),
       listGoalsWithProgress(ctx),
       getEmergencyFund(ctx),
-      getUltimoGastoAte(ctx, new Date(Date.UTC(year, month - 1, dia))),
+      getUltimoGastoAte(ctx, hojeUtc),
       listarTetosDoMes(ctx, chaveDoMes(year, month)),
       listarCompraAmanhaPendentes(ctx),
       existeDecisao(ctx, "ritual", semana),
@@ -93,7 +90,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       ehEmpresa(ctx.profileKind) ? { itens: [], decididos: new Set<string>() } : carregarRaioX(ctx, year, month),
       contarGastosReaisDoMes(ctx, year, month),
       somarGastosPreCriados(ctx, year, month),
-      listarCancelamentosPraConfirmar(ctx, new Date(Date.UTC(year, month - 1, 1, 3)), `${year}-${String(month).padStart(2, "0")}`),
+      listarCancelamentosPraConfirmar(ctx, inicioDoMes, `${year}-${String(month).padStart(2, "0")}`),
       // Virada do ano: só nos 3 primeiros meses, e só pra quem usou o app no ano passado.
       month <= 3 ? existeDecisao(ctx, "virada_ano", String(year)) : Promise.resolve(true),
       month <= 3 ? prisma.monthlyEntry.count({ where: { userId: ctx.userId, profileId: ctx.profileId, year: year - 1 } }) : Promise.resolve(0),
@@ -114,7 +111,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       // importou o extrato de setembro tem lançamento lá, mas nunca planejou setembro. O "Fechar
       // setembro" no 1º dia comparava com um plano que não existia, e virava "o número está errado".
       prisma.budget.count({
-        where: { ...donoDoOrcamento(ctx), year: mesAnterior.year, month: mesAnterior.month, plannedAmount: { gt: 0 }, createdAt: { lt: new Date(Date.UTC(year, month - 1, 1, 3)) } },
+        where: { ...donoDoOrcamento(ctx), year: mesAnterior.year, month: mesAnterior.month, plannedAmount: { gt: 0 }, createdAt: { lt: inicioDoMes } },
         take: 1,
       }),
       // A semana fixa (regra A, 13/10/2026): cada gasto do mês, leve, para separar conta de dia a
@@ -135,7 +132,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       prisma.monthlyEntry.findMany({
         where: comFiltro(lancamentosDosTotais(ctx), {
           category: "EXPENSE",
-          createdAt: { gte: new Date(Date.UTC(year, month - 1, dia - 75)) },
+          createdAt: { gte: new Date(hojeUtc.getTime() - 75 * DIA_MS) },
           OR: [{ noCartao: true }, { noCartao: null, importBatch: { is: { docType: "fatura" } } }],
         }),
         select: { entryDate: true, createdAt: true, noCartao: true, importBatch: { select: { docType: true } } },
@@ -211,7 +208,7 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
       return { key: b.customCategoryId ?? b.id, label, planejado: Number(b.plannedAmount), gasto: Math.max(0, gastoPorPersonalizada.get(b.customCategoryId ?? "") ?? 0), fixa: false, fixoAutomatico: preCriados.porPersonalizada.get(b.customCategoryId ?? "") ?? 0 };
     });
 
-  const hoje = new Date(Date.UTC(year, month - 1, dia));
+  const hoje = hojeUtc;
   const metas = goals
     .map((g) => {
       const atingida = g.computedCurrentAmount >= Number(g.targetAmount);
@@ -239,7 +236,6 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
   // A semana fixa (regra A): cada gasto do mês é conta (sai inteira desde o dia 1) ou dia a dia.
   // Conta: categoria fixa com orçamento, lançada antes do mês (recorrente, parcela futura da
   // fatura), marcada para repetir, parcela ("LOJA 03/10") ou o pagamento de uma conta da lista.
-  const hojeIso = `${year}-${String(month).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
   const lista = contasDaLista.map((c) => ({
     id: c.id,
     nome: c.nome,
@@ -288,14 +284,14 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
     const entrou = nowInBrazil(g.createdAt);
     gastosDoDiaADia.push({
       valor,
-      dia: g.entryDate && g.entryDate.getUTCFullYear() === year && g.entryDate.getUTCMonth() + 1 === month ? g.entryDate.getUTCDate() : g.entryDate && g.entryDate.toISOString().slice(0, 10) < hojeIso ? 0 : null,
-      entrouNoDia: entrou.getFullYear() === year && entrou.getMonth() + 1 === month ? entrou.getDate() : 0,
+      // O dia dentro do mês da pessoa (sem dia escolhido, o dia do calendário, como antes).
+      dia: g.entryDate && dentroDoPeriodo(g.entryDate.toISOString().slice(0, 10), periodo) ? diaNoPeriodo(g.entryDate.toISOString().slice(0, 10), periodo) : g.entryDate && g.entryDate.toISOString().slice(0, 10) < hojeIso ? 0 : null,
+      entrouNoDia: dentroDoPeriodo(entrou, periodo) ? diaNoPeriodo(entrou, periodo) : 0,
       importado: g.importBatchId !== null || g.externalId !== null,
     });
   }
   // A conta da lista que ainda não apareceu nos lançamentos e vence até o fim do mês (ou já venceu).
-  const fimDoMesIso = `${year}-${String(month).padStart(2, "0")}-${String(diasNoMes).padStart(2, "0")}`;
-  const hojeUtc = new Date(Date.UTC(year, month - 1, dia));
+  const fimDoMesIso = periodo.fimIso;
   const contasPendentes: ContaPendente[] = lista
     .filter((c, i) => !c.quitada && !contaPaga.has(i) && !ehDoAno(c) && !pagaNoMes(c, hojeUtc) && c.vencimento <= fimDoMesIso && (c.valor ?? 0) > 0)
     .map((c) => ({ valor: c.valor ?? 0, categoria: c.categoria }));

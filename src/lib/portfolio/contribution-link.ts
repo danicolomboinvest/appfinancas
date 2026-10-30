@@ -1,6 +1,8 @@
 import type { AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { brazilTodayUtc } from "@/lib/date/brazil-day";
+import { mesDoPeriodo } from "@/lib/mes/periodo";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
 import { nativoAposAporte, nativoAposResgate, type PosicaoNoExterior } from "./conta-exterior";
 
 /**
@@ -477,12 +479,14 @@ export async function resgatarDeUmAtivo(
     },
     valor,
   );
+  // O mês do resgate é o da pessoa (30/10/2026), como o lançamento à mão.
+  const mesDela = mesDoPeriodo(input.date, await getDiaInicioMes(ctx)) ?? { year: input.date.getFullYear(), month: input.date.getMonth() + 1 };
   await prisma.$transaction(async (tx) => {
     const entrada = await tx.monthlyEntry.create({
       data: {
         userId: ctx.userId, profileId: ctx.profileId,
-        year: input.date.getFullYear(),
-        month: input.date.getMonth() + 1,
+        year: mesDela.year,
+        month: mesDela.month,
         category: "INVESTMENT_CONTRIBUTION",
         amount: -valor,
         description: `Resgate de ${asset.ticker ?? asset.name}`,

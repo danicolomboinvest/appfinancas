@@ -13,6 +13,9 @@ import { nosDoisDaTitular } from "@/lib/repositories/casal-login.repo";
 import { estadoDoFechamentoDoMes, lancamentosDoMesNoCasal, metasDoCasalLista, meuNoCasal } from "@/lib/repositories/nos-dois.repo";
 import { mesParaFechar } from "@/lib/casal-login/fechamento";
 import { outraLetra } from "@/lib/casal-login/regras";
+import { donoDoPerfil } from "@/lib/casal-login/privacidade";
+import { getDiaInicioMesDoUsuario } from "@/lib/repositories/user.repo";
+import { dentroDoPeriodo, diaNoPeriodo, mesDeAgoraDaPessoa, periodoDoMes } from "@/lib/mes/periodo";
 import { ChamarOPar } from "@/components/casal-login/ChamarOPar";
 import { MeuNoCasal } from "@/components/casal-login/MeuNoCasal";
 import { LancamentosDoCasal } from "@/components/casal-login/LancamentosDoCasal";
@@ -33,8 +36,9 @@ export default async function DivisaoPage({ searchParams }: { searchParams: Prom
   const ctx = await getRequiredSession();
   if (!ehCasal(ctx.profileKind)) redirect("/mensal/foco");
   const now = nowInBrazil();
-  const ano = now.getFullYear();
-  const mes = now.getMonth() + 1;
+  // O mês de agora é o da titular (30/10/2026): com o mês começando dia 15, em 05/11 ainda é outubro.
+  const diaInicio = await getDiaInicioMesDoUsuario(donoDoPerfil(ctx));
+  const { year: ano, month: mes } = mesDeAgoraDaPessoa(now, diaInicio);
 
   const sp = await searchParams;
   const abaInicial = sp.aba === "orcamento" ? "orc" : sp.aba === "metas" ? "metas" : "mes";
@@ -132,6 +136,7 @@ async function NosDoisADois({
   const pessoas = { minha: minhaLetra, titular: letraTitular, nomes };
   const temMesAnterior = acertoAnterior.totalDaCasa > 0;
   const hoje = nowInBrazil();
+  const periodo = periodoDoMes(ano, mes, await getDiaInicioMesDoUsuario(donoDoPerfil(ctx)));
   return (
     <TelaNosDois
       abaInicial={abaInicial}
@@ -139,8 +144,8 @@ async function NosDoisADois({
         nomes,
         letraTitular,
         mes,
-        dia: hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes ? hoje.getDate() : new Date(ano, mes, 0).getDate(),
-        diasNoMes: new Date(ano, mes, 0).getDate(),
+        dia: dentroDoPeriodo(hoje, periodo) ? diaNoPeriodo(hoje, periodo) : periodo.dias,
+        diasNoMes: periodo.dias,
         plano,
         totalDaCasa: acerto.totalDaCasa,
         pagou: acerto.pagou,

@@ -28,6 +28,7 @@ import { guardarTokenApple } from "@/lib/repositories/assinaturaApple.repo";
 import { linkDoSuporte } from "@/lib/support/whatsapp-link";
 import { ASSUNTO_ACESSO, mensagemDeContaSemAcesso } from "@/lib/support/contato";
 import { lerPreferenciasDeCategoria, type PreferenciasDeCategoria } from "@/lib/categories";
+import { diaDeInicioDoMes } from "@/lib/mes/periodo";
 import { lerConfigCasal } from "@/lib/casal/acerto";
 import { perfilDoPar, perfilDoParNaLista, situacaoDoParAgora } from "@/lib/repositories/casal-login.repo";
 import { prisma } from "@/lib/db/prisma";
@@ -66,6 +67,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let isPremium = false;
   // Money Reset comprado (ou admin): o item no menu ☰ (12/10/2026).
   let comMoneyReset = false;
+  // O dia em que o mês dela começa (Configurações › Renda): o seletor de mês da Visão geral usa.
+  let diaInicioMes: number | null = null;
   let perfis: { id: string; name: string; icon: string; theme: string; isDefault: boolean; kind?: string }[] = [];
   let nomeDaConta: string | null = null;
   let fotoDaConta: string | null = null;
@@ -102,6 +105,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       session.user.casa && !doPar ? parDeCasaSimples(ctx.userId) : null,
     ]);
     casa = casaDaConta && casaDaConta.eu.profileId === ativo.id ? casaNaTela(casaDaConta) : null;
+    diaInicioMes = diaDeInicioDoMes(user.diaInicioMes);
     tutorialDoCasalVisto = casaDaConta?.tutorialVisto ?? true;
     avisoDaMigracao = Boolean(casaDaConta?.migrada && !casaDaConta.avisoMigracaoVisto);
     let todos = casalDoPar ? [...proprios, casalDoPar] : proprios;
@@ -252,6 +256,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         modoPar={modoPar}
         ferramentasDoMei={ferramentasDoMei}
         perfilComprado={perfilComprado}
+        diaInicioMes={diaInicioMes}
       >
         {/* Trocar de perfil só revalida a página, e o React guarda o estado dos formulários que
             re-renderizam: o orçamento continuava com os números do perfil anterior e o "Salvar"
