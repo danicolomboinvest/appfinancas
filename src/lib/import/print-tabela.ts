@@ -20,7 +20,7 @@ const centavos = (n: number) => Math.round(n * 100);
 const valorDe = (t: string) => Number(t.replace(/\./g, "").replace(",", "."));
 
 /** As linhas da imagem: pedaços com o meio na mesma altura, da esquerda para a direita. */
-function linhasDaImagem(segmentos: Segmento[]): Segmento[][] {
+export function linhasDaImagem(segmentos: Segmento[]): Segmento[][] {
   const linhas: { meio: number; segs: Segmento[] }[] = [];
   for (const s of [...segmentos].sort((a, b) => a.y0 - b.y0)) {
     const meio = (s.y0 + s.y1) / 2;
