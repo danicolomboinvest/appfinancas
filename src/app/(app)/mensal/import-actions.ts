@@ -63,7 +63,7 @@ import { bancoDoPrint, comprasDosPrints, juntarPrints, semValorEmReal, type Comp
 import { casarComFaturaAberta, printsAnterioresDaFatura, type CompraDoPrintGravada } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { ArquivoGrandeSumiu, trazerArquivoGrande } from "@/lib/import/arquivo-grande";
-import { hojeParaOPrint, MSG_FOTO_SEM_FATURA, qualLeitor } from "@/lib/import/foto-no-lugar-do-pdf";
+import { hojeParaOPrint, MSG_FOTO_SEM_EXTRATO, MSG_FOTO_SEM_FATURA, podeVirarFatura, qualLeitor } from "@/lib/import/foto-no-lugar-do-pdf";
 import { lerImagensComoPrints, paginasDoPdfComoImagens } from "@/lib/import/foto-no-lugar-do-pdf-servidor";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import {
@@ -433,6 +433,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
    * leitor de print da fatura, e a resposta é a mesma da leitura de prints (fatura aberta). Sem
    * compra reconhecida em nenhuma imagem: null, e quem chamou diz o que mandar.
    */
+  /** O que a pessoa lê quando a imagem não deu: pelo que ela disse que estava subindo. */
+  const msgSemLeitura = docType === "extrato" ? MSG_FOTO_SEM_EXTRATO : MSG_FOTO_SEM_FATURA;
   const lerComoPrint = async (imagens: Buffer[]): Promise<ParseStatementResult | null> => {
     const envio = hojeParaOPrint();
     let lidos: Awaited<ReturnType<typeof lerImagensComoPrints>> = null;
@@ -442,6 +444,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       console.error("lerExtrato: leitor de print falhou na imagem", err instanceof Error ? err.message : err);
     }
     if (!lidos) return null;
+    // Subiu como extrato e o print não tem banco nem total: não inventa uma fatura.
+    if (!podeVirarFatura(docType, lidos)) return null;
     const form = new FormData();
     form.set("origem", "print");
     form.set("docType", "fatura");
@@ -471,8 +475,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     if (qualLeitor({ nome: uploadedName, tipo: uploaded.type, bytes: cabeca }) === "print") {
       const lido = await lerComoPrint([Buffer.from(await uploaded.arrayBuffer())]);
       if (lido) return lido;
-      await falha(`${MSG_FOTO_SEM_FATURA} [imagem no lugar do arquivo]`, { kind: "foto-sem-fatura" });
-      return { ok: false, error: MSG_FOTO_SEM_FATURA };
+      await falha(`${msgSemLeitura} [imagem no lugar do arquivo]`, { kind: "foto-sem-fatura" });
+      return { ok: false, error: msgSemLeitura };
     }
   }
 
@@ -527,8 +531,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     // PDF que é só imagem: as páginas desenhadas vão para o leitor de print da fatura.
     const comoPrint = await lerPdfComoPrint();
     if (comoPrint) return comoPrint;
-    await falha(`${MSG_FOTO_SEM_FATURA} [PDF sem texto]`, { kind: "pdf-vazio" });
-    return { ok: false, error: MSG_FOTO_SEM_FATURA };
+    await falha(`${msgSemLeitura} [PDF sem texto]`, { kind: "pdf-vazio" });
+    return { ok: false, error: msgSemLeitura };
   }
   if (quality === "numbers-only") {
     const msg =
@@ -609,7 +613,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     // máscara (nome do titular, número da conta) e os logs da Vercel não são lugar disso (04/10/2026).
     console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length });
     const msg = veioDeImagem(text)
-      ? MSG_FOTO_SEM_FATURA
+      ? msgSemLeitura
       : periodoSemMovimento(text)
       ? `Esse arquivo não tem nenhum lançamento: o período escolhido no app do banco não teve movimentação. Baixe de novo escolhendo um período maior (o mês inteiro, por exemplo).`
       : moneyLines > 3

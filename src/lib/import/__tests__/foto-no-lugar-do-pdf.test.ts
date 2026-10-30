@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hojeParaOPrint, INSTRUCAO_PRINT, MSG_FOTO_SEM_FATURA, pareceImagemPelosBytes, qualLeitor } from "../foto-no-lugar-do-pdf";
+import { hojeParaOPrint, INSTRUCAO_PRINT, MSG_FOTO_SEM_EXTRATO, MSG_FOTO_SEM_FATURA, pareceImagemPelosBytes, podeVirarFatura, qualLeitor } from "../foto-no-lugar-do-pdf";
 
 /**
  * Foto no lugar do PDF (30/10/2026): 31 pessoas subiram uma imagem (ou um PDF só imagem) onde o
@@ -59,5 +59,18 @@ describe("os textos", () => {
   it("a data de envio do print é o dia de hoje em Brasília", () => {
     expect(hojeParaOPrint(new Date("2026-10-30T01:30:00Z"))).toBe("2026-10-29");
     expect(hojeParaOPrint(new Date("2026-10-30T12:00:00Z"))).toBe("2026-10-30");
+  });
+});
+
+describe("o que o leitor de print leu pode virar fatura?", () => {
+  const semNada = { banco: null, prints: [{ totalDaFatura: null }] };
+  it("subiu como extrato, sem banco nem total: não vira fatura (fica a mensagem de extrato)", () => {
+    expect(podeVirarFatura("extrato", semNada)).toBe(false);
+    expect(MSG_FOTO_SEM_EXTRATO).toBe("Não achei um extrato nessa imagem. Mande o PDF ou o CSV/OFX do banco.");
+  });
+  it("com banco ou total reconhecido, ou subida como fatura, segue como fatura", () => {
+    expect(podeVirarFatura("extrato", { banco: "Nubank", prints: [{ totalDaFatura: null }] })).toBe(true);
+    expect(podeVirarFatura("extrato", { banco: null, prints: [{ totalDaFatura: 1234.5 }] })).toBe(true);
+    expect(podeVirarFatura("fatura", semNada)).toBe(true);
   });
 });

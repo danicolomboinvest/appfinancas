@@ -129,7 +129,7 @@ const { lerImagensComoPrints } = vi.hoisted(() => ({ lerImagensComoPrints: vi.fn
 vi.mock("@/lib/import/foto-no-lugar-do-pdf-servidor", () => ({ lerImagensComoPrints, paginasDoPdfComoImagens: vi.fn(async () => []) }));
 
 const { importTransactionsAction, parseStatementAction } = await import("../import-actions");
-const { MSG_FOTO_SEM_FATURA } = await import("@/lib/import/foto-no-lugar-do-pdf");
+const { MSG_FOTO_SEM_EXTRATO, MSG_FOTO_SEM_FATURA } = await import("@/lib/import/foto-no-lugar-do-pdf");
 
 /** Lê um CSV "Data;Descrição;Valor" como a tela faria. */
 async function ler(docType: "extrato" | "fatura", linhas: string[], nome = `${docType}.csv`) {
@@ -263,6 +263,26 @@ describe("foto no lugar do PDF", () => {
     const r = await parseStatementAction(form);
     expect(r).toEqual({ ok: false, error: MSG_FOTO_SEM_FATURA });
     expect(recordImportDiagnostic).toHaveBeenCalledWith(expect.objectContaining({ ok: false, kind: "foto-sem-fatura" }));
+  });
+
+  it("subida como extrato, sem banco nem total no print: não vira fatura, a mensagem é a de extrato", async () => {
+    lerImagensComoPrints.mockResolvedValue({ prints: [print], banco: null });
+    const form = new FormData();
+    form.set("file", new File([PNG], "IMG_2041.jpg"));
+    form.set("encoding", "text");
+    form.set("docType", "extrato");
+    const r = await parseStatementAction(form);
+    expect(r).toEqual({ ok: false, error: MSG_FOTO_SEM_EXTRATO });
+  });
+
+  it("subida como extrato, com o total da fatura no print: segue como fatura aberta", async () => {
+    lerImagensComoPrints.mockResolvedValue({ prints: [{ ...print, totalDaFatura: 73.4 }], banco: null });
+    const form = new FormData();
+    form.set("file", new File([PNG], "IMG_2041.jpg"));
+    form.set("encoding", "text");
+    form.set("docType", "extrato");
+    const r = await parseStatementAction(form);
+    expect(r.ok && r.stats.faturaAberta).toBe(true);
   });
 
   it("o arquivo de texto do banco nem passa pelo leitor de print", async () => {

@@ -12,6 +12,19 @@ export type LeitorDoArquivo = "print" | "arquivo";
 /** O que a pessoa vê quando nem o leitor de print achou uma fatura na imagem. */
 export const MSG_FOTO_SEM_FATURA = "Não achei uma fatura nessa imagem. Mande o PDF do banco ou um print da tela do app, sem zoom, uma tela por vez.";
 
+/** Subiu como extrato e o leitor de print não reconheceu banco nem total: não vira fatura. */
+export const MSG_FOTO_SEM_EXTRATO = "Não achei um extrato nessa imagem. Mande o PDF ou o CSV/OFX do banco.";
+
+/**
+ * O que o leitor de print leu pode virar fatura? Quem subiu como FATURA: sempre. Quem subiu como
+ * EXTRATO: só se o leitor reconheceu o banco ou o total da fatura; um extrato em imagem lido como
+ * "fatura com 2 compras", sem banco e sem total (30/10/2026), era pior que o erro.
+ */
+export function podeVirarFatura(docTypeOriginal: string, lido: { banco: string | null; prints: { totalDaFatura?: number | null }[] }): boolean {
+  if (docTypeOriginal !== "extrato") return true;
+  return !!lido.banco || lido.prints.some((p) => (p.totalDaFatura ?? 0) > 0);
+}
+
 /** A linha de instrução ao lado do botão de arquivo. */
 export const INSTRUCAO_PRINT = "Print da tela do app do banco, sem zoom, uma tela por vez";
 
