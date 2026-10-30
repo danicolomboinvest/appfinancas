@@ -39,6 +39,8 @@ const contaSchema = z.object({
   aproximado: z.boolean().optional(),
   // A categoria escolhida na folha (29/10/2026). Sem ela, a conta fica como antes (o Paguei adivinha).
   categoria: z.enum(["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS", "IMPOSTOS"]).nullable().optional(),
+  // A categoria personalizada dela (30/10/2026): o repositório confere que é dela e zera a padrão.
+  customCategoryId: z.string().min(1).max(40).nullable().optional(),
 });
 
 function revalidar() {

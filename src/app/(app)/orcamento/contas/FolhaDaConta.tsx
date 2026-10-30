@@ -9,7 +9,7 @@ import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { Interruptor, Segmentado } from "@/components/ui/Interruptor";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
-import { PARENT_CATEGORIES, categoriaOculta, categoryLabel } from "@/lib/categories";
+import { PARENT_CATEGORIES, categoriaOculta, categoryLabel, isParentCategoryKey } from "@/lib/categories";
 import type { ParentCategory } from "@prisma/client";
 import { lerData } from "@/lib/contas/contas";
 import { camposDaRegra, ehMenosQueMensal, estimativaAproximada, guardePorMes, mediaPorMes, previaDoze, regraDaConta, textoDaRegra, type Regra, type Unidade } from "@/lib/contas/frequencia";
@@ -105,12 +105,21 @@ function Previa({ meses, aproximado, valor, aoTocar, tocado }: { meses: ReturnTy
 
 export type InicioDaFolha = { conta?: ContaSerial; dia?: string; doAno?: boolean };
 
+/** Uma categoria personalizada dela, na ordem do Digitar (a mais antiga primeiro). */
+export type CategoriaPropria = { id: string; name: string };
+
+/** A chave do chip marcado vira o que a conta grava: a padrão ou a personalizada (30/10/2026). */
+export function categoriaParaSalvar(chave: string | null): { categoria: ParentCategory | null; customCategoryId: string | null } {
+  if (!chave) return { categoria: null, customCategoryId: null };
+  return isParentCategoryKey(chave) ? { categoria: chave, customCategoryId: null } : { categoria: null, customCategoryId: chave };
+}
+
 /**
  * A folha da conta (protótipo aprovado, rodadas 4, 6a e 10): nome com sugestões, valor ou "mais ou
  * menos", primeiro vencimento, a regra livre (não repete, a cada N, meses que eu escolho),
  * parcelado, a prévia de 12 meses com o "guarde por mês" e o "Me lembrar".
  */
-export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha; hoje: string; onFeito: () => void }) {
+export function FolhaDaConta({ inicio, hoje, personalizadas = [], onFeito }: { inicio: InicioDaFolha; hoje: string; personalizadas?: CategoriaPropria[]; onFeito: () => void }) {
   const conta = inicio.conta;
   const money = useMoney();
   const router = useRouter();
@@ -136,8 +145,11 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
   const [peloTotal, setPeloTotal] = useState(conta?.valorEhTotal ?? false);
   const [lembrar, setLembrar] = useState(conta?.lembrar ?? true);
   const ehCategoria = (k: string | null | undefined): k is ParentCategory => Boolean(k) && (PARENT_CATEGORIES as string[]).includes(k!);
-  const [categoria, setCategoria] = useState<ParentCategory | null>(ehCategoria(conta?.categoria) ? conta.categoria : null);
-  const categoriaEscolhida = useRef(ehCategoria(conta?.categoria));
+  // O chip marcado: uma padrão (a chave) ou uma personalizada dela (o id). A personalizada apagada
+  // não vem mais na lista: a conta abre sem chip e a sugestão volta a valer.
+  const propriaDaConta = conta?.customCategoryId && personalizadas.some((p) => p.id === conta.customCategoryId) ? conta.customCategoryId : null;
+  const [categoria, setCategoria] = useState<string | null>(propriaDaConta ?? (ehCategoria(conta?.categoria) ? conta.categoria : null));
+  const categoriaEscolhida = useRef(Boolean(propriaDaConta) || ehCategoria(conta?.categoria));
   const [erro, setErro] = useState<string | null>(null);
   const [tocado, setTocado] = useState<number | null>(null);
   const [historico, setHistorico] = useState<{ mes: string; valor: number }[]>([]);
@@ -173,7 +185,11 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
       clearTimeout(t);
     };
   }, [nome]);
-  const categoriasDaFolha = PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || pc === categoria);
+  // As padrão (as ocultas do perfil não aparecem) e, depois delas, as personalizadas dela.
+  const categoriasDaFolha: { chave: string; rotulo: string }[] = [
+    ...PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || pc === categoria).map((pc) => ({ chave: pc, rotulo: categoryLabel(categorias, pc) })),
+    ...personalizadas.map((p) => ({ chave: p.id, rotulo: p.name })),
+  ];
 
   const regra: Regra = modo === "nao" ? (parcelado ? { tipo: "a_cada", n: 1, unidade: "meses" } : { tipo: "nao_repete" }) : modo === "meses" && meses.length > 0 ? { tipo: "meses", meses } : { tipo: "a_cada", n, unidade };
   const parcela = valor && parcelado && peloTotal ? Math.round((valor / vezes) * 100) / 100 : (valor ?? 0);
@@ -214,7 +230,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         parcelaAtual: parcelado ? Math.min(vezes, conta?.parcelaAtual ?? 1) : null,
         valorEhTotal: parcelado && peloTotal,
         aproximado,
-        categoria,
+        ...categoriaParaSalvar(categoria),
       });
       if (!r.ok) return setErro(r.erro);
       // Sem aviso (14/10/2026): a folha fecha e a conta aparece na lista.
@@ -261,16 +277,16 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         <div className="flex flex-wrap gap-2" role="group" aria-label="Categoria">
           {categoriasDaFolha.map((k) => (
             <button
-              key={k}
+              key={k.chave}
               type="button"
-              aria-pressed={categoria === k}
+              aria-pressed={categoria === k.chave}
               onClick={() => {
                 categoriaEscolhida.current = true;
-                setCategoria(k);
+                setCategoria(k.chave);
               }}
               className="min-h-10 rounded-full bg-surface-2 px-3.5 text-sm text-ink aria-pressed:bg-ink aria-pressed:text-canvas"
             >
-              {categoryLabel(categorias, k)}
+              {k.rotulo}
             </button>
           ))}
         </div>

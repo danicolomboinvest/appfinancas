@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
-import { FolhaDaConta, type InicioDaFolha } from "./FolhaDaConta";
+import { FolhaDaConta, type CategoriaPropria, type InicioDaFolha } from "./FolhaDaConta";
 
 const Ctx = createContext<(inicio: InicioDaFolha) => void>(() => {});
 
@@ -12,7 +12,7 @@ export function useAbrirConta() {
   return useContext(Ctx);
 }
 
-export function FolhaDasContas({ hoje, abrirNova, children }: { hoje: string; abrirNova: boolean; children: ReactNode }) {
+export function FolhaDasContas({ hoje, abrirNova, personalizadas = [], children }: { hoje: string; abrirNova: boolean; personalizadas?: CategoriaPropria[]; children: ReactNode }) {
   const [inicio, setInicio] = useState<InicioDaFolha | null>(abrirNova ? {} : null);
   const router = useRouter();
   const abrir = useCallback((i: InicioDaFolha) => setInicio(i), []);
@@ -26,7 +26,7 @@ export function FolhaDasContas({ hoje, abrirNova, children }: { hoje: string; ab
     <Ctx.Provider value={abrir}>
       {children}
       <Modal open={inicio !== null} onClose={fechar} title={titulo}>
-        {inicio !== null && <FolhaDaConta key={inicio.conta?.id ?? `${inicio.dia ?? ""}${inicio.doAno ? "ano" : ""}`} inicio={inicio} hoje={hoje} onFeito={fechar} />}
+        {inicio !== null && <FolhaDaConta key={inicio.conta?.id ?? `${inicio.dia ?? ""}${inicio.doAno ? "ano" : ""}`} inicio={inicio} hoje={hoje} personalizadas={personalizadas} onFeito={fechar} />}
       </Modal>
     </Ctx.Provider>
   );

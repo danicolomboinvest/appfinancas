@@ -96,7 +96,7 @@ function tabela(nome: "lancamentos" | "contas" | "lotes", padrao: () => Record<s
 vi.mock("@/lib/db/prisma", () => {
   const prisma: Record<string, unknown> = {
     monthlyEntry: tabela("lancamentos", () => ({ importBatchId: null, externalId: null, contaAPagarId: null, origemDoPagamento: null, entryDate: null, parentCategory: null, customCategoryId: null, subcategory: null, doCasal: null, soMeu: false, pessoa: null, autorUserId: null, recurrenceId: null, noCartao: null })),
-    contaAPagar: tabela("contas", () => ({ quitada: false, pagaEm: null, parcelas: null, parcelaAtual: null, intervalo: null, unidade: null, mesesEscolhidos: [], aproximado: false, categoria: null, tipo: null })),
+    contaAPagar: tabela("contas", () => ({ quitada: false, pagaEm: null, parcelas: null, parcelaAtual: null, intervalo: null, unidade: null, mesesEscolhidos: [], aproximado: false, categoria: null, customCategoryId: null, tipo: null })),
     importBatch: tabela("lotes", () => ({})),
     customCategory: { findMany: vi.fn(async () => []) },
     user: { findUnique: vi.fn(async () => ({ name: "Ana" })) },
@@ -146,7 +146,7 @@ const { deleteImportBatchWithEntries } = await import("@/lib/repositories/import
 const { importTransactionsAction, parseStatementAction } = await import("../import-actions");
 
 function conta(x: Record<string, unknown>) {
-  const c = { id: `c-${x.nome}`, userId: "u1", profileId: "pessoal", repete: true, lembrar: true, quitada: false, pagaEm: null, parcelas: null, parcelaAtual: null, intervalo: null, unidade: null, mesesEscolhidos: [], aproximado: false, categoria: null, tipo: null, ...x } as Linha;
+  const c = { id: `c-${x.nome}`, userId: "u1", profileId: "pessoal", repete: true, lembrar: true, quitada: false, pagaEm: null, parcelas: null, parcelaAtual: null, intervalo: null, unidade: null, mesesEscolhidos: [], aproximado: false, categoria: null, customCategoryId: null, tipo: null, ...x } as Linha;
   banco.contas.push(c);
   return c;
 }
@@ -191,6 +191,23 @@ describe("o Pronto do Paguei", () => {
     expect(gastos()[0]).toMatchObject({ description: "Aluguel", amount: 1800, parentCategory: "MORADIA", subcategory: "Aluguel", contaAPagarId: "c-Aluguel", origemDoPagamento: "conta:nubank", noCartao: false, year: 2026, month: 10 });
     expect((gastos()[0].entryDate as Date).toISOString().slice(0, 10)).toBe("2026-10-15");
     expect((banco.contas[0].vencimento as Date).toISOString().slice(0, 10)).toBe("2026-11-15");
+  });
+
+  it("a assinatura com categoria personalizada dela gera o gasto com a personalizada, sem padrão", async () => {
+    conta({ nome: "Pilates", valor: 180, vencimento: new Date(Date.UTC(2026, 9, 15)), diaDoMes: 15, tipo: "assinatura", customCategoryId: "cc-bemestar", editadaPelaPessoa: true });
+    const r = await pagarContaAction("c-Pilates", { valor: 180, dia: "2026-10-15", origem: "conta:nubank" });
+    expect(r).toMatchObject({ ok: true });
+    expect(gastos()).toHaveLength(1);
+    expect(gastos()[0]).toMatchObject({ description: "Pilates", amount: 180, parentCategory: null, customCategoryId: "cc-bemestar", subcategory: null, contaAPagarId: "c-Pilates" });
+  });
+
+  it("a conta com categoria padrão continua igual; a personalizada apagada (nula) deixa a padrão ou o nome mandar", async () => {
+    conta({ nome: "Pilates", valor: 180, vencimento: new Date(Date.UTC(2026, 9, 15)), diaDoMes: 15, categoria: "SAUDE" });
+    conta({ nome: "Luz", valor: 150, vencimento: new Date(Date.UTC(2026, 9, 18)), diaDoMes: 18, customCategoryId: null, editadaPelaPessoa: true });
+    expect(await pagarContaAction("c-Pilates", { valor: 180, dia: "2026-10-15", origem: "conta" })).toMatchObject({ ok: true });
+    expect(await pagarContaAction("c-Luz", { valor: 150, dia: "2026-10-15", origem: "conta" })).toMatchObject({ ok: true });
+    expect(gastos().find((g) => g.description === "Pilates")).toMatchObject({ parentCategory: "SAUDE", customCategoryId: null });
+    expect(gastos().find((g) => g.description === "Luz")).toMatchObject({ parentCategory: "MORADIA", customCategoryId: null, subcategory: "Luz" });
   });
 
   it("o toque duplo (dois Pronto ao mesmo tempo) não cria dois gastos nem pula dois meses", async () => {
