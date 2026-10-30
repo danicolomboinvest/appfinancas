@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contaVaria, diaValido, origemDoArquivo, origemDoLote, origemPadrao, origemValida, origensDoPaguei, rotuloDaOrigem, valoresDeAntes } from "../paguei";
+import { contaVaria, diaValido, origemDoArquivo, origemDoLote, origemPadrao, origemValida, origensDoPaguei, rotuloDaOrigem, rotuloDoDia, valoresDeAntes } from "../paguei";
 import { categoriaDoPaguei } from "../paguei-categoria";
 
 describe("de onde saiu", () => {
@@ -48,6 +48,16 @@ describe("o dia", () => {
     expect(diaValido("2026-10-16", "2026-10-15")).toBe(false);
     expect(diaValido("2026-07-01", "2026-10-15")).toBe(false);
     expect(diaValido("2026-02-30", "2026-10-15")).toBe(false);
+  });
+
+  it('"Outro dia" escolhido no calendário: o dia passado vale e vira "Dia N"; o futuro e o vazio não entram', () => {
+    // O que o campo de data do computador manda (29/10/2026): o mesmo filtro do servidor.
+    expect(diaValido("2026-10-03", "2026-10-15")).toBe(true);
+    expect(rotuloDoDia("2026-10-03", "2026-10-15")).toBe("Dia 3");
+    expect(rotuloDoDia("2026-10-15", "2026-10-15")).toBe("Hoje");
+    expect(rotuloDoDia("2026-10-14", "2026-10-15")).toBe("Ontem");
+    expect(diaValido("2026-10-20", "2026-10-15")).toBe(false);
+    expect(diaValido("", "2026-10-15")).toBe(false);
   });
 });
 

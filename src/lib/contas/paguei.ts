@@ -129,6 +129,13 @@ export function diaValido(dia: unknown, hoje: string): dia is string {
   return dia <= hoje && dia >= diaAntes(hoje, DIAS_PARA_TRAS);
 }
 
+/** O chip do dia: "Hoje", "Ontem" ou "Dia 20". */
+export function rotuloDoDia(dia: string, hoje: string): string {
+  if (dia === hoje) return "Hoje";
+  if (dia === diaAntes(hoje, 1)) return "Ontem";
+  return `Dia ${Number(dia.slice(8, 10))}`;
+}
+
 /** "set" do "2026-09": o rótulo curto dos valores de antes. */
 const MES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 export function mesCurto(mes: string): string {
