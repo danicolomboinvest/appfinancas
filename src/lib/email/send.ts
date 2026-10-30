@@ -1,13 +1,25 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
+import { enviarPelaResend, resendConfigurada } from "@/lib/email/resend";
 
 /**
- * Envio de e-mail via SMTP (Hostinger). As credenciais vêm SEMPRE do ambiente, nunca ficam
- * no código nem vão pro Git. Configure no .env (local) e nas Environment Variables da Vercel:
+ * Envio de e-mail do app. Dois caminhos (30/10/2026):
+ *
+ *  1. Resend (API HTTP), quando RESEND_API_KEY está no ambiente. Remetente
+ *     `SPI Finance <spi@acesso.danicolombo.com.br>` (EMAIL_FROM), resposta para app@ (EMAIL_REPLY_TO).
+ *  2. SMTP da Hostinger (app@danicolombo.com.br), exatamente como antes, quando a chave da Resend
+ *     não existe. Também é a RESERVA: se a Resend falhar, o e-mail tenta o SMTP uma vez e a falha
+ *     fica registrada no AppError (rota "e-mail").
+ *
+ * Por quê: o SMTP aceita 100 envios por dia e o app estourou o teto (73 devoluções em 30 dias).
+ *
+ * As credenciais vêm SEMPRE do ambiente, nunca ficam no código nem vão pro Git. Configure no
+ * .env (local) e nas Environment Variables da Vercel:
+ *   RESEND_API_KEY=•••••  (só ela conhece)
  *   SMTP_HOST=smtp.hostinger.com
  *   SMTP_PORT=465
  *   SMTP_USER=app@danicolombo.com.br
- *   SMTP_PASSWORD=•••••  (só você conhece)
+ *   SMTP_PASSWORD=•••••  (só ela conhece)
  */
 
 const FROM_NAME = "SPI Finance";
@@ -38,14 +50,17 @@ function getTransporter(): Transporter | null {
   return cached;
 }
 
-export type SendEmailResult = { ok: true } | { ok: false; reason: "not-configured" | "error" };
+/** Por onde o e-mail saiu: `smtp-reserva` = a Resend falhou e o SMTP salvou. */
+export type CaminhoDoEmail = "resend" | "smtp" | "smtp-reserva";
+export type SendEmailResult = { ok: true; via: CaminhoDoEmail } | { ok: false; reason: "not-configured" | "error" };
 /** `replyTo`: pra onde vai a resposta. Os e-mails que pedem "responde aqui" mandam pra caixa de
- * suporte (contato@), que alguém lê; o remetente do app (app@) ninguém olha. */
-type EmailParams = { to: string; subject: string; html: string; replyTo?: string };
+ * suporte (contato@), que alguém lê; o remetente do app (app@) ninguém olha. Pela Resend, sem
+ * `replyTo`, a resposta vai para EMAIL_REPLY_TO (app@). `text` é opcional: versão sem HTML. */
+export type EmailParams = { to: string; subject: string; html: string; text?: string; replyTo?: string };
 
 /** Envia um e-mail HTML. Nunca lança, devolve um resultado pro chamador decidir o que fazer. */
 export async function sendEmail(params: EmailParams): Promise<SendEmailResult> {
-  return enviarCom(getTransporter(), params);
+  return enviar(params, () => getTransporter());
 }
 
 /**
@@ -56,16 +71,36 @@ export async function sendEmail(params: EmailParams): Promise<SendEmailResult> {
  * cron estourava o teto de tempo depois de algumas dezenas de envios. Fica separado do
  * sendEmail de propósito: uma conexão parada entre uma função e outra da Vercel morre calada, e
  * o e-mail de "esqueci minha senha" não pode depender dela.
+ *
+ * Com a Resend no ar, o lote vai pela API (sem conexão para manter) e a conexão SMTP só abre se
+ * precisar de reserva.
  */
 export function abrirEnvioEmLote(): { enviar: (params: EmailParams) => Promise<SendEmailResult>; fechar: () => void } {
-  const transporter = createTransport(true);
+  let transporter: Transporter | null | undefined;
+  const abrir = () => {
+    if (transporter === undefined) transporter = createTransport(true);
+    return transporter;
+  };
   return {
-    enviar: (params) => enviarCom(transporter, params),
+    enviar: (params) => enviar(params, abrir),
     fechar: () => transporter?.close(),
   };
 }
 
-async function enviarCom(transporter: Transporter | null, params: EmailParams): Promise<SendEmailResult> {
+/** Resend primeiro (se tem chave); SMTP como caminho normal sem chave e como reserva com ela. */
+async function enviar(params: EmailParams, smtp: () => Transporter | null): Promise<SendEmailResult> {
+  if (!resendConfigurada()) return enviarPeloSmtp(smtp(), params, "smtp");
+
+  const r = await enviarPelaResend(params);
+  if (r.ok) return { ok: true, via: "resend" };
+
+  console.error("[email] Resend falhou, tentando o SMTP:", r.motivo);
+  const reserva = await enviarPeloSmtp(smtp(), params, "smtp-reserva");
+  await registrarFalhaDaResend(r.motivo, reserva.ok);
+  return reserva;
+}
+
+async function enviarPeloSmtp(transporter: Transporter | null, params: EmailParams, via: CaminhoDoEmail): Promise<SendEmailResult> {
   if (!transporter) {
     console.warn("[email] SMTP não configurado, e-mail não enviado:", params.subject);
     return { ok: false, reason: "not-configured" };
@@ -76,16 +111,31 @@ async function enviarCom(transporter: Transporter | null, params: EmailParams): 
       to: params.to,
       subject: params.subject,
       html: params.html,
+      ...(params.text ? { text: params.text } : {}),
       ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     });
-    return { ok: true };
+    return { ok: true, via };
   } catch (err) {
     console.error("[email] falha ao enviar:", err);
     return { ok: false, reason: "error" };
   }
 }
 
-/** Verifica se o SMTP está configurado (sem expor valores), usado em diagnósticos. */
+/**
+ * A falha da Resend fica no AppError (rota "e-mail"), agrupada pelo motivo, para a Dani ver no
+ * admin que a reserva entrou em ação. Import tardio para não puxar o banco em quem só importa
+ * este módulo (os testes trocam o prisma). Nunca lança.
+ */
+async function registrarFalhaDaResend(motivo: string, smtpSalvou: boolean): Promise<void> {
+  try {
+    const { registrarAvisoDaRota } = await import("@/lib/erros/registrar-falha");
+    await registrarAvisoDaRota("e-mail", `Resend falhou (${motivo}); ${smtpSalvou ? "o SMTP mandou" : "o SMTP também falhou"}`);
+  } catch {
+    // o e-mail em si já foi tratado
+  }
+}
+
+/** Verifica se algum caminho de envio está configurado (sem expor valores), usado em diagnósticos. */
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+  return resendConfigurada() || Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
 }

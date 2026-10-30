@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 import { diasDeUso, ondeParou, type DadosDaJornada, type OndeParou } from "@/lib/jornada/jornada";
+import { TIPO_EMAIL_DEVOLVIDO } from "@/lib/email/devolucoes";
 
 /**
  * Os dados da Jornada (painel do admin). Só contagens por pessoa na lista; o detalhe (telas,
@@ -152,7 +153,7 @@ export async function lerPessoaDaJornada(email: string, saiuEm: Date | null, com
   ]);
   if (!acesso && !usuario) return null;
 
-  const [usos, tentativas, lotes, manuais, apple, motivo] = usuario
+  const [usos, tentativas, lotes, manuais, apple, motivo, devolucoes] = usuario
     ? await Promise.all([
         prisma.usageEvent.findMany({ where: { userId: usuario.id }, select: { name: true, path: true, createdAt: true, standalone: true }, orderBy: { createdAt: "asc" }, take: 5000 }),
         prisma.importDiagnostic.findMany({
@@ -165,8 +166,9 @@ export async function lerPessoaDaJornada(email: string, saiuEm: Date | null, com
         prisma.monthlyEntry.findMany({ where: { userId: usuario.id, importBatchId: null }, select: { createdAt: true }, orderBy: { createdAt: "asc" }, take: 2000 }),
         prisma.assinaturaApple.findFirst({ where: { userId: usuario.id }, select: { createdAt: true }, orderBy: { createdAt: "asc" } }),
         prisma.motivoDeCancelamento.findFirst({ where: { userId: usuario.id }, select: { motivo: true, texto: true }, orderBy: { createdAt: "desc" } }),
+        prisma.decisao.findMany({ where: { userId: usuario.id, tipo: TIPO_EMAIL_DEVOLVIDO }, select: { dados: true, createdAt: true }, orderBy: { createdAt: "asc" }, take: 50 }),
       ])
-    : [[], [], [], [], null, null];
+    : [[], [], [], [], null, null, []];
 
   // Lote gravado sem o diagnóstico de gravação (antes de 18/09/2026) vira uma gravação.
   const comConfirm = tentativas.filter((t) => t.stage === "confirm" && t.ok && t.created > 0).map((t) => t.createdAt.getTime());
@@ -185,6 +187,10 @@ export async function lerPessoaDaJornada(email: string, saiuEm: Date | null, com
     manuais: manuais.map((m) => m.createdAt),
     saiuEm,
     comoSaiu,
+    devolucoes: devolucoes.map((dv) => {
+      const dados = (dv.dados ?? {}) as { evento?: string; assunto?: string | null; motivo?: string | null };
+      return { evento: dados.evento === "complained" ? "complained" : "bounced", assunto: dados.assunto ?? null, motivo: dados.motivo ?? null, em: dv.createdAt };
+    }),
   };
   return {
     email: e,
