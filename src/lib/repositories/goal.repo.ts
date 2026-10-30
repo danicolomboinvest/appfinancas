@@ -1,10 +1,21 @@
 import { Prisma, type AssetObjective, type GoalIcon, type GoalStatus } from "@prisma/client";
 import { aportesJaOcorridosWhere, goalCurrentAmount, type GoalContribution } from "@/lib/planning/goal-progress";
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { diaDeInicioDoMes, mesDeAgoraDaPessoa } from "@/lib/mes/periodo";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { computeGoalPlan } from "@/lib/planning/goal";
 import { arredondarPorMes } from "@/lib/planning/meses-do-prazo";
+
+/**
+ * O dia em que o mês da pessoa começa (lib/mes/periodo). Quem já tem o dia manda; quem não tem,
+ * o repositório busca (uma leitura pequena) para a conta das metas bater com as telas do mês.
+ */
+async function diaDoMesDaPessoa(ctx: AuthContext, diaInicio: number | null | undefined): Promise<number | null> {
+  if (diaInicio !== undefined) return diaDeInicioDoMes(diaInicio);
+  const u = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { diaInicioMes: true } });
+  return diaDeInicioDoMes(u?.diaInicioMes ?? null);
+}
 
 export type GoalInput = {
   name: string;
@@ -37,13 +48,13 @@ export async function getOwnGoal(ctx: AuthContext, id: string) {
  * dele são o piso, pra o digitado nunca sumir, cada aporte novo mover a meta e o mesmo dinheiro
  * nunca contar duas vezes (ver `goalCurrentAmount`).
  */
-export async function getGoalWithProgress(ctx: AuthContext, id: string) {
-  const goal = await prisma.goal.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } });
+export async function getGoalWithProgress(ctx: AuthContext, id: string, diaInicio?: number | null) {
+  const [goal, dia] = await Promise.all([prisma.goal.findFirst({ where: { id, userId: ctx.userId, profileId: ctx.profileId } }), diaDoMesDaPessoa(ctx, diaInicio)]);
   if (!goal) return null;
   const [a, e] = await Promise.all([
     prisma.asset.aggregate({ where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id }, _sum: { currentValue: true } }),
     prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(nowInBrazil()) },
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: id, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(nowInBrazil(), dia) },
       // createdAt: aporte marcado depois da correção do formulário soma em cima do "Já guardado".
       select: { amount: true, createdAt: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
@@ -207,8 +218,12 @@ export async function restaurarMeta(ctx: AuthContext, a: MetaApagada): Promise<b
  * goalId). Assim, vincular um ativo ou registrar um aporte atualiza a meta sozinho. O valor
  * manual (`currentAmount`) é o saldo de partida e entra pela regra de `goalCurrentAmount`.
  */
-export async function listGoalsWithProgress(ctx: AuthContext) {
+export async function listGoalsWithProgress(ctx: AuthContext, diaInicio?: number | null) {
   const hoje = nowInBrazil();
+  const dia = await diaDoMesDaPessoa(ctx, diaInicio);
+  // O mês "de agora" da pessoa: com o mês começando dia 15, em 05/11 o aporte de outubro (15/10 a
+  // 14/11) é o deste mês. Sem dia escolhido, o mês do calendário, como sempre.
+  const mesDeAgora = mesDeAgoraDaPessoa(hoje, dia);
   const [goals, assetSums, aportes] = await Promise.all([
     prisma.goal.findMany({ where: { userId: ctx.userId, profileId: ctx.profileId }, orderBy: { targetDate: "asc" } }),
     prisma.asset.groupBy({
@@ -221,7 +236,7 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
     // é dinheiro guardado pra meta, só que num lugar que a meta não enxerga sozinha.
     prisma.monthlyEntry.findMany({
       // Aporte de mês que ainda não chegou (cópia do "Repetir todo mês") não é dinheiro guardado.
-      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(hoje) },
+      where: { userId: ctx.userId, profileId: ctx.profileId, goalId: { not: null }, category: "INVESTMENT_CONTRIBUTION", ...aportesJaOcorridosWhere(hoje, dia) },
       select: { goalId: true, year: true, month: true, amount: true, createdAt: true, allocations: { select: { amount: true, asset: { select: { goalId: true } } } } },
     }),
   ]);
@@ -237,7 +252,7 @@ export async function listGoalsWithProgress(ctx: AuthContext) {
   for (const e of aportes) {
     if (!e.goalId) continue;
     // Resgate (guardado negativo) não é aporte do mês: a meta continua oferecendo "Marcar aporte".
-    if (e.year === hoje.getFullYear() && e.month === hoje.getMonth() + 1 && Number(e.amount) > 0) comAporteNoMes.add(e.goalId);
+    if (e.year === mesDeAgora.year && e.month === mesDeAgora.month && Number(e.amount) > 0) comAporteNoMes.add(e.goalId);
     const lista = aportesPorMeta.get(e.goalId) ?? [];
     lista.push({
       amount: Number(e.amount),

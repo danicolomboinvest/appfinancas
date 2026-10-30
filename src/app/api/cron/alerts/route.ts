@@ -72,9 +72,9 @@ export async function GET(request: Request) {
     const perfil = await getOrCreateActiveProfile(user.id);
     const ctx = await contextoDoPerfil(user, perfil);
 
-    // O mês da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 o aviso de orçamento é de
-    // outubro (15/10 a 14/11). Sem dia escolhido, o mês do calendário, como sempre. As metas e o
-    // "chegou lá" seguem o calendário (year/month de fora).
+    // O mês da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 o aviso de orçamento, o
+    // "ficou para trás" das metas e o "chegou lá" são de outubro (15/10 a 14/11). Sem dia
+    // escolhido, o mês do calendário, como sempre.
     const diaInicio = diaDeInicioDoMes(user.diaInicioMes);
     const mesDela = mesDeAgoraDaPessoa(now, diaInicio);
 
@@ -121,11 +121,13 @@ export async function GET(request: Request) {
       );
     }
     if (user.notifyLateGoals) {
-      const goals = await listGoalsWithProgress(ctx);
+      // O aporte "deste mês" e as cópias do "Repetir todo mês" seguem o mês da pessoa.
+      const goals = await listGoalsWithProgress(ctx, diaInicio);
       alerts.push(
         ...buildGoalAlerts({
-          year,
-          month,
+          // A chave do aviso é do mês da pessoa: um por meta por mês dela.
+          year: mesDela.year,
+          month: mesDela.month,
           // Meta sem data não tem "atrasada" (o mesmo critério do Foco): fica fora do aviso.
           goals: goals.flatMap((g) => {
             if (!g.targetDate) return [];
