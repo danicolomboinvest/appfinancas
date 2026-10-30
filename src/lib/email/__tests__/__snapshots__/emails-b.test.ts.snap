@@ -10,7 +10,7 @@ exports[`e-mails B no tema girly > acesso-liberado: assunto e texto (snapshot) 1
 exports[`e-mails B no tema girly > boasvindas: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu primeiro minuto no SPI Finance",
-  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como usar o app . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como funciona . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -45,7 +45,7 @@ exports[`e-mails B no tema girly > conta-criada: assunto e texto (snapshot) 1`] 
 exports[`e-mails B no tema girly > conta-dia1: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu SPI Finance está esperando você",
-  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Ontem você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -143,7 +143,7 @@ exports[`e-mails B no tema manifestacao > acesso-liberado: assunto e texto (snap
 exports[`e-mails B no tema manifestacao > boasvindas: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu primeiro minuto no SPI Finance",
-  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como usar o app . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como funciona . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -178,7 +178,7 @@ exports[`e-mails B no tema manifestacao > conta-criada: assunto e texto (snapsho
 exports[`e-mails B no tema manifestacao > conta-dia1: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu SPI Finance está esperando você",
-  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Ontem você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -276,7 +276,7 @@ exports[`e-mails B no tema padrao > acesso-liberado: assunto e texto (snapshot) 
 exports[`e-mails B no tema padrao > boasvindas: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu primeiro minuto no SPI Finance",
-  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como usar o app . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como funciona . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -311,7 +311,7 @@ exports[`e-mails B no tema padrao > conta-criada: assunto e texto (snapshot) 1`]
 exports[`e-mails B no tema padrao > conta-dia1: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu SPI Finance está esperando você",
-  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Ontem você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -409,7 +409,7 @@ exports[`e-mails B no tema titanio > acesso-liberado: assunto e texto (snapshot)
 exports[`e-mails B no tema titanio > boasvindas: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu primeiro minuto no SPI Finance",
-  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como usar o app . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Uma coisa só: o seu primeiro gasto. Oi, Ana! Sua conta está pronta Antes de qualquer gráfico, o SPI Finance precisa de uma coisa só: o seu primeiro gasto. O jeito mais rápido é falar. Toca no + no meio da barra de baixo e diz, por exemplo: Toque no + e diga: “mercado, duzentos e quarenta reais” Pronto, ele entra no mês com a categoria certa. Se preferir fazer o mês inteiro de uma vez, exporta o extrato no app do seu banco e solta lá dentro. Lançar meu primeiro gasto Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em Como funciona . Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 
@@ -444,7 +444,7 @@ exports[`e-mails B no tema titanio > conta-criada: assunto e texto (snapshot) 1`
 exports[`e-mails B no tema titanio > conta-dia1: assunto e texto (snapshot) 1`] = `
 {
   "assunto": "Seu SPI Finance está esperando você",
-  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Ontem você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
+  "texto": "Leva um minuto para criar a conta. Oi! Seu SPI Finance está esperando você Você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto: Criar minha conta Na hora do cadastro, use este mesmo e-mail ( ana@exemplo.com ). É ele que está liberado. Se aparecer algum erro, é só responder este e-mail que a gente resolve. Respondendo este e-mail, você fala com a gente. SPI Finance, sua vida financeira em um só lugar.",
 }
 `;
 

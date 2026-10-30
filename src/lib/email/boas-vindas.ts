@@ -39,7 +39,7 @@ export function lembreteContaDia1Email(params: { email: string; registerUrl: str
     preheader: "Leva um minuto para criar a conta.",
     saudacao: "Oi!",
     tituloDoHeroi: "Seu SPI Finance está esperando você",
-    paragrafos: ["Ontem você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto:"],
+    paragrafos: ["Você garantiu o SPI Finance, mas a sua conta ainda não foi criada. Leva um minuto:"],
     botao: { href: params.registerUrl, rotulo: "Criar minha conta" },
     notas: [`Na hora do cadastro, use este mesmo e-mail (<b>${escaparHtml(params.email)}</b>). É ele que está liberado.`, "Se aparecer algum erro, é só responder este e-mail que a gente resolve."],
     rodape: "Respondendo este e-mail, você fala com a gente.",
@@ -78,7 +78,7 @@ export function boasVindasEmail(params: { name: string | null; appUrl: string; g
     b.espaco(24) +
     b.botao(params.appUrl, "Lançar meu primeiro gasto", { cheio: true }) +
     b.espaco(14) +
-    b.pequeno(`Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em ${b.link(params.guiaUrl, "<b>Como usar o app</b>")}.`, "text-align:center;");
+    b.pequeno(`Ficou com dúvida? Tem um guia curtinho de como usar dentro do app: no menu, em ${b.link(params.guiaUrl, "<b>Como funciona</b>")}.`, "text-align:center;");
   const subject = assunto("Seu primeiro minuto no SPI Finance");
   return {
     subject,

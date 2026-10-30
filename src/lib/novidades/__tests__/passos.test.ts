@@ -117,3 +117,12 @@ describe("tour na conta nova (leva 1 do primeiro uso, 14/10/2026)", () => {
     expect(abreAsNovidades(estado, true, false)).toBe(true);
   });
 });
+
+describe("Tivemos uma mudança: só fala do que já existe (leva de 14/10)", () => {
+  it("nenhum tema apresenta as Oportunidades como novidade (a aba está em breve para todo mundo)", () => {
+    for (const tema of PROFILE_THEMES.map((t) => t.key)) {
+      const tx = textosDasNovidades(tema);
+      expect(JSON.stringify(tx)).not.toMatch(/oportunidade/i);
+    }
+  });
+});

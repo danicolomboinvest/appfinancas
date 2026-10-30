@@ -41,3 +41,14 @@ describe("e-mails de boas-vindas: o texto que a Dani aprovou em 30/09/2026", () 
     expect(c.html).not.toContain("<b>x</b>");
   });
 });
+
+describe("e-mails de boas-vindas: o texto sempre verdadeiro (leva de 14/10)", () => {
+  it("o lembrete do dia 1 não diz 'ontem' (pode chegar quase 2 dias depois da compra)", () => {
+    expect(todos[0].html).not.toMatch(/ontem/i);
+    expect(todos[0].html).toContain("Você garantiu o SPI Finance");
+  });
+  it("o guia se chama 'Como funciona' no menu, e o e-mail usa esse nome", () => {
+    expect(todos[2].html).toContain("Como funciona");
+    expect(todos[2].html).not.toContain("Como usar o app");
+  });
+});
