@@ -30,6 +30,7 @@ import { useMoney } from "@/components/money/MoneyProvider";
 import { DolarDeHoje } from "./DolarDeHoje";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, ARQUIVO_MAX_BYTES, MAX_PRINTS, ehImagem } from "@/lib/import/limites";
+import { INSTRUCAO_PRINT } from "@/lib/import/foto-no-lugar-do-pdf";
 import type { PrintLido } from "@/lib/import/print-fatura";
 import { prometeParcelasSeguintes } from "@/lib/import/fatura-aberta";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
@@ -512,6 +513,14 @@ export function StatementImport({
         setError(result.error);
         return;
       }
+      // Foto (ou PDF só imagem) no lugar do arquivo (30/10/2026): o servidor leu pelo leitor de
+      // print e devolveu a fatura aberta. Segue como fatura, com a tela do print, sem ler de novo.
+      if (result.stats.faturaAberta && type !== "fatura") {
+        setDocType("fatura");
+        setKindMismatch(null);
+        carregarLeitura(result.stats, result.items, result.customCategories);
+        return;
+      }
       // Uma porta só (12/10/2026): o app segue com o tipo que ele detectou, sem perguntar. Quem
       // discordar toca no "Mudar" discreto depois da leitura.
       if (!acceptKind && result.stats.detectedKind !== "unknown" && result.stats.detectedKind !== type) {
@@ -566,7 +575,9 @@ export function StatementImport({
     try {
       let tipo = forcado ?? arq.docType;
       let r = await tentar(tipo);
-      if (r.ok && !forcado && r.stats.detectedKind !== "unknown" && r.stats.detectedKind !== tipo) {
+      // Foto no lugar do arquivo: veio pelo leitor de print, é a fatura aberta (sem reler).
+      if (r.ok && r.stats.faturaAberta) tipo = "fatura";
+      else if (r.ok && !forcado && r.stats.detectedKind !== "unknown" && r.stats.detectedKind !== tipo) {
         tipo = r.stats.detectedKind;
         r = await tentar(tipo);
       }
@@ -1103,7 +1114,7 @@ export function StatementImport({
             ))}
           </span>
         </button>
-        <p className="-mt-1 text-center text-sm text-ink-muted" data-dica-print>Fatura ainda aberta? Mande prints da lista de compras.</p>
+        <p className="-mt-1 text-center text-sm text-ink-muted" data-dica-print>Fatura ainda aberta? {INSTRUCAO_PRINT}.</p>
         {/* Dentro do começo, a ajuda por banco já aparece em cima (sem sair da tela). */}
         {!comeco && (
           <Link href="/comecar?passo=banco" className="mx-auto inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline" data-como-tiro>

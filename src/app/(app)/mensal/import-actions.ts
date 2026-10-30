@@ -63,6 +63,8 @@ import { bancoDoPrint, comprasDosPrints, juntarPrints, semValorEmReal, type Comp
 import { casarComFaturaAberta, printsAnterioresDaFatura, type CompraDoPrintGravada } from "@/lib/import/fatura-aberta";
 import { UPLOAD_MAX_BYTES } from "@/lib/import/limites";
 import { ArquivoGrandeSumiu, trazerArquivoGrande } from "@/lib/import/arquivo-grande";
+import { hojeParaOPrint, MSG_FOTO_SEM_FATURA, qualLeitor } from "@/lib/import/foto-no-lugar-do-pdf";
+import { lerImagensComoPrints, paginasDoPdfComoImagens } from "@/lib/import/foto-no-lugar-do-pdf-servidor";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import {
   ajustarAnoDaCompra,
@@ -296,7 +298,7 @@ export async function lerPrintDaFaturaAction(formData: FormData): Promise<PrintD
     const print = lido ?? { linhas: [], cabecalhoNoFim: null };
     if (print.linhas.length === 0) {
       const doPdf = segmentos.some((x) => PAGINA_DO_PDF_RE.test(x.texto));
-      return await falhou(`nenhuma compra; ${segmentos.length} pedaços de texto${doPdf ? "; página do PDF" : ""}`, doPdf ? MSG_PRINT_DO_PDF : MSG_PRINT_ILEGIVEL);
+      return await falhou(`nenhuma compra; ${segmentos.length} pedaços de texto${doPdf ? "; página do PDF" : ""}`, doPdf ? MSG_PRINT_DO_PDF : MSG_FOTO_SEM_FATURA);
     }
     return { ok: true, print, banco: bancoDoPrint(segmentos.map((x) => x.texto)) };
   } catch (err) {
@@ -406,7 +408,9 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   }
 
   const uploaded = formData.get("file");
-  const uploadedName = uploaded instanceof File ? uploaded.name : null;
+  // Prints que vieram de uma foto ou de um PDF só imagem subidos no lugar do arquivo (ver
+  // `lerComoPrint`): o diagnóstico guarda o nome do arquivo de origem.
+  const uploadedName = uploaded instanceof File ? uploaded.name : doPrint ? String(formData.get("deArquivo") ?? "") || null : null;
   /** Toda saída em erro passa por aqui: é o que deixa rastro pra checagem diária. */
   const falha = async (message: string, extra: Partial<Parameters<typeof recordImportDiagnostic>[0]> = {}) => {
     const diagnosticId = await recordImportDiagnostic({
@@ -423,6 +427,54 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     // de a pessoa responder no WhatsApp, e quem desiste calado nunca responde.
     await storeFailedImportFile({ userId: ctx.userId, diagnosticId, file: uploaded, encoding, reason: "falha" });
   };
+
+  /**
+   * Foto no lugar do PDF (30/10/2026): a imagem (ou as páginas do PDF que é só imagem) vai para o
+   * leitor de print da fatura, e a resposta é a mesma da leitura de prints (fatura aberta). Sem
+   * compra reconhecida em nenhuma imagem: null, e quem chamou diz o que mandar.
+   */
+  const lerComoPrint = async (imagens: Buffer[]): Promise<ParseStatementResult | null> => {
+    const envio = hojeParaOPrint();
+    let lidos: Awaited<ReturnType<typeof lerImagensComoPrints>> = null;
+    try {
+      lidos = await lerImagensComoPrints(imagens, envio);
+    } catch (err) {
+      console.error("lerExtrato: leitor de print falhou na imagem", err instanceof Error ? err.message : err);
+    }
+    if (!lidos) return null;
+    const form = new FormData();
+    form.set("origem", "print");
+    form.set("docType", "fatura");
+    form.set("envio", envio);
+    form.set("prints", JSON.stringify(lidos.prints));
+    if (lidos.banco) form.set("banco", lidos.banco);
+    if (uploadedName) form.set("deArquivo", uploadedName);
+    return lerExtrato(form);
+  };
+  /** O PDF desenhado página a página pelo leitor de print. Não desenhou: null. */
+  const lerPdfComoPrint = async (): Promise<ParseStatementResult | null> => {
+    if (!(uploaded instanceof Blob)) return null;
+    const senha = formData.get("password");
+    try {
+      const paginas = await paginasDoPdfComoImagens(Buffer.from(await uploaded.arrayBuffer()), typeof senha === "string" && senha !== "" ? senha : undefined);
+      return paginas.length > 0 ? await lerComoPrint(paginas) : null;
+    } catch (err) {
+      console.error("lerExtrato: não desenhou o PDF para o leitor de print", err instanceof Error ? err.message : err);
+      return null;
+    }
+  };
+
+  // Imagem (jpg, png, heic) onde o app esperava o arquivo do banco: pelos bytes, pelo tipo ou
+  // pela extensão, direto para o leitor de print da fatura.
+  if (!doPrint && uploaded instanceof Blob && uploaded.size > 0) {
+    const cabeca = new Uint8Array(await uploaded.slice(0, 16).arrayBuffer());
+    if (qualLeitor({ nome: uploadedName, tipo: uploaded.type, bytes: cabeca }) === "print") {
+      const lido = await lerComoPrint([Buffer.from(await uploaded.arrayBuffer())]);
+      if (lido) return lido;
+      await falha(`${MSG_FOTO_SEM_FATURA} [imagem no lugar do arquivo]`, { kind: "foto-sem-fatura" });
+      return { ok: false, error: MSG_FOTO_SEM_FATURA };
+    }
+  }
 
   let text: string;
   let source: "auto" | "pdf";
@@ -472,10 +524,11 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   // PDF escaneado/foto não tem texto extraível; PDF "impresso" pelo celular tem só os números.
   const quality = encoding === "pdf" ? pdfTextQuality(text) : "ok";
   if (quality === "empty") {
-    const msg =
-      "Não consegui ler este PDF, ele parece ser escaneado ou uma foto. Exporte o extrato em Excel (.xlsx), CSV ou OFX que aí funciona.";
-    await falha(msg, { kind: "pdf-vazio" });
-    return { ok: false, error: msg };
+    // PDF que é só imagem: as páginas desenhadas vão para o leitor de print da fatura.
+    const comoPrint = await lerPdfComoPrint();
+    if (comoPrint) return comoPrint;
+    await falha(`${MSG_FOTO_SEM_FATURA} [PDF sem texto]`, { kind: "pdf-vazio" });
+    return { ok: false, error: MSG_FOTO_SEM_FATURA };
   }
   if (quality === "numbers-only") {
     const msg =
@@ -546,17 +599,23 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   const parsed = emDobro.size > 0 ? semResumo.filter((_, i) => !emDobro.has(i)) : semResumo;
   const moneyLines = countMoneyLines(text);
   if (parsed.length === 0) {
+    // PDF que é só imagem e o leitor de extrato por OCR não achou nada: as páginas desenhadas
+    // vão para o leitor de print da fatura antes de desistir.
+    if (!dosPrints && veioDeImagem(text)) {
+      const comoPrint = await lerPdfComoPrint();
+      if (comoPrint) return comoPrint;
+    }
     // Diagnóstico pro suporte: só o perfil do arquivo. A primeira linha do extrato saía aqui sem
     // máscara (nome do titular, número da conta) e os logs da Vercel não são lugar disso (04/10/2026).
     console.error("parseStatementAction: zero lançamentos", { fileName, encoding, docType, kind: profile.kind, institution: profile.institution, moneyLines, chars: text.length });
     const msg = veioDeImagem(text)
-      ? "Esse PDF é uma imagem (foto ou impressão da tela) e eu não consegui ler os valores com segurança: um número trocado viraria dinheiro errado no seu app, então não gravei nada. Baixe o extrato em outro formato (PDF original do banco, Excel, CSV ou OFX) e envie de novo."
+      ? MSG_FOTO_SEM_FATURA
       : periodoSemMovimento(text)
       ? `Esse arquivo não tem nenhum lançamento: o período escolhido no app do banco não teve movimentação. Baixe de novo escolhendo um período maior (o mês inteiro, por exemplo).`
       : moneyLines > 3
         ? `Li o arquivo inteiro (${profile.summary}) e vi ${moneyLines} linhas com valor, mas não consegui ler nenhuma como lançamento. Esse formato eu ainda não conheço: manda o arquivo para o suporte que a gente ensina o app.`
         : `Li o arquivo inteiro (${profile.summary}) e não encontrei transações. Se for um PDF escaneado/foto, exporte em Excel (.xlsx) ou CSV, costuma ler melhor.`;
-    await falha(msg, { kind: profile.kind, institution: profile.institution, moneyLines, header: safeHeader(text) });
+    await falha(veioDeImagem(text) ? `${msg} [PDF é uma imagem]` : msg, { kind: profile.kind, institution: profile.institution, moneyLines, header: safeHeader(text) });
     return { ok: false, error: msg };
   }
   // Fatura subida como extrato (ou o contrário) é o erro mais caro: compra vira renda. O perfil
