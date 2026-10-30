@@ -27,6 +27,21 @@ describe("conferirLeitura: fatura", () => {
     expect(conferirLeitura(texto, "fatura", linhas)).toEqual({ status: "fechou", lido: 130, esperado: 130 });
   });
 
+  it("BTG: os juros e encargos vêm fora do 'Total de compras e despesas', mas linha a linha na fatura", () => {
+    const texto = [
+      "Total de compras e despesas R$ 1.000,00",
+      "Total de compras e despesas dessa fatura R$ 1.000,00",
+      "Total de créditos recebidos -R$ 50,00",
+      "Saldo fatura anterior e pagamentos -R$ 300,00",
+      "Total a pagar R$ 670,00",
+      "Juros e encargos R$ 20,00",
+    ].join("\n");
+    const linhas = [t(600), t(400), t(15, "Encargos por atraso"), t(5, "IOF rotativo"), t(-50, "Cancelamento - Loja")];
+    expect(conferirLeitura(texto, "fatura", linhas)).toEqual({ status: "fechou", lido: 1020, esperado: 1020 });
+    // A mensalidade que só aparece no resumo (sem linha) continua faltando: aí não fecha mesmo.
+    expect(conferirLeitura(texto, "fatura", linhas.slice(1)).status).toBe("nao-fechou");
+  });
+
   it("bate descontando o estorno", () => {
     expect(conferirLeitura("Total a pagar R$ 80,00", "fatura", [t(100), t(-20, "ESTORNO")]).status).toBe("fechou");
   });
