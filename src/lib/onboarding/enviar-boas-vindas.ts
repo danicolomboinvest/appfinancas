@@ -35,6 +35,18 @@ export function emailComConta(etapa: EtapaComConta, name: string | null, baseUrl
 }
 
 /**
+ * Já enviou um extrato ou fatura, o arquivo foi lido (parse ok) e nunca confirmou nenhuma
+ * importação. O texto de "app vazio" não vale para ela.
+ */
+export async function enviouArquivoSemConfirmar(userId: string): Promise<boolean> {
+  const [leu, confirmou] = await Promise.all([
+    prisma.importDiagnostic.findFirst({ where: { userId, stage: "parse", ok: true }, select: { id: true } }),
+    prisma.importDiagnostic.findFirst({ where: { userId, stage: "confirm", ok: true }, select: { id: true } }),
+  ]);
+  return Boolean(leu) && !confirmou;
+}
+
+/**
  * Manda um e-mail da trilha "criou a conta" com trava: a linha no NotificationLog entra ANTES do
  * envio (a chave é única por pessoa), então duas rodadas ao mesmo tempo, ou a página de
  * confirmação e o cron juntos, nunca mandam o mesmo e-mail duas vezes. Se o envio falha, a linha
@@ -45,7 +57,10 @@ export async function enviarEtapaComConta(
   etapa: EtapaComConta,
   baseUrl: string,
   enviar: Enviar,
-): Promise<"enviado" | "ja-enviado" | "falhou"> {
+): Promise<"enviado" | "ja-enviado" | "pulado" | "falhou"> {
+  // Já enviou um extrato e parou na conferência: o texto de "app vazio" não vale para ela e a Dani
+  // decidiu que ela não recebe e-mail nenhum nessa trilha (14/10/2026). Sai antes de gravar a trava.
+  if (etapa !== CHAVE_BOAS_VINDAS && (await enviouArquivoSemConfirmar(user.id))) return "pulado";
   try {
     await prisma.notificationLog.create({ data: { userId: user.id, key: etapa } });
   } catch {
