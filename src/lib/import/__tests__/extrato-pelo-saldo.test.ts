@@ -74,3 +74,22 @@ describe("extrato lido pela conta do saldo", () => {
     });
   });
 });
+
+describe("extrato espanhol com € colado no número (colunas Importe e Saldo)", () => {
+  it("lê o Importe, não o Saldo, e o sinal sai da conta: salário entra, gasto sai", () => {
+    // FICTÍCIO, mais novo primeiro.
+    const texto = [
+      "IBAN: ES0000000000000000000000 \tSaldo disponible: 900,00€",
+      "Periodo: 01/10/2026 - 30/10/2026",
+      "Concepto \tFecha \tImporte \tSaldo",
+      "CAFE EXEMPLO \t30/10/2026 \t-5,00€ \t900,00€",
+      "NOMINA (TRF) \t29/10/2026 \t1.500,00€ \t905,00€",
+      "BIZUM RECIBIDO \t20/10/2026 \t20,00€ \t-595,00€",
+      "SUPERMERCADO X \t10/10/2026 \t-35,50€ \t-615,00€",
+      "BIZUM ENVIADO \t02/10/2026 \t-100,00€ \t-579,50€",
+    ].join("\n");
+    const { txns, leitor } = parseStatementComLeitor(texto, "pdf");
+    expect(leitor).toBe("pelo-saldo");
+    expect(txns.map((t) => t.amount)).toEqual([-5, 1500, 20, -35.5, -100]);
+  });
+});

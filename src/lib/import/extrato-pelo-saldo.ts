@@ -119,7 +119,8 @@ function lerNoModo(texto: string, refYear: number | undefined, modo: Modo): Pars
   let antes: string[] = []; // linhas soltas desde o último lançamento: pedaços do nome
 
   for (const bruta of texto.split(/\r?\n/)) {
-    const linha = bruta.replace(/\t/g, " ").replace(/\s+/g, " ").trim();
+    // Extrato espanhol: "-7,10€" e "766,37€" (símbolo colado no número) viram número comum.
+    const linha = bruta.replace(/\t/g, " ").replace(/\s?€/g, "").replace(/\s+/g, " ").trim();
     if (!linha) continue;
     const m = linha.match(modo.doisValoresNoFim);
     const data = lerData(linha, ano);
