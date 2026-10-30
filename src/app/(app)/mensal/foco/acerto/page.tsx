@@ -10,7 +10,7 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
 import { Bolinha, ParDeAvatares } from "@/components/casal-login/visual";
 import { Escolhas } from "./Escolhas";
-import { rotuloDaDivisao } from "@/lib/casa/escolhas";
+import { rotuloDaDivisao, rotuloPelaRenda } from "@/lib/casa/escolhas";
 
 export const metadata = { title: "Acerto do mês · SPI Finance" };
 
@@ -36,10 +36,10 @@ export default async function AcertoPage(props: { searchParams: Promise<Record<s
   const seguinte = new Date(ano, mes, 1);
   const temSeguinte = seguinte.getFullYear() * 12 + seguinte.getMonth() <= agora.getFullYear() * 12 + agora.getMonth();
   const linkDoMes = (d: Date) => `/mensal/foco/acerto?mes=${d.getFullYear()}-${d.getMonth() + 1}`;
-  // A proporção da renda mesmo quando a casa divide de outro jeito (o rótulo é da opção "Pela renda").
-  const pctEu = Math.round(acerto.divisao.pctEuRenda);
+  // A proporção da renda mesmo quando a casa divide de outro jeito (o rótulo é da opção "Pela
+  // renda"); sem a renda dos dois, avisa que falta em vez de calar. Só a proporção, nunca o valor.
   const pctCombinado = Math.round(acerto.divisao.pctEuCombinado);
-  const rotuloRenda = acerto.divisao.semRenda ? "Pela renda" : `Pela renda ${pctEu}% e ${100 - pctEu}%`;
+  const rotuloRenda = rotuloPelaRenda(acerto.divisao);
   const pessoas = [acerto.eu, acerto.outro];
 
   return (

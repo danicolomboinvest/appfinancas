@@ -8,6 +8,7 @@ import {
   parteDeQuemLancou,
   resultadoDoGasto,
   rotuloDaDivisao,
+  rotuloPelaRenda,
   selosDoGasto,
   textoDoResultado,
   type DivisaoDaCasa,
@@ -87,5 +88,18 @@ describe("os selinhos", () => {
     expect(selosDoGasto(E({ deQuem: "meu", pagouOPar: true }), PELA_RENDA, nomes)).toEqual(["De Ana", "Lucas pagou"]);
     expect(selosDoGasto(E({ deQuem: "meu" }), PELA_RENDA, nomes)).toEqual([]);
     expect(rotuloDaDivisao(54.6)).toBe("55/45");
+  });
+});
+
+describe("botão Pela renda do acerto: sempre a proporção da renda (leva de 14/10)", () => {
+  it("com Meio a meio ou Combinado marcados, o botão ainda mostra a proporção da renda", () => {
+    expect(rotuloPelaRenda({ ...PELA_RENDA, modo: "meio" })).toBe("Pela renda 55% e 45%");
+    expect(rotuloPelaRenda(divisaoVistaPeloOutro({ ...PELA_RENDA, modo: "combinado" }))).toBe("Pela renda 45% e 55%");
+  });
+  it("falta a renda de um dos dois: avisa, em vez de dizer 50% e 50%", () => {
+    expect(rotuloPelaRenda({ ...PELA_RENDA, pctEuRenda: 50, semRenda: true })).toBe("Pela renda (falta renda)");
+  });
+  it("nunca escreve o valor da renda, só a porcentagem", () => {
+    expect(rotuloPelaRenda({ ...PELA_RENDA, pctEuRenda: 62.4 })).toBe("Pela renda 62% e 38%");
   });
 });

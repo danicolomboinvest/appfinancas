@@ -82,6 +82,17 @@ export function textoDoResultado(r: Resultado, nomeDoPar: string, money: (v: num
 }
 
 /** "60/40": a parte de quem aparece primeiro e a do outro, arredondadas e somando 100. */
+/**
+ * O que o botão "Pela renda" do acerto diz: SEMPRE a proporção da renda, qualquer que seja o jeito
+ * escolhido (com "Meio a meio" marcado ele dizia "Pela renda 50% e 50%"). Só a proporção, nunca o
+ * valor da renda de ninguém. Sem a renda dos dois lançada não há proporção: avisa em vez de calar.
+ */
+export function rotuloPelaRenda(d: DivisaoDaCasa): string {
+  if (d.semRenda) return "Pela renda (falta renda)";
+  const meu = Math.round(limitar(d.pctEuRenda));
+  return `Pela renda ${meu}% e ${100 - meu}%`;
+}
+
 export function rotuloDaDivisao(pctPrimeiro: number): string {
   const p = Math.round(limitar(pctPrimeiro));
   return `${p}/${100 - p}`;

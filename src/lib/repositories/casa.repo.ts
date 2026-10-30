@@ -66,7 +66,8 @@ export async function casaDoUsuario(userId: string): Promise<CasaNaSessao | null
   };
 }
 
-export type AcertoDaCasa = Acerto & {
+// Sem `rendas`: o valor da renda de ninguém sai daqui (o par vê só a proporção, em `divisao`).
+export type AcertoDaCasa = Omit<Acerto, "rendas"> & {
   ano: number;
   mes: number;
   config: ConfigCasal;
@@ -199,8 +200,11 @@ export async function acertoDaCasa(ctx: AuthContext, ano: number, mes: number): 
   };
   const saldoDoEu = casa.eu.letra === "A" ? acerto.saldoA : -acerto.saldoA;
   const pessoa = (p: CasaNaSessao["eu"]) => ({ letra: p.letra, nome: p.nome, papel: p.papel });
+  // O valor da renda fica no servidor: a tela recebe só a proporção (divisao).
+  const { rendas: _rendas, ...semRendas } = acerto;
+  void _rendas;
   return {
-    ...acerto,
+    ...semRendas,
     ano,
     mes,
     config,

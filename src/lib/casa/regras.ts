@@ -15,7 +15,8 @@ import { chaveDoComerciante } from "@/lib/import/comerciante";
  * 3. Ao ligar, tudo aparece para os dois (soMeu = false e ocultoDoPar = false são o padrão).
  * 4. Esconder uma conta: ImportBatch.ocultoDoPar, em Contas e cartões.
  * 5. Esconder um gasto: MonthlyEntry.soMeu, no lançamento aberto.
- * 6. O que é escondido some do app do outro e dos totais dele: `doOutroVisivel` tira os dois.
+ * 6. O que é escondido some do app do outro e dos totais dele: `doOutroVisivel` tira os dois. A
+ *    renda (entrada) da titular também some para o par: ele só vê a proporção, no acerto.
  * 7. Um orçamento só, o da casa (o da titular). Só quem gastou edita ou apaga: toda escrita
  *    continua filtrando por userId + profileId de quem está logado (doDono), então o lançamento
  *    do outro nunca casa com um update ou delete.
@@ -85,7 +86,11 @@ const contaVisivel: Prisma.MonthlyEntryWhereInput = {
  * desligou. Nunca o resto dos perfis dele (a Empresa dele não passa por aqui).
  */
 export function doOutroVisivel(casa: CasaNaSessao): Prisma.MonthlyEntryWhereInput {
-  return { userId: casa.outro.userId, profileId: casa.outro.profileId, soMeu: false, AND: [contaVisivel] };
+  const base: Prisma.MonthlyEntryWhereInput = { userId: casa.outro.userId, profileId: casa.outro.profileId, soMeu: false, AND: [contaVisivel] };
+  // Regra da dona: a renda da titular o par NÃO vê, só a proporção (o acerto calcula no servidor,
+  // por `lancamentosDoAcertoDaCasa`). Fica de fora de toda lista e de todo total do par, sem
+  // depender de a titular marcar "Só meu" (leva de 14/10/2026).
+  return casa.outro.papel === "titular" ? { ...base, category: { not: "INCOME" } } : base;
 }
 
 /**

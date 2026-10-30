@@ -74,10 +74,22 @@ describe("Casal simples: o que cada login vê", () => {
     );
   });
 
-  it("o Lucas vê tudo dele e só o visível da Ana: nem o Só meu, nem o Inter desligado, nem a Empresa", () => {
+  it("o Lucas vê tudo dele e só o visível da Ana: nem o Só meu, nem o Inter desligado, nem a Empresa, nem o salário", () => {
     const visto = ids(lancamentosParaVer(LUCAS_LOGADO));
-    expect(visto).toEqual(["lucas-uber", "lucas-itau-mercado", "lucas-c6-escondido", "lucas-presente-so-meu", "ana-ifood", "ana-nubank-mercado", "ana-salario"].sort());
-    for (const proibido of ["ana-consulta-so-meu", "ana-inter-escondido", "ana-empresa-venda", "ana-casal-antigo"]) expect(visto).not.toContain(proibido);
+    expect(visto).toEqual(["lucas-uber", "lucas-itau-mercado", "lucas-c6-escondido", "lucas-presente-so-meu", "ana-ifood", "ana-nubank-mercado"].sort());
+    for (const proibido of ["ana-consulta-so-meu", "ana-inter-escondido", "ana-empresa-venda", "ana-casal-antigo", "ana-salario"]) expect(visto).not.toContain(proibido);
+  });
+
+  it("a renda da titular não chega ao par em lista nenhuma nem em total nenhum (o par vê só a proporção)", () => {
+    expect(ids(lancamentosParaVer(LUCAS_LOGADO))).not.toContain("ana-salario");
+    expect(ids(lancamentosDosTotais(LUCAS_LOGADO))).not.toContain("ana-salario");
+    // Nem pedindo só entradas, nem com o filtro de mês por cima.
+    expect(ids(comFiltro(lancamentosParaVer(LUCAS_LOGADO), { category: "INCOME" }))).toEqual([]);
+    expect(ids(comFiltro(lancamentosDosTotais(LUCAS_LOGADO), { year: 2026, month: 10 }))).not.toContain("ana-salario");
+    // A titular continua vendo o próprio salário, e a renda do par continua visível para ela.
+    expect(ids(lancamentosParaVer(ANA_LOGADA))).toContain("ana-salario");
+    // O acerto (servidor) continua recebendo a renda: é dela que sai a proporção.
+    expect(ids(lancamentosDoAcertoDaCasa(CASA_DO_LUCAS))).toContain("ana-salario");
   });
 
   it("os totais seguem a mesma regra: o escondido do outro nunca soma", () => {
@@ -98,6 +110,7 @@ describe("Casal simples: o que cada login vê", () => {
     const onde = comFiltro(lancamentosParaVer(LUCAS_LOGADO), { OR: [{ category: "EXPENSE" }] });
     expect(ids(onde)).not.toContain("ana-consulta-so-meu");
     expect(ids(onde)).not.toContain("ana-salario");
+    expect(ids(comFiltro(lancamentosParaVer(LUCAS_LOGADO), { OR: [{ category: "INCOME" }] }))).not.toContain("ana-salario");
   });
 
   it("sem casa é exatamente o filtro de sempre (userId + profileId)", () => {

@@ -138,7 +138,8 @@ describe("Acerto do mês no Casal simples", () => {
     db.linhas[0].soMeu = true;
     const semRenda = await acertoDaCasa(ctx(LUCAS, ANA), 2026, 10);
     expect(semRenda?.caiuParaMeio).toBe(true);
-    expect(semRenda?.rendas.A).toBe(0);
+    expect(semRenda?.divisao.semRenda).toBe(true);
+    expect(semRenda).not.toHaveProperty("rendas");
   });
 
   it("sem casa não há acerto", async () => {
