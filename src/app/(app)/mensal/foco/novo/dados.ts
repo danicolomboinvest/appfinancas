@@ -279,7 +279,7 @@ export async function carregarResumoNovo(ctx: AuthContext, hojeDeTeste: Date | n
 
   // ---------------------------------------------------------------- comparação até o mesmo dia
   const corte = diaDeCorte(gastosAtual, dia);
-  const comparacao = compararAteOMesmoDia(gastosAtual, gastosPassado, corte, passado);
+  const comparacao = compararAteOMesmoDia(gastosAtual, gastosPassado, corte, passado, diasDoMesDela(passado));
   const mudaram = categoriasQueMudaram(gastosAtual, gastosPassado, comparacao.corte, comparacao.cortePassado, CATEGORIAS_FIXAS, 99);
   const categorias = mudaram.slice(0, 4).map((c) => ({ ...info(c.categoria), ...c }));
 
