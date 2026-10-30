@@ -1098,7 +1098,7 @@ export async function devolverPagamentosTiradosAction(chave: string): Promise<{ 
   // a categoria criada por ela pode ter sido apagada nesse meio tempo: a linha volta sem ela.
   const [lotesValidos, categoriasValidas] = await Promise.all([
     prisma.importBatch.findMany({ where: { id: { in: [...lotes] }, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } }).then((r) => new Set(r.map((b) => b.id))),
-    categorias.size > 0 ? prisma.customCategory.findMany({ where: { id: { in: [...categorias] }, userId: ctx.userId }, select: { id: true } }).then((r) => new Set(r.map((c) => c.id))) : Promise.resolve(new Set<string>()),
+    categorias.size > 0 ? prisma.customCategory.findMany({ where: { id: { in: [...categorias] }, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } }).then((r) => new Set(r.map((c) => c.id))) : Promise.resolve(new Set<string>()),
   ]);
   const data = linhas.flatMap((l) => {
     if (typeof l.id !== "string" || typeof l.year !== "number" || typeof l.month !== "number" || typeof l.amount !== "number" || l.category !== "EXPENSE") return [];
