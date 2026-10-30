@@ -64,7 +64,10 @@ export function AppShell({
   novidades = "novo",
   ferramentasDoMei,
   perfilComprado = null,
+  diaInicioMes = null,
 }: {
+  /** O dia em que o mês da pessoa começa (2 a 28); nulo = o mês de sempre. Vai para o seletor de mês. */
+  diaInicioMes?: number | null;
   /** Comprou a Empresa (criada sozinha) ou o Casal: o aviso de uma vez (ver perfil-comprado.repo.ts). */
   perfilComprado?: AvisoComprado | null;
   /** Empresa: Limite do MEI e Impostos só entram no menu quando têm o que mostrar. */
@@ -251,8 +254,8 @@ export function AppShell({
               )}
               <ConviteTesteAndroid userEmail={userEmail} />
               <InstallAppBanner onOpenTutorial={() => setInstallOpen(true)} />
-              {visaoGeral && !focado && <AbasDaVisaoGeral />}
-              {visaoGeral && !focado ? <DeslizarEntreAbas>{children}</DeslizarEntreAbas> : children}
+              {visaoGeral && !focado && <AbasDaVisaoGeral diaInicioMes={diaInicioMes} />}
+              {visaoGeral && !focado ? <DeslizarEntreAbas diaInicioMes={diaInicioMes}>{children}</DeslizarEntreAbas> : children}
             </div>
           </main>
         </div>

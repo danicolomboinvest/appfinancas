@@ -11,15 +11,15 @@ import { SeletorDeMes } from "./SeletorDeMes";
 const ABA_COM_MES: Record<string, AbaComMes | undefined> = { "/mensal/foco": "resumo", "/orcamento": "orcamento", "/mensal": "transacoes" };
 
 /** O endereço de cada aba, levando o mês escolhido (Recorrentes não tem mês). */
-function useHrefsDasAbas(): string[] {
+function useHrefsDasAbas(diaInicioMes: number | null): string[] {
   const caminho = usePathname();
   const busca = useSearchParams();
   const agora = nowInBrazil();
-  const periodo = periodoCompletoDaRota(caminho, busca, agora);
+  const periodo = periodoCompletoDaRota(caminho, busca, agora, diaInicioMes);
   return ABAS_DA_VISAO_GERAL.map((aba) => {
     const comMes = ABA_COM_MES[aba.href];
     if (!periodo || !comMes) return aba.href;
-    return periodo.intervalo ? hrefDoIntervalo(comMes, periodo.intervalo) : hrefDoMes(comMes, periodo.mes!, agora);
+    return periodo.intervalo ? hrefDoIntervalo(comMes, periodo.intervalo) : hrefDoMes(comMes, periodo.mes!, agora, diaInicioMes);
   });
 }
 
@@ -29,12 +29,12 @@ function useHrefsDasAbas(): string[] {
  * para o meio quando troca; tocar perto da borda mostra a próxima inteira ("Recorrentes" não fica
  * mais cortado sem jeito de chegar nele).
  */
-export function AbasDaVisaoGeral() {
+export function AbasDaVisaoGeral({ diaInicioMes = null }: { diaInicioMes?: number | null }) {
   // Presas embaixo do cabeçalho ao rolar, com o mesmo véu dele (protótipo, #rolado-resumo).
   return (
     <div className="sticky top-[calc(3.6rem+var(--safe-top))] z-30 -mx-5 bg-canvas/85 px-5 pt-1 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-0 md:backdrop-blur-none" data-abas-presas>
       <Suspense fallback={<AbasSemMes />}>
-        <AbasComMes />
+        <AbasComMes diaInicioMes={diaInicioMes} />
       </Suspense>
     </div>
   );
@@ -44,12 +44,12 @@ function AbasSemMes() {
   return <Pilulas hrefs={ABAS_DA_VISAO_GERAL.map((a) => a.href)} />;
 }
 
-function AbasComMes() {
-  const hrefs = useHrefsDasAbas();
+function AbasComMes({ diaInicioMes }: { diaInicioMes: number | null }) {
+  const hrefs = useHrefsDasAbas(diaInicioMes);
   return (
     <>
       <Pilulas hrefs={hrefs} />
-      <SeletorDeMes />
+      <SeletorDeMes diaInicioMes={diaInicioMes} />
     </>
   );
 }
@@ -68,17 +68,17 @@ function Pilulas({ hrefs }: { hrefs: string[] }) {
  * Arrastar o conteúdo para o lado troca de aba (protótipo: o painel acompanha o dedo). Uns 70 px
  * de dedo levam para a aba do lado, com o mesmo mês; menos que isso, volta ao lugar.
  */
-export function DeslizarEntreAbas({ children }: { children: ReactNode }) {
+export function DeslizarEntreAbas({ children, diaInicioMes = null }: { children: ReactNode; diaInicioMes?: number | null }) {
   return (
     <Suspense fallback={children}>
-      <Deslizar>{children}</Deslizar>
+      <Deslizar diaInicioMes={diaInicioMes}>{children}</Deslizar>
     </Suspense>
   );
 }
 
-function Deslizar({ children }: { children: ReactNode }) {
+function Deslizar({ children, diaInicioMes }: { children: ReactNode; diaInicioMes: number | null }) {
   const pathname = usePathname();
-  const hrefs = useHrefsDasAbas();
+  const hrefs = useHrefsDasAbas(diaInicioMes);
   const ativa = abaAtiva(pathname);
   const i = ativa ? ABAS_DA_VISAO_GERAL.findIndex((a) => a.href === ativa.href) : -1;
   return (

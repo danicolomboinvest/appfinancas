@@ -140,7 +140,12 @@ export async function touchLastSeen(userId: string, previous: Date | null): Prom
 
 /** O dia em que o mês dela começa (lib/mes/periodo.ts); nulo = o mês de sempre. */
 export async function getDiaInicioMes(ctx: AuthContext): Promise<number | null> {
-  const u = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { diaInicioMes: true } });
+  return getDiaInicioMesDoUsuario(ctx.userId);
+}
+
+/** O mesmo, pelo id da conta (o Nós dois lança em nome da titular: vale o dia dela). */
+export async function getDiaInicioMesDoUsuario(userId: string): Promise<number | null> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { diaInicioMes: true } });
   return diaDeInicioDoMes(u?.diaInicioMes ?? null);
 }
 

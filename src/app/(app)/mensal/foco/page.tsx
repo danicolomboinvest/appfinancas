@@ -27,7 +27,7 @@ import { ComoChegamos } from "./ComoChegamos";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { ConquistasDeMetas } from "@/components/conquista/ConquistasDeMetas";
 import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
-import { getOwnUser } from "@/lib/repositories/user.repo";
+import { getDiaInicioMes, getOwnUser } from "@/lib/repositories/user.repo";
 import { mostrarPrimeirosPassos, oQueMostrarDepois } from "@/lib/onboarding/comeco";
 import { ComecoDoMes, PerguntaDoSegundoDia, PrimeirosPassos, TopoDoComeco } from "./DepoisDoComeco";
 import { acertoDaCasa } from "@/lib/repositories/casa.repo";
@@ -53,19 +53,22 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   if (ehEmpresa(ctx.profileKind)) redirect("/empresa");
   // Tudo de uma vez (o Resumo esperava o Foco para só depois buscar o mês e os 6 meses).
   const agora = nowInBrazil();
+  // O mês de agora é o da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 ainda é outubro.
+  const diaInicio = await getDiaInicioMes(ctx);
+  const deAgora = mesDeAgora(agora, diaInicio);
   // Outro mês no seletor da Visão geral: o quadro daquele mês e os 6 meses (o "livre até domingo"
   // e as decisões só existem para o mês de agora).
   const busca = await props.searchParams;
   const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
   const intervalo = lerIntervalo({ periodo: um(busca.periodo), de: um(busca.de), ate: um(busca.ate) }, agora);
   if (intervalo) return <ResumoDoPeriodo ctx={ctx} intervalo={intervalo} agora={agora} />;
-  const escolhido = lerMesEscolhido(busca.mes, agora);
+  const escolhido = lerMesEscolhido(busca.mes, agora, diaInicio);
   // Outro mês (protótipo): o herói da semana e as Decisões importantes continuam em cima; muda o
   // quadro do mês e, no mês passado ainda aberto, aparece "Setembro ainda não foi fechado".
-  const outroMes = mesmoMes(escolhido, mesDeAgora(agora)) ? null : escolhido;
+  const outroMes = mesmoMes(escolhido, deAgora) ? null : escolhido;
   // Mês que ainda não chegou (voltou em 14/10/2026): o que já está previsto, nunca gasto.
-  if (ehFuturo(escolhido, agora)) {
-    const [[previsto], moneyP] = await Promise.all([carregarMesesPrevistos(ctx, mesDeAgora(agora), escolhido, 1), serverMoney()]);
+  if (ehFuturo(escolhido, agora, diaInicio)) {
+    const [[previsto], moneyP] = await Promise.all([carregarMesesPrevistos(ctx, deAgora, escolhido, 1), serverMoney()]);
     return <MesPrevistoNaTela m={previsto} money={(v) => moneyP(v, { round: true })} />;
   }
   // O Resumo novo (proposta de 14/10/2026) vale para todos desde 15/10 (a Dani escolheu a cor A,
@@ -73,7 +76,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
   // ?cor=a|b|c troca só a cor do bloco principal.
   const cor: CorDoHeroi = um(busca.cor) === "b" ? "b" : um(busca.cor) === "c" ? "c" : "a";
   // Mês que já passou (14/10/2026, pedido da Dani): como foi o fechamento dele, não a semana de agora.
-  if (um(busca.resumo) !== "antigo" && outroMes) return <ResumoDoMesPassado ctx={ctx} mes={outroMes} agora={mesDeAgora(agora)} cor={cor} />;
+  if (um(busca.resumo) !== "antigo" && outroMes) return <ResumoDoMesPassado ctx={ctx} mes={outroMes} agora={deAgora} cor={cor} />;
   if (um(busca.resumo) !== "antigo" && !outroMes) {
     // Para a foto dos dias 1 a 7 no banco local: ?hoje=AAAA-MM-DD só vale com a variável ligada.
     const hojeTexto = um(busca.hoje);
@@ -81,12 +84,12 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
     return <ResumoNovo ctx={ctx} cor={cor} hojeDeTeste={hojeDeTeste} />;
   }
   // Casal simples: o acerto do mês que está na tela (o de agora ou o escolhido no seletor).
-  const mesDoAcerto = outroMes ?? mesDeAgora(agora);
+  const mesDoAcerto = outroMes ?? deAgora;
   const casa = casaNaTela(ctx.casa);
   const [d, blocos, valoresMeses, resumoOutro, moneyR, acerto] = await Promise.all([
     carregarFoco(ctx),
     carregarBlocosDoMes(ctx, agora),
-    valoresDosMeses(ctx, mesesAte(agora.getFullYear(), agora.getMonth() + 1, 12)),
+    valoresDosMeses(ctx, mesesAte(deAgora.ano, deAgora.mes, 12)),
     outroMes ? getMonthlySummary(ctx, outroMes.ano, outroMes.mes) : Promise.resolve(null),
     serverMoney(),
     casa ? acertoDaCasa(ctx, mesDoAcerto.ano, mesDoAcerto.mes) : Promise.resolve(null),

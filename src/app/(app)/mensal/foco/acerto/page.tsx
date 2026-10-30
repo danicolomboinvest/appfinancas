@@ -5,6 +5,7 @@ import { getRequiredSession } from "@/lib/auth/session";
 import { acertoDaCasa } from "@/lib/repositories/casa.repo";
 import { casaNaTela } from "@/lib/casa/regras";
 import { lerMesEscolhido } from "@/lib/visao-geral/periodo";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { serverMoney } from "@/lib/money-server";
 import { Bolinha, ParDeAvatares } from "@/components/casal-login/visual";
@@ -26,7 +27,7 @@ export default async function AcertoPage(props: { searchParams: Promise<Record<s
   if (!casa) notFound();
   const agora = nowInBrazil();
   const { mes: mesBusca } = await props.searchParams;
-  const { ano, mes } = lerMesEscolhido(mesBusca, agora);
+  const { ano, mes } = lerMesEscolhido(mesBusca, agora, await getDiaInicioMes(ctx));
   const [acerto, money] = await Promise.all([acertoDaCasa(ctx, ano, mes), serverMoney()]);
   if (!acerto) notFound();
   const m = (v: number) => money(v, { round: true });

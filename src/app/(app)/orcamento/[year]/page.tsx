@@ -2,7 +2,8 @@ import { nowInBrazil } from "@/lib/date/brazil-now";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRequiredSession } from "@/lib/auth/session";
-import { lerIntervalo, periodoDaRota } from "@/lib/visao-geral/periodo";
+import { lerIntervalo, mesDeAgora, periodoDaRota } from "@/lib/visao-geral/periodo";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
 import { OrcamentoDoPeriodo } from "./OrcamentoDoPeriodo";
 import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { getAnnualBudgetPlan, getAnnualBudgetPlanForCustomCategories } from "@/lib/repositories/budget.repo";
@@ -124,12 +125,15 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
 
   // Relógio de Brasília, igual ao Foco e ao /mensal: às 22h do dia 30 o mês ainda é este.
   const now = nowInBrazil();
-  const isCurrentYear = year === now.getFullYear();
+  // O mês de agora é o da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 ainda é outubro.
+  const diaInicio = await getDiaInicioMes(ctx);
+  const deAgora = mesDeAgora(now, diaInicio);
+  const isCurrentYear = year === deAgora.ano;
   // O mês do seletor da Visão geral (?mes=2026-09); sem ele, o mês de agora (ou dezembro, num ano
   // que já passou). É o mês do herói, do "Seu plano" e das categorias.
-  const escolhido = periodoDaRota(`/orcamento/${year}`, typeof busca.mes === "string" ? busca.mes : null, now)?.mes;
-  const mesEscolhido = escolhido && escolhido.ano === year ? escolhido.mes : isCurrentYear ? now.getMonth() + 1 : 12;
-  const eMesDeAgora = isCurrentYear && mesEscolhido === now.getMonth() + 1;
+  const escolhido = periodoDaRota(`/orcamento/${year}`, typeof busca.mes === "string" ? busca.mes : null, now, diaInicio)?.mes;
+  const mesEscolhido = escolhido && escolhido.ano === year ? escolhido.mes : isCurrentYear ? deAgora.mes : 12;
+  const eMesDeAgora = isCurrentYear && mesEscolhido === deAgora.mes;
   const currentMonthData = comparison.months.find((m) => m.month === mesEscolhido);
 
   // O resumo que abre a página. Só do mês corrente: "quanto posso gastar por dia" não existe
@@ -230,7 +234,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
       hasPlan={hasPlan}
       hints={hints}
       savingsTargets={savingsTargets}
-      mesDeAgora={year === agora.getFullYear() ? agora.getMonth() + 1 : undefined}
+      mesDeAgora={year === deAgora.ano ? deAgora.mes : undefined}
       plan={{
         plannedIncome: monthPlan?.plannedIncome ?? 0,
         plannedInvestment: monthPlan?.plannedInvestment ?? 0,

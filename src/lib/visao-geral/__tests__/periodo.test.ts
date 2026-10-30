@@ -50,7 +50,42 @@ describe("seletor de mês da Visão geral", () => {
   });
 });
 
-import { hrefDoIntervalo, intervaloDoTipo, lerIntervalo, rotuloDoIntervalo, soMesesInteiros } from "../periodo";
+import { ehFuturo, hrefDoIntervalo, intervaloDoTipo, lerIntervalo, mesDeAgora, periodoCompletoDaRota, rotuloDoIntervalo, soMesesInteiros } from "../periodo";
+
+describe("mês que começa no dia da pessoa (30/10/2026)", () => {
+  const cinco = new Date(2026, 10, 5, 10); // 05/11/2026
+
+  it("sem dia escolhido (nulo, 1 ou nada), tudo é igual ao de antes", () => {
+    for (const dia of [undefined, null, 1]) {
+      expect(mesDeAgora(cinco, dia)).toEqual({ ano: 2026, mes: 11 });
+      expect(lerMesEscolhido(undefined, cinco, dia)).toEqual({ ano: 2026, mes: 11 });
+      expect(rotuloDoPeriodo({ ano: 2026, mes: 11 }, cinco, dia)).toEqual({ nome: "Esse mês", sub: "1 a 5 nov" });
+      expect(rotuloDoPeriodo({ ano: 2026, mes: 10 }, cinco, dia)).toEqual({ nome: "Mês passado", sub: "out 2026" });
+      expect(hrefDoMes("resumo", { ano: 2026, mes: 11 }, cinco, dia)).toBe("/mensal/foco");
+      expect(ehFuturo({ ano: 2026, mes: 12 }, cinco, dia)).toBe(true);
+      expect(periodoDaRota("/orcamento/2026", null, cinco, dia)).toEqual({ aba: "orcamento", mes: { ano: 2026, mes: 11 } });
+    }
+  });
+
+  it("dia 15: em 05/11 o mês de agora é outubro (15/10 a 14/11), e o seletor escreve o intervalo", () => {
+    expect(mesDeAgora(cinco, 15)).toEqual({ ano: 2026, mes: 10 });
+    expect(lerMesEscolhido(undefined, cinco, 15)).toEqual({ ano: 2026, mes: 10 });
+    expect(rotuloDoPeriodo({ ano: 2026, mes: 10 }, cinco, 15)).toEqual({ nome: "Esse mês", sub: "15/10 a 05/11" });
+    expect(rotuloDoPeriodo({ ano: 2026, mes: 10 }, new Date(2026, 9, 15), 15)).toEqual({ nome: "Esse mês", sub: "15/10" });
+    expect(rotuloDoPeriodo({ ano: 2026, mes: 9 }, cinco, 15)).toEqual({ nome: "Mês passado", sub: "15/09 a 14/10" });
+    expect(rotuloDoPeriodo({ ano: 2026, mes: 11 }, cinco, 15)).toEqual({ nome: "Mês que vem", sub: "previsto · 15/11 a 14/12" });
+    expect(rotuloDoPeriodo({ ano: 2026, mes: 3 }, cinco, 15)).toEqual({ nome: "Março", sub: "15/03 a 14/04" });
+    // Novembro ainda não chegou: é previsto, e o mês de agora não leva parâmetro.
+    expect(ehFuturo({ ano: 2026, mes: 11 }, cinco, 15)).toBe(true);
+    expect(ehFuturo({ ano: 2026, mes: 10 }, cinco, 15)).toBe(false);
+    expect(hrefDoMes("resumo", { ano: 2026, mes: 10 }, cinco, 15)).toBe("/mensal/foco");
+    expect(hrefDoMes("resumo", { ano: 2026, mes: 11 }, cinco, 15)).toBe("/mensal/foco?mes=2026-11");
+    expect(periodoDaRota("/orcamento/2026", null, cinco, 15)).toEqual({ aba: "orcamento", mes: { ano: 2026, mes: 10 } });
+    expect(periodoCompletoDaRota("/mensal/foco", new URLSearchParams(), cinco, 15)).toEqual({ aba: "resumo", mes: { ano: 2026, mes: 10 }, intervalo: null });
+    expect(mesAoLado({ ano: 2027, mes: 3 }, 1, cinco, 15)).toEqual({ ano: 2027, mes: 4 });
+    expect(mesAoLado({ ano: 2027, mes: 4 }, 1, cinco, 15)).toBeNull();
+  });
+});
 
 describe("Ver o período: além do mês", () => {
   const agora = new Date(2026, 9, 11, 10);

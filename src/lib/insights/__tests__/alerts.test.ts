@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBudgetAlerts, buildGoalAlerts } from "../alerts";
+import { buildBudgetAlerts, buildGoalAlerts, diasQueFaltam } from "../alerts";
 
 const money = (v: number) => `R$ ${v}`;
 
@@ -111,5 +111,21 @@ describe("buildGoalAlerts", () => {
     });
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toMatchObject({ key: "2026-09:goal:a", title: '"Viagem Chile" ficou para trás' });
+  });
+});
+
+describe("diasQueFaltam com o mês da pessoa (30/10/2026)", () => {
+  it("sem dia escolhido, é a régua de sempre: 25 dias no dia 7 de outubro, 1 no último dia", () => {
+    for (const dia of [null, undefined]) {
+      expect(diasQueFaltam(2026, 10, new Date(2026, 9, 7), dia)).toBe(25);
+      expect(diasQueFaltam(2026, 10, new Date(2026, 9, 31), dia)).toBe(1);
+      expect(diasQueFaltam(2026, 2, new Date(2026, 1, 1), dia)).toBe(28);
+    }
+    expect(diasQueFaltam(2026, 10, new Date(2026, 9, 7))).toBe(25);
+  });
+  it("dia 15: outubro vai até 14/11; em 05/11 faltam 10 dias", () => {
+    expect(diasQueFaltam(2026, 10, new Date(2026, 10, 5), 15)).toBe(10);
+    expect(diasQueFaltam(2026, 10, new Date(2026, 9, 15), 15)).toBe(31);
+    expect(diasQueFaltam(2026, 10, new Date(2026, 10, 14), 15)).toBe(1);
   });
 });

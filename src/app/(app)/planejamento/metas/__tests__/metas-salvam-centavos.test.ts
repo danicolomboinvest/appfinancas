@@ -16,6 +16,7 @@ vi.mock("@/lib/repositories/monthly-entry.repo", () => ({ createMonthlyEntry: (.
 vi.mock("@/lib/repositories/goal.repo", () => ({ apagarMeta: vi.fn(), restaurarMeta: vi.fn() }));
 vi.mock("@/lib/desfazer/recibo", () => ({ criarRecibo: vi.fn(), lerRecibo: vi.fn() }));
 vi.mock("@/lib/repositories/metas.repo", () => ({ lerMetaDaTela: vi.fn(async () => ({ id: "m1", nome: "Viagem", guardado: 5000 })) }));
+vi.mock("@/lib/repositories/user.repo", () => ({ getDiaInicioMes: vi.fn(async () => null) }));
 
 import { criarMetaAction, guardarNaMetaAction, marcarAporteAction } from "../acoes";
 import { digitar } from "@/components/ui/__tests__/digitar-no-campo";

@@ -10,6 +10,8 @@ import { createMonthlyEntry } from "@/lib/repositories/monthly-entry.repo";
 import { apagarMeta, restaurarMeta, type MetaApagada } from "@/lib/repositories/goal.repo";
 import { criarRecibo, lerRecibo } from "@/lib/desfazer/recibo";
 import { lerMetaDaTela } from "@/lib/repositories/metas.repo";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
+import { mesDoPeriodo } from "@/lib/mes/periodo";
 import { criarRascunhoDaMeta } from "@/lib/repositories/plano-da-meta.repo";
 import { TAXA_PADRAO_DAS_METAS, mesDaqui, mesDoAporte, porMesDaNovaMeta } from "@/lib/metas/projecao";
 import { TIPOS_DE_META, ehFotoDoBanco, FOTOS_DE_META, urlDaFoto } from "@/lib/metas/tipos";
@@ -171,9 +173,11 @@ export async function guardarNaMetaAction(id: string, valor: number, tipo: "adic
   const meta = await lerMetaDaTela(ctx, z.string().min(1).max(60).parse(id), hoje);
   if (!meta) return { ok: false, error: "Essa meta não existe mais. Recarregue a página." };
   if (tipo === "retirar" && v.data > meta.guardado + 0.005) return { ok: false, error: "É mais do que tem na meta." };
+  // O mês do "Guardei" é o da pessoa (30/10/2026), como o lançamento à mão.
+  const mesDela = mesDoPeriodo(hoje, await getDiaInicioMes(ctx)) ?? { year: hoje.getFullYear(), month: hoje.getMonth() + 1 };
   await createMonthlyEntry(ctx, {
-    year: hoje.getFullYear(),
-    month: hoje.getMonth() + 1,
+    year: mesDela.year,
+    month: mesDela.month,
     category: "INVESTMENT_CONTRIBUTION",
     description: tipo === "adicionar" ? `Guardei: ${meta.nome}` : `Retirei: ${meta.nome}`,
     amount: tipo === "adicionar" ? v.data : -v.data,
@@ -205,9 +209,10 @@ export async function marcarAporteAction(id: string, valor: number, origem: keyo
   const inicio = new Date(ref.ano, ref.mes - 1, 1);
   const fim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
   if (!data || Number.isNaN(data.getTime()) || data < inicio || data > fim) return { ok: false, error: `Escolha um dia entre 1º de ${ref.nome} e hoje.` };
+  const mesDela = mesDoPeriodo(data, await getDiaInicioMes(ctx)) ?? { year: data.getFullYear(), month: data.getMonth() + 1 };
   await createMonthlyEntry(ctx, {
-    year: data.getFullYear(),
-    month: data.getMonth() + 1,
+    year: mesDela.year,
+    month: mesDela.month,
     category: "INVESTMENT_CONTRIBUTION",
     description: `${ORIGENS[o]} · ${meta.nome}`,
     amount: v.data,

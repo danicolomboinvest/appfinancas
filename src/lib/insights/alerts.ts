@@ -2,6 +2,7 @@ import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { categoryLabel } from "@/lib/categories";
 import type { DadosDoAviso } from "@/lib/email/templates";
 import { planoDeCobrir, porDiaComOLivre, quantoPassou, tempoDoMes, type CategoriaParaRemanejo } from "@/lib/planning/remanejo";
+import { diaNoPeriodo, periodoDoMes } from "@/lib/mes/periodo";
 
 /** `dados` é o que o e-mail precisa para desenhar o aviso (barra, número, de onde tirar). */
 export type Alert = { key: string; title: string; body: string; url: string; dados?: DadosDoAviso };
@@ -16,9 +17,10 @@ type Money = (v: number) => string;
  * e o corpo do e-mail leem daqui. Antes o texto contava sem hoje e o corpo com hoje, e o mesmo
  * e-mail dizia "faltam 24 dias" na prévia e "faltam 25 dias" lá dentro.
  */
-export function diasQueFaltam(ano: number, mes: number, hoje: Date): number {
-  const diasNoMes = new Date(ano, mes, 0).getDate();
-  return Math.max(1, diasNoMes - hoje.getDate() + 1);
+export function diasQueFaltam(ano: number, mes: number, hoje: Date, diaInicio: number | null = null): number {
+  // Com o mês da pessoa começando em outro dia (30/10/2026), "mês" é o período dela (15/10 a 14/11).
+  const p = periodoDoMes(ano, mes, diaInicio);
+  return Math.max(1, p.dias - diaNoPeriodo(hoje, p) + 1);
 }
 
 /** "1 dia" / "25 dias". */
@@ -45,6 +47,8 @@ export function buildBudgetAlerts(input: {
   year: number;
   month: number;
   today: Date;
+  /** O dia em que o mês da pessoa começa (2 a 28); nulo = o mês de sempre. */
+  diaInicio?: number | null;
   planned: { parentCategory: ParentCategory; planned: number }[];
   spent: { parentCategory: ParentCategory; spent: number }[];
   /** Parte de `spent` criada antes do mês começar (conta fixa pré-lançada), por categoria. */
@@ -64,7 +68,7 @@ export function buildBudgetAlerts(input: {
 }): Alert[] {
   const ym = `${input.year}-${String(input.month).padStart(2, "0")}`;
   // Uma conta só, contando hoje: o texto do aviso e o e-mail dizem o mesmo número.
-  const diasComHoje = diasQueFaltam(input.year, input.month, input.today);
+  const diasComHoje = diasQueFaltam(input.year, input.month, input.today, input.diaInicio ?? null);
   const mesNome = NOMES_DOS_MESES[input.month - 1];
   const spentBy = new Map(input.spent.map((s) => [s.parentCategory, s.spent]));
   const preCriadoBy = new Map((input.preCriado ?? []).map((s) => [s.parentCategory, s.spent]));
@@ -109,7 +113,7 @@ export function buildBudgetAlerts(input: {
       ...input.planned.map((c) => ({ key: c.parentCategory, label: categoryLabel(input.kind, c.parentCategory), planejado: c.planned, gasto: spentBy.get(c.parentCategory) ?? 0, essencial: input.essenciais?.has(c.parentCategory) })),
       ...(input.outras ?? []),
     ];
-    const plano = planoDeCobrir({ key, label, planejado, gasto }, todas, tempoDoMes(diasComHoje, new Date(input.year, input.month, 0).getDate()));
+    const plano = planoDeCobrir({ key, label, planejado, gasto }, todas, tempoDoMes(diasComHoje, periodoDoMes(input.year, input.month, input.diaInicio ?? null).dias));
     const origem = plano.origens.length === 1 ? plano.origens[0] : null;
     const livre = input.livre ?? null;
     return {
