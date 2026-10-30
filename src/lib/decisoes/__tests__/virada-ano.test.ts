@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { chaveDaContaFixa, contasFixasQueFaltam, sugerirAno } from "../virada-ano";
 
@@ -58,5 +60,19 @@ describe("contasFixasQueFaltam", () => {
 
   it("a chave da tela separa valores diferentes", () => {
     expect(chaveDaContaFixa(escola)).not.toBe(chaveDaContaFixa({ ...escola, valor: 1100 }));
+  });
+});
+
+describe("a entrada do Ano novo no Resumo (leva de 14/10)", () => {
+  it("sem orçamento na virada, o botão leva à tela Ano novo; nos outros casos, ao Orçamento", async () => {
+    const { caminhoSemOrcamento, HREF_DA_VIRADA } = await import("../virada-ano");
+    expect(HREF_DA_VIRADA).toBe("/mensal/foco/ano");
+    expect(caminhoSemOrcamento(true)).toBe(HREF_DA_VIRADA);
+    expect(caminhoSemOrcamento(false)).toBe("/orcamento");
+  });
+  it("o cartão Ano novo do Resumo aponta para a mesma tela e só entra quando a virada está pendente", () => {
+    const fonte = readFileSync(join(process.cwd(), "src/app/(app)/mensal/foco/page.tsx"), "utf8");
+    expect(fonte).toMatch(/d\.viradaPendente \? cartaoParaHoje\("ano", HREF_DA_VIRADA/);
+    expect(fonte).toMatch(/caminhoSemOrcamento\(d\.viradaPendente\)/);
   });
 });

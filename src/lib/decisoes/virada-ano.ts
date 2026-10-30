@@ -130,3 +130,17 @@ export function contasFixasQueFaltam<T extends ContaFixaChave>(
     return true;
   });
 }
+
+/** A tela da virada do ano (Fechar o ano que passou, começar o novo). */
+export const HREF_DA_VIRADA = "/mensal/foco/ano";
+
+/**
+ * Para onde o Resumo leva quem está sem orçamento neste mês. Na virada do ano (janeiro a março,
+ * quem usou o app no ano passado e ainda não decidiu) é a tela "Ano novo", que copia o plano do
+ * ano que passou: os orçamentos são gravados mês a mês só até dezembro, então em 01/01 todo
+ * mundo ficava sem plano e nada no app levava até a tela (o cartão foi tirado do Resumo em
+ * 11/10/2026). Nos outros casos é o Orçamento.
+ */
+export function caminhoSemOrcamento(viradaPendente: boolean): string {
+  return viradaPendente ? HREF_DA_VIRADA : "/orcamento";
+}

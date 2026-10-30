@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { ondeMostrarFechamento } from "./fechamento/quando-mostrar";
-import { CalendarCheck, CalendarHeart, ListChecks, type LucideIcon } from "lucide-react";
+import { CalendarCheck, CalendarDays, CalendarHeart, ListChecks, type LucideIcon } from "lucide-react";
+import { caminhoSemOrcamento, HREF_DA_VIRADA } from "@/lib/decisoes/virada-ano";
 import { getRequiredSession } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { carregarFoco, MESES } from "./dados";
@@ -189,7 +190,10 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
     ritmo !== "mensal" && !d.ritualFeito && (diaDaSemanaHoje === 1 || diaDaSemanaHoje === 2) && !jaRespondida("hora-do-mes", `ritual-${d.semana}`)
       ? cartaoParaHoje("ritual", "/mensal/foco/ritual", CalendarHeart, t.focoRitualT, t.focoRitualEy, t.focoComecar)
       : null;
-  const paraHoje = [fecharMes, ritual, revisar].filter(Boolean);
+  // De volta (a entrada tinha sumido em 11/10/2026): a virada do ano, de janeiro a março, até ela
+  // decidir. Sem isso, em 01/01 ninguém chegava à tela que copia o plano do ano que passou.
+  const anoNovo = d.viradaPendente ? cartaoParaHoje("ano", HREF_DA_VIRADA, CalendarDays, "Ano novo", `Fechar ${d.year - 1} e começar ${d.year}`, t.focoComecar) : null;
+  const paraHoje = [anoNovo, fecharMes, ritual, revisar].filter(Boolean);
   const redondo = (v: number) => moneyR(v, { round: true });
   const nomeOutro = outroMes ? MESES[outroMes.mes - 1].charAt(0).toUpperCase() + MESES[outroMes.mes - 1].slice(1) + (outroMes.ano === agora.getFullYear() ? "" : ` de ${outroMes.ano}`) : "";
   const mesAteAgora =
@@ -234,7 +238,7 @@ export default async function FocoPage(props: { searchParams: Promise<Record<str
               <Card className="p-5">
                 <p className="text-body font-semibold text-ink">{t.focoSemOrcamentoTitulo}</p>
                 <p className="mt-1 text-caption text-ink-muted">{t.focoSemOrcamentoSub}</p>
-                <Link href="/orcamento" className="mt-3 inline-flex rounded-xl bg-pill px-4 py-2 text-sm font-semibold text-on-pill">
+                <Link href={caminhoSemOrcamento(d.viradaPendente)} className="mt-3 inline-flex rounded-xl bg-pill px-4 py-2 text-sm font-semibold text-on-pill">
                   {t.focoSemOrcamentoBotao}
                 </Link>
               </Card>
