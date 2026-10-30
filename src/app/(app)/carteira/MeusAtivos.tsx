@@ -507,6 +507,7 @@ function FolhaDeAportes({ aportes, registrando, onRegistrar, onFechar }: { aport
               </li>
             ))}
           </ul>
+          {aportes.sugestao.some((s) => s.ativo) && <p className="text-[12.5px] text-ink-muted">Os ativos citados são exemplos. Isso não é recomendação.</p>}
           {aportes.regra === "curta" && aportes.faltaReserva ? <p className="text-[13px] text-ink-muted">Primeiro a reserva: faltam {money(aportes.faltaReserva, { round: true })}</p> : null}
         </div>
       )}

@@ -26,4 +26,8 @@ describe("nomes não são cortados com reticências", () => {
     const linha = ler("src/components/casal-login/LancamentosDoNossoMes.tsx").split("\n").find((l) => l.includes("{fraseAcerto}")) ?? "";
     expect(linha).toMatch(/break-words/);
   });
+
+  it("a Carteira avisa que o ativo citado em 'Uma ideia de onde pôr' é exemplo, não recomendação", () => {
+    expect(ler("src/app/(app)/carteira/MeusAtivos.tsx")).toContain("Os ativos citados são exemplos. Isso não é recomendação.");
+  });
 });
