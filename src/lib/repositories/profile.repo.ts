@@ -207,17 +207,33 @@ export async function switchProfile(ctx: AuthContext, id: string): Promise<void>
   ]);
 }
 
+/** O par que ainda está ligado a este perfil Nós dois (nulo = ninguém, ou o perfil não é Casal). */
+export async function parLigadoAoPerfil(profileId: string): Promise<{ modelo: string } | null> {
+  const m = await prisma.membroCasal.findFirst({ where: { profileId, saiuEm: null }, select: { modelo: true } });
+  return m ? { modelo: m.modelo } : null;
+}
+
+/** O que a tela diz quando apagar o Nós dois ia derrubar o par. */
+export function avisoDeParLigado(modelo: string): string {
+  const onde = modelo === "simples" ? "Configurações › Casa" : "Configurações › Nós dois";
+  return `Tire o seu par antes, em ${onde}. Se o Nós dois for apagado agora, ele perde o acesso sem aviso.`;
+}
+
 /**
  * Exclui o perfil E tudo que vive dentro dele (o banco cascateia).
  *
- * Duas travas: não dá pra apagar o último perfil, senão a conta fica sem lugar pra guardar
- * dinheiro nenhum; e se o excluído era o ativo, outro assume na hora, porque uma conta sem
- * perfil ativo abre vazia.
+ * Três travas: o Nós dois com par ligado não se apaga (o vínculo cai junto, por cascata, e o par
+ * perderia o acesso sem a tela de "saiu da casa"; tirar o par antes é o caminho que avisa ele);
+ * não dá pra apagar o último perfil, senão a conta fica sem lugar pra guardar dinheiro nenhum; e
+ * se o excluído era o ativo, outro assume na hora, porque uma conta sem perfil ativo abre vazia.
  */
 export async function deleteProfile(ctx: AuthContext, id: string): Promise<void> {
   const perfis = await prisma.financialProfile.findMany({ where: { userId: ctx.userId }, select: { id: true, isDefault: true } });
   if (!perfis.some((p) => p.id === id)) throw new Error("Perfil não encontrado.");
   if (perfis.length <= 1) throw new Error("Este é o seu único perfil. Crie outro antes de excluir este.");
+
+  const par = await parLigadoAoPerfil(id);
+  if (par) throw new Error(avisoDeParLigado(par.modelo));
 
   const eraOAtivo = perfis.find((p) => p.id === id)?.isDefault ?? false;
   await prisma.financialProfile.delete({ where: { id } });

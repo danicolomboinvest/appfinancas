@@ -11,7 +11,7 @@ import { ConfirmarExclusao } from "./ProfilesManager";
  * O detalhe de um perfil (Configurações › Perfis › um perfil): o nome, usar este perfil e, no fim
  * e discreto, apagar. O tema fica logo abaixo, na mesma tela (EscolherEstilo).
  */
-export function DetalheDoPerfil({ perfil, emUso, podeApagar }: { perfil: ProfileRow; emUso: boolean; podeApagar: boolean }) {
+export function DetalheDoPerfil({ perfil, emUso, podeApagar, avisoDoPar = null }: { perfil: ProfileRow; emUso: boolean; podeApagar: boolean; avisoDoPar?: string | null }) {
   const [nome, setNome] = useState(perfil.name);
   const [apagando, setApagando] = useState(false);
   const [pendente, iniciar] = useTransition();
@@ -69,7 +69,13 @@ export function DetalheDoPerfil({ perfil, emUso, podeApagar }: { perfil: Profile
         </button>
       )}
 
-      {podeApagar && (
+      {/* Nós dois com par ligado: a frase no lugar do botão, para ela não escrever o nome à toa. */}
+      {podeApagar && avisoDoPar && (
+        <p className="mx-auto mt-6 max-w-sm text-center text-sm text-ink" data-par-ligado>
+          {avisoDoPar}
+        </p>
+      )}
+      {podeApagar && !avisoDoPar && (
         <button type="button" onClick={() => setApagando(true)} className="mx-auto mt-6 min-h-11 px-3 text-sm text-ink-muted underline-offset-2 hover:text-danger hover:underline">
           Apagar este perfil
         </button>
