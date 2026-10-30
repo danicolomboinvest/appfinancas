@@ -39,12 +39,17 @@ export type RendaMedia = {
  */
 const TERMOS_QUE_NAO_SAO_RENDA = /(resgate|caixinha|rdb|cdb|estorno)/i;
 
-/** Esta entrada é renda de verdade? Não: resgate, dinheiro dela mesma, estorno ou reembolso. */
-export function ehRendaDeVerdade(e: { description?: string | null }): boolean {
+/**
+ * Esta entrada é renda de verdade? Não: resgate, dinheiro dela mesma, estorno ou reembolso.
+ * `nomeDaPessoa` (30/10/2026): o Pix que ela recebe da própria conta em outro banco chega como
+ * "Pix Recebido <nome dela>" e entrava na média como se fosse salário. Com o nome, vale a mesma
+ * regra da importação (lib/import/dinheiro-proprio, inclusive o nome cortado pelo banco).
+ */
+export function ehRendaDeVerdade(e: { description?: string | null }, nomeDaPessoa: string | null = null): boolean {
   const d = e.description ?? "";
   if (!d) return true;
   if (TERMOS_QUE_NAO_SAO_RENDA.test(d)) return false;
-  return !pareceEstorno(d) && !pareceResgate(d) && !pareceContaPropria(d, null);
+  return !pareceEstorno(d) && !pareceResgate(d) && !pareceContaPropria(d, nomeDaPessoa);
 }
 
 /** Os 12 meses fechados antes do mês de `hoje`, do mais recente ao mais antigo. */
@@ -64,12 +69,13 @@ export function mesesDaMedia(hoje: Date): { year: number; month: number }[] {
 export function mediaDaRenda(
   entradas: { year: number; month: number; amount: number; description?: string | null }[],
   hoje: Date,
+  nomeDaPessoa: string | null = null,
 ): RendaMedia | null {
   const janela = new Set(mesesDaMedia(hoje).map((m) => `${m.year}-${m.month}`));
   const porMes = new Map<string, number>();
   for (const e of entradas) {
     const k = `${e.year}-${e.month}`;
-    if (!janela.has(k) || !ehRendaDeVerdade(e)) continue;
+    if (!janela.has(k) || !ehRendaDeVerdade(e, nomeDaPessoa)) continue;
     porMes.set(k, (porMes.get(k) ?? 0) + Number(e.amount));
   }
   const valores = [...porMes.values()].filter((v) => v > 0);

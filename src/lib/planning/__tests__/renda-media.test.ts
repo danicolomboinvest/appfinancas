@@ -16,6 +16,7 @@ vi.mock("@/lib/db/prisma", () => ({
         return banco.linhas;
       },
     },
+    user: { findUnique: async () => ({ name: "Isabela Espagolla Santos" }) },
   },
 }));
 
@@ -91,6 +92,17 @@ describe("mediaDaRenda", () => {
     expect(mediaDaRenda(linhas, hoje)).toEqual({ valor: 5000, meses: 1 });
   });
 
+  it("Pix recebido do próprio nome não é renda, mesmo com o nome cortado pelo banco (30/10/2026)", () => {
+    const nome = "Isabela Espagolla";
+    expect(ehRendaDeVerdade({ description: "Pix Recebido Isabela Espago" }, nome)).toBe(false);
+    expect(ehRendaDeVerdade({ description: "Transferência recebida pelo Pix ISABELA ESPAGOLLA" }, nome)).toBe(false);
+    // Pix de outra pessoa continua renda; sem o nome, a regra fica como era.
+    expect(ehRendaDeVerdade({ description: "Pix Recebido Maria Souza" }, nome)).toBe(true);
+    expect(ehRendaDeVerdade({ description: "Pix Recebido Isabela Espago" })).toBe(true);
+    const linhas = [e(2026, 9, 5000), e(2026, 9, 3000, "Pix Recebido Isabela Espago"), e(2026, 8, 5000), e(2026, 8, 700, "Pix Recebido Maria Souza")];
+    expect(mediaDaRenda(linhas, hoje, nome)).toEqual({ valor: 5350, meses: 2 });
+  });
+
   it("rendimento da poupança é renda (é ganho, não resgate)", () => {
     expect(ehRendaDeVerdade({ description: "Juros poupança" })).toBe(true);
     expect(ehRendaDeVerdade({ description: null })).toBe(true);
@@ -119,6 +131,11 @@ describe("getRendaMedia", () => {
 
   it("sem nada: null", async () => {
     expect(await getRendaMedia(ctx, hoje)).toBeNull();
+  });
+
+  it("usa o nome da conta: o Pix recebido dela mesma fica fora da média", async () => {
+    banco.linhas = [e(2026, 9, 6000), e(2026, 9, 4519.85, "Pix - Recebido 38392308883 Isabela Espago 4.519,85 (+) Saldo do dia"), e(2026, 8, 4000)];
+    expect(await getRendaMedia(ctx, hoje)).toEqual({ valor: 5000, meses: 2 });
   });
 });
 

@@ -13,7 +13,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import type { ParentCategory } from "@prisma/client";
 import type { CurrencyCode } from "@/lib/money";
 import { Modal } from "@/components/ui/Modal";
-import { nomeNaTela } from "@/lib/import/nome-na-tela";
+import { nomeEParcela } from "@/lib/import/nome-na-tela";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import { emojiDaCategoria } from "@/lib/profiles/icones";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -401,7 +401,10 @@ export function EntryList({
     const nomeDaCategoria = categoryName(entry, customCategories, voz, kind);
     // Como no protótipo: o nome (a loja, a conta) em cima; a categoria e "cartão" embaixo.
     // O nome limpo (12/10/2026): sem "Transferência recebida pelo Pix", CNPJ e banco, que ficam no detalhe.
-    const titulo = (entry.description ? nomeNaTela(entry.description).nome : "") || entry.subcategory || nomeDaCategoria;
+    // Parcela (30/10/2026, pedido de cliente): "Zara (02/03)", o número ao lado do nome, discreto.
+    const naTela = entry.description ? nomeEParcela(entry.description) : null;
+    const titulo = naTela?.nome || entry.subcategory || nomeDaCategoria;
+    const parcela = naTela?.parcela ?? null;
     return (
       <div key={entry.id} data-brilho={`lanc-${entry.id}`} className={`flex items-center gap-3 px-3 py-3 transition-colors ${marcado ? "bg-accent-soft/40" : ""}`}>
         <button
@@ -443,7 +446,10 @@ export function EntryList({
           )}
           <span className="min-w-0 flex-1">
             {/* O nome inteiro quebra a linha em vez de cortar ("Aplicação · Reserva de emergência" a 320 px). */}
-            <span className="block break-words text-[16px] leading-snug text-ink">{titulo}</span>
+            <span className="block break-words text-[16px] leading-snug text-ink">
+              {titulo}
+              {parcela && <span className="ml-1.5 whitespace-nowrap text-[13px] text-ink-muted tabular-nums">({parcela})</span>}
+            </span>
             <span className="block break-words text-[13px] leading-snug text-ink-muted">
               {/* Casal simples: o que é meu e está escondido do par leva o cadeado. */}
               {entry.escondido && <Lock size={12} strokeWidth={2} className="mr-1 inline -translate-y-px" aria-label={`Escondido de ${casa?.outro.nome ?? "seu par"}`} />}

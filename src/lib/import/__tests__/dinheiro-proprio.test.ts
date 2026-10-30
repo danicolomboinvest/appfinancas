@@ -37,6 +37,15 @@ describe("conta própria com o nome cortado pelo banco (28/10/2026)", () => {
     expect(pareceContaPropria("PIX ENVIADO DES: Letícia Gonçalves Bez", "Letícia Gonçalves Bezerra de Carvalho")).toBe(true);
     expect(pareceContaPropria("Transferência recebida pelo Pix LETICIA GONCALVES BEZERRA DE CARVALHO", "Letícia Gonçalves Bezerra de Carvalho")).toBe(true);
   });
+  it("Pix RECEBIDO do próprio nome é conta própria, não renda (caso de 30/10/2026)", () => {
+    // "Pix Recebido <nome dela>" e o nome com só duas partes no cadastro ("Isabela Espagolla").
+    expect(pareceContaPropria("Pix Recebido Isabela Espago", "Isabela Espagolla")).toBe(true);
+    expect(pareceContaPropria("PIX RECEBIDO ISABELA ESPAGOLLA", "Isabela Espagolla")).toBe(true);
+    expect(pareceContaPropria("Pix recebido - Isabela Espagolla - •••.123.456-••", "Isabela Espagolla")).toBe(true);
+    // Pix recebido de outra pessoa continua renda.
+    expect(pareceContaPropria("Pix Recebido Maria Souza", "Isabela Espagolla")).toBe(false);
+    expect(pareceContaPropria("Pix Recebido Isabela Souza", "Isabela Espagolla")).toBe(false);
+  });
   it("não confunde com outra pessoa nem com o primeiro nome sozinho", () => {
     expect(pareceContaPropria("PIX ENVIADO DES: Letícia Gonçalves Silva", "Letícia Gonçalves Bezerra de Carvalho")).toBe(false);
     expect(pareceContaPropria("Pix - Recebido Isabela Souza 100,00", "Isabela Espagolla Santos")).toBe(false);

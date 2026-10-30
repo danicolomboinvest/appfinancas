@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { levarDadosDoCasalParaOPessoal } from "../casal-dados";
+import { levarDadosDoCasalParaOPessoal, registrarAvisoDoCasalNoPessoal } from "../casal-dados";
 
 describe("dados da titular ao aceitar o convite", () => {
   it("move do Casal para o Pessoal só o que é dela e sem sobrescrever", async () => {
@@ -20,5 +20,19 @@ describe("dados da titular ao aceitar o convite", () => {
   it("não faz nada quando o Pessoal é o próprio Casal", async () => {
     const tx = { $executeRawUnsafe: async () => { throw new Error("não devia mexer"); } };
     expect(await levarDadosDoCasalParaOPessoal(tx, "u", "mesmo", "mesmo")).toBe(0);
+  });
+});
+
+describe("o aviso de uma vez para a titular (30/10/2026)", () => {
+  const dados = { userId: "titular", casalProfileId: "casal", pessoalProfileId: "pessoal" };
+  it("com algo movido, deixa a Decisao sem resposta no Pessoal dela, com a chave do Casal", async () => {
+    const criadas: unknown[] = [];
+    const tx = { decisao: { create: async (a: { data: unknown }) => (criadas.push(a.data), {}) } };
+    expect(await registrarAvisoDoCasalNoPessoal(tx, { ...dados, movidos: 128 })).toBe(true);
+    expect(criadas).toEqual([{ userId: "titular", profileId: "pessoal", tipo: "casal_no_pessoal", chave: "casal", valor: 128, resolvidaEm: null }]);
+  });
+  it("Casal vazio: nada moveu, nada para avisar", async () => {
+    const tx = { decisao: { create: async () => { throw new Error("não devia criar"); } } };
+    expect(await registrarAvisoDoCasalNoPessoal(tx, { ...dados, movidos: 0 })).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, CreditCard, Minus, PiggyBank, Plus } from "lucide-react";
 import { useMoney } from "@/components/money/MoneyProvider";
@@ -8,9 +8,12 @@ import { useToast } from "@/components/ui/toast-context";
 import { CurrencyInputControlled } from "@/components/ui/CurrencyInputControlled";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { Interruptor, Segmentado } from "@/components/ui/Interruptor";
+import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
+import { PARENT_CATEGORIES, categoriaOculta, categoryLabel } from "@/lib/categories";
+import type { ParentCategory } from "@prisma/client";
 import { lerData } from "@/lib/contas/contas";
 import { camposDaRegra, ehMenosQueMensal, estimativaAproximada, guardePorMes, mediaPorMes, previaDoze, regraDaConta, textoDaRegra, type Regra, type Unidade } from "@/lib/contas/frequencia";
-import { apagarContaAction, historicoDaContaAction, salvarContaAction } from "./actions";
+import { apagarContaAction, historicoDaContaAction, salvarContaAction, sugerirCategoriaDaContaAction } from "./actions";
 import type { ContaSerial } from "./LinhaDaConta";
 
 type Modo = "nao" | "cada" | "meses";
@@ -111,6 +114,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
   const conta = inicio.conta;
   const money = useMoney();
   const router = useRouter();
+  const { categorias } = useProfileTheme();
   const { showError } = useToast();
   const [salvando, iniciar] = useTransition();
   const regraInicial: Regra = conta
@@ -131,6 +135,9 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
   const [vezes, setVezes] = useState(conta?.parcelas ?? 10);
   const [peloTotal, setPeloTotal] = useState(conta?.valorEhTotal ?? false);
   const [lembrar, setLembrar] = useState(conta?.lembrar ?? true);
+  const ehCategoria = (k: string | null | undefined): k is ParentCategory => Boolean(k) && (PARENT_CATEGORIES as string[]).includes(k!);
+  const [categoria, setCategoria] = useState<ParentCategory | null>(ehCategoria(conta?.categoria) ? conta.categoria : null);
+  const categoriaEscolhida = useRef(ehCategoria(conta?.categoria));
   const [erro, setErro] = useState<string | null>(null);
   const [tocado, setTocado] = useState<number | null>(null);
   const [historico, setHistorico] = useState<{ mes: string; valor: number }[]>([]);
@@ -148,6 +155,25 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
     };
   }, [aproximado, nome]);
   const media = historico.length >= 2 ? estimativaAproximada(historico.map((h) => h.valor)) : null;
+
+  // Categoria (29/10/2026, relato de cliente: o app escolhia sozinho, às vezes errado). A sugestão
+  // acompanha o nome até ela tocar numa; o que ficar marcado vai para a conta e para o gasto do Paguei.
+  useEffect(() => {
+    if (categoriaEscolhida.current || nome.trim().length < 2) return;
+    let vivo = true;
+    const t = setTimeout(() => {
+      sugerirCategoriaDaContaAction(nome)
+        .then((c) => {
+          if (vivo && !categoriaEscolhida.current && ehCategoria(c)) setCategoria(c);
+        })
+        .catch(() => {});
+    }, 400);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [nome]);
+  const categoriasDaFolha = PARENT_CATEGORIES.filter((pc) => !categoriaOculta(categorias, pc) || pc === categoria);
 
   const regra: Regra = modo === "nao" ? (parcelado ? { tipo: "a_cada", n: 1, unidade: "meses" } : { tipo: "nao_repete" }) : modo === "meses" && meses.length > 0 ? { tipo: "meses", meses } : { tipo: "a_cada", n, unidade };
   const parcela = valor && parcelado && peloTotal ? Math.round((valor / vezes) * 100) / 100 : (valor ?? 0);
@@ -188,6 +214,7 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         parcelaAtual: parcelado ? Math.min(vezes, conta?.parcelaAtual ?? 1) : null,
         valorEhTotal: parcelado && peloTotal,
         aproximado,
+        categoria,
       });
       if (!r.ok) return setErro(r.erro);
       // Sem aviso (14/10/2026): a folha fecha e a conta aparece na lista.
@@ -228,6 +255,26 @@ export function FolhaDaConta({ inicio, hoje, onFeito }: { inicio: InicioDaFolha;
         <span className="text-[15px] text-ink">Primeiro vencimento</span>
         <input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} required aria-label="Primeiro vencimento" className="min-h-10 min-w-0 rounded-xl bg-surface-2 px-2 text-right text-[15px] text-ink" />
       </label>
+
+      <div className="flex flex-col gap-2">
+        <Rotulo>Categoria</Rotulo>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Categoria">
+          {categoriasDaFolha.map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={categoria === k}
+              onClick={() => {
+                categoriaEscolhida.current = true;
+                setCategoria(k);
+              }}
+              className="min-h-10 rounded-full bg-surface-2 px-3.5 text-sm text-ink aria-pressed:bg-ink aria-pressed:text-canvas"
+            >
+              {categoryLabel(categorias, k)}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="flex flex-col gap-2">
         <Rotulo>Repete</Rotulo>

@@ -18,8 +18,10 @@ export type CategoriaDoPaguei = { parentCategory: ParentCategory | null; customC
 
 /**
  * A categoria do gasto do "Paguei", nesta ordem:
- * 1. a do último gasto desta conta (se ela trocou a categoria depois, o próximo já vem certo);
- * 2. a da própria conta (as achadas no extrato guardam a categoria de onde vieram);
+ * 1. a do último gasto desta conta (se ela trocou a categoria depois, o próximo já vem certo),
+ *    a não ser que ela tenha editado a conta depois desse gasto (`contaEditadaDepois`): aí a
+ *    categoria que escolheu na folha da conta vale;
+ * 2. a da própria conta (a escolhida na folha, 29/10/2026, ou a de onde a achada no extrato veio);
  * 3. o nome da conta (Luz, Água, Guia do MEI) e o dicionário do app (Aluguel, Netflix);
  * 4. Outros: nunca sem categoria, para o gasto não sumir do orçamento.
  */
@@ -27,9 +29,10 @@ export function categoriaDoPaguei(e: {
   nome: string;
   categoria: ParentCategory | null;
   ultima?: CategoriaDoPaguei | null;
+  contaEditadaDepois?: boolean;
   profileKind?: string | null;
 }): CategoriaDoPaguei {
-  if (e.ultima && (e.ultima.parentCategory || e.ultima.customCategoryId)) return e.ultima;
+  if (e.ultima && (e.ultima.parentCategory || e.ultima.customCategoryId) && !(e.contaEditadaDepois && e.categoria)) return e.ultima;
   const pelo = PELO_NOME.find(([r]) => r.test(e.nome));
   if (e.categoria) return { parentCategory: e.categoria, customCategoryId: null, subcategory: pelo && pelo[1] === e.categoria ? pelo[2] : null };
   if (pelo) return { parentCategory: pelo[1], customCategoryId: null, subcategory: pelo[2] };

@@ -24,7 +24,7 @@ import { lerConfigCasal, type ConfigCasal } from "@/lib/casal/acerto";
 import { normalizeEmail, situacaoDoAcesso } from "@/lib/repositories/allowedEmail.repo";
 import type { ProfileRow } from "@/lib/repositories/profile.repo";
 import { garantirPessoalDoPar } from "@/lib/repositories/casa.repo";
-import { levarDadosDoCasalParaOPessoal } from "@/lib/repositories/casal-dados";
+import { levarDadosDoCasalParaOPessoal, registrarAvisoDoCasalNoPessoal } from "@/lib/repositories/casal-dados";
 import { MARCA_DO_TOUR_NA_CONTA_NOVA } from "@/lib/novidades/passos";
 
 /**
@@ -365,8 +365,10 @@ export async function aceitarConvite(
       // no próprio Pessoal: o do par (o que ele já tem, ou um novo) e o da titular.
       const perfilPar = await garantirPessoalDoPar(id!, tx);
       const perfilTitular = await garantirPessoalDaTitular(tx, c.userId, c.profileId);
-      // O que ela já lançou no perfil Casal antes do convite vai junto para o Pessoal dela.
-      await levarDadosDoCasalParaOPessoal(tx, c.userId, c.profileId, perfilTitular);
+      // O que ela já lançou no perfil Casal antes do convite vai junto para o Pessoal dela, e ela
+      // fica sabendo: um cartão de uma vez no Resumo (caso de 27/10/2026, achou que perdeu tudo).
+      const movidos = await levarDadosDoCasalParaOPessoal(tx, c.userId, c.profileId, perfilTitular);
+      await registrarAvisoDoCasalNoPessoal(tx, { userId: c.userId, casalProfileId: c.profileId, pessoalProfileId: perfilTitular, movidos });
       await tx.membroCasal.create({
         data: {
           profileId: c.profileId,

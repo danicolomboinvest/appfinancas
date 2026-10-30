@@ -134,6 +134,26 @@ function replaceInstallment(description: string, render: (m: InstallmentMatch) =
 }
 
 /**
+ * A descrição SEM a parcela (30/10/2026, para a tela): tira o "N/T" que parseInstallment leu, a
+ * palavra antes dele ("Parcela", "PARC", "Prestação") e os parênteses ou o traço que o cercavam.
+ * "ZARA PARC 02/03" vira "ZARA"; "Parcela 2 de 6 - Notebook" vira "Notebook"; "Mercado Pago (6/6)"
+ * vira "Mercado Pago". A data da compra ("LOJA 03/09 PARCELA 2/10") fica, como no parse.
+ */
+export function descricaoSemParcela(description: string): string {
+  const m = findInstallment(description);
+  if (!m) return description;
+  let antes = description.slice(0, m.index + m.before.length).replace(WORD_BEFORE_RE, "");
+  let depois = description.slice(m.index + m.length);
+  if (/\(\s*$/.test(antes) && /^\s*\)/.test(depois)) {
+    antes = antes.replace(/\(\s*$/, "");
+    depois = depois.replace(/^\s*\)/, "");
+  }
+  antes = antes.replace(/\s*[-–·:]\s*$/, "");
+  depois = depois.replace(/^\s*[-–·:]\s*/, " ");
+  return `${antes} ${depois}`.replace(/\s+/g, " ").trim();
+}
+
+/**
  * Reescreve "3/10" como "4/10" na descrição da parcela seguinte, no MESMO formato que o banco
  * escreveu: "PARC 03/06" → "PARC 04/06", "Parcela 3/6" → "Parcela 4/6", "2 DE 6" → "3 DE 6".
  * Antes o número atual ganhava sempre zero à esquerda e o total nunca ("PARC 04/6"), e a linha

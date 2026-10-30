@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getRequiredSession } from "@/lib/auth/session";
+import { casaDaRequisicao, getRequiredSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { temAdicional } from "@/lib/adicionais/acesso";
 import type { Adicional } from "@/lib/adicionais/config";
@@ -10,6 +10,7 @@ import {
   createProfile, updateProfile, switchProfile, deleteProfile, perfisDosLugares, type NovoPerfil,
 } from "@/lib/repositories/profile.repo";
 import { podeCriar } from "@/lib/perfis/lugares";
+import { mensagemDoCriarNosDoisComCasa } from "@/lib/casa/aviso-casal-no-pessoal";
 import { extrasLiberados } from "@/lib/perfis/extras-liberados";
 
 export type ResultadoPerfil = { ok: true } | { ok: false; error: string };
@@ -58,6 +59,13 @@ export async function criarPerfilAction(input: NovoPerfil): Promise<ResultadoPer
   // Empresa. Quem já tem mais mantém; só não cria outro além do lugar vazio e liberado.
   const [perfis, liberados] = await Promise.all([perfisDosLugares(ctx.userId), extrasLiberados(ctx.userId)]);
   if (!podeCriar(input.kind ?? "PESSOAL", perfis, liberados)) {
+    // "Criar Nós dois" com a casa já ligada (30/10/2026): o Casal da titular saiu do menu e segura o
+    // lugar. "Já existe" fez uma cliente refazer tudo em dobro; agora diz onde está o que ela montou.
+    if (input.kind === "CASAL") {
+      // Só os nomes da casa (a mesma leitura do shell), nunca os lançamentos do par.
+      const casa = await casaDaRequisicao(ctx.userId);
+      if (casa) return { ok: false, error: mensagemDoCriarNosDoisComCasa(casa.outro.nome) };
+    }
     return { ok: false, error: "Cada conta tem até 3 perfis: Pessoal, Nós dois e Empresa. Veja em Configurações › Perfis." };
   }
   return tentar(async () => {
