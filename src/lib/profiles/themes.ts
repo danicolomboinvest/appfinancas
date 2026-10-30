@@ -121,6 +121,32 @@ function suave(hex: string, alfa: number): string {
   return `rgba(${canais(hex).join(", ")}, ${alfa})`;
 }
 
+function luminanciaDe(hex: string): number {
+  const [r, g, b] = canais(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrasteEntre(a: string, b: string): number {
+  const [x, y] = [luminanciaDe(a), luminanciaDe(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
+/**
+ * Tinta fraca: a apagada puxada para o fundo, mas só até o ponto em que ainda se lê
+ * (4,5 ou mais) sobre o fundo, o cartão e o cartão interno. "Nada apagado" é veto da Dani.
+ */
+function tintaFraca(base: ModoBase): string {
+  const lugares = [base.canvas, base.surface, base.surface2];
+  for (let quanto = 0.2; quanto > 0; quanto -= 0.01) {
+    const cor = misturar(base.inkMuted, base.canvas, quanto);
+    if (lugares.every((l) => contrasteEntre(cor, l) >= 4.6)) return cor;
+  }
+  return base.inkMuted;
+}
+
 function montar(base: ModoBase, escuro: boolean): ModoTokens {
   const puxarParaOFundo = (cor: string, quanto: number) => misturar(cor, base.canvas, quanto);
   const puxarParaATinta = (cor: string, quanto: number) => misturar(cor, base.ink, quanto);
@@ -128,8 +154,8 @@ function montar(base: ModoBase, escuro: boolean): ModoTokens {
     ...base,
     surfaceHover: escuro ? puxarParaATinta(base.surface2, 0.08) : puxarParaATinta(base.surface2, 0.06),
     borderStrong: maisOpaco(base.border, 1.85),
-    // Tinta fraca é a apagada puxada para o fundo: some no escuro, clareia no claro, sozinha.
-    inkFaint: puxarParaOFundo(base.inkMuted, 0.2),
+    // Tinta fraca é a apagada puxada para o fundo, sem passar do limite de leitura (4,5).
+    inkFaint: tintaFraca(base),
     accentStrong: base.accentStrong ?? (escuro ? puxarParaOFundo(base.accent, 0.14) : misturar(base.accent, "#000000", 0.2)),
     accent2: escuro ? misturar(base.accent, "#ffffff", 0.24) : misturar(base.accent, "#ffffff", 0.18),
     accentSoft: suave(base.accent, escuro ? 0.16 : 0.13),

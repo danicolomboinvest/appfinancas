@@ -120,7 +120,10 @@ describe("os quatro temas da versão nova", () => {
       expect(contraste(m.ink, m.canvas), `${onde}: tinta no fundo`).toBeGreaterThanOrEqual(7);
       expect(contraste(m.ink, m.surface), `${onde}: tinta no cartão`).toBeGreaterThanOrEqual(7);
       expect(contraste(m.inkMuted, m.surface), `${onde}: tinta apagada no cartão`).toBeGreaterThanOrEqual(4.5);
-      expect(contraste(m.inkFaint, m.surface), `${onde}: tinta fraca no cartão`).toBeGreaterThanOrEqual(3);
+      expect(contraste(m.inkFaint, m.surface), `${onde}: tinta fraca no cartão`).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(m.inkFaint, m.surface2), `${onde}: tinta fraca no cartão interno`).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(m.inkFaint, m.canvas), `${onde}: tinta fraca no fundo`).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(m.inkMuted, m.surface2), `${onde}: tinta apagada no cartão interno`).toBeGreaterThanOrEqual(4.5);
       expect(contraste(m.onAccent, m.accent), `${onde}: texto dentro do botão`).toBeGreaterThanOrEqual(4.5);
       expect(contraste(m.accent, m.surface), `${onde}: destaque no cartão`).toBeGreaterThanOrEqual(3);
       expect(contraste(m.accent, m.canvas), `${onde}: destaque no fundo`).toBeGreaterThanOrEqual(3);
