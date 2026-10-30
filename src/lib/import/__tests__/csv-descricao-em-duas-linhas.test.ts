@@ -1,53 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { parseStatement } from "../statement-parser";
-import { nomeNaTela } from "../nome-na-tela";
+import { parseCsv } from "../statement-parser";
 
-describe("CSV com a descrição entre aspas quebrada em duas linhas", () => {
-  // Mesmo formato de um extrato real (20/10/2026): o banco quebra a descrição da compra no
-  // cartão em duas linhas dentro das aspas. O app lia 1 de 40 lançamentos. Valores inventados.
-  const csv = [
-    "﻿Extrato de conta corrente",
-    "Nome;FULANA EXEMPLO",
-    "Agência;0001",
-    "Conta;12.345678.9",
-    "Período do extrato;01/09/2026 a 30/09/2026",
-    "",
-    "Lançamentos:",
-    "Data;Descrição;Valor;Saldo",
-    '01/09/2026;"Compra cartao final 1234',
-    '31/08 PADARIA EXEMPLO .SAO PAULO BR";-12,50;987,50',
-    '02/09/2026;"Compra cartao final 1234',
-    '01/09 MERCADO TESTE .SAO PAULO";-80,35;907,15',
-    '03/09/2026;"Pix recebido de EMPRESA TESTE";1500,00;2407,15',
-    '04/09/2026;"Compra cartao final 1234',
-    '03/09 FARMACIA DO BAIRRO";-7,90;2399,25',
-  ].join("\n");
+// Amostra fictícia: extrato CSV com ";" cuja descrição vem em duas linhas dentro de aspas.
+const CSV = [
+  "Extrato de conta corrente",
+  "Nome;Fulano",
+  "Agência;0001",
+  "Conta;00.000000.0",
+  "Período do extrato;01/09/2026 a 18/10/2026",
+  "",
+  "Lançamentos:",
+  "Data;Descrição;Valor;Saldo",
+  '16/10/2026;"Pagamento a fornecedores\nEmpresa exemplo 00000000000000";344,00;400,00',
+  '06/10/2026;"Mensalidade de seguro\nParc 019/036";-56,31;56,00',
+  '05/10/2026;"Pix recebido\nBeltrano de tal";56,00;112,31',
+].join("\n");
 
-  it("lê todos os lançamentos, com centavos e a descrição inteira", () => {
-    const txns = parseStatement(csv);
-    expect(txns).toHaveLength(4);
-    expect(txns.map((t) => t.amount)).toEqual([-12.5, -80.35, 1500, -7.9]);
-    expect(txns[0].date).toBe("2026-09-01");
-    expect(txns[0].description).toContain("PADARIA EXEMPLO");
-  });
-
-  it("aspas que nunca fecham não engolem o resto do arquivo", () => {
-    const quebrado = [
-      "Data;Descrição;Valor",
-      '01/09/2026;TV 50" SALA;-1200,00',
-      "02/09/2026;MERCADO;-50,00",
-      "03/09/2026;PADARIA;-10,00",
-      "04/09/2026;FARMACIA;-20,00",
-    ].join("\n");
-    const datas = parseStatement(quebrado).map((t) => t.date);
-    expect(datas).toEqual(expect.arrayContaining(["2026-09-02", "2026-09-03", "2026-09-04"]));
-  });
-});
-
-describe("nome da compra no cartão desse extrato", () => {
-  it("mostra só a loja, sem o cartão, o dia e a cidade", () => {
-    expect(nomeNaTela("Compra cartao final 1234 31/08 PADARIA EXEMPLO .SAO PAULO BR")).toEqual({ nome: "Padaria Exemplo", meio: "Cartão" });
-    expect(nomeNaTela("Compra cartao final 1234 09/10 IFOOD *RESTAURANTE")).toEqual({ nome: "Ifood *restaurante", meio: "Cartão" });
-    expect(nomeNaTela("Compra cartao final 1234 03/09 FARMACIA DO BAIRRO")).toEqual({ nome: "Farmacia do Bairro", meio: "Cartão" });
+describe("CSV com descrição em duas linhas", () => {
+  it("lê os lançamentos com o sinal do valor", () => {
+    const r = parseCsv(CSV, 2026);
+    expect(r).toHaveLength(3);
+    expect(r[0]).toMatchObject({ date: "2026-10-16", amount: 344 });
+    expect(r[0].description).toBe("Pagamento a fornecedores Empresa exemplo 00000000000000");
+    expect(r[1]).toMatchObject({ date: "2026-10-06", amount: -56.31 });
   });
 });

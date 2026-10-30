@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { normalizePhone } from "@/lib/phone";
-import { grantFromHubla, revokeFromHubla } from "@/lib/repositories/allowedEmail.repo";
+import { grantFromHubla, mascararEmail, revokeFromHubla } from "@/lib/repositories/allowedEmail.repo";
+import { registrarAvisoDaRota } from "@/lib/erros/registrar-falha";
+import { SUPORTE_EMAIL } from "@/app/(app)/configuracoes/_ajustes/suporte";
 import { encerrarNoVencimento } from "@/lib/assinatura/cancelamento";
 import { guardarIdDaAssinatura } from "@/lib/assinatura/hubla-assinatura";
 import { oQueACompraLibera, recordSeenProduct, type HublaProduct } from "@/lib/repositories/allowedProduct.repo";
@@ -41,7 +43,32 @@ import { caminhoDoCadastro } from "@/lib/auth/convite-cadastro";
  *  - customer.member_removed   → saída sem reembolso: o acesso fica até o vencimento (cron desliga)
  *  - invoice.refunded          → revoga (reembolso)
  * Qualquer outro tipo é ignorado com 200, pra o Hubla não ficar reenviando.
+ *
+ * O que responde 200 de propósito mas precisa de gente (30/10/2026): compra de produto que não
+ * está na lista (a cliente pagou e não recebeu nada), evento sem e-mail e pagamento atrasado de
+ * quem foi reembolsada. Fica no AppError (com o e-mail mascarado) e, quando a cliente ficou sem
+ * acesso, vai um e-mail curto pro suporte. Antes só o log da Vercel sabia, e ele some em dias.
  */
+
+const ROTA = "/api/webhooks/hubla";
+
+/** Registra no AppError e, se pedido, avisa o suporte por e-mail. Melhor esforço: nunca lança. */
+async function avisar(mensagem: string, email?: { assunto: string; linhas: string[] }): Promise<void> {
+  await registrarAvisoDaRota(ROTA, mensagem);
+  if (!email) return;
+  try {
+    const html = email.linhas.map((l) => `<p>${escapar(l)}</p>`).join("");
+    await sendEmail({ to: SUPORTE_EMAIL, subject: email.assunto, html });
+  } catch (e) {
+    console.error("webhook hubla: aviso ao suporte", e);
+  }
+}
+
+function escapar(texto: string): string {
+  return texto.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+const nomeDoProduto = (p: HublaProduct) => p.name ?? p.id ?? "sem nome";
 
 const GRANT_EVENTS = new Set(["customer.member_added", "invoice.payment_succeeded"]);
 const REVOKE_EVENTS = new Set(["customer.member_removed", "invoice.refunded"]);
@@ -74,6 +101,23 @@ function extractInvoiceId(event: unknown): string | null {
   const invoice = (event as Record<string, unknown>).invoice as Record<string, unknown> | undefined;
   const id = invoice?.id;
   return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+/**
+ * Quando a compra foi paga. A Hubla pode trazer em mais de um lugar (invoice.paidAt, saleDate,
+ * createdAt, ou a data do próprio evento), em ISO ou em segundos/milissegundos. Sem nenhum, nulo:
+ * a decisão de religar uma reembolsada cai na fatura (ver decidirReligarReembolsada).
+ */
+export function extractPagoEm(payload: unknown): Date | null {
+  if (!payload || typeof payload !== "object") return null;
+  const raiz = payload as Record<string, unknown>;
+  const e = (raiz.event && typeof raiz.event === "object" ? raiz.event : {}) as Record<string, unknown>;
+  const invoice = (e.invoice && typeof e.invoice === "object" ? e.invoice : {}) as Record<string, unknown>;
+  for (const v of [invoice.paidAt, invoice.saleDate, invoice.createdAt, e.paidAt, e.createdAt, raiz.createdAt, raiz.timestamp]) {
+    const d = typeof v === "number" ? new Date(v < 1e12 ? v * 1000 : v) : typeof v === "string" && v.trim() ? new Date(v) : null;
+    if (d && !Number.isNaN(d.getTime())) return d;
+  }
+  return null;
 }
 
 /** Celular que a pessoa preencheu na compra (event.user.phone ou invoice.payer.phone). */
@@ -137,6 +181,21 @@ export async function POST(request: Request) {
   }
   if (emails.length === 0) {
     // Evento relevante mas sem e-mail: responde 200 pra não gerar reenvio infinito, mas sinaliza.
+    // Numa compra, alguém pagou e ninguém foi liberado: o suporte precisa saber.
+    const nomes = products.map(nomeDoProduto).join(", ") || "sem produto";
+    await avisar(
+      `${type} sem e-mail no payload (produto: ${nomes})`,
+      GRANT_EVENTS.has(type)
+        ? {
+            assunto: `Compra sem e-mail no payload: ${nomes}`,
+            linhas: [
+              `A Hubla avisou uma compra (${type}) sem nenhum e-mail no payload, e o app não conseguiu liberar ninguém.`,
+              `Produto: ${nomes}.`,
+              "Confira a venda no painel da Hubla e libere o acesso pelo Admin, em Acessos.",
+            ],
+          }
+        : undefined,
+    );
     return NextResponse.json({ ok: false, reason: "no email in payload", type });
   }
 
@@ -160,6 +219,26 @@ export async function POST(request: Request) {
         }
       }
     }
+    // Produto que o app não conhece: fica registrado com o e-mail mascarado. Se a compra não
+    // liberou nada, a cliente pagou e está vendo "acesso não ativo": e-mail pro suporte na hora.
+    if (foraDaLista.length > 0) {
+      const nomes = foraDaLista.map(nomeDoProduto).join(", ");
+      const mascarados = emails.map(mascararEmail).join(", ");
+      const liberouNada = !allowed && !moneyReset && adicionais.length === 0;
+      await avisar(
+        `compra de produto desconhecido: ${nomes} (${mascarados}${liberouNada ? ", nada liberado" : ", app ou adicional liberado"})`,
+        liberouNada
+          ? {
+              assunto: `Compra de produto desconhecido: ${nomes}`,
+              linhas: [
+                `A Hubla avisou uma compra de um produto que o app não conhece: ${nomes}.`,
+                `Comprador(a): ${mascarados}. Nada foi liberado, e a pessoa vai ver "acesso não ativo" até alguém decidir.`,
+                "Se esse produto dá acesso, ligue ele no Admin, em Acessos (Produtos), e libere o e-mail da compra.",
+              ],
+            }
+          : undefined,
+      );
+    }
     if (!allowed) {
       const soAvulso = moneyReset ? "granted_money_reset" : adicionais.length > 0 ? "granted_adicionais" : "ignored";
       return NextResponse.json({
@@ -173,10 +252,17 @@ export async function POST(request: Request) {
     const note = allowed.name ? `Hubla: ${allowed.name}` : `Hubla: ${type}`;
     const phone = extractPhone(payload.event);
     const invoiceId = extractInvoiceId(payload.event);
+    const pagoEm = extractPagoEm(payload);
     const liberacoes = [];
-    for (const email of emails) liberacoes.push({ email, ...(await grantFromHubla(email, note, phone, invoiceId)) });
+    for (const email of emails) liberacoes.push({ email, ...(await grantFromHubla(email, note, phone, invoiceId, pagoEm)) });
+    // Reembolsada que recebeu um pagamento atrasado da MESMA compra: ninguém religa (ver
+    // decidirReligarReembolsada). Responde 200 pra Hubla não reenviar, e fica registrado.
+    if (liberacoes.every((l) => l.reembolsada)) {
+      await avisar(`${type} de compra já reembolsada, acesso continua desligado (${emails.map(mascararEmail).join(", ")}, fatura ${invoiceId ?? "sem id"})`);
+      return NextResponse.json({ ok: true, action: "ignored", reason: "refunded before this payment", products: products.map((p) => p.name ?? p.id) });
+    }
     await guardarIdDaAssinatura(emails, payload.event);
-    const { expiresAt, extended } = liberacoes[0];
+    const { expiresAt, extended } = liberacoes.find((l) => !l.reembolsada) ?? liberacoes[0];
 
     // Convite por e-mail ("crie sua conta") só na 1ª liberação — o Hubla manda mais de um
     // evento pra mesma compra — e só se a pessoa ainda não tem conta em NENHUM dos e-mails

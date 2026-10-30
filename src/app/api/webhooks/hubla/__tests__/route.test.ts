@@ -16,8 +16,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type Produto = { id: string; hublaProductId: string | null; name: string; active: boolean; source: string; concede?: string };
 const produtos: Produto[] = [];
 
+const registrarAviso = vi.fn();
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
+    // O AppError onde o webhook registra o que respondeu 200 mas precisa de gente (30/10/2026).
+    appError: { upsert: (a: unknown) => registrarAviso(a) },
     allowedProduct: {
       findMany: vi.fn(async ({ where }: { where?: { active?: boolean } } = {}) =>
         produtos.filter((p) => where?.active === undefined || p.active === where.active),
@@ -50,6 +53,10 @@ const revokeFromHubla = vi.fn();
 vi.mock("@/lib/repositories/allowedEmail.repo", () => ({
   grantFromHubla: (...a: unknown[]) => grantFromHubla(...a),
   revokeFromHubla: (...a: unknown[]) => revokeFromHubla(...a),
+  mascararEmail: (e: string) => {
+    const [local, dominio] = e.split("@");
+    return `${local.length <= 3 ? local.slice(0, 1) : local.slice(0, 2)}•••@${dominio}`;
+  },
 }));
 const encerrarNoVencimento = vi.fn();
 vi.mock("@/lib/assinatura/cancelamento", () => ({ encerrarNoVencimento: (...a: unknown[]) => encerrarNoVencimento(...a) }));
@@ -73,7 +80,13 @@ vi.mock("@/lib/repositories/perfil-comprado.repo", () => ({ garantirEmpresaCompr
 const sendEmail = vi.fn();
 vi.mock("@/lib/email/send", () => ({ sendEmail: (m: unknown) => sendEmail(m) }));
 
-const { POST } = await import("../route");
+const { POST, extractPagoEm } = await import("../route");
+
+const SUPORTE = "app@danicolombo.com.br";
+/** As mensagens gravadas no AppError nesta chamada. */
+const avisos = () => registrarAviso.mock.calls.map((c) => (c[0] as { create: { message: string } }).create.message);
+/** Os e-mails que foram pro suporte (não pra cliente). */
+const emailsAoSuporte = () => sendEmail.mock.calls.map((c) => c[0] as { to: string; subject: string; html: string }).filter((m) => m.to === SUPORTE);
 
 const TOKEN = "token-de-teste";
 const CURSO = { id: "prod-curso", name: "Do zero à liberdade financeira" };
@@ -96,7 +109,8 @@ beforeEach(() => {
   process.env.HUBLA_WEBHOOK_TOKEN = TOKEN;
   produtos.length = 0;
   produtos.push({ id: "p0", hublaProductId: null, name: "Do Zero à Liberdade Financeira", active: true, source: "MANUAL" });
-  grantFromHubla.mockReset().mockResolvedValue({ isNew: true, expiresAt: new Date("2027-09-30T12:00:00Z"), extended: true });
+  grantFromHubla.mockReset().mockResolvedValue({ isNew: true, expiresAt: new Date("2027-09-30T12:00:00Z"), extended: true, reembolsada: false });
+  registrarAviso.mockReset().mockResolvedValue({});
   revokeFromHubla.mockReset().mockResolvedValue({ count: 1 });
   encerrarNoVencimento.mockReset().mockResolvedValue("manter");
   guardarIdDaAssinatura.mockReset().mockResolvedValue(undefined);
@@ -141,7 +155,7 @@ describe("webhook Hubla: liberação", () => {
     const corpo = await r.json();
     expect(r.status).toBe(200);
     expect(corpo).toMatchObject({ ok: true, action: "granted", emailed: true, extended: true });
-    expect(grantFromHubla).toHaveBeenCalledWith("compradora@x.com", "Hubla: Do zero a liberdade financeira", "5511987654321", "fat-1");
+    expect(grantFromHubla).toHaveBeenCalledWith("compradora@x.com", "Hubla: Do zero a liberdade financeira", "5511987654321", "fat-1", null);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const email = sendEmail.mock.calls[0][0] as { to: string; html: string };
     expect(email.to).toBe("compradora@x.com");
@@ -181,8 +195,41 @@ describe("webhook Hubla: liberação", () => {
     const corpo = await r.json();
     expect(corpo).toMatchObject({ ok: true, action: "ignored", reason: "product not allowed" });
     expect(grantFromHubla).not.toHaveBeenCalled();
-    expect(sendEmail).not.toHaveBeenCalled();
+    // Nada de convite pra cliente: ela não foi liberada.
+    expect(sendEmail.mock.calls.some((c) => (c[0] as { to: string }).to === "c@x.com")).toBe(false);
     expect(produtos.find((p) => p.hublaProductId === "prod-mentoria")).toMatchObject({ active: false, source: "HUBLA" });
+  });
+
+  it("produto desconhecido que não liberou nada: fica no AppError com o e-mail mascarado e avisa o suporte (30/10/2026)", async () => {
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "cliente@x.com" }, product: { id: "prod-combo-bf", name: "Combo Black Friday" } }));
+    expect(r.status).toBe(200);
+    expect(avisos()).toHaveLength(1);
+    expect(avisos()[0]).toContain("produto desconhecido: Combo Black Friday");
+    expect(avisos()[0]).toContain("cl•••@x.com");
+    expect(avisos()[0]).not.toContain("cliente@x.com");
+    expect(emailsAoSuporte()).toHaveLength(1);
+    expect(emailsAoSuporte()[0].subject).toBe("Compra de produto desconhecido: Combo Black Friday");
+    expect(emailsAoSuporte()[0].html).toContain("cl•••@x.com");
+    expect(emailsAoSuporte()[0].html).not.toContain("cliente@x.com");
+  });
+
+  it("combo do curso com um bump desconhecido: libera o app, registra o bump, mas não acorda o suporte", async () => {
+    const r = await chamar(
+      compra("invoice.payment_succeeded", { user: { email: "h@x.com" }, products: [{ id: "prod-ebook", name: "E-book" }, CURSO] }),
+    );
+    expect(await r.json()).toMatchObject({ action: "granted" });
+    expect(avisos()).toHaveLength(1);
+    expect(avisos()[0]).toContain("E-book");
+    expect(avisos()[0]).toContain("app ou adicional liberado");
+    expect(emailsAoSuporte()).toHaveLength(0);
+    // O convite pra cliente continua indo.
+    expect(sendEmail.mock.calls.some((c) => (c[0] as { to: string }).to === "h@x.com")).toBe(true);
+  });
+
+  it("falha ao gravar o aviso não derruba a resposta nem segura a Hubla", async () => {
+    registrarAviso.mockRejectedValue(new Error("banco fora"));
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "i@x.com" }, product: { id: "prod-x", name: "Outro" } }));
+    expect(r.status).toBe(200);
   });
 
   it("produto desligado no painel não libera, mesmo com o nome certo", async () => {
@@ -219,6 +266,22 @@ describe("webhook Hubla: liberação", () => {
     expect(grantFromHubla).not.toHaveBeenCalled();
   });
 
+  it("compra sem e-mail: fica no AppError com o produto e avisa o suporte (30/10/2026)", async () => {
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "sem-arroba" }, product: CURSO }));
+    expect(avisos()).toHaveLength(1);
+    expect(avisos()[0]).toContain("invoice.payment_succeeded sem e-mail");
+    expect(avisos()[0]).toContain(CURSO.name);
+    expect(emailsAoSuporte()).toHaveLength(1);
+    expect(emailsAoSuporte()[0].subject).toBe(`Compra sem e-mail no payload: ${CURSO.name}`);
+  });
+
+  it("reembolso sem e-mail: fica registrado, mas não manda e-mail (ninguém ficou sem acesso)", async () => {
+    await chamar(compra("invoice.refunded", { product: CURSO }));
+    expect(avisos()).toHaveLength(1);
+    expect(avisos()[0]).toContain("invoice.refunded sem e-mail");
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
   it("conta Hubla com e-mail diferente do pagador: libera e convida os dois (caso Tamires)", async () => {
     const r = await chamar(
       compra("invoice.payment_succeeded", {
@@ -249,6 +312,46 @@ describe("webhook Hubla: liberação", () => {
   it("celular estrangeiro não é gravado como brasileiro", async () => {
     await chamar(compra("invoice.payment_succeeded", { user: { email: "h@x.com", phone: "+1 647 919 5010" }, product: CURSO }));
     expect(grantFromHubla.mock.calls[0][2]).toBeNull();
+  });
+});
+
+describe("webhook Hubla: pagamento atrasado de quem foi reembolsada (30/10/2026)", () => {
+  it("a data do pagamento vai junto pra liberação, de onde a Hubla mandar", async () => {
+    await chamar(compra("invoice.payment_succeeded", { user: { email: "j@x.com" }, invoice: { id: "fat-7", paidAt: "2026-10-20T15:00:00Z" }, product: CURSO }));
+    expect(grantFromHubla).toHaveBeenCalledWith("j@x.com", expect.any(String), null, "fat-7", new Date("2026-10-20T15:00:00Z"));
+  });
+
+  it("extractPagoEm: paidAt, saleDate, createdAt, data do evento, em ISO ou em segundos; sem nada, nulo", () => {
+    expect(extractPagoEm({ event: { invoice: { paidAt: "2026-10-20T15:00:00Z" } } })?.toISOString()).toBe("2026-10-20T15:00:00.000Z");
+    expect(extractPagoEm({ event: { invoice: { saleDate: "2026-10-21T10:00:00Z" } } })?.toISOString()).toBe("2026-10-21T10:00:00.000Z");
+    expect(extractPagoEm({ event: { invoice: { createdAt: 1792000000 } } })?.toISOString()).toBe("2026-10-14T17:46:40.000Z");
+    expect(extractPagoEm({ event: { invoice: { createdAt: 1792000000000 } } })?.toISOString()).toBe("2026-10-14T17:46:40.000Z");
+    expect(extractPagoEm({ event: { createdAt: "2026-10-22T10:00:00Z" } })?.toISOString()).toBe("2026-10-22T10:00:00.000Z");
+    expect(extractPagoEm({ event: { invoice: { paidAt: "não é data" } }, createdAt: "2026-10-23T10:00:00Z" })?.toISOString()).toBe("2026-10-23T10:00:00.000Z");
+    expect(extractPagoEm({ event: { invoice: { id: "x" } } })).toBeNull();
+    expect(extractPagoEm(null)).toBeNull();
+  });
+
+  it("reembolsada que recebe o pagamento atrasado da mesma compra: não religa, responde 200 e fica registrado", async () => {
+    grantFromHubla.mockResolvedValue({ isNew: false, expiresAt: null, extended: false, reembolsada: true });
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "k@x.com" }, invoice: { id: "fat-1" }, product: CURSO }));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, action: "ignored", reason: "refunded before this payment" });
+    expect(guardarIdDaAssinatura).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(avisos()).toHaveLength(1);
+    expect(avisos()[0]).toContain("já reembolsada");
+    expect(avisos()[0]).toContain("k•••@x.com");
+    expect(avisos()[0]).not.toContain("k@x.com");
+  });
+
+  it("dois e-mails e só um deles reembolsado: o outro é liberado normalmente", async () => {
+    grantFromHubla
+      .mockResolvedValueOnce({ isNew: false, expiresAt: null, extended: false, reembolsada: true })
+      .mockResolvedValueOnce({ isNew: true, expiresAt: new Date("2027-09-30T12:00:00Z"), extended: true, reembolsada: false });
+    const r = await chamar(compra("invoice.payment_succeeded", { user: { email: "l@x.com" }, invoice: { id: "fat-2", payer: { email: "m@x.com" } }, product: CURSO }));
+    expect(await r.json()).toMatchObject({ action: "granted", extended: true });
+    expect(avisos()).toHaveLength(0);
   });
 });
 

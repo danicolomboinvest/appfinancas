@@ -17,6 +17,7 @@ import type { ParentCategory } from "@prisma/client";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { SpendingSlice } from "@/components/charts/SpendingPieChart";
 import { SpendingByCategory } from "./SpendingByCategory";
+import { rotulosDasPersonalizadas } from "@/lib/repositories/casa.repo";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -111,7 +112,13 @@ export default async function SpendingByCategoryPage(props: PageProps<"/mensal/g
     sumExpensesSemCategoria(ctx, { desde: weekAgo }),
   ]);
 
-  const customNameById = new Map(customCategories.map((c) => [c.id, c.name]));
+  // Casal simples: o gasto do par numa categoria que ele criou leva o nome dele (só leitura).
+  const personalizadas = await rotulosDasPersonalizadas(
+    ctx,
+    customCategories,
+    [...customMonth, ...customYearByMonth, ...customWeek, ...customPrev].map((s) => s.customCategoryId),
+  );
+  const customNameById = new Map([...personalizadas].map(([id, c]) => [id, c.name]));
   // O ano só até o mês que já chegou, como as categorias logo abaixo.
   const semAno = await sumExpensesSemCategoria(ctx, { year, ateMes: monthsElapsedInYear(year, now) });
 
