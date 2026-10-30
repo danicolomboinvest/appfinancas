@@ -88,3 +88,17 @@ describe("o nome", () => {
     expect(nomeDaDivida("", "Fatura")).toBe("Fatura");
   });
 });
+
+describe("dívida que não cresce e não tem pagamento", () => {
+  const mae: DividaDoSpi = { ...base, id: "m1", tipo: "pessoa", credor: "Mãe", nome: "Mãe", saldo: 500, porMes: 0, taxaMensal: 0 };
+  it("sem valor a mais nada sai do lugar, e não há dívida crescendo para listar", () => {
+    const p = simularQuitacao([mae], 0);
+    expect(ehImpossivel(p)).toBe(true);
+    expect(ehImpossivel(p) && p.travando).toEqual([]);
+  });
+  it("com um valor a mais ela quita", () => {
+    const p = simularQuitacao([mae], 100);
+    expect(ehImpossivel(p)).toBe(false);
+    expect(!ehImpossivel(p) && p.meses).toBe(5);
+  });
+});

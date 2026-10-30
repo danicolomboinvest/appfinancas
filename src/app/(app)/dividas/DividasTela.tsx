@@ -250,8 +250,10 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
           </div>
         ) : !ok ? (
           <div className="flex flex-col gap-1 px-[18px] pb-[18px] pt-[18px] pr-24">
-            <b className="text-[1.75rem] font-light leading-tight tracking-[-0.02em] text-ink">As dívidas não acabam</b>
-            <p className="text-[15px] text-ink-muted">Do jeito que está, os juros passam do que sai por mês. O plano mostra quanto falta.</p>
+            <b className="text-[1.75rem] font-light leading-tight tracking-[-0.02em] text-ink">{p && ehImpossivel(p) && p.travando.length === 0 ? "Nada sai do lugar" : "As dívidas não acabam"}</b>
+            <p className="text-[15px] text-ink-muted">
+              {p && ehImpossivel(p) && p.travando.length === 0 ? "Sem pagamento por mês e sem valor a mais. Escolha um valor a mais." : "Do jeito que está, os juros passam do que sai por mês. O plano mostra quanto falta."}
+            </p>
           </div>
         ) : (
           <>
@@ -526,6 +528,15 @@ function ResultadoDoPlano({ p, p0, hoje, corDe, m0 }: { p: Plano; p0: Plano | Pl
 }
 
 function Impossivel({ p, m0 }: { p: PlanoImpossivel; m0: (v: number) => string }) {
+  // Dívida sem juros e sem parcela não cresce: não há "falta por mês" para listar.
+  if (p.travando.length === 0) {
+    return (
+      <div className="flex flex-col gap-2 p-[18px]">
+        <b className="text-[17px] font-medium text-ink">Nada sai do lugar</b>
+        <p className="text-sm text-ink-muted">Sem pagamento por mês e sem valor a mais. Escolha um valor a mais.</p>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-2 p-[18px]">
       <b className="text-[17px] font-medium text-ink">Do jeito que está, as dívidas não acabam</b>
