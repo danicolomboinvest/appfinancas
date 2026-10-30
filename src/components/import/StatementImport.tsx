@@ -18,6 +18,7 @@ import {
   importTransactionsAction,
   mesesNoAppAction,
   removeCardPaymentCandidateAction,
+  devolverPagamentosTiradosAction,
   conciliarJaNoAppAction,
   type ReviewItem,
   type ParseStats,
@@ -75,6 +76,8 @@ type ArquivoNaFila = {
   criados?: number;
   /** Depois de anotado: as parcelas dos próximos meses, as repetidas e os pagamentos da fatura achados no extrato. */
   futuras?: number;
+  /** Depois de anotado: os pagamentos de fatura que saíram sozinhos com esta fatura, e a chave para devolver. */
+  tirados?: { n: number; chave: string };
   pulados?: number;
   candidatos?: CardPaymentCandidate[];
   /** "Extrato Itaú · agosto": o nome da aba na revisão. */
@@ -283,6 +286,8 @@ export function StatementImport({
   const [faturaMonth, setFaturaMonth] = useState(currentMonthValue());
   const [conferirAberto, setConferirAberto] = useState(false);
   const [cardPaymentCandidates, setCardPaymentCandidates] = useState<CardPaymentCandidate[]>([]);
+  // Pagamentos de fatura que a gravação tirou do extrato (30/10/2026): a tela diz e deixa desfazer.
+  const [pagamentosTirados, setPagamentosTirados] = useState<{ n: number; chaves: string[] }>({ n: 0, chaves: [] });
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   // Excel do banco costuma vir protegido por senha: guardamos o arquivo e pedimos a senha.
@@ -927,7 +932,9 @@ export function StatementImport({
       const novos = result.created - futuras;
       if (fila && filaAtual !== null) {
         let lista = fila.map((a) =>
-          a.id === filaAtual ? { ...a, status: "anotado" as const, criados: novos, futuras, pulados: result.skipped, candidatos: result.cardPaymentCandidates, items: undefined } : a,
+          a.id === filaAtual
+            ? { ...a, status: "anotado" as const, criados: novos, futuras, pulados: result.skipped, candidatos: result.cardPaymentCandidates, tirados: result.desfazerPagamentosTirados ? { n: result.pagamentosTirados?.length ?? 0, chave: result.desfazerPagamentosTirados } : undefined, items: undefined }
+            : a,
         );
         lista = lista.map((a) => {
           if (a.status !== "ok" || !a.items) return a;
@@ -950,6 +957,8 @@ export function StatementImport({
         setSkippedCount(lista.reduce((soma, a) => soma + (a.pulados ?? 0), 0));
         const candidatos = new Map(lista.flatMap((a) => a.candidatos ?? []).map((c) => [c.id, c]));
         setCardPaymentCandidates([...candidatos.values()]);
+        const tirados = lista.flatMap((a) => (a.tirados ? [a.tirados] : []));
+        setPagamentosTirados({ n: tirados.reduce((soma, x) => soma + x.n, 0), chaves: tirados.map((x) => x.chave) });
         setRevelacao({ mes: null, dados: null, carregando: false });
         // Sem aviso (14/10/2026): a tela de pronto já mostra quantos entraram.
         setPhase("done");
@@ -959,6 +968,7 @@ export function StatementImport({
       setFuturasCount(futuras);
       setSkippedCount(result.skipped);
       setCardPaymentCandidates(result.cardPaymentCandidates);
+      setPagamentosTirados(result.desfazerPagamentosTirados ? { n: result.pagamentosTirados?.length ?? 0, chaves: [result.desfazerPagamentosTirados] } : { n: 0, chaves: [] });
       // O mês montado: busca DEPOIS de gravar, fora da transição (o "pronto" aparece já, e os
       // números chegam em seguida). Linha mandada pra outro perfil não conta pro mês deste.
       const mes = mesDaRevelacao(
@@ -2271,6 +2281,35 @@ export function StatementImport({
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* O pagamento de fatura que saiu sozinho do extrato (a fatura tem a data e o valor dele): uma
+          linha e o Desfazer, que devolve o lançamento igual ao que era. */}
+      {pagamentosTirados.n > 0 && (
+        <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 px-3 py-2 text-left" data-pagamentos-tirados>
+          <p className="text-sm text-ink">{t.impPagamentosTirados(pagamentosTirados.n)}</p>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => {
+              startTransition(async () => {
+                let devolvidos = 0;
+                try {
+                  for (const chave of pagamentosTirados.chaves) devolvidos += (await devolverPagamentosTiradosAction(chave)).devolvidos;
+                } catch (err) {
+                  console.error("devolverPagamentosTiradosAction falhou", err);
+                  showError(t.impErroSalvar);
+                  return;
+                }
+                setPagamentosTirados({ n: 0, chaves: [] });
+                if (devolvidos > 0) showToast(t.impPagamentosDevolvidos(devolvidos));
+              });
+            }}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-border-strong px-4 text-sm font-medium text-ink hover:bg-surface disabled:opacity-40"
+          >
+            {t.impDesfazer}
+          </button>
         </div>
       )}
 

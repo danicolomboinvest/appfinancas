@@ -294,7 +294,9 @@ async function ler(docType: "extrato" | "fatura", linhas: string[]) {
 }
 
 describe("pagamento da fatura no extrato", () => {
-  const extrato = ["05/09/2026;Salário;5000,00", "12/09/2026;Pagamento de fatura;-269,90", "13/09/2026;Padaria;-10,00"];
+  // R$ 369,90 é o total da fatura de setembro no app, com a parcela (30/10/2026: o pagamento só
+  // fica de fora quando a data E o valor batem com a fatura; antes bastava compra à vista perto).
+  const extrato = ["05/09/2026;Salário;5000,00", "12/09/2026;Pagamento de fatura;-369,90", "13/09/2026;Padaria;-10,00"];
 
   it("com a fatura dele no app: fica de fora como 'só mudei de conta', sem pergunta", async () => {
     await importarFatura(FATURA_SETEMBRO, SET);

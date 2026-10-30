@@ -8,9 +8,6 @@ import {
   mesDaCompra,
   mesesDaMesmaFaturaAntiga,
   mesesDasCompras,
-  pagamentoDoCartao,
-  pagamentoTemFatura,
-  pagamentosDaFatura,
   somarMeses,
   type ContextoDaFatura,
 } from "../mes-da-compra";
@@ -160,111 +157,6 @@ describe("a mesma fatura gravada no modelo antigo (tudo num mês, sem dia)", () 
   it("parcela projetada por outra fatura não conta", () => {
     const antigos = [{ loteId: "L0", year: 2026, month: 9, valor: 100, descricao: "LOJA PARC 03/10" }];
     expect(mesesDaMesmaFaturaAntiga([{ valor: 100, descricao: "LOJA PARC 03/10" }, { valor: 5, descricao: "X" }], antigos)).toEqual([]);
-  });
-});
-
-describe("pagamento da fatura no extrato", () => {
-  const compraNova = (entryDate: string, descricao = "MERCADO") => ({ year: Number(entryDate.slice(0, 4)), month: Number(entryDate.slice(5, 7)), entryDate, descricao });
-  it("com a fatura dele no app (modelo novo, compras do ciclo): só mudei de conta, fica de fora", () => {
-    expect(pagamentoTemFatura("2026-09-12", [compraNova("2026-08-20"), compraNova("2026-09-03")])).toBe(true);
-    expect(pagamentoDoCartao("2026-09-12", [compraNova("2026-09-03")])).toMatchObject({ ignorar: true, nota: expect.stringMatching(/só mudou de conta/) });
-  });
-  it("só a fatura ANTERIOR no app: o pagamento entra como gasto do cartão, já classificado", () => {
-    // Compras até 05/08 são da fatura paga em agosto, não da de 12/09.
-    expect(pagamentoTemFatura("2026-09-12", [compraNova("2026-07-20"), compraNova("2026-08-05")])).toBe(false);
-    expect(pagamentoDoCartao("2026-09-12", [])).toEqual({
-      parentCategory: "OUTROS",
-      customCategoryId: null,
-      subcategory: "Cartão de crédito",
-      autoClassified: true,
-      nota: expect.stringMatching(/trouxer a fatura depois/),
-    });
-  });
-  it("modelo antigo (fatura inteira no mês do vencimento, sem dia): o mês do pagamento, ou o vizinho na virada", () => {
-    const antiga = (year: number, month: number, descricao = "MERCADO") => ({ year, month, entryDate: null, descricao });
-    expect(pagamentoTemFatura("2026-09-12", [antiga(2026, 9)])).toBe(true);
-    // Mês vizinho de qualquer dia (15/10/2026): ela escolhia o mês da fatura no modo antigo.
-    expect(pagamentoTemFatura("2026-09-12", [antiga(2026, 8)])).toBe(true);
-    expect(pagamentoTemFatura("2026-09-12", [antiga(2026, 7)])).toBe(false);
-    expect(pagamentoTemFatura("2026-09-29", [antiga(2026, 10)])).toBe(true); // vence 02/10, pagou antes
-    expect(pagamentoTemFatura("2026-10-02", [antiga(2026, 9)])).toBe(true); // venceu 30/09, pagou depois
-  });
-  it("parcela projetada por fatura antiga não conta como 'a fatura está no app'", () => {
-    expect(pagamentoTemFatura("2026-09-12", [{ year: 2026, month: 9, entryDate: null, descricao: "SOFA PARC 05/10" }])).toBe(false);
-  });
-  it("compra da última semana antes do pagamento é da fatura SEGUINTE (pago 08/08 com só a fatura de agosto no app)", () => {
-    expect(pagamentoTemFatura("2026-08-08", [compraNova("2026-08-01"), compraNova("2026-08-05"), compraNova("2026-08-28")])).toBe(false);
-    expect(pagamentoTemFatura("2026-10-08", [compraNova("2026-09-01"), compraNova("2026-09-26")])).toBe(true);
-  });
-  it("pagamentosDaFatura: um por mês, o de valor mais perto das compras do ciclo", () => {
-    const com = (entryDate: string, valor: number) => ({ ...compraNova(entryDate), valor });
-    const compras = [com("2026-09-01", 640), com("2026-09-12", 500), com("2026-09-26", 740.47)];
-    const pagamentos = [
-      { id: "nubank", data: "2026-10-08", valor: 1880.47 },
-      { id: "itau", data: "2026-10-10", valor: 3200 },
-      { id: "agosto", data: "2026-08-08", valor: 1815.8 },
-    ];
-    expect([...pagamentosDaFatura(pagamentos, compras)]).toEqual(["nubank"]);
-    expect(pagamentosDaFatura([], compras).size).toBe(0);
-  });
-});
-
-describe("pagamento de fatura com a fatura no modo antigo no mês vizinho, e pagamentos parciais (15/10/2026)", () => {
-  const antiga = (year: number, month: number, valor: number, descricao = "MERCADO") => ({ year, month, entryDate: null, descricao, valor });
-  const compraNova = (entryDate: string, valor: number, descricao = "MERCADO") => ({ year: Number(entryDate.slice(0, 4)), month: Number(entryDate.slice(5, 7)), entryDate, descricao, valor });
-
-  it("fatura gravada no mês anterior ou seguinte ao pagamento: o pagamento fica de fora", () => {
-    expect(pagamentoTemFatura("2026-09-12", [antiga(2026, 8, 1500)], { valor: 1500 })).toBe(true);
-    expect(pagamentoTemFatura("2026-09-12", [antiga(2026, 10, 1500)], { valor: 1500 })).toBe(true);
-    expect(pagamentoDoCartao("2026-09-12", [antiga(2026, 8, 1500)], { valor: 1500 })).toMatchObject({ ignorar: true });
-  });
-
-  it("o vizinho não vale quando outro pagamento cai no mês daquela fatura (ela já tem o pagamento dela)", () => {
-    const outrasDatas = ["2026-08-12", "2026-09-12"];
-    expect(pagamentoTemFatura("2026-09-12", [antiga(2026, 8, 1500)], { valor: 1500, outrasDatas })).toBe(false);
-    expect(pagamentoTemFatura("2026-08-12", [antiga(2026, 8, 1500)], { valor: 1500, outrasDatas })).toBe(true);
-  });
-
-  it("o vizinho não vale quando o pagamento é bem maior que a fatura daquele mês (é outro cartão)", () => {
-    expect(pagamentoTemFatura("2026-09-12", [antiga(2026, 8, 300)], { valor: 5000 })).toBe(false);
-    expect(pagamentoDoCartao("2026-09-12", [antiga(2026, 8, 300)], { valor: 5000 })).toMatchObject({ subcategory: "Cartão de crédito" });
-  });
-
-  it("sem fatura nenhuma no app em volta, o pagamento continua sendo gasto", () => {
-    expect(pagamentoTemFatura("2026-09-12", [], { valor: 1500 })).toBe(false);
-    expect(pagamentosDaFatura([{ id: "p", data: "2026-09-12", valor: 1500 }], []).size).toBe(0);
-    expect(pagamentosDaFatura([{ id: "p", data: "2026-09-12", valor: 1500 }], [antiga(2026, 6, 1500)]).size).toBe(0);
-  });
-
-  it("fatura chegando depois do extrato: acha o pagamento quando a fatura antiga está no mês anterior", () => {
-    expect([...pagamentosDaFatura([{ id: "set", data: "2026-09-12", valor: 1500 }], [antiga(2026, 8, 1000), antiga(2026, 8, 500)])]).toEqual(["set"]);
-  });
-
-  it("pagamento em duas vezes para a mesma fatura: os dois saem", () => {
-    const compras = [compraNova("2026-08-20", 1200), compraNova("2026-09-01", 800)];
-    const pagamentos = [
-      { id: "pix1", data: "2026-09-12", valor: 1000 },
-      { id: "pix2", data: "2026-09-15", valor: 1000 },
-    ];
-    expect([...pagamentosDaFatura(pagamentos, compras)].sort()).toEqual(["pix1", "pix2"]);
-  });
-
-  it("dois cartões com as duas faturas no app (modo antigo): os dois pagamentos saem", () => {
-    const compras = [antiga(2026, 9, 1800, "LOJA A"), antiga(2026, 9, 200, "LOJA B"), antiga(2026, 9, 700, "LOJA C")];
-    const pagamentos = [
-      { id: "nubank", data: "2026-09-08", valor: 2000 },
-      { id: "itau", data: "2026-09-10", valor: 700 },
-    ];
-    expect([...pagamentosDaFatura(pagamentos, compras)].sort()).toEqual(["itau", "nubank"]);
-  });
-
-  it("dois cartões e só uma fatura no app: o pagamento do outro cartão continua sendo gasto", () => {
-    const compras = [antiga(2026, 9, 1800, "LOJA A"), antiga(2026, 9, 200, "LOJA B")];
-    const pagamentos = [
-      { id: "nubank", data: "2026-09-08", valor: 2000 },
-      { id: "itau", data: "2026-09-10", valor: 3200 },
-    ];
-    expect([...pagamentosDaFatura(pagamentos, compras)]).toEqual(["nubank"]);
   });
 });
 

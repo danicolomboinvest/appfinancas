@@ -16,7 +16,7 @@ import { checarPlausibilidade, type Suspeita } from "@/lib/import/plausibility";
 import { isPartialRead, MARCA_CONFERIDO, MARCA_NAO_FECHOU, mensagemImplausivel, recordImportDiagnostic, safeHeader } from "@/lib/repositories/import-diagnostic.repo";
 import { conferirLeitura, conferirPrints, leituraIncompleta, type Conferencia } from "@/lib/import/conferencia";
 import { storeFailedImportFile } from "@/lib/repositories/import-file.repo";
-import type { ParentCategory } from "@prisma/client";
+import type { ParentCategory, Prisma } from "@prisma/client";
 import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
 import { bancoNoNomeDoArquivo, finalDoCartao } from "@/lib/cartao/bancos";
 import { diasValidos, mesDoGastoNoCartao } from "@/lib/cartao/fatura";
@@ -37,7 +37,8 @@ import { garantirCuidadoPessoal, listCustomCategories } from "@/lib/repositories
 import { listProfiles } from "@/lib/repositories/profile.repo";
 import { regrasDePerfil } from "@/lib/repositories/mover-perfil.repo";
 import { categoriaNoDestino, destinoPelaRegra } from "@/lib/perfis/mover-lancamentos";
-import { descricoesOriginais } from "@/lib/repositories/decisao.repo";
+import { descricoesOriginais, registrarDecisao } from "@/lib/repositories/decisao.repo";
+import { faturasNoApp, pagamentoDoCartao, pagamentosDaFatura, pagamentoTemFatura, type FaturaNoApp } from "@/lib/import/pagamento-da-fatura";
 import { aplicarNosOutrosMeses, listTransactionRules, upsertTransactionRule } from "@/lib/repositories/transaction-rule.repo";
 import { parseStatementComLeitor, type ParsedTransaction } from "@/lib/import/statement-parser";
 import { isFaturaSummaryLine, comprasDaFaturaSaoPositivas, pareceCreditoDePagamento } from "@/lib/import/fatura-lines";
@@ -73,9 +74,6 @@ import {
   mesDaData,
   mesesDaMesmaFaturaAntiga,
   mesesDasCompras,
-  pagamentoDoCartao,
-  pagamentosDaFatura,
-  pagamentoTemFatura,
   somarMeses,
   type ContextoDaFatura,
   type Destino,
@@ -839,6 +837,8 @@ export type ImportResult =
       cardPaymentCandidates: CardPaymentCandidate[];
       /** Pagamentos da fatura que o extrato tinha gravado como gasto e saíram sozinhos com ela. */
       pagamentosTirados?: CardPaymentCandidate[];
+      /** A chave para devolver os `pagamentosTirados` (devolverPagamentosTiradosAction). */
+      desfazerPagamentosTirados?: string;
       /** Quantas das `created` são parcelas dos próximos meses (14/10/2026): a tela dizia "7 compras"
        * na conferência e "8 lançamentos importados" no fim, e a diferença era a parcela 3/3 projetada. */
       parcelasFuturas?: number;
@@ -973,11 +973,12 @@ const DIA_MS = 86_400_000;
 
 
 /**
- * A fatura que cada pagamento paga já está no app? As compras de fatura dos meses em volta das
- * datas dos pagamentos (ver pagamentoTemFatura): antes era "importou alguma fatura nos últimos
- * 120 dias", e o pagamento de um cartão que ela nunca importou sumia do mês.
+ * As faturas que estão no app em volta das datas dos pagamentos (ver lib/import/pagamento-da-fatura):
+ * os lotes de fatura importada (a fatura aberta, dos prints, ainda não foi paga e fica de fora) e as
+ * compras lançadas no cartão cadastrado. Antes era "importou alguma fatura nos últimos 120 dias", e o
+ * pagamento de um cartão que ela nunca importou sumia do mês.
  */
-async function comprasDeFaturaEmVolta(ctx: AuthContext, datasDosPagamentos: string[]) {
+async function faturasEmVolta(ctx: AuthContext, datasDosPagamentos: string[]): Promise<FaturaNoApp[]> {
   const meses = new Map<string, { year: number; month: number }>();
   for (const data of datasDosPagamentos) {
     const m = mesDaData(data);
@@ -988,22 +989,25 @@ async function comprasDeFaturaEmVolta(ctx: AuthContext, datasDosPagamentos: stri
     }
   }
   if (meses.size === 0) return [];
-  const compras = await prisma.monthlyEntry.findMany({
-    where: {
-      userId: ctx.userId, profileId: ctx.profileId,
-      category: "EXPENSE",
-      importBatch: { is: { docType: "fatura" } },
-      OR: [...meses.values()],
-    },
-    select: { year: true, month: true, entryDate: true, description: true, amount: true },
-  });
-  return compras.map((e) => ({
-    year: e.year,
-    month: e.month,
-    entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
-    descricao: e.description,
-    valor: Number(e.amount),
-  }));
+  const dono = { userId: ctx.userId, profileId: ctx.profileId, category: "EXPENSE" as const, OR: [...meses.values()] };
+  const campos = { year: true, month: true, entryDate: true, description: true, amount: true, importBatchId: true, cartaoId: true, cartao: { select: { diaFechamento: true, diaVencimento: true } }, importBatch: { select: { faturaAberta: true } } } as const;
+  const [importadas, noCartao] = await Promise.all([
+    prisma.monthlyEntry.findMany({ where: { ...dono, importBatch: { is: { docType: "fatura" } } }, select: campos }),
+    prisma.monthlyEntry.findMany({ where: { ...dono, importBatchId: null, cartaoId: { not: null } }, select: campos }),
+  ]);
+  const linhas = [...importadas, ...noCartao]
+    .filter((e) => !e.importBatch?.faturaAberta)
+    .map((e) => ({
+      loteId: e.importBatchId ?? null,
+      year: e.year,
+      month: e.month,
+      entryDate: e.entryDate ? e.entryDate.toISOString().slice(0, 10) : null,
+      descricao: e.description,
+      valor: Number(e.amount),
+      cartaoId: e.cartaoId ?? null,
+      cartao: e.cartao ?? null,
+    }));
+  return faturasNoApp(linhas);
 }
 
 /**
@@ -1016,20 +1020,27 @@ async function pagamentosComFaturaNoApp(ctx: AuthContext, items: ConfirmedItem[]
     (item) => !item.estorno && item.category === "EXPENSE" && (!item.profileId || item.profileId === ctx.profileId) && parecePagamentoDeFatura(item.description),
   );
   if (pagamentos.length === 0) return new Set();
-  const lancamentosDeFatura = await comprasDeFaturaEmVolta(ctx, pagamentos.map((p) => p.date));
-  const outrasDatas = pagamentos.map((p) => p.date);
-  return new Set(pagamentos.filter((p) => pagamentoTemFatura(p.date, lancamentosDeFatura, { valor: p.amount, outrasDatas })));
+  const faturas = await faturasEmVolta(ctx, pagamentos.map((p) => p.date));
+  return new Set(pagamentos.filter((p) => pagamentoTemFatura({ data: p.date, valor: p.amount }, faturas)));
 }
+
+/** O que fica guardado de cada pagamento tirado, para o "Desfazer" devolver igual. */
+const CAMPOS_DO_PAGAMENTO_TIRADO = {
+  id: true, year: true, month: true, entryDate: true, description: true, amount: true, category: true, parentCategory: true, customCategoryId: true, subcategory: true,
+  importBatchId: true, noCartao: true, pessoa: true, doCasal: true, soMeu: true, doPar: true, pagouOPar: true, autorUserId: true, origemDoPagamento: true, createdAt: true,
+} as const;
 
 /**
  * Fatura gravada DEPOIS do extrato: o pagamento dela que o extrato gravou como gasto sai, pela
- * mesma regra (ver pagamentosDaFatura). Só o que veio de extrato: o lançado à mão continua sendo
- * oferecido para ela tirar (findCardPaymentCandidates).
+ * mesma regra da leitura (ver pagamentosDaFatura: a data na janela da fatura E o valor batendo).
+ * Só o que veio de extrato: o lançado à mão continua sendo oferecido para ela tirar
+ * (findCardPaymentCandidates). O que saiu fica guardado num registro de decisão (chave = o lote da
+ * fatura) para o "Desfazer" da tela devolver (devolverPagamentosTiradosAction).
  */
-async function tirarPagamentosDaFatura(ctx: AuthContext, mesesDasCompras: { year: number; month: number }[]): Promise<CardPaymentCandidate[]> {
+async function tirarPagamentosDaFatura(ctx: AuthContext, loteDaFatura: string, mesesDasCompras: { year: number; month: number }[]): Promise<CardPaymentCandidate[]> {
   // O pagamento vem no mês da compra ou no seguinte (até 30 dias depois dela). No modo antigo
   // (tudo no mês escolhido, sem dia) ela podia escolher o mês seguinte ao das compras: o
-  // pagamento fica um mês antes (ver pagamentoTemFatura).
+  // pagamento fica um mês antes.
   const meses = new Map<string, { year: number; month: number }>();
   for (const m of mesesDasCompras) {
     for (const d of [-1, 0, 1]) {
@@ -1047,17 +1058,61 @@ async function tirarPagamentosDaFatura(ctx: AuthContext, mesesDasCompras: { year
         entryDate: { not: null },
         OR: [...meses.values()],
       },
-      select: { id: true, description: true, amount: true, entryDate: true },
+      select: CAMPOS_DO_PAGAMENTO_TIRADO,
     })
   ).filter((e) => Number(e.amount) > 0 && parecePagamentoDeFatura(e.description));
   if (doExtrato.length === 0) return [];
   const pagamentos = doExtrato.map((e) => ({ id: e.id, data: e.entryDate!.toISOString().slice(0, 10), valor: Number(e.amount) }));
-  const daFatura = pagamentosDaFatura(pagamentos, await comprasDeFaturaEmVolta(ctx, pagamentos.map((p) => p.data)));
+  const daFatura = pagamentosDaFatura(pagamentos, await faturasEmVolta(ctx, pagamentos.map((p) => p.data)));
   if (daFatura.size === 0) return [];
-  await prisma.monthlyEntry.deleteMany({ where: { id: { in: [...daFatura] }, userId: ctx.userId, profileId: ctx.profileId } });
-  return pagamentos
-    .filter((p) => daFatura.has(p.id))
-    .map((p) => ({ id: p.id, description: doExtrato.find((e) => e.id === p.id)?.description ?? "Pagamento de fatura", amount: p.valor, date: p.data }));
+  const tirados = doExtrato.filter((e) => daFatura.has(e.id));
+  // Guarda antes de apagar: se a gravação do registro falhar, nada sai.
+  await registrarDecisao(ctx, {
+    tipo: "pagamentos_tirados",
+    chave: loteDaFatura,
+    dados: { linhas: tirados.map((e) => ({ ...e, amount: Number(e.amount), entryDate: e.entryDate?.toISOString() ?? null, createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : null })) },
+  });
+  await prisma.monthlyEntry.deleteMany({ where: { id: { in: tirados.map((e) => e.id) }, userId: ctx.userId, profileId: ctx.profileId } });
+  return tirados.map((e) => ({ id: e.id, description: e.description ?? "Pagamento de fatura", amount: Number(e.amount), date: e.entryDate!.toISOString().slice(0, 10) }));
+}
+
+/**
+ * "Desfazer" da tela de importação: devolve os pagamentos de fatura que a gravação da fatura tirou
+ * do extrato (tirarPagamentosDaFatura), iguais ao que eram, com os mesmos ids. Só o registro desta
+ * conta e deste perfil; devolver duas vezes não duplica (os ids já existem).
+ */
+export async function devolverPagamentosTiradosAction(chave: string): Promise<{ ok: boolean; devolvidos: number }> {
+  const ctx = await getRequiredSession();
+  const registro = await prisma.decisao.findFirst({
+    where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "pagamentos_tirados", chave, resolvidaEm: null },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, dados: true },
+  });
+  if (!registro) return { ok: false, devolvidos: 0 };
+  const dados = registro.dados as { linhas?: Record<string, unknown>[] } | null;
+  const linhas = Array.isArray(dados?.linhas) ? dados!.linhas : [];
+  const permitidos = new Set(Object.keys(CAMPOS_DO_PAGAMENTO_TIRADO));
+  const lotes = new Set(linhas.map((l) => l.importBatchId).filter((x): x is string => typeof x === "string"));
+  // O lote tem de ser desta conta e perfil (o registro é só leitura, mas o lote pode ter sido desfeito).
+  const lotesValidos = new Set((await prisma.importBatch.findMany({ where: { id: { in: [...lotes] }, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } })).map((b) => b.id));
+  const data = linhas.flatMap((l) => {
+    if (typeof l.id !== "string" || typeof l.year !== "number" || typeof l.month !== "number" || typeof l.amount !== "number" || l.category !== "EXPENSE") return [];
+    const limpo: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(l)) if (permitidos.has(k)) limpo[k] = v;
+    limpo.entryDate = typeof l.entryDate === "string" ? new Date(l.entryDate) : null;
+    limpo.createdAt = typeof l.createdAt === "string" ? new Date(l.createdAt) : undefined;
+    if (typeof l.importBatchId === "string" && !lotesValidos.has(l.importBatchId)) limpo.importBatchId = null;
+    return [{ ...limpo, userId: ctx.userId, profileId: ctx.profileId } as Prisma.MonthlyEntryCreateManyInput];
+  });
+  if (data.length === 0) return { ok: false, devolvidos: 0 };
+  const r = await prisma.monthlyEntry.createMany({ data, skipDuplicates: true });
+  await prisma.decisao.update({ where: { id: registro.id }, data: { resolvidaEm: new Date() } });
+  for (const l of data) {
+    revalidatePath(`/mensal/${l.year}`);
+    revalidatePath(`/mensal/${l.year}/${l.month}`);
+  }
+  revalidatePath("/mensal/foco");
+  return { ok: true, devolvidos: r.count };
 }
 
 /**
@@ -1067,9 +1122,9 @@ async function tirarPagamentosDaFatura(ctx: AuthContext, mesesDasCompras: { year
  */
 async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
   const pagamentos = items.filter((item) => !item.estorno && item.category === "EXPENSE" && parecePagamentoDeFatura(item.description)).map((item) => item.date);
-  const [usuario, lancamentosDeFatura] = await Promise.all([
+  const [usuario, faturas] = await Promise.all([
     prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
-    comprasDeFaturaEmVolta(ctx, pagamentos),
+    faturasEmVolta(ctx, pagamentos),
   ]);
   for (const item of items) {
     if (item.estorno) continue;
@@ -1084,7 +1139,7 @@ async function separarDinheiroProprio(ctx: AuthContext, items: ReviewItem[]) {
       } else if (parecePagamentoDeFatura(item.description)) {
         // Com a fatura no app, o pagamento é dinheiro mudando de conta: as compras já contam uma
         // a uma. Sem ela, é o gasto do cartão inteiro numa linha, já separado (não vira pergunta).
-        Object.assign(item, pagamentoDoCartao(item.date, lancamentosDeFatura, { valor: item.amount, outrasDatas: pagamentos }));
+        Object.assign(item, pagamentoDoCartao({ data: item.date, valor: item.amount }, faturas));
       } else if (pareceContaPropria(item.description, usuario?.name)) {
         item.duvida = "conta_propria";
       }
@@ -2098,7 +2153,7 @@ export async function importTransactionsAction(
   // vencimento lido, o último mês das compras.
   const mesDoPagamento = faturaTarget ?? mesDaData(datasDaFatura.vencimento) ?? contextoFatura?.limite ?? null;
   // O pagamento que é desta fatura sai sozinho (antes de listar o que ela ainda pode tirar).
-  const pagamentosTirados = ehFatura && !aberta && created > 0 ? await tirarPagamentosDaFatura(ctx, [...mesesDasComprasCriadas.values()]) : [];
+  const pagamentosTirados = ehFatura && !aberta && created > 0 ? await tirarPagamentosDaFatura(ctx, batch.id, [...mesesDasComprasCriadas.values()]) : [];
   for (const p of pagamentosTirados) if (p.date) touchedMonths.add(`${Number(p.date.slice(0, 4))}/${Number(p.date.slice(5, 7))}`);
   const cardPaymentCandidates =
     // A fatura ABERTA (prints) ainda não foi paga: o pagamento que aparecia era o da fatura anterior.
@@ -2137,7 +2192,7 @@ export async function importTransactionsAction(
     created,
     skipped,
   });
-  return { ok: true, created, skipped, cardPaymentCandidates, pagamentosTirados, parcelasFuturas };
+  return { ok: true, created, skipped, cardPaymentCandidates, pagamentosTirados, desfazerPagamentosTirados: pagamentosTirados.length > 0 ? batch.id : undefined, parcelasFuturas };
 }
 
 /**

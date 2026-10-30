@@ -71,9 +71,29 @@ vi.mock("@/lib/db/prisma", () => ({
         for (let i = banco.length - 1; i >= 0; i -= 1) if (bate(banco[i], where)) banco.splice(i, 1);
         return { count: antes - banco.length };
       }),
+      // O "Desfazer" dos pagamentos tirados devolve as linhas com os mesmos ids (skipDuplicates).
+      createMany: vi.fn(async ({ data }: { data: (Linha & Record<string, unknown>)[] }) => {
+        const novas = data.filter((d) => !banco.some((e) => e.id === d.id));
+        for (const d of novas) banco.push({ id: d.id, userId: d.userId, profileId: d.profileId, year: d.year, month: d.month, entryDate: d.entryDate, amount: d.amount, description: d.description, category: d.category, parentCategory: d.parentCategory, importBatchId: d.importBatchId, externalId: null });
+        return { count: novas.length };
+      }),
     },
     customCategory: { findMany: vi.fn(async () => []) },
-    importBatch: { count: vi.fn(async () => faturasRecentes) },
+    importBatch: {
+      count: vi.fn(async () => faturasRecentes),
+      findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => where.id.in.filter((id) => tipoDoLote.has(id)).map((id) => ({ id }))),
+    },
+    decisao: {
+      findFirst: vi.fn(async ({ where }: { where: { tipo: string; chave: string } }) => {
+        const d = [...decisoes].reverse().find((x) => x.tipo === where.tipo && x.chave === where.chave && !x.resolvidaEm);
+        return d ? { id: d.id, dados: d.dados } : null;
+      }),
+      update: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const d = decisoes.find((x) => x.id === where.id);
+        if (d) d.resolvidaEm = new Date();
+        return d;
+      }),
+    },
     user: { findUnique: vi.fn(async () => ({ name: "Fulana Teste" })) },
   },
 }));
@@ -106,7 +126,14 @@ vi.mock("@/lib/repositories/import-batch.repo", () => ({
   deleteImportBatchWithEntries: vi.fn(async () => 0),
 }));
 vi.mock("@/lib/repositories/profile.repo", () => ({ listProfiles: vi.fn(async () => [{ id: "pessoal" }, { id: "empresa" }]) }));
-vi.mock("@/lib/repositories/decisao.repo", () => ({ descricoesOriginais: vi.fn(async () => new Map()) }));
+const decisoes: { id: string; tipo: string; chave: string | null; dados: unknown; resolvidaEm: Date | null }[] = [];
+vi.mock("@/lib/repositories/decisao.repo", () => ({
+  descricoesOriginais: vi.fn(async () => new Map()),
+  registrarDecisao: vi.fn(async (_ctx: unknown, d: { tipo: string; chave?: string | null; dados?: unknown }) => {
+    decisoes.push({ id: `d${decisoes.length + 1}`, tipo: d.tipo, chave: d.chave ?? null, dados: d.dados, resolvidaEm: null });
+    return { id: `d${decisoes.length}` };
+  }),
+}));
 vi.mock("@/lib/repositories/custom-category.repo", () => ({ listCustomCategories: vi.fn(async () => []), garantirCuidadoPessoal: vi.fn(async () => null) }));
 vi.mock("@/lib/repositories/transaction-rule.repo", () => ({
   listTransactionRules: vi.fn(async () => []),
@@ -122,7 +149,7 @@ vi.mock("@/lib/repositories/import-diagnostic.repo", () => ({
 }));
 vi.mock("@/lib/repositories/import-file.repo", () => ({ storeFailedImportFile: vi.fn(async () => {}) }));
 
-const { importTransactionsAction, parseStatementAction } = await import("../import-actions");
+const { importTransactionsAction, parseStatementAction, devolverPagamentosTiradosAction } = await import("../import-actions");
 const customCategoryRepo = await import("@/lib/repositories/custom-category.repo");
 type ReviewItem = Extract<Awaited<ReturnType<typeof parseStatementAction>>, { ok: true }>["items"][number];
 
@@ -197,6 +224,7 @@ const desfazer = (loteId: string) => {
 
 beforeEach(() => {
   banco.length = 0;
+  decisoes.length = 0;
   tipoDoLote.clear();
   faturasRecentes = 0;
 });
@@ -222,6 +250,49 @@ describe("extrato e fatura do mesmo mês: o pagamento da fatura não conta duas 
     expect(r.pagamentosTirados).toEqual([expect.objectContaining({ description: "Pagamento de fatura", amount: 2800, date: "2026-09-08" })]);
     expect(r.cardPaymentCandidates).toEqual([]);
     expect(gastouNoMes(2026, 9)).toBe(2818.5); // 2.800 de compras + 18,50 da padaria
+  });
+
+  // 30/10/2026: o pagamento só sai quando a fatura dele está no app pela DATA e pelo VALOR. Antes
+  // bastava uma compra à vista de fatura entre 30 e 8 dias antes, e o Pix da fatura de setembro
+  // (não importada) sumia por causa da fatura de outubro.
+  it("a fatura de OUTUBRO no app não leva o Pix que pagou a de SETEMBRO: setembro continua com o gasto do cartão", async () => {
+    await importar("extrato", extratoSetembro); // Pix de 2.800 em 08/09
+    const r = await importar("fatura", ["26/08/2026;MERCADO EXTRA;1500,00", "10/09/2026;FARMACIA;800,00", "25/09/2026;POSTO;500,00"]);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.pagamentosTirados).toEqual([]);
+    expect(r.desfazerPagamentosTirados).toBeUndefined();
+    expect(gastouNoMes(2026, 9)).toBe(2800 + 18.5 + 800 + 500); // o Pix fica, e as compras de setembro entram
+  });
+
+  it("pagamento parcial (metade da fatura) não sai: fica como gasto e aparece para ela decidir", async () => {
+    await importar("extrato", ["08/09/2026;Pagamento de fatura;-1400,00"]);
+    const r = await importar("fatura", faturaSetembro, "2026-09");
+    if (!r.ok) throw new Error(r.error);
+    expect(r.pagamentosTirados).toEqual([]);
+    expect(r.cardPaymentCandidates.map((c) => c.amount)).toEqual([1400]);
+  });
+
+  it("o pagamento tirado fica guardado e o Desfazer devolve o lançamento igual, uma vez só", async () => {
+    await importar("extrato", extratoSetembro);
+    const r = await importar("fatura", faturaSetembro, "2026-09");
+    if (!r.ok) throw new Error(r.error);
+    expect(r.pagamentosTirados).toHaveLength(1);
+    const loteDaFatura = [...tipoDoLote.entries()].filter(([, t]) => t === "fatura").map(([id]) => id).at(-1);
+    const loteDoExtrato = [...tipoDoLote.entries()].filter(([, t]) => t === "extrato").map(([id]) => id).at(-1);
+    expect(r.desfazerPagamentosTirados).toBe(loteDaFatura);
+    expect(decisoes).toEqual([expect.objectContaining({ tipo: "pagamentos_tirados", chave: loteDaFatura })]);
+    const guardado = (decisoes[0].dados as { linhas: Record<string, unknown>[] }).linhas[0];
+    expect(guardado).toMatchObject({ description: "Pagamento de fatura", amount: 2800, importBatchId: loteDoExtrato, category: "EXPENSE" });
+    expect(banco.some((e) => e.description === "Pagamento de fatura")).toBe(false);
+
+    const d = await devolverPagamentosTiradosAction(loteDaFatura!);
+    expect(d).toEqual({ ok: true, devolvidos: 1 });
+    const devolvido = banco.find((e) => e.description === "Pagamento de fatura");
+    expect(devolvido).toMatchObject({ id: guardado.id, amount: 2800, year: 2026, month: 9, importBatchId: loteDoExtrato, userId: "u1", profileId: "pessoal" });
+    expect(gastouNoMes(2026, 9)).toBe(2800 + 2818.5);
+    // De novo: o registro já foi resolvido, nada entra duas vezes.
+    expect(await devolverPagamentosTiradosAction(loteDaFatura!)).toEqual({ ok: false, devolvidos: 0 });
+    expect(banco.filter((e) => e.description === "Pagamento de fatura")).toHaveLength(1);
   });
 
   it("fatura ANTES do extrato: o pagamento já sai marcado 'fica de fora', com o motivo", async () => {

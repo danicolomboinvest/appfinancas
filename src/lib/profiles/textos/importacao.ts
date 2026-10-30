@@ -122,6 +122,10 @@ export type TextosImportacao = {
   /** "e 1 parcela nos próximos meses": as parcelas seguintes que a fatura projetou. */
   impParcelasFuturas(n: number): string;
   impPagamentoFatura(n: number): string;
+  /** "Tirei 1 pagamento de fatura que já está nas compras do cartão." (30/10/2026). */
+  impPagamentosTirados(n: number): string;
+  impDesfazer: string;
+  impPagamentosDevolvidos(n: number): string;
   impSemData: string;
   impManter: string;
   // Posição da corretora (carteira)
@@ -418,6 +422,9 @@ export const PADRAO_IMPORTACAO: TextosImportacao = {
   impToastImportados: (n) => (n === 1 ? "1 importado" : `${n} importados`),
   impParcelasFuturas: (n) => (n === 1 ? "e 1 parcela nos próximos meses" : `e ${n} parcelas nos próximos meses`),
   impPagamentoFatura: (n) => `${n === 1 ? "Este parece" : "Estes parecem"} o pagamento desta fatura. Remover para não contar duas vezes?`,
+  impPagamentosTirados: (n) => (n === 1 ? "Tirei 1 pagamento de fatura que já está nas compras do cartão." : `Tirei ${n} pagamentos de fatura que já estão nas compras do cartão.`),
+  impDesfazer: "Desfazer",
+  impPagamentosDevolvidos: (n) => (n === 1 ? "1 pagamento devolvido" : `${n} pagamentos devolvidos`),
   impSemData: "sem data",
   impManter: "Manter",
   // Posição da corretora
