@@ -4,17 +4,6 @@ const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 const FETCH_TIMEOUT_MS = 8000;
 
-/** O pedaço da resposta do Yahoo que interessa. */
-type YahooChart = { chart?: { result?: { meta?: { currency?: string; regularMarketPrice?: number } }[] | null } };
-
-/** Preço em US$ da resposta do gráfico do Yahoo; null se não veio ou não é em dólar. */
-export function parseYahooPrice(payload: unknown): number | null {
-  const meta = (payload as YahooChart)?.chart?.result?.[0]?.meta;
-  if (!meta || meta.currency !== "USD") return null;
-  const preco = Number(meta.regularMarketPrice);
-  return Number.isFinite(preco) && preco > 0 ? preco : null;
-}
-
 /** "US$ 716,86" (como o investidor10 escreve) → 716.86. */
 export function parseUsdText(text: string): number | null {
   const m = text.replace(/\s/g, " ").match(/US\$\s?([\d.]+,\d{2})/);
@@ -35,23 +24,12 @@ async function buscar(url: string): Promise<Response | null> {
 /**
  * Cotação de ação ou ETF americano em dólar (VOO, AAPL, BRK.B), para a conta no exterior.
  *
- * Primeiro o Yahoo (JSON limpo, preço do pregão); se falhar, a página do investidor10, a mesma
- * fonte da cotação da B3, que tem as americanas em /stocks e /etfs-global com o preço em US$.
+ * Lê a página do investidor10, a mesma fonte da cotação da B3, que tem as americanas em /stocks e
+ * /etfs-global com o preço em US$. O Yahoo NÃO é usado: ele proíbe uso em app pago. Quando houver
+ * fonte paga com licença, ela entra aqui na frente.
  */
 export async function fetchUsPrice(ticker: string): Promise<number | null> {
   const t = ticker.trim().toUpperCase();
-  // O Yahoo escreve a classe com hífen: BRK.B é BRK-B. Ele recusa às vezes por excesso de
-  // pedidos (429): tenta o segundo endereço dele antes de ir pro investidor10.
-  for (const host of ["query1", "query2"]) {
-    const yahoo = await buscar(`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(t.replace(".", "-"))}?range=1d&interval=1d`);
-    if (!yahoo) continue;
-    try {
-      const preco = parseYahooPrice(await yahoo.json());
-      if (preco !== null) return preco;
-    } catch {
-      // Resposta que não é JSON: tenta a outra fonte.
-    }
-  }
   const slug = t.toLowerCase().replace(".", "-");
   for (const caminho of ["stocks", "etfs-global"]) {
     const res = await buscar(`https://investidor10.com.br/${caminho}/${slug}/`);

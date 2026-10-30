@@ -64,16 +64,6 @@ const VALIDADE_MS = 60 * 60 * 1000;
  */
 const memoria = new Map<string, { valor: ExchangeRate; buscadoEm: number }>();
 
-/** Yahoo (USDBRL=X): preço do mercado agora, em `to`. */
-export function parseYahooFxRate(payload: unknown, from: CurrencyCode, to: CurrencyCode): ExchangeRate | null {
-  const meta = (payload as { chart?: { result?: { meta?: { currency?: string; regularMarketPrice?: number; regularMarketTime?: number } }[] | null } })?.chart?.result?.[0]?.meta;
-  if (!meta || meta.currency !== to) return null;
-  const rate = Number(meta.regularMarketPrice);
-  if (!Number.isFinite(rate) || rate <= 0) return null;
-  const date = meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-  return { from, to, rate: Number(rate.toFixed(4)), date };
-}
-
 /** Frankfurter e ExchangeRate-API respondem no mesmo formato: { rates: { BRL: 5.0061 } }. */
 export function parseRatesTable(payload: unknown, from: CurrencyCode, to: CurrencyCode): ExchangeRate | null {
   const p = payload as { rates?: Record<string, number>; date?: string; time_last_update_unix?: number };
@@ -110,8 +100,7 @@ async function deUmaFonte(nome: string, url: string, ler: (json: unknown) => Exc
 /**
  * A cotação do par, tentando as fontes em ordem. A AwesomeAPI responde 429 (pedidos demais) aos
  * servidores da Vercel, que dividem o mesmo endereço com muita gente (07/10/2026): a cotação do
- * lançamento em euro e a do ativo em dólar ficavam vazias em produção. As reservas: o Yahoo
- * (preço de agora), o Frankfurter (taxa do Banco Central Europeu do dia) e a ExchangeRate-API.
+ * lançamento em euro e a do ativo em dólar ficavam vazias em produção. As reservas: o Frankfurter (taxa do Banco Central Europeu do dia) e a ExchangeRate-API.
  */
 export async function getExchangeRate(from: CurrencyCode, to: CurrencyCode): Promise<ExchangeRate | null> {
   if (from === to) return { from, to, rate: 1, date: new Date().toISOString().slice(0, 10) };
@@ -122,7 +111,6 @@ export async function getExchangeRate(from: CurrencyCode, to: CurrencyCode): Pro
 
   const valor =
     (await deUmaFonte(`awesome ${chave}`, `${SOURCE}/${from}-${to}`, (j) => parseAwesomeRate(j, from, to))) ??
-    (await deUmaFonte(`yahoo ${chave}`, `https://query2.finance.yahoo.com/v8/finance/chart/${from}${to}=X?range=1d&interval=1d`, (j) => parseYahooFxRate(j, from, to))) ??
     (await deUmaFonte(`frankfurter ${chave}`, `https://api.frankfurter.dev/v1/latest?base=${from}&symbols=${to}`, (j) => parseRatesTable(j, from, to))) ??
     (await deUmaFonte(`er-api ${chave}`, `https://open.er-api.com/v6/latest/${from}`, (j) => parseRatesTable(j, from, to)));
 
