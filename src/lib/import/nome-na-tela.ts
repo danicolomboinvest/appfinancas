@@ -1,3 +1,5 @@
+import { descricaoSemParcela, parseInstallment } from "@/lib/entries/recurrence";
+
 /**
  * O nome do lançamento para MOSTRAR na importação (07/10/2026): sem o "Compra no débito - " ou o
  * "Transferência enviada pelo Pix - " na frente, que no celular ocupava a linha inteira e cortava
@@ -69,4 +71,19 @@ export function nomeNaTela(descricao: string): { nome: string; meio: string | nu
     }
   }
   return { nome: capitalizar(texto.includes(" - ") ? soONome(texto) : texto), meio: null };
+}
+
+const doisDigitos = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * O nome e a parcela separados, para a lista de lançamentos e a do cartão (pedido de cliente,
+ * 30/10/2026): "Zara (02/03)" em vez de só "Zara". A parcela sai do nome e volta ao lado, discreta,
+ * sempre com dois dígitos. Só quando o app tem certeza de que é parcela (parseInstallment
+ * confident): "POSTO 03/09" é data, e continua no nome como veio.
+ */
+export function nomeEParcela(descricao: string): { nome: string; meio: string | null; parcela: string | null } {
+  const p = parseInstallment(descricao);
+  if (!p || !p.confident) return { ...nomeNaTela(descricao), parcela: null };
+  const semParcela = descricaoSemParcela(descricao);
+  return { ...nomeNaTela(semParcela || descricao), parcela: `${doisDigitos(p.current)}/${doisDigitos(p.total)}` };
 }

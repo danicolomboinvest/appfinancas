@@ -1,3 +1,4 @@
+import { descricaoSemParcela } from "../recurrence";
 import { describe, expect, it } from "vitest";
 import { descricaoComparavel, detectRecurring, installmentCanonical, installmentDescription, parseInstallment, type RecurrenceEntry } from "../recurrence";
 
@@ -86,5 +87,15 @@ describe("descricaoComparavel: a mesma parcela escrita por formatos diferentes",
     expect(descricaoComparavel("Clínica Exemplo (2/8)")).toBe(descricaoComparavel("Clínica Exemplo - Parcela 2/8"));
     expect(descricaoComparavel("CLINICA EXEMPLO PARC 02/08")).toBe(descricaoComparavel("Clinica Exemplo (2/8)"));
     expect(descricaoComparavel("Clínica Exemplo (2/8)")).not.toBe(descricaoComparavel("Clínica Exemplo - Parcela 3/8"));
+  });
+});
+
+describe("descricaoSemParcela", () => {
+  it("tira o N/T, a palavra antes e o que cercava; o resto fica igual", () => {
+    expect(descricaoSemParcela("ZARA PARC 02/03")).toBe("ZARA");
+    expect(descricaoSemParcela("Parcela 2 de 6 - Notebook")).toBe("Notebook");
+    expect(descricaoSemParcela("Mercado Pago (6/6)")).toBe("Mercado Pago");
+    expect(descricaoSemParcela("LOJA 03/09 PARCELA 2/10")).toBe("LOJA 03/09");
+    expect(descricaoSemParcela("IFOOD")).toBe("IFOOD");
   });
 });

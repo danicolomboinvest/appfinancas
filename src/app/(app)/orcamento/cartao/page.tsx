@@ -8,6 +8,7 @@ import { CartaoDoLimite } from "@/components/cartao/CartaoDoLimite";
 import { FormDoLimite } from "./FormDoLimite";
 import { SeusCartoes } from "./SeusCartoes";
 import { cartoesComFaturas } from "@/lib/repositories/cartao.repo";
+import { NomeComParcela } from "@/components/entries/NomeComParcela";
 
 /**
  * Seu cartão (15/10/2026): os cartões cadastrados com as faturas (SeusCartoes) e, embaixo, o
@@ -55,7 +56,10 @@ export default async function LimiteDoCartaoPage() {
               {gastos.map((g) => (
                 <li key={g.id} className="flex min-h-12 items-center justify-between gap-3 py-2.5">
                   <span className="min-w-0">
-                    <span className="block truncate text-sm text-ink">{g.description || g.subcategory || t.uiTipoGasto}</span>
+                    {/* Quebra linha em vez de cortar (regra da Dani); a parcela vai ao lado do nome. */}
+                    <span className="block break-words text-sm text-ink">
+                      <NomeComParcela descricao={g.description} semNome={g.subcategory || t.uiTipoGasto} />
+                    </span>
                     {/* A data é só o dia (@db.Date, meia-noite UTC): lida pelo texto, sem fuso, como no mês. */}
                     {g.entryDate && (
                       <span className="block text-caption text-ink-muted">{`${g.entryDate.toISOString().slice(8, 10)}/${g.entryDate.toISOString().slice(5, 7)}`}</span>
