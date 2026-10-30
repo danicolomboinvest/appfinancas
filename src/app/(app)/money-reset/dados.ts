@@ -18,7 +18,8 @@ import { acharRecorrentes, type EscolhaDoRaioX } from "@/lib/decisoes/raio-x";
 import { marcasQueMaisLevam, type GastoDeMarca } from "@/lib/money-reset/marcas-do-reset";
 import { normalizarDescricao } from "@/lib/marcas/marca";
 import { carregarFoco } from "@/app/(app)/mensal/foco/dados";
-import { getOwnUser } from "@/lib/repositories/user.repo";
+import { getDiaInicioMes, getOwnUser } from "@/lib/repositories/user.repo";
+import { mesDeAgoraDaPessoa } from "@/lib/mes/periodo";
 import { getRendaMedia } from "@/lib/repositories/renda-media.repo";
 import { acharMetaDaReserva } from "@/lib/portfolio/reserva-da-pessoa";
 import { carregarParcelasDoMes } from "@/lib/repositories/parcelas.repo";
@@ -113,8 +114,10 @@ export type DadosDoMarco =
 
 export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: { fixasTotal?: number } = {}): Promise<DadosDoMarco> {
   const agora = nowInBrazil();
-  const ano = agora.getFullYear();
-  const mes = agora.getMonth() + 1;
+  // O mês da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 o mês de agora é outubro
+  // (15/10 a 14/11), e os "3 últimos meses" contam a partir dele. Sem dia escolhido, o calendário.
+  const diaInicio = await getDiaInicioMes(ctx);
+  const { year: ano, month: mes } = mesDeAgoraDaPessoa(agora, diaInicio);
   const tres = () => listEntriesForMonths(ctx, mesesAntes(ano, mes, 3));
   const plano = () => getMonthlyPlan(ctx, ano, mes);
   const dono = doDono(ctx);
@@ -265,7 +268,7 @@ export async function carregarDadosDoMarco(ctx: AuthContext, n: number, extras: 
         carregarFoco(ctx),
         plano(),
         getEmergencyFund(ctx),
-        listGoalsWithProgress(ctx),
+        listGoalsWithProgress(ctx, diaInicio),
         getOwnUser(ctx),
         prisma.decisao.count({ where: { ...dono, tipo: "fechamento" } }),
         prisma.budget.count({ where: { ...dono, year: ano, month: mes, plannedAmount: { gt: 0 } } }),

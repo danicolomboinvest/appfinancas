@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getRequiredSession } from "@/lib/auth/session";
+import { getRequiredSession, type AuthContext } from "@/lib/auth/session";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
+import { mesDeAgoraDaPessoa } from "@/lib/mes/periodo";
 import { prisma } from "@/lib/db/prisma";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { registrarDecisaoUnica } from "@/lib/repositories/decisao.repo";
@@ -22,9 +24,15 @@ import { MAIOR_VALOR } from "@/lib/dinheiro/digitado";
 const idDoAviso = z.string().regex(/^[a-z]+(-[A-Za-z0-9_]+)?$/).max(80);
 const escopo = z.enum(["mes", "semana"]);
 
-function periodo(e: "mes" | "semana") {
+/**
+ * A chave do período da resposta: a semana, ou o mês da pessoa (30/10/2026: com o mês começando
+ * dia 15, em 05/11 a chave é "2026-10", a mesma que as telas leem em lib/avisos/respostas).
+ */
+async function periodo(ctx: AuthContext, e: "mes" | "semana") {
   const now = nowInBrazil();
-  return e === "semana" ? chaveDaSemana(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  if (e === "semana") return chaveDaSemana(now);
+  const m = mesDeAgoraDaPessoa(now, await getDiaInicioMes(ctx));
+  return `${m.year}-${String(m.month).padStart(2, "0")}`;
 }
 
 function revalidarDecisoes() {
@@ -39,13 +47,13 @@ export async function desfazerDispensaAction(itemId: string, quando: "mes" | "se
   const id = idDoAviso.parse(itemId);
   const e = escopo.parse(quando);
   const ctx = await getRequiredSession();
-  await prisma.decisao.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "aviso_dispensado", chave: `${periodo(e)}|${id}` } });
+  await prisma.decisao.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "aviso_dispensado", chave: `${await periodo(ctx, e)}|${id}` } });
   revalidarDecisoes();
 }
 
 /** A resposta conta em todas as telas pela regra única (lib/avisos), com o jeito como ela respondeu. */
 async function dispensar(ctx: Awaited<ReturnType<typeof getRequiredSession>>, id: string, como: "guardar-mais" | "mudar-data" | "sobra-reserva") {
-  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${periodo("mes")}|${id}`, dados: { como } });
+  await registrarDecisaoUnica(ctx, { tipo: "aviso_dispensado", chave: `${await periodo(ctx, "mes")}|${id}`, dados: { como } });
 }
 
 async function metaDela(goalId: string) {
@@ -92,7 +100,7 @@ export async function restaurarMetaAction(antes: MetaAntes) {
   const { ctx, meta } = await metaDela(id);
   if (!meta) return;
   await prisma.goal.updateMany({ where: { id, userId: ctx.userId, profileId: ctx.profileId }, data: { monthlyContribution: valor, targetDate: data } });
-  await prisma.decisao.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "aviso_dispensado", chave: `${periodo("mes")}|meta-${id}` } });
+  await prisma.decisao.deleteMany({ where: { userId: ctx.userId, profileId: ctx.profileId, tipo: "aviso_dispensado", chave: `${await periodo(ctx, "mes")}|meta-${id}` } });
   revalidarDecisoes();
 }
 
@@ -104,15 +112,16 @@ export async function restaurarMetaAction(antes: MetaAntes) {
 export async function combinarSobraNaReservaAction(valor: number) {
   const v = z.number().min(0).max(MAIOR_VALOR).parse(valor);
   const ctx = await getRequiredSession();
-  await registrarDecisaoUnica(ctx, { tipo: "reserva_sobra_combinada", chave: periodo("mes"), valor: v });
+  await registrarDecisaoUnica(ctx, { tipo: "reserva_sobra_combinada", chave: await periodo(ctx, "mes"), valor: v });
   await dispensar(ctx, "reserva", "sobra-reserva");
   revalidarDecisoes();
 }
 
 export async function desfazerSobraNaReservaAction() {
   const ctx = await getRequiredSession();
+  const mes = await periodo(ctx, "mes");
   await prisma.decisao.deleteMany({
-    where: { userId: ctx.userId, profileId: ctx.profileId, OR: [{ tipo: "reserva_sobra_combinada", chave: periodo("mes") }, { tipo: "aviso_dispensado", chave: `${periodo("mes")}|reserva` }] },
+    where: { userId: ctx.userId, profileId: ctx.profileId, OR: [{ tipo: "reserva_sobra_combinada", chave: mes }, { tipo: "aviso_dispensado", chave: `${mes}|reserva` }] },
   });
   revalidarDecisoes();
 }
@@ -124,8 +133,8 @@ export async function desfazerSobraNaReservaAction() {
 export async function guardeiOQueFaltaAction(): Promise<string | null> {
   const ctx = await getRequiredSession();
   const now = nowInBrazil();
-  const ano = now.getFullYear();
-  const mes = now.getMonth() + 1;
+  // O mês da pessoa: o aporte que falta é o do mês dela (o mesmo do Foco), gravado nele.
+  const { year: ano, month: mes } = mesDeAgoraDaPessoa(now, await getDiaInicioMes(ctx));
   const [plano, guardado] = await Promise.all([
     prisma.monthlyPlan.findFirst({ where: { userId: ctx.userId, profileId: ctx.profileId, year: ano, month: mes }, select: { plannedInvestment: true } }),
     prisma.monthlyEntry.aggregate({ where: { userId: ctx.userId, profileId: ctx.profileId, year: ano, month: mes, category: "INVESTMENT_CONTRIBUTION" }, _sum: { amount: true } }),
