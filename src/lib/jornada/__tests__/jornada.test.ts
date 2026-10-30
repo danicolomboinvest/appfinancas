@@ -164,3 +164,29 @@ describe("diasDeUso", () => {
     expect(diasDeUso([{ em: em("02", 15) }, { em: em("03", 2) }, { em: em("03", 15) }])).toBe(2);
   });
 });
+
+describe("montarLinhaDoTempo com e-mail devolvido (Resend, 30/10/2026)", () => {
+  it("põe a devolução no dia certo, com o assunto e o motivo em chip de erro", () => {
+    const itens = montarLinhaDoTempo(
+      base({
+        saiuEm: null,
+        comoSaiu: null,
+        devolucoes: [
+          { evento: "bounced", assunto: "Seu acesso ao SPI Finance", motivo: "mailbox does not exist", em: em("03") },
+          { evento: "complained", assunto: null, motivo: null, em: em("04") },
+        ],
+      }),
+    );
+    const textos = itens.map((i) => i.texto);
+    expect(textos).toEqual(["Comprou pela Hubla", "Criou a conta", "Nunca subiu um arquivo", "E-mail devolvido", "Marcou o e-mail como spam"]);
+    const devolvido = itens[3];
+    expect(devolvido.marca).toBe("parou");
+    expect(devolvido.soDia).toBe(false);
+    expect(devolvido.chips).toEqual([{ texto: "Seu acesso ao SPI Finance" }, { texto: "mailbox does not exist", erro: true }]);
+    expect(itens[4].chips).toEqual([]);
+  });
+
+  it("sem o campo (dados antigos) a linha do tempo fica igual", () => {
+    expect(montarLinhaDoTempo(base())).toEqual(montarLinhaDoTempo(base({ devolucoes: [] })));
+  });
+});

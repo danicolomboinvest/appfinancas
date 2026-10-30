@@ -158,6 +158,8 @@ export type DadosDaJornada = {
   saiuEm: Date | null;
   /** "reembolso" | "cancelou" */
   comoSaiu: "reembolso" | "cancelou" | null;
+  /** E-mails do app devolvidos ou marcados como spam (aviso da Resend, 30/10/2026). */
+  devolucoes?: { evento: "bounced" | "complained"; assunto: string | null; motivo: string | null; em: Date }[];
 };
 
 /** A chave do dia no fuso de Brasília (AAAA-MM-DD), para agrupar o que aconteceu no mesmo dia. */
@@ -263,6 +265,12 @@ export function montarLinhaDoTempo(d: DadosDaJornada): ItemDaLinha[] {
     // O último dia fica depois de tudo o que ela fez nele (a importação do mesmo dia vem antes).
     itens.push({ quando: ultimo ? uso.ate : uso.em, soDia: true, texto: ultimo ? "Último dia no app" : "Abriu o app", marca: ultimo && parou === "usou" ? "parou" : "neutro", chips });
   });
+
+  // E-mail que não chegou: a pessoa pode nunca ter visto o convite ou o lembrete.
+  for (const dv of d.devolucoes ?? []) {
+    const chips = [dv.assunto ? { texto: dv.assunto } : null, dv.motivo ? { texto: dv.motivo, erro: true } : null].filter((c): c is { texto: string; erro?: boolean } => c !== null);
+    itens.push({ quando: dv.em, soDia: false, texto: dv.evento === "complained" ? "Marcou o e-mail como spam" : "E-mail devolvido", marca: "parou", chips });
+  }
 
   if (d.saiuEm) {
     itens.push({ quando: d.saiuEm, soDia: true, texto: d.comoSaiu === "cancelou" ? "Cancelou a renovação" : "Pediu reembolso", marca: "neutro", chips: [] });
