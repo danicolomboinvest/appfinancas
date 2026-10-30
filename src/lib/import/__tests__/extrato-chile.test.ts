@@ -96,7 +96,7 @@ describe("os alarmes de leitura não acusam o peso chileno", () => {
     expect(checarPlausibilidade([{ date: "2026-10-05", description: "Lixo", amount: 900_000_000 }], "extrato", true, "CLP").length).toBe(1);
   });
   it("valores sem centavos são o normal em peso chileno", () => {
-    expect(checarPlausibilidade(txns(10, 12500), "extrato", false, "CLP")).toEqual([]);
-    expect(checarPlausibilidade(txns(10, 12500), "extrato", false, "BRL").length).toBeGreaterThan(0);
+    expect(checarPlausibilidade(txns(10, 12537), "extrato", false, "CLP")).toEqual([]);
+    expect(checarPlausibilidade(txns(10, 12537), "extrato", false, "BRL").length).toBeGreaterThan(0);
   });
 });

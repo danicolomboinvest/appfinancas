@@ -227,3 +227,51 @@ describe("fatura BTG/EQI: compras iguais em dólar não trocam o valor em real",
     ]);
   });
 });
+
+describe("fatura BTG: mensalidade só no resumo e sobra da fatura anterior", () => {
+  // Compras 1.000,00 + mensalidade 90,00 (já com desconto) + encargos 5,00, menos 300,00 que
+  // sobraram de pagamento a mais na fatura anterior = total a pagar 795,00.
+  const MENSALIDADE = [
+    "Olá, Fulana! Esta é a fatura do seu cartão EQI de",
+    "Junho no valor a pagar de R$ 795,00",
+    "Fulana Exemplo | fatura de Junho de 2026 | cartão final 0000",
+    "Vencimento: 11/06",
+    "Mensalidade R$ 120,00",
+    "Desconto -R$ 30,00",
+    "Resumo da Fatura Atual",
+    "Compras à vista R$ 1.000,00",
+    "Outros valores R$ 90,00",
+    "Mensalidade do cartão de crédito R$ 90,00",
+    "Total de compras e despesas R$ 1.090,00",
+    "Total de compras e despesas dessa fatura R$ 1.090,00",
+    "Saldo fatura anterior e pagamentos -R$ 300,00",
+    "Total da fatura anterior R$ 500,00",
+    "Total de pagamentos feitos pelo cliente -R$ 800,00",
+    "Total a pagar R$ 795,00",
+    "Juros e encargos R$ 5,00",
+    "-- 2 of 3 --",
+    "Encargos e juros",
+    "R$ 2,00\tIOF rotativo\t07 Jun R$ 3,00\tEncargos por atraso\t07 Jun",
+    "R$ 5,00",
+    "Lançamentos do cartão físico | Fulana Exemplo | Final 0000 Total do cartão: R$ 1.000,00",
+    "Total de compras e despesas",
+    "R$ 600,00\tLoja Exemplo\t08 Mai",
+    "R$ 400,00\tMercado Exemplo\t09 Mai",
+    "R$ 1.000,00",
+    "BTG Pactual S.A",
+  ].join("\n");
+
+  it("lança a mensalidade do resumo e a leitura fecha com o total a pagar", () => {
+    const { txns, leitor } = parseStatementComLeitor(MENSALIDADE, "pdf", 2026);
+    expect(leitor).toBe("btg-fatura");
+    expect(txns).toContainEqual({ date: "2026-06-11", description: "Mensalidade cartão de crédito", amount: 90 });
+    const linhas = txns.filter((t) => !isFaturaSummaryLine(t));
+    expect(conferirLeitura(MENSALIDADE, "fatura", linhas)).toMatchObject({ status: "fechou" });
+  });
+
+  it("não dobra a mensalidade que já vem na lista de lançamentos", () => {
+    const comLinha = MENSALIDADE.replace("R$ 1.000,00\nBTG", "R$ 90,00\tMensalidade cartão de crédito\t06 Jun\nR$ 1.090,00\nBTG");
+    const txns = parseBtgInvoice(comLinha, 2026);
+    expect(txns.filter((t) => /mensalidade/i.test(t.description))).toHaveLength(1);
+  });
+});

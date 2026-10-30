@@ -54,6 +54,16 @@ describe("checarPlausibilidade", () => {
     expect(checarPlausibilidade(poucos, "extrato")).toEqual([]);
   });
 
+  /** Extrato de quem só movimenta Pix de valor redondo (R$ 40, R$ 280, R$ 500): leitura certa. */
+  it("não alarma com Pix de valor redondo que termina em zero", () => {
+    const pix = [
+      t("Transferência recebida pelo Pix", 9034),
+      t("Pagamento de fatura", -8199.38),
+      ...[40, 280, 500, 50, 200, 216, 770, 700, 800, 950, 600, 150, 90, 300, 120, 60, 100, 250, 400].map((v, i) => t(`Pix ${i}`, i % 2 ? v : -v)),
+    ];
+    expect(checarPlausibilidade(pix, "extrato")).toEqual([]);
+  });
+
   /** Fatura de cartão é só gasto por natureza: o sinal de "tudo entrada" não vale ali. */
   it("não usa a regra de entradas numa fatura", () => {
     const fatura = Array.from({ length: 12 }, (_, i) => t(`COMPRA ${i}`, 120.5 + i));

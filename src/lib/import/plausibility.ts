@@ -105,8 +105,12 @@ export function checarPlausibilidade(
   //    leitura torta mesmo quando os valores são pequenos demais pra chamar atenção sozinhos.
   // Peso chileno não tem centavo: valor redondo é o normal, não sinal de coluna errada.
   if (txns.length >= 8 && !conferido && !moedaSemCentavos(moeda)) {
-    const redondos = txns.filter((t) => Math.round(Math.abs(t.amount) * 100) % 100 === 0).length;
-    if (redondos / txns.length >= 0.9) {
+    const redondos = txns.filter((t) => Math.round(Math.abs(t.amount) * 100) % 100 === 0);
+    // Pix de R$ 40, R$ 280, R$ 500 é gente: a maioria dos valores redondos termina em zero. Número
+    // de documento e valor sem a vírgula quase nunca (cliente do Nubank com 20 de 22 lançamentos
+    // redondos recebeu o alarme numa leitura certa, 24/10/2026).
+    const terminamEmZero = redondos.filter((t) => Math.round(Math.abs(t.amount)) % 10 === 0).length;
+    if (redondos.length / txns.length >= 0.9 && terminamEmZero / redondos.length < 0.6) {
       suspeitas.push({
         texto: `Nenhum dos ${txns.length} valores tem centavos. Isso costuma indicar que o app pegou a coluna errada do arquivo, ou perdeu a vírgula dos centavos.`,
         exemplos: txns.slice(0, 3).map((t) => `${(t.description ?? "").slice(0, 34)}: ${money(t.amount)}`),

@@ -75,6 +75,10 @@ const PAGAMENTO_ANTECIPADO_C6 = new RegExp(String.raw`\(-\)\s*${VALOR}\s+pagamen
  * quando a pessoa pagou por débito e boleto). */
 const SICOOB_RESUMO = /^\+ (\d{1,3}(?:\.\d{3})*,\d{2})\s+(?:ENCARGOS|DESPESAS\/D[ÉE]BITOS(?: INTERNACIONAIS)?)$/gm;
 
+/** BTG/EQI: "Saldo fatura anterior e pagamentos -R$ 540,00" é o que sobrou (ou faltou) da fatura
+ * anterior depois dos pagamentos e vem somado no "Total a pagar"; não é compra deste mês. */
+const SALDO_ANTERIOR_BTG = /^Saldo fatura anterior e pagamentos\s+(-)?R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})/im;
+
 const OUTROS_LANCAMENTOS = new RegExp(String.raw`^outros\s+lan[çc]amentos\s*${VALOR}`, "im");
 
 /**
@@ -170,6 +174,11 @@ export function conferirLeitura(texto: string, docType: string, txns: ParsedTran
     if (totalDoResumo !== null && anterior !== null && pagamento !== null) {
       const doMes = Math.round((totalDoResumo - anterior + pagamento) * 100) / 100;
       if (doMes > 0) referencias.push(doMes);
+    }
+    const saldoBtg = texto.match(SALDO_ANTERIOR_BTG);
+    if (total !== null && saldoBtg) {
+      const saldo = Number(saldoBtg[2].replace(/\./g, "").replace(",", ".")) * (saldoBtg[1] ? -1 : 1);
+      referencias.push(Math.round((total - saldo) * 100) / 100);
     }
     const sicoob = [...texto.matchAll(SICOOB_RESUMO)];
     if (sicoob.length > 0) referencias.push(Math.round(sicoob.reduce((s, m) => s + (numero([m[0], m[1]]) ?? 0), 0) * 100) / 100);
