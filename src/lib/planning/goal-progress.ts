@@ -14,6 +14,7 @@
  * repositório só traz os números e chama esta função.
  */
 
+import { mesDeAgoraDaPessoa } from "@/lib/mes/periodo";
 export type GoalContribution = {
   amount: number;
   /** Pedaços deste aporte que foram pra algum ativo, com a meta do ativo de destino. */
@@ -83,8 +84,9 @@ export function goalCurrentAmount(
  * Sem esse corte, R$ 500 marcado em setembro virava R$ 2.000 guardados na hora — meta pequena
  * aparecia "atingida" com dinheiro que ainda nem saiu da conta.
  */
-export function aportesJaOcorridosWhere(today: Date) {
-  const year = today.getFullYear();
-  const month = today.getMonth() + 1;
+export function aportesJaOcorridosWhere(today: Date, diaInicio: number | null = null) {
+  // O mês da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 o mês de agora ainda é
+  // outubro, e a cópia de novembro ainda não saiu da conta. Sem dia escolhido, o calendário.
+  const { year, month } = mesDeAgoraDaPessoa(today, diaInicio);
   return { OR: [{ year: { lt: year } }, { year, month: { lte: month } }] };
 }

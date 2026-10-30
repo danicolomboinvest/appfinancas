@@ -1,4 +1,5 @@
 import { nowInBrazil } from "@/lib/date/brazil-now";
+import { diasRestantesNoMes, periodoDeAgora } from "@/lib/mes/periodo";
 
 /**
  * De onde tirar quando uma categoria passa do plano (regra 3.1, rodadas 38 e 53, decisão da
@@ -67,13 +68,19 @@ export type PlanoDeCobrir = {
 /** O mês do ponto de vista do remanejo: quantos dias faltam (com hoje) e quantos tem. */
 export type TempoDoMes = { diasRestantes: number; diasNoMes: number };
 
-/** O tempo de hoje, no calendário do Brasil (quem não manda o tempo cai aqui). */
-export function tempoDeHoje(hoje: Date = nowInBrazil()): TempoDoMes {
-  const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-  return { diasRestantes: Math.max(1, diasNoMes - hoje.getDate() + 1), diasNoMes };
+/**
+ * O tempo de hoje, no mês da pessoa (quem não manda o tempo cai aqui). Com dia de início
+ * (30/10/2026), o mês é o período dela (15/10 a 14/11); sem dia escolhido, o do calendário.
+ */
+export function tempoDeHoje(hoje: Date = nowInBrazil(), diaInicio: number | null = null): TempoDoMes {
+  const p = periodoDeAgora(hoje, diaInicio);
+  return { diasRestantes: diasRestantesNoMes(hoje, diaInicio), diasNoMes: p.dias };
 }
 
-/** O tempo a partir dos dias que faltam (com hoje); sem o tamanho do mês, o do mês de hoje. */
+/**
+ * O tempo a partir dos dias que faltam (com hoje); sem o tamanho do mês, o do mês de hoje no
+ * calendário. Quem tem dia de início manda o `diasNoMes` do período dela (o Foco já traz).
+ */
 export function tempoDoMes(diasRestantes: number, diasNoMes: number = tempoDeHoje().diasNoMes): TempoDoMes {
   return { diasRestantes, diasNoMes };
 }

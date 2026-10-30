@@ -133,3 +133,29 @@ describe("último gasto de outro mês (08/10/2026)", () => {
     expect(r.ultimoDiaLancado).toBe(3);
   });
 });
+
+describe("resumoDoMes com o mês da pessoa (dia de início)", () => {
+  it("dia 1 (ou nulo) é idêntico ao de sempre", () => {
+    const semDia = resumoDoMes({ ...base, planejado: 3000, gasto: 1850, ...emDia(20) });
+    expect(resumoDoMes({ ...base, planejado: 3000, gasto: 1850, ...emDia(20), diaInicio: 1 })).toEqual(semDia);
+    expect(resumoDoMes({ ...base, planejado: 3000, gasto: 1850, ...emDia(20), diaInicio: null })).toEqual(semDia);
+  });
+
+  it("dia 15: em 05/11 outubro (15/10 a 14/11) ainda é o mês corrente, no dia 22 de 31, com 10 dias pela frente", () => {
+    const hoje = new Date(2026, 10, 5, 12);
+    const r = resumoDoMes({ ano: 2026, mes: 10, planejado: 3100, gasto: 2000, hoje, ultimoGasto: new Date(Date.UTC(2026, 10, 5)), diaInicio: 15 });
+    expect(r.diasRestantes).toBe(10);
+    expect(r.doMes).toBeCloseTo(22 / 31, 6);
+    expect(r.porDia).toBeCloseTo(1100 / 10, 2);
+    expect(r.ultimoDiaLancado).toBe(5);
+    expect(r.situacao).toBe("no-ritmo");
+    // Novembro dela (15/11 a 14/12) ainda não começou: nada de dias restantes.
+    expect(resumoDoMes({ ano: 2026, mes: 11, planejado: 3100, gasto: 0, hoje, diaInicio: 15 }).diasRestantes).toBe(0);
+  });
+
+  it("dia 15: o último gasto de 01/11 conta como gasto de outubro, e o de 14/10 não", () => {
+    const hoje = new Date(2026, 10, 5, 12);
+    expect(resumoDoMes({ ano: 2026, mes: 10, planejado: 3100, gasto: 10, hoje, ultimoGasto: new Date(Date.UTC(2026, 10, 1)), diaInicio: 15 }).ultimoDiaLancado).toBe(1);
+    expect(resumoDoMes({ ano: 2026, mes: 10, planejado: 3100, gasto: 10, hoje, ultimoGasto: new Date(Date.UTC(2026, 9, 14)), diaInicio: 15 }).ultimoDiaLancado).toBeNull();
+  });
+});

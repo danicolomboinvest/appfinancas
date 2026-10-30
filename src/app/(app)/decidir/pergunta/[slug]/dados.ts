@@ -3,6 +3,8 @@ import type { AuthContext } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { categoryLabel } from "@/lib/categories";
 import { getMonthlySummary } from "@/lib/consolidation/monthly";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
+import { periodoDoMes } from "@/lib/mes/periodo";
 import { sumExpensesByParentCategory } from "@/lib/repositories/budget.repo";
 import { getMonthlyPlan } from "@/lib/repositories/monthly-plan.repo";
 import { listGoalsWithProgress } from "@/lib/repositories/goal.repo";
@@ -45,11 +47,18 @@ async function resumoDoMes(ctx: AuthContext, ano: number, mes: number): Promise<
 
 /** Tudo que as respostas da Central precisam, numa carga só (a mesma base do Foco). */
 export async function carregarRespostas(ctx: AuthContext) {
-  const d = await carregarFoco(ctx);
+  const [d, diaInicio] = await Promise.all([carregarFoco(ctx), getDiaInicioMes(ctx)]);
   const { year, month } = d;
   const passado = new Date(year, month - 2, 1);
   const retrasado = new Date(year, month - 3, 1);
-  const tresMesesAtras = new Date(Date.UTC(year, month - 4, 1));
+  // Os 3 meses fechados pela data: do primeiro dia do mês de 3 meses atrás até o primeiro dia do mês
+  // de agora, no período da pessoa (30/10/2026); sem dia escolhido, o dia 1 do calendário.
+  const primeiroDia = (m: { year: number; month: number }) => {
+    const i = periodoDoMes(m.year, m.month, diaInicio).inicio;
+    return new Date(Date.UTC(i.getFullYear(), i.getMonth(), i.getDate()));
+  };
+  const tresMesesAtras = primeiroDia({ year: new Date(year, month - 4, 1).getFullYear(), month: new Date(year, month - 4, 1).getMonth() + 1 });
+  const inicioDoMesDeAgora = primeiroDia({ year, month });
   const [plano, rendaMedia, gastoTipico, metas, aportesPorMeta, mesPassado, mesRetrasado, maioresPassado, rendaDoCasal, limite] = await Promise.all([
     getMonthlyPlan(ctx, year, month),
     getRendaMedia(ctx),
@@ -59,7 +68,7 @@ export async function carregarRespostas(ctx: AuthContext) {
     // Por mês também: dá pra saber em quantos meses entrou dinheiro pra meta.
     prisma.monthlyEntry.groupBy({
       by: ["goalId", "year", "month"],
-      where: { userId: ctx.userId, profileId: ctx.profileId, category: "INVESTMENT_CONTRIBUTION", goalId: { not: null }, entryDate: { gte: tresMesesAtras, lt: new Date(Date.UTC(year, month - 1, 1)) } },
+      where: { userId: ctx.userId, profileId: ctx.profileId, category: "INVESTMENT_CONTRIBUTION", goalId: { not: null }, entryDate: { gte: tresMesesAtras, lt: inicioDoMesDeAgora } },
       _sum: { amount: true },
     }),
     resumoDoMes(ctx, passado.getFullYear(), passado.getMonth() + 1),

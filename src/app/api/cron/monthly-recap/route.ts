@@ -9,8 +9,10 @@ import {
   decideRecapEmail,
   escolherPerfilDoResumo,
   MAX_NUDGES,
+  mesFechadoDaPessoa,
   podeEnviarResumoHoje,
 } from "@/lib/insights/recap-audience";
+import { diaDeInicioDoMes, intervaloDoMes, periodoDoMes } from "@/lib/mes/periodo";
 import { nowInBrazil } from "@/lib/date/brazil-now";
 import { toCurrencyCode } from "@/lib/money";
 import { categoryLabel, isParentCategoryKey } from "@/lib/categories";
@@ -79,32 +81,25 @@ export async function GET(request: Request) {
   // ?onlyEmail=x@y.com envia só pra esse endereço — o teste antes de soltar pra base inteira.
   const onlyEmail = url.searchParams.get("onlyEmail")?.trim().toLowerCase();
 
-  // Mês fechado = o anterior ao de hoje (fuso do Brasil; no fim da noite, o servidor em UTC
-  // já estaria no dia seguinte e recaparia o mês errado na virada).
+  // O mês fechado é o da PESSOA (30/10/2026): o período que acabou. Sem dia escolhido, o mês do
+  // calendário anterior ao de hoje, e o envio vale nos dias 1 a 3, como sempre; com o mês começando
+  // dia 15, outubro (15/10 a 14/11) fecha em 14/11 e o e-mail sai de 15 a 17/11. Decidido por
+  // pessoa, logo abaixo (mesFechadoDaPessoa); a trava recapEmailSentMonth usa a chave do mês dela.
+  // Fuso do Brasil: no fim da noite, o servidor em UTC já estaria no dia seguinte e fecharia o mês
+  // errado na virada.
   const now = nowInBrazil();
-  // O agendamento é diário, mas o envio só vale na virada (dias 1 a 3): fora dela a rodada sai
-  // sem consultar nada. Ver podeEnviarResumoHoje.
-  if (!podeEnviarResumoHoje(now.getDate(), { dryRun, onlyEmail })) {
-    return NextResponse.json({ ok: true, skipped: true, motivo: "fora dos dias 1 a 3 do mês" });
-  }
-  const target = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const year = target.getFullYear();
-  const month = target.getMonth() + 1;
-  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-  const monthLabel = target.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  // A chave do mês de quem não escolheu dia (a quase totalidade), para a resposta.
+  const monthKey = mesFechadoDaPessoa(now, null).monthKey;
 
   const baseUrl = appBaseUrl(request);
 
-  // Todo mundo que ainda quer receber e ainda não recebeu o e-mail DESTE mês. Quem recebe o
-  // resumo e quem recebe o convite é decidido por pessoa, logo abaixo.
-  // O OR com null explícito é obrigatório: em SQL, `NOT (coluna = 'x')` com a coluna NULA dá
-  // NULL (nem verdadeiro nem falso) e a linha fica de fora — e a coluna é nula pra quem nunca
-  // recebeu, ou seja, o filtro sozinho não enviaria pra NINGUÉM, em silêncio.
+  // Todo mundo que ainda quer receber. O mês fechado, o "dias 1 a 3" e a trava do mês são por
+  // pessoa (o mês dela pode não ser o do calendário), então saem em memória, logo abaixo. Quem
+  // recebe o resumo e quem recebe o convite também é decidido por pessoa.
   const todos = await prisma.user.findMany({
     where: {
       notifyMonthlyRecap: true,
       role: "CLIENT",
-      OR: [{ recapEmailSentMonth: null }, { recapEmailSentMonth: { not: monthKey } }],
       // Conta que nunca confirmou o e-mail pode ter sido criada com o e-mail de outra pessoa:
       // não manda nada pra essa caixa.
       AND: [{ OR: [{ emailVerifiedAt: { not: null } }, { createdAt: { lt: CONFIRMACAO_DESDE } }] }],
@@ -118,40 +113,55 @@ export async function GET(request: Request) {
       currency: true,
       createdAt: true,
       recapNudgeCount: true,
+      recapEmailSentMonth: true,
+      diaInicioMes: true,
       _count: { select: { financialProfiles: true } },
     },
     // Ordem fixa: se o tempo acabar no meio, a rodada seguinte continua de onde parou (quem já
-    // recebeu sai da consulta pela trava do mês).
+    // recebeu sai pela trava do mês).
     orderBy: { id: "asc" },
   });
+  // O agendamento é diário, mas o envio só vale na virada do mês de cada pessoa (dias 1 a 3 dele):
+  // fora dela, ninguém. Ver podeEnviarResumoHoje. E a trava: quem já recebeu o e-mail DESTE mês
+  // dela (recapEmailSentMonth com a chave dele) não recebe de novo.
+  const naVirada = todos.flatMap((u) => {
+    const fechado = mesFechadoDaPessoa(now, diaDeInicioDoMes(u.diaInicioMes));
+    if (!podeEnviarResumoHoje(fechado.dia, { dryRun, onlyEmail })) return [];
+    if (u.recapEmailSentMonth === fechado.monthKey) return [];
+    return [{ ...u, fechado }];
+  });
+  if (naVirada.length === 0) {
+    return NextResponse.json({ ok: true, skipped: true, motivo: "fora dos dias 1 a 3 do mês (de cada pessoa)" });
+  }
   // Reembolso ou cancelamento: o app nem abre pra ela, e o resumo levaria pra uma tela trancada.
   // Quem sobrou do grátis continua recebendo (ver usoDoApp).
-  const comAcesso = await contasQueUsamOApp(todos);
-  const candidates = todos.filter((u) => comAcesso.has(normalizeEmail(u.email)));
+  const comAcesso = await contasQueUsamOApp(naVirada);
+  const candidates = naVirada.filter((u) => comAcesso.has(normalizeEmail(u.email)));
 
   // Lançamentos do mês por pessoa E por perfil, numa consulta só (em blocos, pra lista de ids
-  // não crescer sem limite). A atividade precisa ser do mesmo perfil dos números do e-mail.
+  // não crescer sem limite). A atividade precisa ser do mesmo perfil dos números do e-mail, e do
+  // mês fechado DA pessoa: os meses diferentes entram juntos no OR e a chave do mapa leva o mês.
+  const chaveDaPessoaNoMes = (userId: string, year: number, month: number) => `${userId}|${year}-${month}`;
   const lancamentosPorPessoa = new Map<string, { profileId: string | null; lancamentos: number }[]>();
   for (let i = 0; i < candidates.length; i += 1000) {
-    const ids = candidates.slice(i, i + 1000).map((c) => c.id);
+    const bloco = candidates.slice(i, i + 1000);
+    const ids = bloco.map((c) => c.id);
+    const meses = new Map(bloco.map((c) => [c.fechado.monthKey, c.fechado]));
     const grupos = await prisma.monthlyEntry.groupBy({
-      by: ["userId", "profileId"],
+      by: ["userId", "profileId", "year", "month"],
       // Só conta o que ela lançou ou importou DEPOIS que o mês começou: conta fixa "todo mês" e
       // parcela criadas antes já estão no banco, e com elas quem sumiu recebia "resumo" com um
       // mês de mentira (e o contador de convites zerava). Mesmo corte de contarGastosReaisDoMes.
-      where: { userId: { in: ids }, year, month, createdAt: { gte: new Date(Date.UTC(year, month - 1, 1, 3)) } },
+      where: { userId: { in: ids }, OR: [...meses.values()].map((m) => ({ year: m.year, month: m.month, createdAt: { gte: tresDaManhaDeBrasilia(m.periodo.inicio) } })) },
       _count: { _all: true },
     });
     for (const g of grupos) {
-      const lista = lancamentosPorPessoa.get(g.userId) ?? [];
+      const chave = chaveDaPessoaNoMes(g.userId, g.year, g.month);
+      const lista = lancamentosPorPessoa.get(chave) ?? [];
       lista.push({ profileId: g.profileId, lancamentos: g._count._all });
-      lancamentosPorPessoa.set(g.userId, lista);
+      lancamentosPorPessoa.set(chave, lista);
     }
   }
-
-  // Início do mês fechado: quem criou a conta depois disso não leva cobrança do mês.
-  const monthStart = new Date(year, month - 1, 1);
-  const newMonthLabel = now.toLocaleDateString("pt-BR", { month: "long" });
 
   let sent = 0;
   let nudges = 0;
@@ -167,7 +177,16 @@ export async function GET(request: Request) {
         break;
       }
 
-      const lancamentos = lancamentosPorPessoa.get(user.id) ?? [];
+      // O mês fechado da pessoa, a chave da trava, o período dele e o mês de agora dela.
+      const { year, month, monthKey, periodo, diaInicio } = user.fechado;
+      // "outubro de 2026"; com dia de início, "outubro de 2026, 15/10 a 14/11" (é como o seletor mostra).
+      const intervalo = intervaloDoMes(year, month, diaInicio);
+      const monthLabel = `${nomeDoMes(year, month)} de ${year}${intervalo ? `, ${intervalo}` : ""}`;
+      // Início do mês fechado: quem criou a conta depois disso não leva cobrança do mês.
+      const monthStart = periodo.inicio;
+      const newMonthLabel = nomeDoMes(user.fechado.agora.year, user.fechado.agora.month);
+
+      const lancamentos = lancamentosPorPessoa.get(chaveDaPessoaNoMes(user.id, year, month)) ?? [];
       // Perfil ativo só é buscado quando precisa (quem não vai receber nada não gasta consulta).
       const ativo = lancamentos.length > 0 ? await getOrCreateActiveProfile(user.id) : null;
       const perfilDoResumoId = ativo ? escolherPerfilDoResumo(lancamentos, ativo.id) : null;
@@ -296,7 +315,7 @@ export async function GET(request: Request) {
         balance: ajuste.balance,
         // Comparar só com um mês anterior que ela viveu inteiro no app: conta criada no dia 25 de
         // agosto, com 2 gastos anotados, levava "seus gastos ficaram 400% acima" em setembro.
-        expenseDelta: previousExpense > 0 && user.createdAt < new Date(Date.UTC(previous.year, previous.month - 1, 1, 3)) ? expense / previousExpense - 1 : null,
+        expenseDelta: previousExpense > 0 && user.createdAt < tresDaManhaDeBrasilia(periodoDoMes(previous.year, previous.month, diaInicio).inicio) ? expense / previousExpense - 1 : null,
         topCategory: top,
         meses,
         categorias,
@@ -350,6 +369,11 @@ export async function GET(request: Request) {
     maxNudges: MAX_NUDGES,
     dryRun,
   });
+}
+
+/** Meia-noite de Brasília (03:00 UTC) do dia, para comparar com createdAt. */
+function tresDaManhaDeBrasilia(dia: Date): Date {
+  return new Date(Date.UTC(dia.getFullYear(), dia.getMonth(), dia.getDate(), 3));
 }
 
 /** URL do app nos links dos e-mails: localhost no computador, senão sempre o domínio de produção (ver url-do-app.ts). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FATURA_PENDENTE, addAccessPeriod, decidirPrazoHubla } from "../allowedEmail.repo";
+import { FATURA_PENDENTE, addAccessPeriod, decidirPrazoHubla, decidirReligarReembolsada } from "../allowedEmail.repo";
 
 const agora = new Date("2026-10-01T12:00:00Z");
 const umAno = addAccessPeriod(agora);
@@ -111,5 +111,36 @@ describe("decidirPrazoHubla: os 2 meses grátis do 'antes de cancelar' não se p
   it("fatura irmã da mesma compra (order bump, prazo a 1 ano) continua sem somar", () => {
     const r = aplicar({ active: true, expiresAt: umAno, lastHublaInvoiceId: "inv_1" }, "inv_2");
     expect(r.decisao.extended).toBe(false);
+  });
+});
+
+describe("decidirReligarReembolsada: quem foi reembolsada só volta com compra nova (30/10/2026)", () => {
+  const reembolso = new Date("2026-10-10T12:00:00Z");
+  const reembolsada = { active: false, reembolsadoEm: reembolso, lastHublaInvoiceId: "inv_1" };
+
+  it("quem nunca foi reembolsada, ou já está ativa, segue o caminho normal", () => {
+    expect(decidirReligarReembolsada({ active: false, reembolsadoEm: null, lastHublaInvoiceId: "inv_1" }, "inv_1", null)).toBe(true);
+    expect(decidirReligarReembolsada({ ...reembolsada, active: true }, "inv_1", null)).toBe(true);
+  });
+
+  it("com a data: paga DEPOIS do reembolso é compra nova e religa; paga antes é o reenvio atrasado e não", () => {
+    expect(decidirReligarReembolsada(reembolsada, "inv_2", new Date("2026-10-20T12:00:00Z"))).toBe(true);
+    expect(decidirReligarReembolsada(reembolsada, "inv_1", new Date("2026-10-01T12:00:00Z"))).toBe(false);
+    // A mesma fatura reembolsada, reenviada com a data antiga: não religa mesmo com id igual.
+    expect(decidirReligarReembolsada(reembolsada, "inv_1", new Date("2026-10-09T12:00:00Z"))).toBe(false);
+    // Data igual ao reembolso (mesmo segundo) não é "depois".
+    expect(decidirReligarReembolsada(reembolsada, "inv_2", reembolso)).toBe(false);
+  });
+
+  it("sem data: só uma fatura diferente da última registrada prova que é outra compra", () => {
+    expect(decidirReligarReembolsada(reembolsada, "inv_2", null)).toBe(true);
+    expect(decidirReligarReembolsada(reembolsada, "inv_1", null)).toBe(false);
+    expect(decidirReligarReembolsada(reembolsada, null, null)).toBe(false);
+    expect(decidirReligarReembolsada(reembolsada, undefined, undefined)).toBe(false);
+  });
+
+  it("sem data e com a última fatura 'pendente' (a compra reembolsada nunca teve a fatura gravada): não religa", () => {
+    expect(decidirReligarReembolsada({ ...reembolsada, lastHublaInvoiceId: FATURA_PENDENTE }, "inv_9", null)).toBe(false);
+    expect(decidirReligarReembolsada({ ...reembolsada, lastHublaInvoiceId: null }, "inv_9", null)).toBe(false);
   });
 });

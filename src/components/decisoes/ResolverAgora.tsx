@@ -32,6 +32,7 @@ export function ResolverAgora({
   essenciais,
   livre,
   diasRestantes,
+  diasNoMes,
   proximoMes,
   className,
 }: {
@@ -41,6 +42,8 @@ export function ResolverAgora({
   essenciais: string[];
   livre: number | null;
   diasRestantes: number;
+  /** Quantos dias o mês da pessoa tem (o Foco traz); sem ele, o do mês de hoje no calendário. */
+  diasNoMes?: number;
   /** "novembro": até quando o aviso some no "Deixar assim". */
   proximoMes: string;
   className?: string;
@@ -54,7 +57,7 @@ export function ResolverAgora({
   const [pendente, iniciar] = useTransition();
   const comEssencial = categorias.map((c) => ({ ...c, essencial: c.essencial || essenciais.includes(c.key) }));
   const passou = comEssencial.find((c) => c.key === categoria);
-  const plano = passou ? planoDeCobrir(passou, comEssencial, tempoDoMes(diasRestantes)) : null;
+  const plano = passou ? planoDeCobrir(passou, comEssencial, tempoDoMes(diasRestantes, diasNoMes)) : null;
   const [opcao, setOpcao] = useState<Opcao>(plano?.principal === "tirar" ? "cobrir" : "livre");
   if (!passou || !plano) return null;
   const valor = quantoPassou(passou);

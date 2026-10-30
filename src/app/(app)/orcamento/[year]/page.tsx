@@ -44,6 +44,7 @@ import { carregarRespostasDoMes, categoriaResolvida } from "@/lib/avisos/respost
 import { SeuPlano } from "@/components/budget/SeuPlano";
 import { vozDoTema } from "@/lib/profiles/voice";
 import { getUltimoGastoAte } from "@/lib/repositories/monthly-entry.repo";
+import { rotulosDasPersonalizadas } from "@/lib/repositories/casa.repo";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -106,7 +107,14 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     customCategories.map((c) => c.id),
   );
   const hasPlan = Object.values(plan).some((v) => v > 0) || Object.values(customPlan).some((v) => v > 0);
-  const customCategoryLabels = new Map(customCategories.map((c) => [c.id, c.name]));
+  // Casal simples: a categoria que o par criou aparece com o nome e o ícone dele (só leitura).
+  const personalizadas = await rotulosDasPersonalizadas(
+    ctx,
+    customCategories,
+    comparison.months.flatMap((m) => m.categories.map((c) => c.categoryKey)),
+  );
+  const customCategoryLabels = new Map([...personalizadas].map(([id, c]) => [id, c.name]));
+  const minhasPersonalizadas = new Set(customCategories.map((c) => c.id));
   // O nome de cada categoria-mãe vem do tipo do perfil (Empresa fala "Estrutura", não "Moradia").
   function categoryLabel(categoryKey: string): string {
     if (categoryKey === "SEM") return "Sem categoria";
@@ -164,10 +172,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           ano: year,
           mes: currentMonthData.month,
           ultimoGasto,
+          // O mês da pessoa (30/10/2026): com dia de início, a régua e os dias restantes são do período dela.
+          diaInicio,
         })
       : null;
 
-  const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month) : 0;
+  const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month, diaInicio) : 0;
   const ROTULO_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   // Na ordem do plano, do maior para o menor (protótipo); a que passou é marcada, não sobe.
   const categoriasDoMes = currentMonthData && detalhe
@@ -197,7 +207,7 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
     return {
       ...c,
       cor: categoryColor(c.key),
-      iconeProprio: customCategories.find((cc) => cc.id === c.key)?.icon,
+      iconeProprio: personalizadas.get(c.key)?.icon ?? undefined,
       maiores: detalhe?.porCategoria[c.key]?.maiores ?? [],
       historico,
       media: fechados.length > 0 ? fechados.reduce((s, h) => s + h.gasto, 0) / fechados.length : c.gasto + c.aVencer,
@@ -217,13 +227,14 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
   // "Seu plano" (o resumo que o Editar meu plano abre primeiro): as categorias com plano e as que
   // fogem do padrão dos últimos 3 meses (ver lib/planning/padrao-orcamento.ts).
   const planoTodo: Record<string, number> = { ...plan, ...customPlan };
-  const ignorarNoPadrao = new Set<string>(Object.keys(hints.padraoByCategory).filter((k) => !isParentCategoryKey(k) && !customCategoryLabels.has(k)));
+  // O padrão sugere plano só pras minhas categorias: a do par não é minha pra planejar.
+  const ignorarNoPadrao = new Set<string>(Object.keys(hints.padraoByCategory).filter((k) => !isParentCategoryKey(k) && !minhasPersonalizadas.has(k)));
   const resumoDoPlano = {
     // O mês do seletor, o mesmo dos valores (abrindo setembro, era "Seu plano de outubro").
     mes: MONTH_LABELS[mesEscolhido - 1].toLowerCase(),
     itens: (currentMonthData ? currentMonthData.categories.map((c) => [c.categoryKey, c.planned] as const) : Object.entries(planoTodo))
       .filter(([, v]) => v > 0)
-      .map(([key, planejado]) => ({ key, label: categoryLabel(key), cor: categoryColor(key), planejado, iconeProprio: customCategories.find((c) => c.id === key)?.icon })),
+      .map(([key, planejado]) => ({ key, label: categoryLabel(key), cor: categoryColor(key), planejado, iconeProprio: personalizadas.get(key)?.icon ?? undefined })),
     ajustes: isCurrentYear ? ajustesDoPadrao({ meses: hints.porMes, plano: planoTodo, ignorar: ignorarNoPadrao }).map((a) => ({ ...a, label: categoryLabel(a.chave) })) : [],
   };
 

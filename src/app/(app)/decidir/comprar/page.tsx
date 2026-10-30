@@ -36,6 +36,8 @@ import { lerDecisao, listarComprasDecididasDesde } from "@/lib/repositories/deci
 import { categoryLabel } from "@/lib/categories";
 import { carregarParcelasDoMes } from "@/lib/repositories/parcelas.repo";
 import { diaDaSemana } from "@/lib/decisoes/foco-semana";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
+import { diasRestantesNoMes, mesDeAgoraDaPessoa, periodoDoMes } from "@/lib/mes/periodo";
 
 /** Rendimento de referência quando a pessoa não informou nenhum (≈ CDI líquido, ao mês). */
 const TAXA_PADRAO = 0.009;
@@ -47,10 +49,12 @@ export default async function PossoComprarPage() {
   if (ehEmpresa(ctx.profileKind)) redirect("/mensal/foco");
   const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
   const now = nowInBrazil();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const diasNoMes = new Date(year, month, 0).getDate();
-  const diasRestantes = Math.max(1, diasNoMes - now.getDate() + 1);
+  // O mês da pessoa (30/10/2026): com o mês começando dia 15, em 05/11 o "mês atual" da compra é
+  // outubro (15/10 a 14/11), com os dias restantes dele. Sem dia escolhido, o mês do calendário.
+  const diaInicio = await getDiaInicioMes(ctx);
+  const { year, month } = mesDeAgoraDaPessoa(now, diaInicio);
+  const periodo = periodoDoMes(year, month, diaInicio);
+  const diasRestantes = diasRestantesNoMes(now, diaInicio);
   // Casal: antes de qualquer conta, saber o que é a "renda" deste perfil. A resposta muda a regra.
   const casal = ehCasal(ctx.profileKind);
   const rendaDoCasal = casal ? await lerDecisao(ctx, "casal_renda", "renda") : null;
@@ -77,7 +81,7 @@ export default async function PossoComprarPage() {
     sumExpensesByCustomCategory(ctx, year, month),
     getMonthlySummary(ctx, year, month),
     getMonthlyPlan(ctx, year, month),
-    listGoalsWithProgress(ctx),
+    listGoalsWithProgress(ctx, diaInicio),
     getEmergencyFund(ctx),
     // O mesmo livre do Resumo (regra A, 13/10/2026): a sobra do dia a dia e o que cabe na semana.
     carregarFoco(ctx),
@@ -229,7 +233,7 @@ export default async function PossoComprarPage() {
           </button>
         </form>
       )}
-      <PossoComprar base={base} hoje={{ ano: year, mes: month }} parcelasNoMes={parcelasNoMes} />
+      <PossoComprar base={base} hoje={{ ano: year, mes: month }} parcelasNoMes={parcelasNoMes} ultimoDiaDoMes={periodo.fim.getDate()} />
     </div>
   );
 }

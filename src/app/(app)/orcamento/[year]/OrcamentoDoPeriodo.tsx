@@ -4,6 +4,7 @@ import type { AuthContext } from "@/lib/auth/session";
 import { getAnnualPlannedVsActual } from "@/lib/planning/budget-comparison";
 import { listEntriesInInterval } from "@/lib/repositories/monthly-entry.repo";
 import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
+import { rotulosDasPersonalizadas, type RotuloDaPersonalizada } from "@/lib/repositories/casa.repo";
 import { CUSTOM_CATEGORY_ICON_MAP, categoryIcon, categoryLabel, colorForCategorySlice, isParentCategoryKey } from "@/lib/categories";
 import { serverMoney } from "@/lib/money-server";
 import { type Intervalo, rotuloDoIntervalo, soMesesInteiros } from "@/lib/visao-geral/periodo";
@@ -27,14 +28,18 @@ export async function OrcamentoDoPeriodo({ ctx, intervalo, agora }: { ctx: AuthC
   const completo = soMesesInteiros(intervalo);
   const meses = mesesDoIntervalo(intervalo);
   const custom = await listCustomCategories(ctx);
-  const nome = (k: string) => (isParentCategoryKey(k) ? categoryLabel(ctx.categorias ?? ctx.profileKind, k) : (custom.find((c) => c.id === k)?.name ?? "Categoria personalizada"));
+  // Casal simples: a categoria que o par criou aparece com o nome e o ícone dele (só leitura).
+  // Preenchido em cada caminho, com os ids que a tela vai mostrar.
+  let personalizadas = new Map<string, RotuloDaPersonalizada>();
+  const nome = (k: string) => (isParentCategoryKey(k) ? categoryLabel(ctx.categorias ?? ctx.profileKind, k) : (personalizadas.get(k)?.name ?? "Categoria personalizada"));
   const cor = (k: string) => colorForCategorySlice(isParentCategoryKey(k) ? { kind: "parent", value: k } : { kind: "custom", value: k }, ctx.categorias);
-  const icone = (k: string) => (isParentCategoryKey(k) ? categoryIcon(ctx.categorias, k as ParentCategory) : (CUSTOM_CATEGORY_ICON_MAP[custom.find((c) => c.id === k)?.icon ?? ""] ?? Tag));
+  const icone = (k: string) => (isParentCategoryKey(k) ? categoryIcon(ctx.categorias, k as ParentCategory) : (CUSTOM_CATEGORY_ICON_MAP[personalizadas.get(k)?.icon ?? ""] ?? Tag));
   const r = rotuloDoIntervalo(intervalo);
   const umDia = intervalo.de.ano === intervalo.ate.ano && intervalo.de.mes === intervalo.ate.mes && intervalo.de.dia === intervalo.ate.dia;
 
   if (!completo) {
     const gastos = gastoPorCategoria(await listEntriesInInterval(ctx, intervalo));
+    personalizadas = await rotulosDasPersonalizadas(ctx, custom, gastos.map((c) => c.key));
     const maior = gastos[0]?.gasto ?? 1;
     const total = gastos.reduce((s, c) => s + c.gasto, 0);
     return (
@@ -71,6 +76,7 @@ export async function OrcamentoDoPeriodo({ ctx, intervalo, agora }: { ctx: AuthC
   const anos = [...new Set(meses.map((m) => m.year))];
   const comparacoes = await Promise.all(anos.map((y) => getAnnualPlannedVsActual(ctx, y)));
   const p = planoDoIntervalo(comparacoes, meses);
+  personalizadas = await rotulosDasPersonalizadas(ctx, custom, p.categorias.map((c) => c.key));
   const hojeDentro = agora.getFullYear() * 12 + agora.getMonth() + 1 <= intervalo.ate.ano * 12 + intervalo.ate.mes;
   const dif = p.planejado - p.gasto;
   const titulo = intervalo.tipo === "custom" ? r.nome : r.sub;

@@ -13,6 +13,8 @@ import { PERGUNTAS_DO_DECIDIR, tituloDaEsfera } from "@/lib/decisoes/esferas";
 import type { EscolhaDoRaioX } from "@/lib/decisoes/raio-x";
 import { lembretesDoRaioX } from "@/lib/assinaturas/lembretes";
 import { RaioX } from "./RaioX";
+import { getDiaInicioMes } from "@/lib/repositories/user.repo";
+import { mesDeAgoraDaPessoa } from "@/lib/mes/periodo";
 
 export default async function RaioXPage() {
   const ctx = await getRequiredSession();
@@ -20,7 +22,9 @@ export default async function RaioXPage() {
   if (ehEmpresa(ctx.profileKind)) redirect("/mensal/foco");
   const t = vozDoTema(ctx.profileTheme, ctx.profileKind).titulos;
   const now = nowInBrazil();
-  const { itens, decididos, canceladas, respostas } = await carregarRaioX(ctx, now.getFullYear(), now.getMonth() + 1);
+  // O mês da pessoa (30/10/2026), o mesmo que o Foco passa ao Raio-X.
+  const mes = mesDeAgoraDaPessoa(now, await getDiaInicioMes(ctx));
+  const { itens, decididos, canceladas, respostas } = await carregarRaioX(ctx, mes.year, mes.month);
   // O lembrete de cancelar no dia da cobrança: só das que estão para cancelar, e só de quem pediu.
   const paraCancelar = itens.filter((i) => decididos.get(i.chave)?.tipo === "raiox_cancelar" && !canceladas.has(i.chave));
   const lembretes = paraCancelar.length > 0 ? await lembretesDoRaioX(ctx, paraCancelar, respostas) : {};

@@ -17,6 +17,9 @@ import { parseBrazilianNumber, type ParsedTransaction } from "./statement-parser
  *
  * O leitor genérico pegava a data de vencimento do boleto com o valor da fatura e o "DESPESAS A
  * VENCER" das próximas faturas como se fossem compras: uma fatura de R$ 1.949 foi lida como R$ 8.990.
+ *
+ * Nome de parcela longo quebra em duas linhas ("19/09 LOJA EXEMPLO 01 DE" e depois
+ * "02 Cidade 100,00D"): sem juntar, a compra sumia e a soma ficava R$ 100 abaixo do total.
  */
 
 const LINHA_RE = /^(\d{2})\/(\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*([DC])$/;
@@ -36,8 +39,9 @@ export function parseCaixaInvoice(texto: string, refYear: number = new Date().ge
   const anoVenc = venc ? Number(venc[3]) : refYear;
   const out: ParsedTransaction[] = [];
   let dentro = false;
+  let pendente: string | null = null;
   for (const bruta of texto.split(/\r?\n/)) {
-    const linha = bruta.replace(/\s+/g, " ").trim();
+    let linha = bruta.replace(/\s+/g, " ").trim();
     if (/^Demonstrativo$/i.test(linha)) {
       dentro = true;
       continue;
@@ -45,6 +49,14 @@ export function parseCaixaInvoice(texto: string, refYear: number = new Date().ge
     if (!dentro) continue;
     // Só depois do demonstrativo: o topo da fatura também diz "VALOR TOTAL DESTA FATURA".
     if (/^Valor total desta fatura\b/i.test(linha)) break;
+    // Linha de compra que terminou em "NN DE" (parcela) continua na seguinte.
+    if (pendente) {
+      linha = `${pendente} ${linha}`;
+      pendente = null;
+    } else if (/^\d{2}\/\d{2} .*\d{2} DE$/.test(linha)) {
+      pendente = linha;
+      continue;
+    }
     const anuidade = linha.match(ANUIDADE_RE);
     if (anuidade) {
       const valor = parseBrazilianNumber(anuidade[2]);

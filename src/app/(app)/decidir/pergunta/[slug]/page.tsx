@@ -136,6 +136,7 @@ export default async function PerguntaPage(props: PageProps<"/decidir/pergunta/[
         essenciais={[...categoriasEssenciais(ctx.categorias?.prefs)]}
         livre={r.d.livreDoMes.tipo === "plano" ? r.d.livreDoMes.valor : null}
         diasRestantes={r.livre.tipo === "semOrcamento" ? 1 : r.livre.diasRestantes}
+        diasNoMes={d.diasNoMes}
         proximoMes={MESES[d.month % 12]}
         className={classeDoBotao}
       />

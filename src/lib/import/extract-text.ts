@@ -14,6 +14,7 @@ import { normalizeLetterSpacedText } from "./letter-spaced";
 import { pdfTextQuality, textoEmbaralhado } from "./pdf-quality";
 import { linhasPorPosicao, precisaRemontarPorPosicao } from "./pdf-por-posicao";
 import { textoPorLayout, type PaginaDoPdf } from "./pdf-layout";
+import { desembrulharLinhasCsv } from "./planilha-linha-csv";
 
 export type UploadEncoding = "text" | "xlsx" | "pdf";
 
@@ -101,7 +102,12 @@ async function xlsxToCsv(buffer: Buffer, password: string | undefined): Promise<
   // americano, "6/30/26", e nenhum leitor entendia: o lançamento caía no mês corrente. Com
   // dateNF ela sai como a pessoa vê no Brasil, "30/06/2026".
   const workbook = XLSX.read(decrypted, { type: "buffer", dateNF: "dd/mm/yyyy" });
-  return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: ";" })).join("\n");
+  return workbook.SheetNames.map((name) => {
+    const aba = workbook.Sheets[name];
+    // Aba de uma coluna só com um CSV inteiro por célula: devolve o CSV de verdade.
+    const linhas = XLSX.utils.sheet_to_json<unknown[]>(aba, { header: 1, raw: false, blankrows: false });
+    return desembrulharLinhasCsv(linhas) ?? XLSX.utils.sheet_to_csv(aba, { FS: ";" });
+  }).join("\n");
 }
 
 const PDF_ESTRAGADO = "Esse PDF não abriu: parece que o download veio incompleto. Baixe de novo no app do banco e envie outra vez.";

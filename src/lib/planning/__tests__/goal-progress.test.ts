@@ -99,4 +99,19 @@ describe("aporte só conta na meta quando o mês dele já começou", () => {
     expect(passa(where, { year: 2026, month: 2 })).toBe(false);
     expect(passa(where, { year: 2027, month: 1 })).toBe(false);
   });
+
+  it("dia 1 (ou nulo) é idêntico ao calendário", () => {
+    const hoje = new Date(2026, 10, 5);
+    expect(aportesJaOcorridosWhere(hoje, 1)).toEqual(aportesJaOcorridosWhere(hoje));
+    expect(aportesJaOcorridosWhere(hoje, null)).toEqual(aportesJaOcorridosWhere(hoje));
+    expect(passa(aportesJaOcorridosWhere(hoje, 1), { year: 2026, month: 11 })).toBe(true);
+  });
+
+  it("dia 15: em 05/11 o mês de agora é outubro, e a cópia de novembro ainda não conta", () => {
+    const where = aportesJaOcorridosWhere(new Date(2026, 10, 5), 15);
+    expect(passa(where, { year: 2026, month: 10 })).toBe(true);
+    expect(passa(where, { year: 2026, month: 11 })).toBe(false);
+    // Em 15/11 começa o novembro dela: aí a cópia de novembro entra.
+    expect(passa(aportesJaOcorridosWhere(new Date(2026, 10, 15), 15), { year: 2026, month: 11 })).toBe(true);
+  });
 });

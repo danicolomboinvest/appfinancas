@@ -50,7 +50,7 @@ type Passo = 1 | 2 | 3 | 4 | 5 | "resposta" | "meta";
  * Cabe, mas…, Melhor esperar), com o aviso de plano apertado, "Como cheguei nisso" e "Virar meta".
  * A conta é a de sempre (`posso-comprar.ts` e `compra-guiada.ts`).
  */
-export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; hoje: { ano: number; mes: number }; parcelasNoMes: number }) {
+export function PossoComprar({ base, hoje, parcelasNoMes, ultimoDiaDoMes }: { base: CompraBase; hoje: { ano: number; mes: number }; parcelasNoMes: number; /** O último dia do mês da pessoa (14, com o mês começando dia 15); sem ele, o do calendário. */ ultimoDiaDoMes?: number }) {
   const money = useMoney();
   const simbolo = currencySymbol(useCurrency());
   const m = (v: number) => money(v, { round: true });
@@ -72,7 +72,7 @@ export function PossoComprar({ base, hoje, parcelasNoMes }: { base: CompraBase; 
   const [salvando, iniciar] = useTransition();
 
   const mesNome = MESES[hoje.mes - 1];
-  const ultimoDia = new Date(hoje.ano, hoje.mes, 0).getDate();
+  const ultimoDia = ultimoDiaDoMes ?? new Date(hoje.ano, hoje.mes, 0).getDate();
   const mesDaqui = (k: number | null) => {
     if (k === null) return "sem previsão";
     const d = new Date(hoje.ano, hoje.mes - 1 + k, 1);
