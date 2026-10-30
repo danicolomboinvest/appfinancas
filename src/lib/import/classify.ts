@@ -1,4 +1,5 @@
 import type { ParentCategory, ProfileKind } from "@prisma/client";
+import type { AssuntoQueJaNasce } from "@/lib/categorias/que-ja-nascem";
 import { chaveCobre, chaveDoComerciante, chaveUtil, ehMovimentoEntrePessoas, separarHorarioECategoria } from "./comerciante";
 import { DICIONARIO_EMPRESA, DICIONARIO_PESSOAL, type RegraDoDicionario } from "./dicionario";
 import { completarPalavraCortada, descolarPalavraDeComida } from "./parece-comida";
@@ -28,7 +29,11 @@ import { completarPalavraCortada, descolarPalavraDeComida } from "./parece-comid
  * grava troca pela categoria "Cuidado pessoal" dela, criando se faltar (cuidado-pessoal.ts); sem
  * isso, fica a reserva Outros › Cuidado pessoal.
  */
-export type Classification = { parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string; cuidadoPessoal?: true };
+/**
+ * `queJaNasce`: roupa ("roupas") ou beleza ("beleza"), para o motor levar à categoria que já nasce
+ * com o perfil (que-ja-nascem.ts) quando ela a tem. Só o dicionário marca.
+ */
+export type Classification = { parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string; cuidadoPessoal?: true; queJaNasce?: AssuntoQueJaNasce };
 export type LearnedRule = { pattern: string; parentCategory: ParentCategory; subcategory?: string; customCategoryId?: string };
 
 type BuiltinRule = RegraDoDicionario;
@@ -220,6 +225,7 @@ function matchBuiltin(description: string, empresa: boolean): Classification | n
       if ("revisar" in rule) return null;
       const achada: Classification = { parentCategory: rule.parentCategory, subcategory: rule.subcategory };
       if (rule.cuidadoPessoal) achada.cuidadoPessoal = true;
+      if (rule.queJaNasce) achada.queJaNasce = rule.queJaNasce;
       return achada;
     }
   }

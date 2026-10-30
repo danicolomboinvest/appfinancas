@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { NovaCategoria } from "@/components/entries/NovaCategoria";
+import { SugeridasQueJaNascem } from "@/components/entries/SugeridasQueJaNascem";
 import type { ParentCategory } from "@prisma/client";
 import { useToast } from "@/components/ui/toast-context";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
@@ -137,6 +138,7 @@ export function EditorDeCategorias({ proprias }: { proprias: Propria[] }) {
           ),
         )}
       </ul>
+      <SugeridasQueJaNascem existentes={proprias.map((c) => c.name)} onCriada={() => router.refresh()} />
       <button type="button" onClick={() => setNova(true)} className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface text-[15px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--color-border-strong)]">
         <Plus size={18} aria-hidden /> Nova categoria
       </button>

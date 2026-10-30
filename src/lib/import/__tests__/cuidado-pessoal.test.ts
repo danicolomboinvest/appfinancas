@@ -44,7 +44,7 @@ describe("dicionário: lojas de roupa, calçado e beleza", () => {
     "CENTAURO CE12 - PARCELA 1/3",
     "MLP*NETSHOES NS",
   ])("%s", (d) => {
-    expect(classifyDictionaryOnly(d)).toEqual({ parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true });
+    expect(classifyDictionaryOnly(d)).toEqual({ parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, queJaNasce: expect.stringMatching(/^(roupas|beleza)$/) });
   });
 });
 

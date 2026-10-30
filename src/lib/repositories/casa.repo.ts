@@ -1,3 +1,4 @@
+import { semearCategoriasQueJaNascem } from "@/lib/repositories/custom-category.repo";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { calcularAcerto, chaveDaConta as chaveDaContaDoAcerto, chaveDoMes, lerConfigCasal, type Acerto, type ConfigCasal } from "@/lib/casal/acerto";
@@ -449,11 +450,13 @@ export async function parDeCasaSimples(userId: string): Promise<ParNaSessao | nu
  * O Pessoal do par: o que ele já tem (se comprou o SPI um dia) ou um novo. "Pode liberar tudo
  * para o par": ele usa o app inteiro no Pessoal dele, sem compra própria.
  */
-export async function garantirPessoalDoPar(userId: string, tx: Pick<typeof prisma, "financialProfile"> = prisma): Promise<{ id: string; criado: boolean }> {
+export async function garantirPessoalDoPar(userId: string, tx: Pick<typeof prisma, "financialProfile" | "customCategory"> = prisma): Promise<{ id: string; criado: boolean }> {
   const pessoal = await tx.financialProfile.findFirst({ where: { userId, kind: "PESSOAL" }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { id: true } });
   if (pessoal) return { id: pessoal.id, criado: false };
   const temAlgum = await tx.financialProfile.findFirst({ where: { userId, isDefault: true }, select: { id: true } });
   const novo = await tx.financialProfile.create({ data: { userId, name: "Pessoal", kind: "PESSOAL", icon: "wallet", theme: "padrao", isDefault: !temAlgum }, select: { id: true } });
+  // O Pessoal novo do par também nasce com Beleza, Roupas, Pet... (que-ja-nascem.ts).
+  await semearCategoriasQueJaNascem({ userId, profileId: novo.id }, tx);
   return { id: novo.id, criado: true };
 }
 

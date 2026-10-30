@@ -1,4 +1,5 @@
 import type { ParentCategory } from "@prisma/client";
+import { assuntoDaClassificacao, type AssuntoQueJaNasce } from "@/lib/categorias/que-ja-nascem";
 import { categoriaDoBancoParaOApp } from "./categoria-do-banco";
 import { classifyDictionaryOnly, classifyLearnedOnly, textoDoDicionario, type Classification, type LearnedRule } from "./classify";
 import { categoriaNaFrenteDaDescricao, ehLojaDeTudo } from "./comerciante";
@@ -23,6 +24,11 @@ import { chaveDeIguais } from "./revisao-em-grupo";
  *
  * A personalizada da regra só vale se ainda existe no perfil (`personalizadas`): apagada, a regra
  * cai para a categoria-mãe de reserva.
+ *
+ * As categorias que já nascem (30/10/2026, que-ja-nascem.ts): o que a comunidade, o banco ou o
+ * dicionário reconhecem como roupa, beleza, pet, assinatura, academia, presente ou doação vai para
+ * a personalizada DELA desse assunto, quando ela a tem (`queJaNascem`). A regra dela continua
+ * vindo antes de tudo. Sem a personalizada, fica a categoria-mãe de sempre.
  */
 export type OrigemDaCategoria = "dela" | "comunidade" | "banco" | "dicionario" | "parece_comida";
 
@@ -32,6 +38,32 @@ export function categorizarLinha(entrada: {
   profileKind?: string | null;
   categoriaDoBanco?: string | null;
   /** Saída de dinheiro: a comunidade só fala de gasto (o estorno usa as outras camadas). */
+  gasto: boolean;
+  personalizadas?: Set<string>;
+  /** Assunto → id da personalizada dela (idsDasQueJaNascem). */
+  queJaNascem?: Map<AssuntoQueJaNasce, string>;
+}): { classificacao: Classification; origem: OrigemDaCategoria } | null {
+  const achada = categorizarSemAsQueJaNascem(entrada);
+  if (!achada || achada.origem === "dela" || achada.classificacao.customCategoryId || !entrada.queJaNascem?.size) return achada;
+  return { ...achada, classificacao: levarParaAQueJaNasce(achada.classificacao, entrada.queJaNascem) };
+}
+
+/** A classificação com a personalizada dela do assunto, quando ela a tem; senão, a mesma. */
+export function levarParaAQueJaNasce(c: Classification, queJaNascem: Map<AssuntoQueJaNasce, string>): Classification {
+  const assunto = assuntoDaClassificacao(c);
+  const id = assunto ? queJaNascem.get(assunto) : undefined;
+  if (!id) return c;
+  // A mãe fica de reserva; a subcategoria sai, como quando ela mesma escolhe a personalizada.
+  const saida: Classification = { parentCategory: c.parentCategory, customCategoryId: id };
+  if (c.cuidadoPessoal) saida.cuidadoPessoal = true;
+  return saida;
+}
+
+function categorizarSemAsQueJaNascem(entrada: {
+  descricao: string;
+  regras: LearnedRule[];
+  profileKind?: string | null;
+  categoriaDoBanco?: string | null;
   gasto: boolean;
   personalizadas?: Set<string>;
 }): { classificacao: Classification; origem: OrigemDaCategoria } | null {
@@ -118,6 +150,7 @@ export function categoriaDaLinha(entrada: {
   /** Saída que é aplicação (pareceAplicacao, em dinheiro-proprio.ts). */
   investimento?: boolean;
   personalizadas?: Set<string>;
+  queJaNascem?: Map<AssuntoQueJaNasce, string>;
 }): CategoriaDaLinha {
   if (entrada.investimento) return { categoria: null, motivo: "investimento", confianca: "alta" };
   const achada = entrada.gasto || entrada.estorno ? categorizarLinha({ ...entrada, gasto: entrada.gasto }) : null;

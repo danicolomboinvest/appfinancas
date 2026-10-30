@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { categoriaParecida, ICONE_CUIDADO_PESSOAL, NOME_CUIDADO_PESSOAL } from "@/lib/import/cuidado-pessoal";
 import { ehEmpresa } from "@/lib/profiles/empresa";
+import { lerPreferenciasDeCategoria } from "@/lib/categories";
+import { CATEGORIAS_QUE_JA_NASCEM, sugeridasQueFaltam } from "@/lib/categorias/que-ja-nascem";
 
 /** Categorias personalizadas do usuário, mais recente primeiro. */
 export async function listCustomCategories(ctx: AuthContext) {
@@ -78,4 +80,38 @@ export async function garantirCuidadoPessoal(
     if (!ja) throw e;
     return ja;
   }
+}
+
+/** O que o semeador precisa do Prisma (o cliente de sempre ou a transação em que o perfil nasce). */
+export type DbDasQueJaNascem = Pick<Prisma.TransactionClient, "customCategory" | "financialProfile">;
+
+/**
+ * As categorias que já nascem com o perfil Pessoal (30/10/2026, que-ja-nascem.ts): Beleza, Roupas,
+ * Presentes, Pet, Assinaturas, Academia e Doação viram CustomCategory da pessoa, com a cor nas
+ * preferências do perfil (como a folha Nova categoria grava). Idempotente: compara o nome sem
+ * acento e sem caixa (e os parecidos: "Vestuário" já cobre Roupas) e só cria o que falta; duas
+ * chamadas ao mesmo tempo esbarram no índice único (userId, profileId, name) e o `skipDuplicates`
+ * deixa passar. Devolve quantas nasceram agora. Perfil Empresa: nenhuma (quem chama decide).
+ */
+export async function semearCategoriasQueJaNascem(dono: { userId: string; profileId: string }, db: DbDasQueJaNascem = prisma): Promise<number> {
+  const existentes = await db.customCategory.findMany({ where: dono, select: { name: true } });
+  const faltam = sugeridasQueFaltam(existentes);
+  if (faltam.length === 0) return 0;
+  const criadas = await db.customCategory.createMany({ data: faltam.map((c) => ({ ...dono, name: c.nome, icon: c.icone })), skipDuplicates: true });
+  if (criadas.count === 0) return 0;
+  // A cor mora em FinancialProfile.categorias.proprias[id].cor (ver PreferenciaDePropria).
+  const novas = await db.customCategory.findMany({ where: { ...dono, name: { in: faltam.map((c) => c.nome) } }, select: { id: true, name: true } });
+  if (novas.length === 0) return criadas.count;
+  const perfil = await db.financialProfile.findFirst({ where: { id: dono.profileId, userId: dono.userId }, select: { categorias: true } });
+  if (perfil) {
+    const prefs = lerPreferenciasDeCategoria(perfil.categorias);
+    const proprias = { ...(prefs.proprias ?? {}) };
+    for (const n of novas) {
+      const cor = CATEGORIAS_QUE_JA_NASCEM.find((c) => c.nome === n.name)?.cor;
+      if (cor && !proprias[n.id]?.cor) proprias[n.id] = { ...(proprias[n.id] ?? {}), cor };
+    }
+    prefs.proprias = proprias;
+    await db.financialProfile.updateMany({ where: { id: dono.profileId, userId: dono.userId }, data: { categorias: JSON.parse(JSON.stringify(prefs)) } });
+  }
+  return criadas.count;
 }

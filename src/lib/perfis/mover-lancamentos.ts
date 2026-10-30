@@ -2,6 +2,7 @@ import type { ParentCategory, ProfileKind } from "@prisma/client";
 import { parseInstallment, installmentCanonical, installmentDescription } from "@/lib/entries/recurrence";
 import { chaveCobre, chaveDoComerciante, chaveUtil } from "@/lib/import/comerciante";
 import { categorizarLinha } from "@/lib/import/motor";
+import { idsDasQueJaNascem } from "@/lib/categorias/que-ja-nascem";
 import { nomeNaTela } from "@/lib/import/nome-na-tela";
 import type { LearnedRule } from "@/lib/import/classify";
 
@@ -82,6 +83,7 @@ export function categoriaNoDestino(entrada: {
         profileKind: entrada.destinoKind,
         gasto: !estorno,
         personalizadas: new Set(entrada.personalizadasDoDestino.map((c) => c.id)),
+        queJaNascem: idsDasQueJaNascem(entrada.personalizadasDoDestino),
       })
     : null;
   if (achada) {

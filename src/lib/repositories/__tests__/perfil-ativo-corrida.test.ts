@@ -42,6 +42,8 @@ vi.mock("@/lib/db/prisma", () => {
       financialProfile,
       // Login do par: conta sem perfil que é par de alguém não ganha um Pessoal. Aqui ninguém é.
       membroCasal: { findFirst: async () => null },
+      // As categorias que já nascem no Pessoal novo (que-ja-nascem.ts): aqui só precisam existir.
+      customCategory: { findMany: async () => [], createMany: async ({ data }: { data: unknown[] }) => ({ count: data.length }) },
       $executeRaw: async () => {
         const anterior = fila;
         fila = anterior.then(() => travou);

@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
 import { DEFAULT_PROFILE_THEME, isProfileThemeKey } from "@/lib/profiles/themes";
+import { semearCategoriasQueJaNascem } from "@/lib/repositories/custom-category.repo";
 import type { ProfileKind } from "@prisma/client";
 
 /**
@@ -137,7 +138,10 @@ export async function getOrCreateActiveProfile(userId: string): Promise<ProfileR
     const comoPar = await tx.membroCasal.findFirst({ where: { userId, saiuEm: null, modelo: "nos-dois" }, select: { profile: { select: CAMPOS } } });
     if (comoPar) return { ...comoPar.profile, isDefault: true };
 
-    return tx.financialProfile.create({ data: { userId, ...PERFIL_INICIAL }, select: CAMPOS });
+    const novo = await tx.financialProfile.create({ data: { userId, ...PERFIL_INICIAL }, select: CAMPOS });
+    // O Pessoal novo já nasce com Beleza, Roupas, Pet... (que-ja-nascem.ts).
+    await semearCategoriasQueJaNascem({ userId, profileId: novo.id }, tx);
+    return novo;
   });
 }
 
@@ -152,7 +156,7 @@ export async function createProfile(userId: string, input: NovoPerfil, db: Prism
     select: { position: true },
     orderBy: { position: "desc" },
   });
-  return db.financialProfile.create({
+  const novo = await db.financialProfile.create({
     data: {
       userId,
       name: nome,
@@ -165,6 +169,9 @@ export async function createProfile(userId: string, input: NovoPerfil, db: Prism
     },
     select: CAMPOS,
   });
+  // Só o Pessoal nasce com as categorias de sempre (Beleza, Roupas, Pet...); Empresa e Nós dois não.
+  if (novo.kind === "PESSOAL") await semearCategoriasQueJaNascem({ userId, profileId: novo.id }, db);
+  return novo;
 }
 
 export async function updateProfile(ctx: AuthContext, id: string, input: Partial<NovoPerfil>): Promise<void> {

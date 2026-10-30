@@ -3,6 +3,7 @@ import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { PERFIL_INICIAL } from "@/lib/repositories/profile.repo";
+import { semearCategoriasQueJaNascem } from "@/lib/repositories/custom-category.repo";
 import { normalizeEmail } from "@/lib/repositories/allowedEmail.repo";
 import type { AccountContext, AuthContext } from "@/lib/auth/session";
 
@@ -52,7 +53,7 @@ export async function findExistingUserEmails(emails: string[]): Promise<string[]
 
 export async function createUser(input: { email: string; password: string; name: string; phone?: string }) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       email: normalizeEmail(input.email),
       passwordHash,
@@ -62,7 +63,24 @@ export async function createUser(input: { email: string; password: string; name:
       // entre o layout e a página, e a conta podia nascer com dois perfis "Pessoal".
       financialProfiles: { create: { ...PERFIL_INICIAL } },
     },
+    include: { financialProfiles: { select: { id: true } } },
   });
+  await semearNoPessoalNovo(user);
+  return user;
+}
+
+/**
+ * As categorias que já nascem (Beleza, Roupas, Pet...) no Pessoal da conta nova. Melhor esforço:
+ * se falhar, a conta existe do mesmo jeito e os chips "Sugeridas" oferecem as mesmas depois.
+ */
+async function semearNoPessoalNovo(user: { id: string; financialProfiles: { id: string }[] }): Promise<void> {
+  const perfil = user.financialProfiles[0];
+  if (!perfil) return;
+  try {
+    await semearCategoriasQueJaNascem({ userId: user.id, profileId: perfil.id });
+  } catch (err) {
+    console.error("createUser: categorias que já nascem", err);
+  }
 }
 
 /**
@@ -72,7 +90,7 @@ export async function createUser(input: { email: string; password: string; name:
  */
 export async function createUserInvite(input: { email: string; name: string; password: string }) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       email: normalizeEmail(input.email),
       passwordHash,
@@ -83,7 +101,10 @@ export async function createUserInvite(input: { email: string; name: string; pas
       // Mesmo motivo do createUser: a conta já nasce com o perfil ativo.
       financialProfiles: { create: { ...PERFIL_INICIAL } },
     },
+    include: { financialProfiles: { select: { id: true } } },
   });
+  await semearNoPessoalNovo(user);
+  return user;
 }
 
 /**

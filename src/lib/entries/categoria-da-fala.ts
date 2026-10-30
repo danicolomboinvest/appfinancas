@@ -2,7 +2,8 @@ import type { ParentCategory } from "@prisma/client";
 import type { Classification, LearnedRule } from "@/lib/import/classify";
 import { normalizeMerchant } from "@/lib/import/classify";
 import { categoriaParecida } from "@/lib/import/cuidado-pessoal";
-import { categorizarLinha } from "@/lib/import/motor";
+import { categorizarLinha, levarParaAQueJaNasce } from "@/lib/import/motor";
+import { idsDasQueJaNascem } from "@/lib/categorias/que-ja-nascem";
 import { acharNoVocabulario, type GrupoFalado } from "./vocabulario-falado";
 
 /**
@@ -71,6 +72,7 @@ export function categoriaDaFala(descricao: string, contexto: ContextoDaFala = {}
     profileKind: contexto.profileKind,
     gasto: true,
     personalizadas: new Set(personalizadas.map((c) => c.id)),
+    queJaNascem: idsDasQueJaNascem(personalizadas),
   });
   // O vocabulário falado (vocabulario-falado.ts): "quentinha", "ração", "abasteci", "ifude".
   const falada = pessoal ? acharNoVocabulario(texto) : null;
@@ -97,6 +99,8 @@ export function categoriaDaFala(descricao: string, contexto: ContextoDaFala = {}
     achada = daFala ?? doMotor?.classificacao ?? null;
   }
   if (!achada) return null;
+  // As que já nascem (30/10/2026): "academia", "presente", "ração", "netflix" vão para a dela.
+  if (!achada.customCategoryId && pessoal) achada = levarParaAQueJaNasce(achada, idsDasQueJaNascem(personalizadas));
   if ((achada.cuidadoPessoal || grupo) && !achada.customCategoryId && pessoal) {
     const dela = categoriaDela(grupo ?? "cuidado", personalizadas);
     if (dela) return { parentCategory: "OUTROS", customCategoryId: dela.id };

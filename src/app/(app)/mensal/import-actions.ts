@@ -48,6 +48,7 @@ import { pdfTextQuality } from "@/lib/import/pdf-quality";
 import { type LearnedRule } from "@/lib/import/classify";
 import { chaveDoComerciante, chaveUtil, ehLojaDeTudo } from "@/lib/import/comerciante";
 import { categoriaDaLinha, type ConfiancaDaCategoria, type MotivoDaCategoria } from "@/lib/import/motor";
+import { idsDasQueJaNascem } from "@/lib/categorias/que-ja-nascem";
 import { estornoClaroNaFatura, pareceEstorno } from "@/lib/import/estorno";
 import { pareceAplicacao, pareceContaPropria, parecePagamentoDeFatura, pareceResgate } from "@/lib/import/dinheiro-proprio";
 import { casarPorDataEValor, type ExistenteSolto } from "@/lib/import/duplicata-solta";
@@ -650,6 +651,8 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     customCategoryId: r.customCategoryId ?? undefined,
   }));
   const personalizadas = new Set(customCategories.map((c) => c.id));
+  // Roupas, Beleza, Pet, Assinaturas, Academia, Presentes e Doação dela (que-ja-nascem.ts).
+  const queJaNascem = idsDasQueJaNascem(customCategories);
 
   const comprasSaoPositivas = docType !== "fatura" || comprasDaFaturaSaoPositivas(parsed);
   // Linhas que o dicionário reconheceu como roupa/beleza (Zara, Levi's, salão): vão pra categoria
@@ -675,6 +678,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
       gasto: isExpense,
       estorno,
       personalizadas,
+      queJaNascem,
     });
     // Estorno sem categoria reconhecida vai pra Outros (o motor já devolve assim).
     const classification = categorizar ? resultado.categoria : null;
@@ -753,7 +757,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
     ...(dosPrints && dosPrints.semReal.length > 0
       ? {
           semValorEmReal: dosPrints.semReal.map((c): CompraParaPreencher => {
-            const sugerida = categoriaDaLinha({ descricao: c.nome, regras: learned, profileKind: ctx.profileKind, gasto: true, estorno: false, personalizadas }).categoria;
+            const sugerida = categoriaDaLinha({ descricao: c.nome, regras: learned, profileKind: ctx.profileKind, gasto: true, estorno: false, personalizadas, queJaNascem }).categoria;
             return { ...c, parentCategory: sugerida?.customCategoryId ? null : (sugerida?.parentCategory ?? null), customCategoryId: sugerida?.customCategoryId ?? null, subcategory: sugerida?.subcategory ?? null };
           }),
         }

@@ -1,4 +1,5 @@
 import type { ParentCategory } from "@prisma/client";
+import type { AssuntoQueJaNasce } from "@/lib/categorias/que-ja-nascem";
 
 /**
  * O dicionário do motor: nome de loja, rede ou tipo de lugar → categoria do app.
@@ -25,6 +26,8 @@ export type RegraDoDicionario =
       cuidadoPessoal?: true;
       /** Nome de loja que também é nome de gente ("Renner", "Zara"): não vale em Pix nem transferência. */
       naoEmPix?: true;
+      /** Roupa ou beleza: qual das categorias que já nascem (que-ja-nascem.ts) é a dela desse assunto. */
+      queJaNasce?: AssuntoQueJaNasce;
     }
   | { keywords: string[]; revisar: true };
 
@@ -99,7 +102,8 @@ const KW_PLATAFORMA_CURSO = ["hubla", "hotmart", "kiwify", "eduzz", "monetizze",
  * (Amazon, Shopee, Mercado Livre, Americanas, TikTok Shop), que continuam pergunta. "C&A" chega
  * como "cea" (textoParaRegras troca o "c&a"), porque "c a" solto casava com iniciais de nome.
  */
-const KW_CUIDADO_PESSOAL = [
+/** Roupa e calçado: a Roupas dela, quando existe (que-ja-nascem.ts). */
+const KW_ROUPA = [
   // Roupa
   "zara brasil", "inditex", "lojas renner", "riachuelo", "lojas riachuelo", "cea", "cea modas", "shein", "sheincom", "shein com",
   "lojas marisa", "marisa lojas", "pernambucanas", "youcom", "levis", "levi s", "levi strauss", "farm rio", "animale",
@@ -109,6 +113,9 @@ const KW_CUIDADO_PESSOAL = [
   // Calçado
   "arezzo", "schutz", "anacapri", "usaflex", "piccadilly", "vizzano", "centauro", "netshoes", "havaianas",
   "nike", "adidas", "olympikus", "calcados", "calçados", "sapataria", "sapatos",
+];
+/** Beleza e cuidado pessoal (loja e serviço): a Beleza dela, quando existe. */
+const KW_BELEZA = [
   // Beleza
   "sephora", "boticario", "o boticario", "oboticario", "natura", "natura cosmeticos", "avon", "quem disse berenice",
   "loccitane", "l occitane", "beleza na web", "belezanaweb", "epoca cosmeticos", "kiko cosmetics", "kiko milano",
@@ -120,8 +127,11 @@ const KW_CUIDADO_PESSOAL = [
   "sobrancelhas", "design de sobrancelha", "depilacao", "depilação", "espacolaser", "espaco laser", "estetica", "estética",
   "beleza", "beauty", "hair",
 ];
+/** Pet shop, clínica veterinária e ração: a Pet dela, quando existe. */
+const KW_PET = ["petz", "cobasi", "petlove", "pet love", "pet shop", "petshop", "pet center", "petcenter", "zee dog", "zeedog", "veterinario", "veterinária", "veterinaria", "clinica veterinaria", "clínica veterinária", "banho e tosa", "racao", "ração", "pet"];
 /** Nome de loja que também é nome ou sobrenome de gente: só fora de Pix e transferência. */
-const KW_CUIDADO_PESSOAL_SEM_PIX = ["zara", "renner", "hering", "granado", "constance", "lupo", "moleca", "mizuno", "eudora", "oceane", "soneda"];
+const KW_ROUPA_SEM_PIX = ["zara", "renner", "hering", "constance", "lupo", "moleca", "mizuno"];
+const KW_BELEZA_SEM_PIX = ["granado", "eudora", "oceane", "soneda"];
 
 /**
  * Argentina (14/10/2026): o peso argentino entrou como moeda, e o extrato e a fatura de lá vêm com
@@ -356,8 +366,15 @@ export const DICIONARIO_PESSOAL: RegraDoDicionario[] = [
   // Outros › Cuidado pessoal.
   // "Salão de festas" do condomínio ou do buffet não é salão de beleza: vira pergunta.
   { keywords: ["salao de festas", "salão de festas", "salao de eventos", "salão de eventos"], revisar: true },
-  { keywords: KW_CUIDADO_PESSOAL, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true },
-  { keywords: KW_CUIDADO_PESSOAL_SEM_PIX, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, naoEmPix: true },
+  // Roupa antes de beleza: quem tem a Roupas e a Beleza (as que já nascem) vê a Renner numa e a
+  // Sephora na outra; quem tem só "Cuidado pessoal" continua vendo as duas lá.
+  { keywords: KW_ROUPA, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, queJaNasce: "roupas" },
+  { keywords: KW_BELEZA, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, queJaNasce: "beleza" },
+  { keywords: KW_ROUPA_SEM_PIX, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, naoEmPix: true, queJaNasce: "roupas" },
+  { keywords: KW_BELEZA_SEM_PIX, parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, naoEmPix: true, queJaNasce: "beleza" },
+  // Pet (30/10/2026): 75 pessoas criaram "Pet" à mão em 30 dias. Sem a categoria dela, Outros › Pet
+  // (a mesma reserva do vocabulário falado). "Pet" e "vet" só como palavra inteira.
+  { keywords: KW_PET, parentCategory: "OUTROS", subcategory: "Pet" },
   // Extrato do Nubank: "Aplicação RDB" é dinheiro indo pra caixinha/investimento, não gasto do dia a dia.
   { keywords: ["aplicação rdb", "aplicacao rdb", "aplicação cdb", "aplicacao cdb", "tesouro direto", "aplicação em"], parentCategory: "OUTROS", subcategory: "Investimento" },
 ];

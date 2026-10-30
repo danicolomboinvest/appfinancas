@@ -22,7 +22,7 @@ describe("classify: palavra inteira, não pedaço de texto", () => {
     expect(classify(pix("JOAO PACHECO", "BCO DA AMAZONIA S.A."))).toBeNull();
     expect(classify("HOTEL PRAIA GRANDE")).toEqual({ parentCategory: "LAZER", subcategory: "Viagens" });
     // Roupa e beleza viram Cuidado pessoal (12/10/2026); o nome de gente igual a loja, em Pix, não.
-    expect(classify("LOJAS RENNER UBERLANDIA")).toEqual({ parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true });
+    expect(classify("LOJAS RENNER UBERLANDIA")).toEqual({ parentCategory: "OUTROS", subcategory: "Cuidado pessoal", cuidadoPessoal: true, queJaNasce: "roupas" });
     expect(classify(pix("ZARA SOUZA", "NU PAGAMENTOS - IP"))).toBeNull();
     // Churrascaria é comida (dicionário de 12/10/2026); o "oi" de "BOI" continua sem virar internet.
     expect(classify("CHURRASCARIA BOI GORDO")).toEqual({ parentCategory: "ALIMENTACAO", subcategory: "Restaurante" });

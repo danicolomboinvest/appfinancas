@@ -5,6 +5,7 @@ import { Check, ChevronLeft } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CUSTOM_CATEGORY_ICON_MAP, CUSTOM_CATEGORY_ICON_OPTIONS } from "@/lib/categories";
 import { createCategoryAction } from "@/lib/actions/category";
+import { SugeridasQueJaNascem } from "./SugeridasQueJaNascem";
 
 /** As 6 cores da folha (protótipo): as de fábrica, que funcionam no claro e no escuro. */
 export const CORES_DA_NOVA = [
@@ -63,6 +64,8 @@ export function NovaCategoria({ existentes = [], onCriada, onVoltar }: { existen
         autoComplete="off"
         className="min-h-12 rounded-2xl border border-border bg-surface px-4 text-base text-ink outline-none focus:border-ink"
       />
+      {/* As que já nascem no perfil novo e ela ainda não tem: um toque cria (que-ja-nascem.ts). */}
+      {!limpo && <SugeridasQueJaNascem existentes={existentes} onCriada={onCriada} />}
       <h3 className="text-[15px] font-medium text-ink">Ícone</h3>
       <div className="grid grid-cols-8 gap-1.5 max-[359px]:grid-cols-6" role="group" aria-label="Ícone">
         {CUSTOM_CATEGORY_ICON_OPTIONS.map((o) => {
