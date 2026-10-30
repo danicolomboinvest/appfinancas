@@ -3,6 +3,7 @@ import {
   decideRecapEmail,
   escolherPerfilDoResumo,
   MAX_NUDGES,
+  mesFechadoDaPessoa,
   podeEnviarResumoHoje,
   type RecapCandidate,
 } from "../recap-audience";
@@ -83,5 +84,35 @@ describe("podeEnviarResumoHoje", () => {
   it("dryRun e onlyEmail (teste manual) passam em qualquer dia", () => {
     expect(podeEnviarResumoHoje(20, { dryRun: true })).toBe(true);
     expect(podeEnviarResumoHoje(20, { dryRun: false, onlyEmail: "a@b.com" })).toBe(true);
+  });
+});
+
+describe("mesFechadoDaPessoa", () => {
+  it("sem dia escolhido (nulo ou 1): o mês anterior ao de hoje, e o dia é o do calendário, como sempre", () => {
+    for (const dia of [null, 1]) {
+      const r = mesFechadoDaPessoa(new Date(2026, 10, 2, 12), dia);
+      expect([r.year, r.month, r.monthKey, r.dia]).toEqual([2026, 10, "2026-10", 2]);
+      expect([r.periodo.inicioIso, r.periodo.fimIso]).toEqual(["2026-10-01", "2026-10-31"]);
+      expect(r.agora).toEqual({ year: 2026, month: 11 });
+      expect(r.periodo.inicio).toEqual(new Date(2026, 9, 1));
+    }
+    // Virada do ano.
+    expect(mesFechadoDaPessoa(new Date(2027, 0, 1, 12), null)).toMatchObject({ year: 2026, month: 12, monthKey: "2026-12", dia: 1 });
+    // Dia 15 do calendário: fora dos dias 1 a 3.
+    expect(podeEnviarResumoHoje(mesFechadoDaPessoa(new Date(2026, 10, 15, 12), null).dia, { dryRun: false })).toBe(false);
+  });
+
+  it("dia 15: em 15/11 fechou outubro (15/10 a 14/11) e é o dia 1 do novembro dela; em 02/11 ainda é o dia 19 de outubro", () => {
+    const r = mesFechadoDaPessoa(new Date(2026, 10, 15, 12), 15);
+    expect([r.year, r.month, r.monthKey, r.dia]).toEqual([2026, 10, "2026-10", 1]);
+    expect([r.periodo.inicioIso, r.periodo.fimIso]).toEqual(["2026-10-15", "2026-11-14"]);
+    expect(r.agora).toEqual({ year: 2026, month: 11 });
+    expect(podeEnviarResumoHoje(r.dia, { dryRun: false })).toBe(true);
+    expect(podeEnviarResumoHoje(mesFechadoDaPessoa(new Date(2026, 10, 17, 12), 15).dia, { dryRun: false })).toBe(true);
+    expect(podeEnviarResumoHoje(mesFechadoDaPessoa(new Date(2026, 10, 18, 12), 15).dia, { dryRun: false })).toBe(false);
+    // Dia 1 do calendário não é virada para ela: setembro dela (15/09 a 14/10) já saiu em 15/10.
+    const em2 = mesFechadoDaPessoa(new Date(2026, 10, 2, 12), 15);
+    expect([em2.year, em2.month, em2.dia]).toEqual([2026, 9, 19]);
+    expect(podeEnviarResumoHoje(em2.dia, { dryRun: false })).toBe(false);
   });
 });

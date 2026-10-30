@@ -7,6 +7,8 @@
  * útil" e "e-mail chato", então precisa ser testável sem banco nem e-mail no meio.
  */
 
+import { diaNoPeriodo, mesDeAgoraDaPessoa, periodoDeAgora, periodoDoMes, type PeriodoDoMes } from "@/lib/mes/periodo";
+
 /** Depois de algumas tentativas sem resposta, o app para de insistir. Quem não usou o app em
  * três meses seguidos não vai passar a usar porque chegou o quarto e-mail — daí em diante é
  * só incômodo. */
@@ -84,4 +86,41 @@ export function podeEnviarResumoHoje(
 ): boolean {
   if (opcoes.dryRun || opcoes.onlyEmail) return true;
   return diaDoMesNoBrasil <= ULTIMO_DIA_DO_ENVIO;
+}
+
+export type MesFechadoDaPessoa = {
+  /** O mês que acabou (nome do mês em que ele começa, como no resto do app). */
+  year: number;
+  month: number;
+  /** "2026-10": a chave da trava recapEmailSentMonth. */
+  monthKey: string;
+  /** O período dele (de 15/10 a 14/11 com dia 15; de 1 ao fim sem dia). */
+  periodo: PeriodoDoMes;
+  /** O mês de agora da pessoa (o que acabou de começar). */
+  agora: { year: number; month: number };
+  /** A posição de hoje no mês de agora (1 = o primeiro dia): é o "dia 1 a 3" de podeEnviarResumoHoje. */
+  dia: number;
+  diaInicio: number | null;
+};
+
+/**
+ * O mês fechado da PESSOA (30/10/2026): o período que acabou. Sem dia escolhido é o mês do
+ * calendário anterior ao de hoje, e `dia` é o dia de hoje (o e-mail sai nos dias 1 a 3, como
+ * sempre). Com o mês começando dia 15, em 15/11 fechou outubro (15/10 a 14/11) e é o dia 1 do
+ * novembro dela: o e-mail sai de 15 a 17/11, e a chave da trava continua "2026-10".
+ */
+export function mesFechadoDaPessoa(agora: Date, diaInicio: number | null): MesFechadoDaPessoa {
+  const deAgora = mesDeAgoraDaPessoa(agora, diaInicio);
+  const anterior = new Date(deAgora.year, deAgora.month - 2, 1);
+  const year = anterior.getFullYear();
+  const month = anterior.getMonth() + 1;
+  return {
+    year,
+    month,
+    monthKey: `${year}-${String(month).padStart(2, "0")}`,
+    periodo: periodoDoMes(year, month, diaInicio),
+    agora: deAgora,
+    dia: diaNoPeriodo(agora, periodoDeAgora(agora, diaInicio)),
+    diaInicio,
+  };
 }

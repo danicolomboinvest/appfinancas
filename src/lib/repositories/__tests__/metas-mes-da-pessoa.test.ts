@@ -26,7 +26,7 @@ vi.mock("@/lib/db/prisma", () => ({
           { goalId: "g1", year: 2026, month: 10, amount: 500, createdAt: new Date("2026-10-20T12:00:00.000Z"), allocations: [] },
           { goalId: "g1", year: 2026, month: 11, amount: 500, createdAt: new Date("2026-10-20T12:00:00.000Z"), allocations: [] },
         ];
-        return aportes.filter((a) => where.OR.some((c) => (typeof c.year === "number" ? a.year === c.year && a.month <= c.month.lte : a.year < c.year.lt)));
+        return aportes.filter((a) => where.OR.some((c) => ("month" in c ? a.year === c.year && a.month <= c.month.lte : a.year < c.year.lt)));
       },
     },
   },
