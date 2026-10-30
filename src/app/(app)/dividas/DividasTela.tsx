@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast-context";
 import { Explica } from "@/components/ui/Explica";
 import { ValorDestaque } from "@/components/ui/ValorDestaque";
 import { comparacaoComBolaDeNeve, ehImpossivel, simularQuitacao, type Plano, type PlanoImpossivel } from "@/lib/dividas/plano";
+import { ATALHOS_DO_EXTRA, EXTRA_INICIAL, textoDoCalculo } from "@/lib/dividas/calculo";
 import { ordemDeAtaque, retratoDe } from "@/lib/dividas/tipos";
 import { paraResolver, parcelasSobreARenda, saudaveis, type DividaDoSpi } from "@/lib/dividas/saude";
 import { CadastroDaDivida } from "./CadastroDaDivida";
@@ -33,7 +34,6 @@ type Props = {
   abrirNova: boolean;
 };
 
-const EXTRA_PADRAO = 200;
 const chaveDoExtra = (perfil: string) => `dividas-extra:${perfil}`;
 
 /**
@@ -48,7 +48,7 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
   const [, startTransition] = useTransition();
 
   const [vista, setVista] = useState<"lista" | "plano">(abrirPlano ? "plano" : "lista");
-  const [extra, setExtraBruto] = useState(EXTRA_PADRAO);
+  const [extra, setExtraBruto] = useState(EXTRA_INICIAL);
   const [saudaveisAbertas, setSaudaveisAbertas] = useState(false);
   const [ordemAberta, setOrdemAberta] = useState(false);
   const [aberta, setAberta] = useState<string | null>(null);
@@ -264,11 +264,12 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
               <small className="text-[15px] text-ink-muted">{ok.meses === 1 ? "mês" : "meses"}</small>
               <span className="absolute right-3 top-1/2 -translate-y-1/2">
                 <Explica rotulo="O que entra nessa data?">
-                  Livre em {fim && mesPorExtenso(fim)}. A data conta só as dívidas para resolver, com {m0(extra)} a mais por mês. As saudáveis (planejadas, com juros abaixo da Selic e em
+                  Livre em {fim && mesPorExtenso(fim)}. A data conta só as dívidas para resolver, {textoDoCalculo(extra, m0)}. As saudáveis (planejadas, com juros abaixo da Selic e em
                   dia) seguem no ritmo delas e não entram aqui.
                 </Explica>
               </span>
             </div>
+            <p className="px-[18px] text-center text-sm text-ink-muted">{textoDoCalculo(extra, m0)}</p>
             <dl className="grid grid-cols-3 gap-2 px-[clamp(14px,4.5cqw,18px)] pb-3.5 pt-2">
               <Campo rotulo="Dívidas" valor={String(res.length)} />
               <Campo rotulo="A mais" valor={m0(extra)} />
@@ -411,9 +412,7 @@ function Rota({ hoje, plano, corDe, folgaDoCarimbo }: { hoje: Hoje; plano: Plano
 }
 
 const ATALHOS = (sobrou: number, m0: (v: number) => string) => [
-  [0, m0(0)],
-  [200, m0(200)],
-  [500, m0(500)],
+  ...ATALHOS_DO_EXTRA.map((v) => [v, m0(v)] as [number, string]),
   ...(sobrou > 0 ? [[sobrou, "O que sobrou"] as [number, string]] : []),
 ] as [number, string][];
 
@@ -455,7 +454,7 @@ function PlanoDoBilhete({
         {ehImpossivel(p) ? (
           <Impossivel p={p} m0={m0} />
         ) : (
-          <ResultadoDoPlano p={p} p0={p0} hoje={hoje} corDe={corDe} m0={m0} />
+          <ResultadoDoPlano p={p} p0={p0} extra={extra} hoje={hoje} corDe={corDe} m0={m0} />
         )}
       </div>
       <div className="bilhete-picote" aria-hidden>
@@ -485,6 +484,7 @@ function PlanoDoBilhete({
               {t}
             </button>
           ))}
+          <OutroValor extra={extra} atalhos={ATALHOS(sobrou, m0).map(([v]) => v)} muda={muda} m0={m0} />
         </div>
       </div>
       <div className="bilhete-picote" aria-hidden>
@@ -508,7 +508,40 @@ function PlanoDoBilhete({
   );
 }
 
-function ResultadoDoPlano({ p, p0, hoje, corDe, m0 }: { p: Plano; p0: Plano | PlanoImpossivel; hoje: Hoje; corDe: (id: string) => string; m0: (v: number) => string }) {
+/** O último atalho: ela digita quanto quer pôr a mais. */
+function OutroValor({ extra, atalhos, muda, m0 }: { extra: number; atalhos: number[]; muda: (v: number) => void; m0: (v: number) => string }) {
+  const [aberto, setAberto] = useState(false);
+  const escolhido = extra > 0 && !atalhos.includes(extra);
+  if (!aberto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        aria-pressed={escolhido}
+        className={`min-h-9 whitespace-nowrap rounded-full px-3.5 text-sm ${escolhido ? "bg-ink text-canvas" : "border border-border bg-surface text-ink"}`}
+      >
+        Outro valor
+      </button>
+    );
+  }
+  return (
+    <label className="flex min-h-9 items-center gap-1.5 rounded-full border border-border-strong bg-surface px-3.5 text-sm text-ink">
+      <input
+        autoFocus
+        inputMode="numeric"
+        maxLength={7}
+        aria-label="Quanto a mais por mês"
+        placeholder="0"
+        defaultValue={extra > 0 ? String(extra) : ""}
+        onChange={(e) => muda(Number(e.target.value.replace(/\D/g, "")) || 0)}
+        className="w-20 bg-transparent tabular-nums text-ink outline-none"
+      />
+      <span className="text-ink-muted">{m0(extra)}</span>
+    </label>
+  );
+}
+
+function ResultadoDoPlano({ p, p0, extra, hoje, corDe, m0 }: { p: Plano; p0: Plano | PlanoImpossivel; extra: number; hoje: Hoje; corDe: (id: string) => string; m0: (v: number) => string }) {
   const antes = !ehImpossivel(p0) ? p0.meses - p.meses : null;
   const economia = !ehImpossivel(p0) ? p0.totalJuros - p.totalJuros : null;
   return (
@@ -519,6 +552,7 @@ function ResultadoDoPlano({ p, p0, hoje, corDe, m0 }: { p: Plano; p0: Plano | Pl
         <span className="text-[clamp(34px,11cqw,44px)] font-light leading-[1.1] tracking-[-0.03em] tabular-nums text-ink">{p.meses}</span>
         <small className="text-[15px] text-ink-muted">{p.meses === 1 ? "mês" : "meses"}</small>
       </div>
+      <p className="px-[18px] text-center text-sm text-ink-muted">{textoDoCalculo(extra, m0)}</p>
       <dl className="grid grid-cols-2 gap-2 px-[clamp(14px,4.5cqw,18px)] pb-3.5 pt-2">
         <Campo rotulo="Chega" valor={antes && antes > 0 ? `${plural(antes, "mês", "meses")} antes` : "no ritmo de hoje"} />
         {economia !== null && economia > 0.5 ? <Campo rotulo="Juros a menos" valor={m0(economia)} ganho /> : <Campo rotulo="Juros até lá" valor={m0(p.totalJuros)} />}
