@@ -67,3 +67,58 @@ describe("fatura do cartão Santander (PDF)", () => {
     expect(conferirLeitura(SANTANDER("21/09", "26/09/2026"), "fatura", linhas)).toMatchObject({ status: "fechou" });
   });
 });
+
+/**
+ * Fatura FICTÍCIA com a forma da que caiu em "não fechou" em 27/10/2026: o IOF da compra no
+ * exterior vem numa linha SEM data ("IOF DESPESA NO EXTERIOR 3,75"), uma compra cancelada traz as
+ * parcelas todas e o crédito, e o primeiro "total" do PDF é o da simulação de parcelamento. Só o
+ * resumo diz o que é do mês: "(=) Saldo Desta Fatura" e "(-) Total de pagamentos".
+ */
+const SANTANDER_EXTERIOR = [
+  "BANCO SANTANDER (BRASIL) S.A.",
+  "Olá, Pessoa! Esta é a fatura do seu cartão FREE",
+  "MASTERCARD contendo compras e pagamentos realizados até 21/09.",
+  "Vencimento",
+  "26/09/2026",
+  "Parcelamento de Fatura: valor total a prazo R$ 999,99",
+  "Detalhamento da Fatura",
+  "Pagamento e Demais Créditos",
+  "Compra Data Descrição \tParcela \tR$ \tUS$",
+  "21/09 PAGAMENTO DE FATURA \t-300,00",
+  "22/09 LOJA CANCELADA \t-120,00",
+  "Parcelamentos",
+  "Compra Data Descrição \tParcela \tR$ \tUS$",
+  "9 \t15/09 LOJA CANCELADA \t01/02 \t60,00",
+  "9 \t15/09 LOJA CANCELADA \t02/02 \t60,00",
+  "Despesas",
+  "Compra Data Descrição \tParcela \tR$ \tUS$",
+  "3 \t19/08 FARMACIA EXEMPLO \t80,00",
+  "VALOR TOTAL \t80,00 \t0,00",
+  "PESSOA EXEMPLO - 1111 XXXX XXXX 1111",
+  "Despesas",
+  "Compra Data Descrição \tParcela \tR$ \tUS$",
+  "4 \t10/09 LOJA GRINGA \t40,00 \t7,50",
+  "Despesas",
+  "Compra Data Descrição \tParcela \tR$ \tUS$",
+  "IOF DESPESA NO EXTERIOR \t1,40",
+  "VALOR TOTAL \t41,40 \t7,50",
+  "Resumo da Fatura",
+  "Saldo Anterior \t300,00",
+  "(+) Total Despesas/Débitos no Brasil \t201,40",
+  "(+) Total Despesas/Débitos no Exterior \t40,00 \t7,50",
+  "(-) Total de pagamentos \t300,00",
+  "(-) Total de créditos \t120,00",
+  "(=) Saldo Desta Fatura \t121,40",
+].join("\n");
+
+describe("fatura Santander com compra no exterior e compra cancelada", () => {
+  it("lê o IOF da compra no exterior, que vem sem data, no dia do fechamento", () => {
+    const iof = parseSantanderInvoice(SANTANDER_EXTERIOR).find((t) => /IOF/.test(t.description));
+    expect(iof).toEqual({ date: "2026-09-21", description: "IOF DESPESA NO EXTERIOR", amount: 1.4 });
+  });
+
+  it("fecha com o saldo desta fatura do resumo, não com a simulação de parcelamento", () => {
+    const linhas = parseStatement(SANTANDER_EXTERIOR, "pdf").filter((t) => !isFaturaSummaryLine(t));
+    expect(conferirLeitura(SANTANDER_EXTERIOR, "fatura", linhas)).toMatchObject({ status: "fechou", lido: 121.4, esperado: 121.4 });
+  });
+});
