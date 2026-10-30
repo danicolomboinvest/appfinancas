@@ -1,3 +1,5 @@
+import { TIPO_AVISO_CASAL_NO_PESSOAL, aceiteDeixaAviso } from "@/lib/casa/aviso-casal-no-pessoal";
+
 /**
  * Quem monta o perfil Casal e já lança nele (orçamento, plano de renda, lançamentos) antes de o
  * par aceitar o convite deixa tudo no perfil Casal. No Casal simples cada um usa o próprio
@@ -25,6 +27,21 @@ const COM_CHAVE_UNICA: { tabela: string; colunas: string[] }[] = [
   { tabela: "PortfolioStrategy", colunas: ["assetClass"] },
   { tabela: "PatrimonySnapshot", colunas: ["date"] },
 ];
+
+/**
+ * O aviso de uma vez para a titular (lib/casa/aviso-casal-no-pessoal): só quando o aceite levou
+ * alguma coisa. Decisao com `resolvidaEm` nulo até o "Entendi" no Resumo.
+ */
+export async function registrarAvisoDoCasalNoPessoal(
+  tx: { decisao: { create: (args: { data: { userId: string; profileId: string; tipo: string; chave: string; valor: number; resolvidaEm: null } }) => PromiseLike<unknown> } },
+  dados: { userId: string; casalProfileId: string; pessoalProfileId: string; movidos: number },
+): Promise<boolean> {
+  if (!aceiteDeixaAviso(dados.movidos)) return false;
+  await tx.decisao.create({
+    data: { userId: dados.userId, profileId: dados.pessoalProfileId, tipo: TIPO_AVISO_CASAL_NO_PESSOAL, chave: dados.casalProfileId, valor: dados.movidos, resolvidaEm: null },
+  });
+  return true;
+}
 
 export async function levarDadosDoCasalParaOPessoal(
   tx: { $executeRawUnsafe: (consulta: string, ...valores: unknown[]) => PromiseLike<number> },

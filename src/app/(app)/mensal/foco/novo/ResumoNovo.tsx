@@ -11,7 +11,9 @@ import { paraParametro } from "@/lib/visao-geral/periodo";
 import { lerComecoDaConta } from "@/lib/repositories/comeco.repo";
 import { mostrarPrimeirosPassos } from "@/lib/onboarding/comeco";
 import { acertoDaCasa } from "@/lib/repositories/casa.repo";
+import { avisoDoCasalNoPessoalPendente } from "@/lib/repositories/aviso-casal-no-pessoal.repo";
 import { casaNaTela } from "@/lib/casa/regras";
+import { AvisoDoCasalNoPessoal } from "@/components/casa/AvisoDoCasalNoPessoal";
 import { MESES } from "../dados";
 import { ContaDoLivre } from "../ContaDoLivre";
 import { ComoChegamos } from "../ComoChegamos";
@@ -48,11 +50,14 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
   const r = await carregarResumoNovo(ctx, hojeDeTeste);
   const casa = casaNaTela(ctx.casa);
   const seguinte = r.mes.mes === 12 ? { ano: r.mes.ano + 1, mes: 1 } : { ano: r.mes.ano, mes: r.mes.mes + 1 };
-  const [comeco, acerto, proximos] = await Promise.all([
+  const [comeco, acerto, proximos, avisoCasal] = await Promise.all([
     lerComecoDaConta(ctx.userId),
     casa ? acertoDaCasa(ctx, r.mes.ano, r.mes.mes) : Promise.resolve(null),
     r.caso === "dia-a-dia" || r.caso === "mes-fechado" ? carregarMesesPrevistos(ctx, r.mes, seguinte, 3) : Promise.resolve([]),
+    // A titular, uma vez, depois que o par aceitou: onde foi parar o que ela montou no Nós dois.
+    casa ? avisoDoCasalNoPessoalPendente(ctx) : Promise.resolve(null),
   ]);
+  const cartaoDoCasal = casa && avisoCasal ? <AvisoDoCasalNoPessoal nomeDoPar={casa.outro.nome} /> : null;
   const m = r.foco.m;
   const temDado = r.caso !== "nada";
   // Primeiros passos e a pergunta do segundo dia ocupam o lugar da sugestão enquanto existirem.
@@ -124,6 +129,7 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
     return (
       <div className="flex flex-col gap-5" data-resumo-novo={r.caso}>
         <ConquistasDeMetas ctx={ctx} />
+        {cartaoDoCasal}
         <ResumoEditavel
           cartoes={cartoes}
           ordemInicial={ordem}
@@ -142,6 +148,7 @@ export async function ResumoNovo({ ctx, cor, hojeDeTeste }: { ctx: AuthContext; 
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6" data-resumo-novo={r.caso}>
       <div className="flex min-w-0 flex-col gap-5">
         <ConquistasDeMetas ctx={ctx} />
+        {cartaoDoCasal}
         {titulo && <h2 className="titulo-tema px-1 text-[1.45rem] font-normal leading-tight text-ink">{titulo}</h2>}
         {heroi}
         {r.caso === "extrato-fatura" && <p className="-mt-3 px-1 text-[13px] font-medium text-ink-muted">Fatura aberta. Nada contado duas vezes.</p>}

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
 import { marcarAvisoDaMigracaoVisto, marcarTutorialDoCasalVisto, salvarNomesDaCasa } from "@/lib/repositories/casa.repo";
+import { marcarAvisoDoCasalNoPessoalVisto } from "@/lib/repositories/aviso-casal-no-pessoal.repo";
 
 const limpo = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, 30);
 
@@ -26,4 +27,10 @@ export async function marcarTutorialDoCasalVistoAction(): Promise<{ ok: boolean 
 export async function marcarAvisoDaMigracaoVistoAction(como: "ver" | "agora-nao"): Promise<{ ok: boolean }> {
   const ctx = await getRequiredSession();
   return { ok: await marcarAvisoDaMigracaoVisto(ctx, como === "agora-nao") };
+}
+
+/** "Entendi" no cartão "o que você montou no Nós dois está no seu Pessoal": não volta. */
+export async function marcarAvisoDoCasalNoPessoalVistoAction(): Promise<{ ok: boolean }> {
+  const ctx = await getRequiredSession();
+  return { ok: await marcarAvisoDoCasalNoPessoalVisto(ctx) };
 }
