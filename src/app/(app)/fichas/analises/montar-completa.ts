@@ -18,6 +18,20 @@ import { nomeConhecido } from "@/lib/analysis/tipo-do-ticker";
 import { num2, numBR, perguntasDoAtivo, proventosMensais } from "@/lib/analysis/quatro-perguntas";
 import type { LinhaParaVoce, PropsDaCompleta } from "./AnaliseCompleta";
 
+/**
+ * Lucro ou prejuízo da posição: só vale quando TODAS as linhas do ativo têm valor investido. Com
+ * uma linha sem investido, somar o valor atual de todas e descontar só o investido de algumas
+ * inventava um lucro enorme (ou escondia um prejuízo); nesse caso não mostra diferença.
+ */
+export function lucroDasLinhas(
+  linhas: { investedValue: unknown }[],
+  valorAtual: number,
+): { investido: number; diferenca: number | null } {
+  const investido = linhas.reduce((t, x) => t + (x.investedValue ? Number(x.investedValue) : 0), 0);
+  const todas = linhas.length > 0 && linhas.every((x) => x.investedValue && Number(x.investedValue) > 0);
+  return { investido, diferenca: todas ? valorAtual - investido : null };
+}
+
 /** "11/10, 14:32" no horário de Brasília. */
 export function quando(d: Date): string {
   const f = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -89,12 +103,11 @@ export async function montarCompleta(ctx: AuthContext, ticker: string, money: Mo
   const pv = await getParaVoce(ctx, tipo, ticker, laudo);
   const paraVoce: LinhaParaVoce[] = [];
   if (pv.position) {
-    const inv = meus.reduce((t, x) => t + (x.investedValue ? Number(x.investedValue) : 0), 0);
-    const dif = pv.position.value - inv;
+    const { investido: inv, diferenca: dif } = lucroDasLinhas(meus, pv.position.value);
     paraVoce.push({
       rotulo: "Você tem",
       valor: money(pv.position.value, { round: true }),
-      detalhe: `${numBR(pv.position.percentOfPortfolio * 100)}% da carteira${inv > 0 ? ` · ${money(Math.abs(dif), { round: true })} ${dif >= 0 ? "de lucro" : "de prejuízo"}` : ""}`,
+      detalhe: `${numBR(pv.position.percentOfPortfolio * 100)}% da carteira${inv > 0 && dif !== null ? ` · ${money(Math.abs(dif), { round: true })} ${dif >= 0 ? "de lucro" : "de prejuízo"}` : ""}`,
     });
   }
   if (pv.strategy) {
