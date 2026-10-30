@@ -18,3 +18,22 @@ export async function registrarFalhaDaAcao(onde: string, mensagem: string): Prom
     // nunca vira o erro seguinte
   }
 }
+
+/**
+ * Aviso de uma rota que responde 200 de propósito (o webhook da Hubla: produto desconhecido,
+ * evento sem e-mail, reenvio atrasado de quem foi reembolsada). Antes só ficava no log da Vercel,
+ * que some em poucos dias. Sem dado da pessoa: o e-mail entra mascarado por quem chama.
+ */
+export async function registrarAvisoDaRota(rota: string, mensagem: string): Promise<void> {
+  try {
+    const routePath = rota.slice(0, 200);
+    const message = mensagem.slice(0, 300);
+    await prisma.appError.upsert({
+      where: { routePath_message: { routePath, message } },
+      create: { routePath, routeType: "route", method: "POST", message },
+      update: { vezes: { increment: 1 }, ultimoEm: new Date() },
+    });
+  } catch {
+    // nunca vira o erro seguinte
+  }
+}

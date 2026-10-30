@@ -370,6 +370,27 @@ export function decidirPrazoHubla(
   return semMudanca;
 }
 
+/**
+ * Quem foi reembolsada (reembolsadoEm preenchido, acesso desligado) só volta com uma compra NOVA.
+ * A Hubla manda vários eventos por compra e reenvia depois de um 5xx: member_added → refunded →
+ * payment_succeeded atrasado da MESMA compra religava a conta reembolsada (30/10/2026).
+ * - Com a data do pagamento no evento: compra nova é a paga DEPOIS do reembolso.
+ * - Sem data: só uma fatura diferente da última já registrada prova que é outra compra. Se a
+ *   última era a marca "pendente" (a compra reembolsada nunca teve a fatura gravada), não dá pra
+ *   saber, e não religa: a Dani libera na mão se for o caso (fica registrado no AppError).
+ */
+export function decidirReligarReembolsada(
+  existing: { active: boolean; reembolsadoEm: Date | null; lastHublaInvoiceId: string | null },
+  invoiceId: string | null | undefined,
+  pagoEm: Date | null | undefined,
+): boolean {
+  if (existing.active || !existing.reembolsadoEm) return true;
+  if (pagoEm) return pagoEm.getTime() > existing.reembolsadoEm.getTime();
+  const fatura = invoiceId || null;
+  if (!fatura) return false;
+  return existing.lastHublaInvoiceId !== null && existing.lastHublaInvoiceId !== FATURA_PENDENTE && existing.lastHublaInvoiceId !== fatura;
+}
+
 export async function grantFromHubla(
   email: string,
   note?: string,
@@ -378,13 +399,19 @@ export async function grantFromHubla(
    * mesma compra (member_added + payment_succeeded) e ainda reenvia em caso de falha — sem
    * isso, cada reenvio esticaria o acesso em mais um ano de graça. */
   invoiceId?: string | null,
-): Promise<{ isNew: boolean; expiresAt: Date | null; extended: boolean }> {
+  /** Quando a compra foi paga, se o evento trouxer. É o que separa a compra nova do reenvio
+   * atrasado de uma compra já reembolsada (ver decidirReligarReembolsada). */
+  pagoEm?: Date | null,
+): Promise<{ isNew: boolean; expiresAt: Date | null; extended: boolean; reembolsada: boolean }> {
   const normalized = normalizeEmail(email);
   const existing = await prisma.allowedEmail.findUnique({
     where: { email: normalized },
-    select: { active: true, expiresAt: true, lastHublaInvoiceId: true },
+    select: { active: true, expiresAt: true, lastHublaInvoiceId: true, reembolsadoEm: true },
   });
 
+  if (existing && !decidirReligarReembolsada(existing, invoiceId, pagoEm)) {
+    return { isNew: false, expiresAt: existing.expiresAt, extended: false, reembolsada: true };
+  }
   const decisao = decidirPrazoHubla(existing, invoiceId);
 
   await prisma.allowedEmail.upsert({
@@ -393,6 +420,8 @@ export async function grantFromHubla(
     update: {
       active: true,
       ...(phone ? { phone } : {}),
+      // Comprou de novo depois do reembolso: a marca do reembolso sai, o acesso é desta compra.
+      ...(existing?.reembolsadoEm ? { reembolsadoEm: null } : {}),
       // Renovou: a saída que a Hubla avisou antes deixa de valer.
       ...(decisao.extended ? { expiresAt: decisao.expiresAt, canceladoEm: null } : {}),
       ...(decisao.lastHublaInvoiceId !== undefined ? { lastHublaInvoiceId: decisao.lastHublaInvoiceId } : {}),
@@ -406,7 +435,7 @@ export async function grantFromHubla(
       lastHublaInvoiceId: decisao.lastHublaInvoiceId ?? null,
     },
   });
-  return { isNew: existing?.active !== true, expiresAt: decisao.expiresAt, extended: decisao.extended };
+  return { isNew: existing?.active !== true, expiresAt: decisao.expiresAt, extended: decisao.extended, reembolsada: false };
 }
 
 /** Celular que veio da compra no Hubla (se veio) — usado como reserva no cadastro. */
