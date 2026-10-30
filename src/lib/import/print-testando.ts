@@ -1,6 +1,7 @@
 import { isFaturaSummaryLine } from "./fatura-lines";
 import { COMBINACOES, lerComOpcoes, lerFaturaTestando, referencia } from "./leitor-inteligente";
 import { lerTabelaDaFatura, linhasDaImagem } from "./print-tabela";
+import { lerNotificacoes } from "./print-notificacao";
 import { lerPrint, type LinhaDoPrint, type PrintLido, type Segmento } from "./print-fatura";
 import type { ParsedTransaction } from "./statement-parser";
 
@@ -118,11 +119,12 @@ function lerParte(segmentos: Segmento[], envio: string): PrintLido | null {
  * Todos os jeitos de ler um print. Primeiro os que CONFEREM com o total impresso (a tabela da
  * fatura em PDF e o leitor inteligente); a tela do app do banco, que não tem total para conferir,
  * só depois. Na imagem ampliada de uma página de PDF, o leitor de tela achava 4 compras soltas
- * que não fechavam e passaria na frente da leitura certa. Nenhum achou nada: null.
+ * que não fechavam e passaria na frente da leitura certa. Por último, a notificação de compra no
+ * cartão (26/10/2026): cada aviso vira uma compra no dia do envio. Nenhum achou nada: null.
  */
 export function lerQualquerPrint(segmentos: Segmento[], envio: string): PrintLido | null {
   const conferido = lerTabelaDaFatura(segmentos) ?? lerPrintTestando(segmentos, envio);
   if (conferido) return conferido;
   const daTela = lerPrint(segmentos, envio);
-  return daTela.linhas.length > 0 ? daTela : null;
+  return daTela.linhas.length > 0 ? daTela : lerNotificacoes(segmentos, envio);
 }
