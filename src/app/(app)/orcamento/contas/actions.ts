@@ -7,6 +7,7 @@ import { hojeEmBrasilia, lerData } from "@/lib/contas/contas";
 import { fecharAvisoDasContas } from "@/lib/repositories/contas-do-historico.repo";
 import { apagarContaAPagar, criarContaAPagar, desfazerContaPaga, editarContaAPagar, historicoDaConta, pagarContaComGasto } from "@/lib/repositories/conta-a-pagar.repo";
 import { diaValido, origemValida } from "@/lib/contas/paguei";
+import { categoriaDoPaguei } from "@/lib/contas/paguei-categoria";
 import { acertarGuiaDepoisDoPaguei } from "@/lib/empresa/acertar-guia";
 import { ehEmpresa } from "@/lib/profiles/empresa";
 import { prisma } from "@/lib/db/prisma";
@@ -36,6 +37,8 @@ const contaSchema = z.object({
   parcelaAtual: z.number().int().min(1).max(48).nullable().optional(),
   valorEhTotal: z.boolean().optional(),
   aproximado: z.boolean().optional(),
+  // A categoria escolhida na folha (29/10/2026). Sem ela, a conta fica como antes (o Paguei adivinha).
+  categoria: z.enum(["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS", "IMPOSTOS"]).nullable().optional(),
 });
 
 function revalidar() {
@@ -105,6 +108,14 @@ export async function desfazerPagamentoAction(id: string, antes: string, antesPa
     if (c) await acertarGuiaDepoisDoPaguei(ctx, c.nome);
   }
   revalidarComGasto();
+}
+
+/** A categoria que o Paguei daria para esse nome: a folha já abre com ela marcada. */
+export async function sugerirCategoriaDaContaAction(nome: string): Promise<string> {
+  const n = z.string().trim().min(1).max(80).safeParse(nome);
+  if (!n.success) return "OUTROS";
+  const ctx = await getRequiredSession();
+  return categoriaDoPaguei({ nome: n.data, categoria: null, profileKind: ctx.profileKind }).parentCategory ?? "OUTROS";
 }
 
 /** "Nos últimos 3 meses a luz deu em média R$ 128": o que a conta deu no extrato, para sugerir. */

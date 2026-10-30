@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Banknote, CalendarDays, CreditCard, Landmark } from "lucide-react";
 import { useCurrency, useMoney } from "@/components/money/MoneyProvider";
 import { CampoDeDinheiro } from "@/components/ui/CampoDeDinheiro";
 import { ErroNoBotao, useErroNoBotao } from "@/components/ui/ErroNoBotao";
 import { currencySymbol } from "@/lib/money";
-import { contaVaria, DIAS_PARA_TRAS, diaAntes, mesCurto, type OrigemDoPaguei } from "@/lib/contas/paguei";
+import { contaVaria, DIAS_PARA_TRAS, diaAntes, diaValido, mesCurto, rotuloDoDia, type OrigemDoPaguei } from "@/lib/contas/paguei";
 import { pagarContaAction } from "./actions";
 
 /** O que a página manda para a linha do "Paguei" (ver carregarDadosDoPaguei). */
@@ -74,6 +74,8 @@ export function PagueiDaConta({
   const [editaValor, setEditaValor] = useState(varia);
   const [dia, setDia] = useState(hoje);
   const [escolheDia, setEscolheDia] = useState(false);
+  const [outroDia, setOutroDia] = useState(false);
+  const campoDoDia = useRef<HTMLInputElement>(null);
   const [origem, setOrigem] = useState(dados.origem);
   const [escolheOrigem, setEscolheOrigem] = useState(false);
   const [salvando, iniciar] = useTransition();
@@ -81,7 +83,21 @@ export function PagueiDaConta({
   const antes = dados.antes[conta.id] ?? [];
   const daOrigem = dados.origens.find((o) => o.chave === origem) ?? null;
   const ontem = diaAntes(hoje, 1);
-  const rotuloDoDia = dia === hoje ? "Hoje" : dia === ontem ? "Ontem" : `Dia ${Number(dia.slice(8, 10))}`;
+  const outro = dia !== hoje && dia !== ontem;
+
+  // "Outro dia" no computador (29/10/2026, relato de cliente): o campo de data aparece de verdade e
+  // já abre o calendário quando o navegador deixa; no celular o toque abre o seletor nativo.
+  useEffect(() => {
+    if (!outroDia) return;
+    const el = campoDoDia.current;
+    if (!el) return;
+    el.focus();
+    try {
+      el.showPicker?.();
+    } catch {
+      // Alguns navegadores só abrem o calendário com um toque da pessoa: o campo fica visível do mesmo jeito.
+    }
+  }, [outroDia]);
 
   function confirmar() {
     pronto.limpar();
@@ -147,7 +163,7 @@ export function PagueiDaConta({
           data-paguei-dia
         >
           <CalendarDays size={16} strokeWidth={1.8} className="shrink-0" aria-hidden />
-          {rotuloDoDia}
+          {rotuloDoDia(dia, hoje)}
         </button>
         <button
           type="button"
@@ -177,6 +193,7 @@ export function PagueiDaConta({
               aria-pressed={dia === d}
               onClick={() => {
                 setDia(d);
+                setOutroDia(false);
                 setEscolheDia(false);
               }}
               className={dia === d ? CHIP_MARCADO : CHIP_SOLTO}
@@ -184,20 +201,29 @@ export function PagueiDaConta({
               {rotulo}
             </button>
           ))}
-          <label className={`${dia !== hoje && dia !== ontem ? CHIP_MARCADO : CHIP_SOLTO} relative`}>
-            <span>Outro dia</span>
+          {outroDia ? (
             <input
+              ref={campoDoDia}
               type="date"
               min={diaAntes(hoje, DIAS_PARA_TRAS)}
               max={hoje}
-              value={dia}
+              value={outro ? dia : ""}
               onChange={(e) => {
-                if (e.target.value && e.target.value <= hoje) setDia(e.target.value);
+                // Só de hoje para trás: "Paguei" é algo que já aconteceu.
+                if (!diaValido(e.target.value, hoje)) return;
+                setDia(e.target.value);
+                setOutroDia(false);
+                setEscolheDia(false);
               }}
               aria-label="Outro dia"
-              className="absolute inset-0 cursor-pointer opacity-0"
+              className="min-h-10 rounded-full bg-surface px-3.5 text-[14px] text-ink shadow-[inset_0_0_0_1px_var(--color-border)] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--color-accent)]"
+              data-paguei-outro-dia
             />
-          </label>
+          ) : (
+            <button type="button" aria-pressed={outro} onClick={() => setOutroDia(true)} className={outro ? CHIP_MARCADO : CHIP_SOLTO}>
+              Outro dia
+            </button>
+          )}
         </div>
       )}
 

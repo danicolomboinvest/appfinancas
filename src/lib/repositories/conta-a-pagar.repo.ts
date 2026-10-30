@@ -1,3 +1,4 @@
+import type { ParentCategory } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { doDono, type AuthContext } from "@/lib/auth/session";
 import { type ContaParaRegra } from "@/lib/contas/contas";
@@ -24,6 +25,8 @@ export type ContaAPagarInput = {
   vencimento: Date;
   repete: boolean;
   lembrar: boolean;
+  /** A categoria que ela escolheu na folha (29/10/2026). Opcional: quem chama sem ela grava como antes. */
+  categoria?: ParentCategory | null;
 } & CamposDeFrequencia;
 
 export type ContaDaTela = ContaParaRegra & {
@@ -38,17 +41,21 @@ export type ContaDaTela = ContaParaRegra & {
   aproximado: boolean;
   /** "historico" = o app achou no extrato e cadastrou sozinho (selo "do extrato"); nulo = ela cadastrou. */
   origem: string | null;
+  /** A categoria da conta (escolhida na folha ou herdada do lançamento de onde veio). */
+  categoria: ParentCategory | null;
 };
 
 type Linha = {
   id: string; nome: string; valor: unknown; vencimento: Date; repete: boolean; lembrar: boolean; quitada: boolean; pagaEm: Date | null; diaDoMes: number | null;
   intervalo: number | null; unidade: string | null; mesesEscolhidos: number[] | null; parcelas: number | null; parcelaAtual: number | null; valorEhTotal: boolean; aproximado: boolean; origem: string | null;
+  categoria: ParentCategory | null;
 };
 
 function paraTela(c: Linha): ContaDaTela {
   return {
     id: c.id, nome: c.nome, valor: c.valor == null ? null : Number(c.valor), vencimento: c.vencimento, repete: c.repete, lembrar: c.lembrar, quitada: c.quitada, pagaEm: c.pagaEm,
     diaDoMes: c.diaDoMes, intervalo: c.intervalo, unidade: c.unidade, mesesEscolhidos: c.mesesEscolhidos ?? [], parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, valorEhTotal: c.valorEhTotal, aproximado: c.aproximado, origem: c.origem,
+    categoria: c.categoria,
   };
 }
 
@@ -125,9 +132,11 @@ export async function pagarContaComGasto(ctx: AuthContext, id: string, e: Escolh
   const ultimo = await prisma.monthlyEntry.findFirst({
     where: { ...doDono(ctx), contaAPagarId: c.id, category: "EXPENSE" },
     orderBy: { createdAt: "desc" },
-    select: { parentCategory: true, customCategoryId: true, subcategory: true },
+    select: { parentCategory: true, customCategoryId: true, subcategory: true, createdAt: true },
   });
-  const cat = categoriaDoPaguei({ nome: c.nome, categoria: c.categoria, ultima: ultimo, profileKind: ctx.profileKind });
+  // Ela mexeu na conta depois do último gasto: a categoria que escolheu na folha vale.
+  const contaEditadaDepois = Boolean(ultimo && c.editadaPelaPessoa && c.updatedAt > ultimo.createdAt);
+  const cat = categoriaDoPaguei({ nome: c.nome, categoria: c.categoria, ultima: ultimo, contaEditadaDepois, profileKind: ctx.profileKind });
   const depois = depoisDePagarComRegra(c, regraDaConta(c), c.diaDoMes ?? undefined);
   const dia = new Date(`${e.dia}T12:00:00Z`);
   const casa = casaAtiva(ctx);

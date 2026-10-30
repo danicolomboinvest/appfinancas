@@ -16,6 +16,8 @@ export type ContaSerial = {
   quitada: boolean;
   pagaEm: string | null;
   diaDoMes: number | null;
+  /** A categoria da conta (ParentCategory); nula nas contas de antes sem categoria. */
+  categoria: string | null;
   /** Frequência livre (seção 3.17); nulos nas contas de antes. */
   intervalo: number | null;
   unidade: string | null;
