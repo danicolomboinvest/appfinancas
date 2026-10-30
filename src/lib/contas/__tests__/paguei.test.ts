@@ -61,6 +61,26 @@ describe("o dia", () => {
   });
 });
 
+describe("a categoria escolhida na folha da conta", () => {
+  it("vai para o gasto do Paguei quando ainda não houve gasto", () => {
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: "SAUDE" })).toEqual({ parentCategory: "SAUDE", customCategoryId: null, subcategory: null });
+  });
+
+  it("vence o último gasto quando ela editou a conta depois dele; sem edição, o gasto trocado continua mandando", () => {
+    const ultima = { parentCategory: "LAZER" as const, customCategoryId: null, subcategory: null };
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: "SAUDE", ultima, contaEditadaDepois: true }).parentCategory).toBe("SAUDE");
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: "SAUDE", ultima }).parentCategory).toBe("LAZER");
+    // Conta sem categoria editada depois: o gasto trocado ainda vale.
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: null, ultima, contaEditadaDepois: true }).parentCategory).toBe("LAZER");
+  });
+
+  it("a sugestão que a folha já abre marcada é a mesma do Paguei: pelo nome, e Outros quando não sabe", () => {
+    expect(categoriaDoPaguei({ nome: "Luz", categoria: null }).parentCategory).toBe("MORADIA");
+    expect(categoriaDoPaguei({ nome: "Guia do MEI", categoria: null }).parentCategory).toBe("IMPOSTOS");
+    expect(categoriaDoPaguei({ nome: "Xpto", categoria: null }).parentCategory).toBe("OUTROS");
+  });
+});
+
 describe("a conta que varia", () => {
   it("é a aproximada ou a sem valor", () => {
     expect(contaVaria({ valor: null })).toBe(true);
