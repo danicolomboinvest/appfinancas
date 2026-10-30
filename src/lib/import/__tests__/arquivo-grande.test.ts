@@ -6,7 +6,7 @@ vi.mock("@vercel/blob", () => blobs);
 import { ArquivoGrandeSumiu, apagarArquivosGrandesEsquecidos, trazerArquivoGrande } from "../arquivo-grande";
 
 function noArmazenamento(bytes: Uint8Array, tipo = "application/pdf") {
-  return { statusCode: 200, stream: new Response(bytes).body, headers: new Headers(), blob: { size: bytes.length, contentType: tipo } };
+  return { statusCode: 200, stream: new Response(bytes as unknown as BodyInit).body, headers: new Headers(), blob: { size: bytes.length, contentType: tipo } };
 }
 
 describe("arquivo grande vindo do armazenamento", () => {
