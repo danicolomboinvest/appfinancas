@@ -39,6 +39,7 @@ import { isMercadoPagoStatement, parseMercadoPagoStatement } from "./mercado-pag
 import { isPicPayStatement, parsePicPayStatement } from "./picpay-pdf";
 import { isIsraelCardStatement, parseIsraelCardStatement } from "./israel-cartao-pdf";
 import { isIsraelBankStatement, parseIsraelBankStatement } from "./israel-extrato-pdf";
+import { isExtratoSaldoDoDia, parseExtratoSaldoDoDia } from "./extrato-saldo-do-dia-pdf";
 import { isSafraJsonPdf, parseSafraJsonPdf } from "./safra-json-pdf";
 import { isCaixaAppStatement, parseCaixaAppStatement } from "./caixa-pdf";
 import { isCoraStatement, parseCoraStatement } from "./cora-pdf";
@@ -983,6 +984,7 @@ const LEITORES_PDF: { nome: string; reconhece: (t: string) => boolean; le: (t: s
   { nome: "infinitepay", reconhece: isInfinitePayStatement, le: (t) => parseInfinitePayStatement(t) },
   { nome: "safra-json", reconhece: isSafraJsonPdf, le: (t) => parseSafraJsonPdf(t) },
   { nome: "israel-extrato", reconhece: isIsraelBankStatement, le: (t) => parseIsraelBankStatement(t) },
+  { nome: "extrato-saldo-do-dia", reconhece: isExtratoSaldoDoDia, le: (t) => parseExtratoSaldoDoDia(t) },
   { nome: "israel-cartao", reconhece: isIsraelCardStatement, le: (t) => parseIsraelCardStatement(t) },
   // Argentina (14/10/2026): só reconhece texto com três sinais que nenhum banco brasileiro tem.
   { nome: "argentina-tarjeta", reconhece: isArgentinaTarjeta, le: (t, ano) => parseArgentinaTarjeta(t, ano) },
