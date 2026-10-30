@@ -1,3 +1,4 @@
+import { ehCodigoB3, UNITS_B3 } from "@/lib/market/codigo-b3";
 import type { Asset, SheetType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { AuthContext } from "@/lib/auth/session";
@@ -55,7 +56,8 @@ function tickerDe(a: Pick<Asset, "ticker" | "name">): string {
 export function tipoDaAnalise(a: Pick<Asset, "assetClass" | "ticker" | "currency">): SheetType | null {
   const t = (a.ticker ?? "").trim().toUpperCase();
   if (!t) return null;
-  if (a.assetClass === "ACAO") return /^[A-Z]{4}\d{1,2}$/.test(t) ? "STOCK" : null;
+  if (a.assetClass === "ACAO") return ehCodigoB3(t) ? "STOCK" : null;
+  if (a.assetClass === "FII" && UNITS_B3.has(t)) return "STOCK"; // unit guardada como FII por engano
   if (a.assetClass === "FII") return /^[A-Z]{4}11$/.test(t) ? "FII" : null;
   if (a.assetClass === "INTERNACIONAL") {
     if (/^[A-Z]{4}11$/.test(t)) return "ETF";

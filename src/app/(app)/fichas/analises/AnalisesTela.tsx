@@ -1,4 +1,5 @@
 "use client";
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -345,7 +346,7 @@ function Busca({ ativos, grande = false }: { ativos: AtivoAnalisado[]; grande?: 
   const termo = sem(q.trim());
   const achados = termo ? ativos.filter((a) => sem(`${a.ticker} ${a.nome}`).includes(termo)).slice(0, 6) : [];
   const codigo = q.trim().toUpperCase();
-  const codigoValido = /^([A-Z]{4}\d{1,2}|[A-Z]{1,5})$/.test(codigo);
+  const codigoValido = ehCodigoB3(codigo) || /^[A-Z]{1,5}$/.test(codigo);
   const doCatalogo = codigo.length >= 2 ? TICKERS_COM_LOGO.filter((tk) => tk.startsWith(codigo) && !ativos.some((a) => a.ticker === tk)).slice(0, 6) : [];
   const codigoNovo = codigoValido && !ativos.some((a) => a.ticker === codigo) && !doCatalogo.includes(codigo);
   return (

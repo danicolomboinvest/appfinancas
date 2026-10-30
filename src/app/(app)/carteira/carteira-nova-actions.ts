@@ -1,4 +1,5 @@
 "use server";
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 
 import { revalidatePath } from "next/cache";
 import type { AssetObjective } from "@prisma/client";
@@ -95,7 +96,7 @@ export async function cotacaoDoNovoAtivoAction(ticker: string, exterior: boolean
     const [preco, cambio] = await Promise.all([fetchUsPrice(t).catch(() => null), getExchangeRate("USD", moedaDoApp).catch(() => null)]);
     return { preco, dolar: cambio?.rate ?? null, em };
   }
-  if (!/^[A-Z]{4}\d{1,2}$/.test(t)) return { preco: null, dolar: null, em };
+  if (!ehCodigoB3(t)) return { preco: null, dolar: null, em };
   return { preco: await fetchTickerPrice(t).catch(() => null), dolar: null, em };
 }
 

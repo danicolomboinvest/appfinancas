@@ -1,3 +1,4 @@
+import { CODIGO_B3_FONTE, ehCodigoB3, UNITS_B3 } from "@/lib/market/codigo-b3";
 import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { KNOWN_ETF_BR } from "@/lib/market/known-names";
 import { isB3Position, parseB3Position } from "./b3-posicao";
@@ -44,7 +45,7 @@ export function detectFixedIncomeIndex(rateText: string, name = ""): FixedIncome
 }
 
 /** Ticker B3: 4 letras + 1–2 dígitos (PETR4, ITUB3, HGLG11, BOVA11). */
-const TICKER_RE = /\b([A-Z]{4}\d{1,2})\b/;
+const TICKER_RE = new RegExp(String.raw`\b(${CODIGO_B3_FONTE})\b`);
 
 /** Classe pela terminação do ticker: 11 → FII (dominante na B3), 3/4/5/6 → ação (BDR incluso,
  * termina em 34), 1-5 letras sem dígito → ativo internacional (AAPL, VOO, SCHD — extrato da
@@ -54,6 +55,8 @@ export function guessAssetClass(ticker: string): AssetClass {
   // ETF também termina em 11 (BOVA11, IVVB11, GOLD11). Sem a lista curada, todo ETF entrava
   // como FII e a comparação com a estratégia mandava "reduzir FIIs" por causa de um S&P 500.
   if (clean in KNOWN_ETF_BR) return "FUNDO";
+  // Unit (TAEE11, KLBN11) termina em 11 mas é ação, não fundo imobiliário.
+  if (UNITS_B3.has(clean)) return "ACAO";
   if (/11$/.test(clean)) return "FII";
   if (/[3456]$/.test(clean)) return "ACAO";
   if (/^[A-Z]{1,5}$/.test(clean)) return "INTERNACIONAL";
@@ -334,7 +337,7 @@ function parseSectionedHoldings(lines: string[]): ParsedHolding[] {
     if (table.kind === "ticker") {
       // "ABCB4*": o asterisco marca "calculado em data anterior", não faz parte do código.
       const ticker = (cells[table.tickerCol] ?? "").replace(/\*+$/, "").trim().toUpperCase();
-      if (!/^[A-Z]{4}\d{1,2}$/.test(ticker)) continue;
+      if (!ehCodigoB3(ticker)) continue;
       const quantity = parseFlexibleNumber(cells[table.qtyCol] ?? "");
       const value = table.valueCol !== -1 ? parseFlexibleNumber(cells[table.valueCol] ?? "") : NaN;
       const tipo = table.typeCol !== -1 ? (cells[table.typeCol] ?? "").toUpperCase() : "";

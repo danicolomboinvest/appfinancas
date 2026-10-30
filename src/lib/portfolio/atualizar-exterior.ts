@@ -1,3 +1,4 @@
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { fetchUsPrice } from "@/lib/analysis/us-price";
@@ -24,7 +25,7 @@ export async function atualizarAtivosDoExterior(
   if (ativos.length === 0) return { updated: 0, failed: [] };
 
   // Ticker da B3 (PETR4) na conta em reais de quem usa o app em outra moeda: o preço vem em R$.
-  const ehDaB3 = (t: string) => /^[A-Z]{4}\d{1,2}$/.test(t);
+  const ehDaB3 = ehCodigoB3;
   const comCotacao = (a: (typeof ativos)[number]) =>
     Boolean(a.ticker && (TICKER_EUA.test(a.ticker) || (a.currency === CONTA_BRASIL && ehDaB3(a.ticker))) && a.quantity && Number(a.quantity) > 0);
   const tickers = [...new Set(ativos.filter(comCotacao).map((a) => a.ticker as string))];

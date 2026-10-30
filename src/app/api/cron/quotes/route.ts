@@ -1,3 +1,4 @@
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 import { NextResponse } from "next/server";
 import { recusarSeNaoForCron } from "@/lib/cron/autorizacao";
 import { prisma } from "@/lib/db/prisma";
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como
   // nome e não têm cotação pública pra buscar.
-  const assets = allWithTicker.filter((a) => /^[A-Z]{4}\d{1,2}$/.test(a.ticker as string));
+  const assets = allWithTicker.filter((a) => ehCodigoB3(a.ticker as string));
   if (assets.length === 0) {
     const exterior = await atualizarAtivosDoExterior({}, { prazo: inicio + PRAZO_MS + 10_000 });
     return NextResponse.json({ updated: 0, failed: [], exterior });

@@ -1,4 +1,5 @@
 "use server";
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -60,12 +61,12 @@ async function parseAssetForm(formData: FormData) {
     if (quantity && quantity > 0 && ticker && TICKER_EUA.test(ticker)) {
       precoNoExterior = await fetchUsPrice(ticker);
       if (precoNoExterior) currentUnitPrice = Math.round(precoNoExterior * cambio * 1e6) / 1e6;
-    } else if (brasilEmReais && quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
+    } else if (brasilEmReais && quantity && quantity > 0 && ticker && ehCodigoB3(ticker)) {
       // Ação e FII da B3: a cotação já vem em reais, que é a moeda dos campos deste ativo.
       precoNoExterior = await fetchTickerPrice(ticker);
       if (precoNoExterior) currentUnitPrice = Math.round(precoNoExterior * cambio * 1e6) / 1e6;
     }
-  } else if (quantity && quantity > 0 && ticker && /^[A-Z]{4}\d{1,2}$/.test(ticker)) {
+  } else if (quantity && quantity > 0 && ticker && ehCodigoB3(ticker)) {
     const precoEmReais = await fetchTickerPrice(ticker);
     if (precoEmReais) {
       // A cotação vem em reais; quem usa o app em outra moeda digita a carteira nela. Sem o

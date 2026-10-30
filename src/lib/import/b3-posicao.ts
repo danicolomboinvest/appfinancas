@@ -1,3 +1,4 @@
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 import type { AssetClass, FixedIncomeIndex } from "@prisma/client";
 import { detectFixedIncomeIndex, guessAssetClass, parseFlexibleNumber, type ParsedHolding } from "./portfolio-parser";
 
@@ -64,7 +65,7 @@ function lerPlanilha(texto: string): ParsedHolding[] {
     const nome = cols[0];
     const codigo = (cols[col(/^c[óo]digo de negocia[çc][ãa]o$/)] ?? "").toUpperCase();
     const quantity = Number.isFinite(qtd) ? qtd : 0;
-    if (/^[A-Z]{4}\d{1,2}$/.test(codigo)) {
+    if (ehCodigoB3(codigo)) {
       out.push({ ticker: codigo, quantity, value: valor, assetClass: guessAssetClass(codigo) });
       continue;
     }

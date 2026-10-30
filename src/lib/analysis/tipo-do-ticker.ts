@@ -1,8 +1,9 @@
+import { ehCodigoB3, formatoDe11 } from "@/lib/market/codigo-b3";
 import type { SheetType } from "@prisma/client";
 
 /** Código de bolsa: B3 (PETR4, MXRF11) ou de fora (VOO, AAPL). */
 export function tickerValido(ticker: string): boolean {
-  return /^[A-Z]{4}\d{1,2}$/.test(ticker) || /^[A-Z]{1,5}$/.test(ticker);
+  return ehCodigoB3(ticker) || /^[A-Z]{1,5}$/.test(ticker);
 }
 
 /**
@@ -13,8 +14,8 @@ export function tickerValido(ticker: string): boolean {
 export function tiposParaTentar(ticker: string, sugerido: SheetType | null): SheetType[] {
   const t = ticker.toUpperCase();
   let ordem: SheetType[];
-  if (/^[A-Z]{4}11$/.test(t)) ordem = ["FII", "ETF", "STOCK"];
-  else if (/^[A-Z]{4}\d{1,2}$/.test(t)) ordem = ["STOCK"];
+  if (formatoDe11(t)) ordem = ["FII", "ETF", "STOCK"];
+  else if (ehCodigoB3(t)) ordem = ["STOCK"];
   else ordem = ["ETF", "STOCK_INTL"];
   return sugerido ? [sugerido, ...ordem.filter((x) => x !== sugerido)] : ordem;
 }

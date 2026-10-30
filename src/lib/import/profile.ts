@@ -1,3 +1,4 @@
+import { CODIGO_B3_FONTE } from "@/lib/market/codigo-b3";
 import { detectDocKind } from "./detect";
 import { isBancoDoBrasilStatement } from "./bb-pdf";
 import { isNubankStatement } from "./nubank-pdf";
@@ -74,7 +75,7 @@ const INSTITUTIONS: [RegExp, string][] = [
   [/\bb3\b|[aá]rea do investidor/i, "B3"],
 ];
 
-const TICKER_CELL_RE = /(^|[;,\t ])([A-Z]{4}\d{1,2})\*?(?=$|[;,\t ])/;
+const TICKER_CELL_RE = new RegExp(String.raw`(^|[;,\t ])(${CODIGO_B3_FONTE})\*?(?=$|[;,\t ])`);
 // Planilha com coluna "Ticker/Código" e ativos de fora (VOO, QQQ, SHV): ticker só de letras vale
 // quando o cabeçalho diz que a coluna é de ticker, senão "PIX" e "TED" virariam ativo.
 const TICKER_HEADER_RE = /(^|[;,\t])\s*(ticker|c[óo]digo|papel|symbol)\s*(?=[;,\t]|$)/i;

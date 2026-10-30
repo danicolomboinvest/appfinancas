@@ -1,3 +1,4 @@
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 import * as cheerio from "cheerio";
 
 const USER_AGENT =
@@ -18,7 +19,7 @@ const PATHS = ["acoes", "fiis", "etfs", "stocks", "bdrs"] as const;
 export function looksLikeMarketTicker(ticker: string): boolean {
   const clean = ticker.trim().toUpperCase();
   // B3 (ações, FIIs, ETFs BR, BDRs): 4 letras + 1-2 dígitos — PETR4, MXRF11, BOVA11.
-  if (/^[A-Z]{4}\d{1,2}$/.test(clean)) return true;
+  if (ehCodigoB3(clean)) return true;
   // Internacional (stocks, ETFs globais): 1-5 letras, sem dígito — AAPL, SCHD, VOO.
   if (/^[A-Z]{1,5}$/.test(clean)) return true;
   return false;
@@ -34,7 +35,7 @@ export function looksLikeMarketTicker(ticker: string): boolean {
  * toque lançava o número errado como renda do mês. Até existir conversão, esses ficam de fora.
  */
 export function paysDividendsInReais(ticker: string): boolean {
-  return /^[A-Z]{4}\d{1,2}$/.test(ticker.trim().toUpperCase());
+  return ehCodigoB3(ticker.trim().toUpperCase());
 }
 
 export type DividendRow = {

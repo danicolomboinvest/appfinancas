@@ -1,3 +1,4 @@
+import { CODIGO_B3_FONTE } from "@/lib/market/codigo-b3";
 import { TICKER_EUA } from "@/lib/portfolio/conta-exterior";
 import type { ParsedHolding } from "./portfolio-parser";
 
@@ -137,7 +138,7 @@ export function lerCarteiraNoExterior(content: string): ParsedHolding[] {
   if (!pareceCarteiraNoExterior(content)) return [];
   // Tem ação da B3 (PETR4, IVVB11)? É arquivo daqui, mesmo falando em dólar em algum canto: os
   // leitores brasileiros ficam com ele, senão as ações daqui sumiriam da importação.
-  if (/\b[A-Z]{4}\d{1,2}\b/.test(content)) return [];
+  if (new RegExp(String.raw`\b${CODIGO_B3_FONTE}\b`).test(content)) return [];
   const linhas = content.split(/\r?\n/).filter((l) => l.trim() !== "");
   const tabela = lerTabela(linhas);
   return tabela.length > 0 ? tabela : lerTexto(linhas);

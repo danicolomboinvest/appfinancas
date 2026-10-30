@@ -1,3 +1,4 @@
+import { CODIGO_B3_FONTE, ehCodigoB3 } from "@/lib/market/codigo-b3";
 import { parseBrazilianNumber } from "./statement-parser";
 import { parseFlexibleNumber } from "./portfolio-parser";
 
@@ -44,7 +45,7 @@ const KIND_BY_GROUP_CODE: Record<string, IrpfAssetKind> = {
 };
 
 /** Ticker B3: 4 letras + 1–2 dígitos (PETR4, ITUB3, HGLG11, MXRF11). */
-const B3_TICKER_RE = /\b([A-Z]{4}\d{1,2})\b/;
+const B3_TICKER_RE = new RegExp(String.raw`\b(${CODIGO_B3_FONTE})\b`);
 /** Token monetário BR: "10.290,00", "1.043,95", "0,00", "15,86" (2+ casas decimais). */
 const MONEY = String.raw`\d{1,3}(?:\.\d{3})*,\d{2,}|\d+,\d{2,}`;
 /** Linha "código  nº-do-bem": código de 2 dígitos + id de 4 dígitos (ex.: "03 2004").
@@ -90,7 +91,7 @@ function extractTicker(blockUpper: string, codNeg: string | null, foreign: boole
   if (b3) return b3[1];
   if (codNeg) {
     const compact = codNeg.replace(/\s+/g, "").toUpperCase();
-    if (/^[A-Z]{4}\d{1,2}$/.test(compact)) return compact; // "MCCI 11" → "MCCI11"
+    if (ehCodigoB3(compact)) return compact; // "MCCI 11" → "MCCI11"
     if (foreign && /^[A-Z]{1,5}$/.test(compact)) return compact; // AAPL, JNJ, AMZN
   }
   return null;

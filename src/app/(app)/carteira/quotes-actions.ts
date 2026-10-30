@@ -1,4 +1,5 @@
 "use server";
+import { ehCodigoB3 } from "@/lib/market/codigo-b3";
 
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/session";
@@ -28,7 +29,7 @@ export async function updatePortfolioQuotesAction(): Promise<UpdateQuotesResult>
   });
   // Só tickers de bolsa de verdade (PETR4, MXRF11…), fundos/renda fixa usam o campo como
   // nome e não têm cotação pública, então não entram na busca nem na lista de "não achei".
-  const assets = allWithTicker.filter((a) => /^[A-Z]{4}\d{1,2}$/.test(a.ticker as string));
+  const assets = allWithTicker.filter((a) => ehCodigoB3(a.ticker as string));
 
   // A conta no exterior primeiro: o dólar do dia muda o valor em reais mesmo sem ticker.
   const exterior = await atualizarAtivosDoExterior({ userId: ctx.userId, profileId: ctx.profileId });

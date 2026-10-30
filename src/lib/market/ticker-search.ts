@@ -1,3 +1,4 @@
+import { CODIGO_B3_FONTE } from "@/lib/market/codigo-b3";
 import { KNOWN_ETF_BR, KNOWN_ETF_US, KNOWN_FII, KNOWN_STOCK_BR, KNOWN_US_STOCK } from "./known-names";
 
 export type TickerKind = "STOCK" | "FII" | "ETF" | "BDR" | "STOCK_INTL" | "ETF_INTL";
@@ -67,7 +68,7 @@ export function fromBrapi(rows: BrapiRow[]): TickerHit[] {
   for (const r of rows) {
     const ticker = r.stock?.toUpperCase();
     if (!ticker) continue;
-    if (/^[A-Z]{4}\d{1,2}F$/.test(ticker)) continue; // mercado fracionário duplica cada ação
+    if (new RegExp(`^${CODIGO_B3_FONTE}F$`).test(ticker)) continue; // mercado fracionário duplica cada ação
     let kind: TickerKind | null = null;
     if (r.type === "stock") kind = "STOCK";
     else if (r.type === "bdr") kind = "BDR";
