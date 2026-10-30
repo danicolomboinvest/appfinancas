@@ -31,6 +31,7 @@ import { DolarDeHoje } from "./DolarDeHoje";
 import { useProfileTheme } from "@/components/profiles/ProfileThemeProvider";
 import { ACEITA_ARQUIVO_DE_EXTRATO, ARQUIVO_MAX_BYTES, MAX_PRINTS, ehImagem } from "@/lib/import/limites";
 import { INSTRUCAO_PRINT } from "@/lib/import/foto-no-lugar-do-pdf";
+import { fraseJaEstavamNoApp, jaEstavamNoApp } from "@/lib/import/ja-importado";
 import type { PrintLido } from "@/lib/import/print-fatura";
 import { prometeParcelasSeguintes } from "@/lib/import/fatura-aberta";
 import { hojeNoAparelho, prepararImagem } from "./preparar-imagem";
@@ -80,6 +81,8 @@ type ArquivoNaFila = {
   /** Depois de anotado: os pagamentos de fatura que saíram sozinhos com esta fatura, e a chave para devolver. */
   tirados?: { n: number; chave: string };
   pulados?: number;
+  /** Quantas a leitura já tinha marcado "já estava no app" (ver lib/import/ja-importado). */
+  jaEstavam?: number;
   candidatos?: CardPaymentCandidate[];
   /** "Extrato Itaú · agosto": o nome da aba na revisão. */
   rotulo?: string;
@@ -259,6 +262,8 @@ export function StatementImport({
   const [reviewIdx, setReviewIdx] = useState(0);
   const [createdCount, setCreatedCount] = useState(0);
   const [skippedCount, setSkippedCount] = useState(0);
+  /** As que a leitura já tinha dado como "já estava no app" (a gravação nem viu; somam com `skippedCount`). */
+  const [jaEstavamCount, setJaEstavamCount] = useState(0);
   // Parcelas dos próximos meses que a fatura lançou: ficam fora do "N lançamentos importados".
   const [futurasCount, setFuturasCount] = useState(0);
   const [docType, setDocType] = useState<"extrato" | "fatura">("extrato");
@@ -907,6 +912,13 @@ export function StatementImport({
       if (it.ignorar || !it.jaNoApp?.parcela) continue;
       confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: false, resgate: false });
     }
+    // O que a leitura deu como "já estava no app" vindo de outro arquivo (30/10/2026): vai junto só
+    // para gastar a vaga do gravado igual, senão a linha igual seguinte do arquivo era pulada no
+    // lugar dela. O lançado à mão (com id) não vai: ele é acertado em conciliarJaNoAppAction.
+    for (const it of items) {
+      if (it.ignorar || !it.jaNoApp || it.jaNoApp.id || it.jaNoApp.faturaAberta || it.jaNoApp.paguei || it.jaNoApp.parcela) continue;
+      confirmed.push({ date: it.date, description: it.description, amount: it.amount, category: it.category, parentCategory: it.parentCategory, customCategoryId: it.customCategoryId, subcategory: it.subcategory, learn: false, installment: it.installment, profileId: it.profileId, estorno: it.estorno ?? false, resgate: it.resgate ?? false, jaEstava: true });
+    }
     // Compra em dólar do print: só entra a que ela preencheu com o valor em real.
     confirmed.push(...confirmadasDaMoedaDeFora(stats?.semValorEmReal ?? [], reaisDoDolar));
     // Sem mês escolhido, o servidor põe cada compra no mês dela (com o vencimento e o fechamento lidos).
@@ -944,7 +956,7 @@ export function StatementImport({
       if (fila && filaAtual !== null) {
         let lista = fila.map((a) =>
           a.id === filaAtual
-            ? { ...a, status: "anotado" as const, criados: novos, futuras, pulados: result.skipped, candidatos: result.cardPaymentCandidates, tirados: result.desfazerPagamentosTirados ? { n: result.pagamentosTirados?.length ?? 0, chave: result.desfazerPagamentosTirados } : undefined, items: undefined }
+            ? { ...a, status: "anotado" as const, criados: novos, futuras, pulados: result.skipped, jaEstavam: jaEstavamNoApp(items), candidatos: result.cardPaymentCandidates, tirados: result.desfazerPagamentosTirados ? { n: result.pagamentosTirados?.length ?? 0, chave: result.desfazerPagamentosTirados } : undefined, items: undefined }
             : a,
         );
         lista = lista.map((a) => {
@@ -966,6 +978,7 @@ export function StatementImport({
         setCreatedCount(total);
         setFuturasCount(lista.reduce((soma, a) => soma + (a.futuras ?? 0), 0));
         setSkippedCount(lista.reduce((soma, a) => soma + (a.pulados ?? 0), 0));
+        setJaEstavamCount(lista.reduce((soma, a) => soma + (a.jaEstavam ?? 0), 0));
         const candidatos = new Map(lista.flatMap((a) => a.candidatos ?? []).map((c) => [c.id, c]));
         setCardPaymentCandidates([...candidatos.values()]);
         const tirados = lista.flatMap((a) => (a.tirados ? [a.tirados] : []));
@@ -978,6 +991,7 @@ export function StatementImport({
       setCreatedCount(novos);
       setFuturasCount(futuras);
       setSkippedCount(result.skipped);
+      setJaEstavamCount(jaEstavamNoApp(items));
       setCardPaymentCandidates(result.cardPaymentCandidates);
       setPagamentosTirados(result.desfazerPagamentosTirados ? { n: result.pagamentosTirados?.length ?? 0, chaves: [result.desfazerPagamentosTirados] } : { n: 0, chaves: [] });
       // O mês montado: busca DEPOIS de gravar, fora da transição (o "pronto" aparece já, e os
@@ -2239,9 +2253,13 @@ export function StatementImport({
       <p className="text-sm font-medium text-ink">
         {/* Extrato subido de novo: nada entrou porque tudo já estava lá. Dizer "0 importados com
             sucesso" parecia erro. */}
-        {createdCount === 0 && futurasCount === 0 && skippedCount > 0
-          ? `Nada novo: ${skippedCount === 1 ? "esse lançamento já estava" : `os ${skippedCount} lançamentos já estavam`} no app, então não dupliquei.`
+        {createdCount === 0 && futurasCount === 0 && skippedCount + jaEstavamCount > 0
+          ? `Nada novo: ${skippedCount + jaEstavamCount === 1 ? "esse lançamento já estava" : `os ${skippedCount + jaEstavamCount} lançamentos já estavam`} no app, então não dupliquei.`
           : t.impImportadosSucesso(createdCount)}
+        {/* O mesmo arquivo de novo, com coisa nova dentro (30/10/2026): uma linha diz o que ficou de fora. */}
+        {fraseJaEstavamNoApp(skippedCount + jaEstavamCount, createdCount) && (
+          <span className="block text-caption font-normal text-ink-muted">{fraseJaEstavamNoApp(skippedCount + jaEstavamCount, createdCount)}</span>
+        )}
         {futurasCount > 0 && <span className="block text-caption font-normal text-ink-muted">{t.impParcelasFuturas(futurasCount)}</span>}
       </p>
 

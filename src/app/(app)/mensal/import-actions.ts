@@ -809,7 +809,7 @@ async function lerExtrato(formData: FormData): Promise<ParseStatementResult> {
   // da busca de repetidos, que olha no perfil de destino (a compra que já estava na Empresa
   // aparecia como compra nova, e a tela dizia "anotar 3" para gravar 2).
   await marcarDestinoPelaRegra(ctx, items);
-  await marcarParecidosDeOutraImportacao(ctx, items);
+  await marcarParecidosDeOutraImportacao(ctx, items, docType === "fatura" ? (datasDaFatura.vencimento?.slice(0, 7) ?? null) : null);
   if (docType === "fatura") await marcarParcelasJaNoApp(ctx, items, contextoDaFatura(datasDaFatura, parsed.map((t) => t.date)));
   // Por último, o que as regras de cima deixaram passar com alta chance de já estar no app (o
   // lançado à mão com gorjeta, a mesma compra de outro banco em outro dia, o cartão que o par já
@@ -880,6 +880,10 @@ export type ConfirmedItem = {
   /** O gasto do "Paguei" que esta linha é (jaNoApp.paguei): a linha entra com a categoria e a
    * ligação da conta, e o do "Paguei" sai. Conferido de novo aqui. */
   paguei?: string | null;
+  /** A leitura já deu esta linha como "já estava no app" (veio de outro arquivo, 30/10/2026): não
+   * entra, só gasta a vaga do gravado que a leitura achou. Sem isso, a linha igual seguinte do
+   * mesmo arquivo (o segundo café do dia) era pulada no lugar dela, e o app só pulava a mais. */
+  jaEstava?: boolean;
 };
 
 /** Lançamento do extrato bancário que PODE ser o pagamento desta fatura — mostrado pra pessoa
@@ -1391,18 +1395,34 @@ function chaveSoltaDe(date: string, valorGravado: number, category: string): str
  * agora a revisão pergunta, mostrando o que já está lá. Descrição igual continua pulando sozinha
  * na confirmação, sem pergunta: é o mesmo arquivo de novo.
  */
-async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewItem[]) {
+/**
+ * `mesDaFaturaSemDia`: fatura que vai inteira no mês do vencimento, sem dia (o padrão desde
+ * 15/10/2026). A mesma fatura subida de novo (30/10/2026: 68 pessoas em 14 dias) não tinha dia
+ * para casar aqui, a revisão dizia "anotar 40" e só a gravação pulava, calada. Agora o que já
+ * está nesse mês sem dia, com o mesmo valor, tipo e nome, aparece em "já estavam no app", um
+ * por lançamento gravado (duas compras iguais no arquivo novo continuam entrando as duas).
+ */
+async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewItem[], mesDaFaturaSemDia: string | null = null) {
   const meses = [...new Set(items.flatMap((i) => (yearMonthFromISO(i.date) ? [i.date.slice(0, 7)] : [])))].map((ym) => ({
     year: Number(ym.slice(0, 4)),
     month: Number(ym.slice(5, 7)),
   }));
-  if (meses.length === 0) return;
+  const mesSemDia = mesDaFaturaSemDia && yearMonthFromISO(`${mesDaFaturaSemDia}-01`) ? { year: Number(mesDaFaturaSemDia.slice(0, 4)), month: Number(mesDaFaturaSemDia.slice(5, 7)) } : null;
+  if (meses.length === 0 && !mesSemDia) return;
   const perfis = [...new Set(items.map((it) => it.profileId ?? ctx.profileId))];
-  const [importados, nomesDoBanco] = await Promise.all([
-    prisma.monthlyEntry.findMany({
-      where: { userId: ctx.userId, profileId: { in: perfis }, importBatchId: { not: null }, entryDate: { not: null }, OR: meses },
-      select: { id: true, entryDate: true, amount: true, description: true, category: true, profileId: true },
-    }),
+  const [importados, semDia, nomesDoBanco] = await Promise.all([
+    meses.length === 0
+      ? Promise.resolve([])
+      : prisma.monthlyEntry.findMany({
+          where: { userId: ctx.userId, profileId: { in: perfis }, importBatchId: { not: null }, entryDate: { not: null }, OR: meses },
+          select: { id: true, entryDate: true, amount: true, description: true, category: true, profileId: true },
+        }),
+    mesSemDia
+      ? prisma.monthlyEntry.findMany({
+          where: { userId: ctx.userId, profileId: { in: perfis }, importBatchId: { not: null }, entryDate: null, year: mesSemDia.year, month: mesSemDia.month },
+          select: { id: true, entryDate: true, amount: true, description: true, category: true, profileId: true },
+        })
+      : Promise.resolve([]),
     descricoesOriginais(ctx, perfis),
   ]);
   const existentes = new Map<string, ExistenteSolto[]>();
@@ -1420,6 +1440,22 @@ async function marcarParecidosDeOutraImportacao(ctx: AuthContext, items: ReviewI
       : null,
   );
   const casados = casarPorDataEValor(chaves, items.map((it) => it.description), existentes, { perguntar: true });
+  // A fatura sem dia já no mês: só o nome igual conta (sem pergunta), e cada gravado responde por
+  // uma linha, como os outros.
+  if (semDia.length > 0 && mesSemDia) {
+    const gravados = new Map<string, ExistenteSolto[]>();
+    const chaveSemDia = (perfil: string, valor: number, categoria: string) => `${perfil}|semdia|${mesSemDia.year}/${mesSemDia.month}|${valor.toFixed(2)}|${categoria}`;
+    for (const e of semDia) {
+      const k = chaveSemDia(e.profileId ?? ctx.profileId, Number(e.amount), e.category);
+      gravados.set(k, [...(gravados.get(k) ?? []), { descricao: nomesDoBanco.get(e.id) ?? e.description, mostrar: e.description }]);
+    }
+    const chavesSemDia = items.map((it, i) =>
+      it.amount > 0 && !it.installment && !casados.has(i)
+        ? chaveSemDia(it.profileId ?? ctx.profileId, (it.estorno && it.category === "EXPENSE") || (it.resgate && it.category === "INVESTMENT_CONTRIBUTION") ? -it.amount : it.amount, it.category)
+        : null,
+    );
+    for (const [i, c] of casarPorDataEValor(chavesSemDia, items.map((it) => it.description), gravados, { perguntar: false })) casados.set(i, c);
+  }
   for (const [i, c] of casados) {
     if (items[i].possivelDuplicata || items[i].jaNoApp || items[i].ignorar) continue;
     // Mesmo dia, valor e nome de uma linha que já veio de outro arquivo (14/10/2026): a gravação
@@ -1947,6 +1983,13 @@ export async function importTransactionsAction(
   const parcelasSemDia = new Map<number, ParcelaExistente>();
   items.forEach((item, i) => {
     if (item.amount <= 0 || item.adotar) return;
+    // "Já estava no app" pela leitura: gasta a vaga do gravado igual (a chave exata aqui, a solta
+    // logo abaixo via `jaCasados`) e é pulada; nunca cria. No máximo se pula tantos quanto existem.
+    if (item.jaEstava) {
+      if (!alreadyThere(chaveExata(item))) chavesDoOutroModelo(item, false).some(alreadyThere);
+      pular.add(i);
+      return;
+    }
     const parcela = chaveParcela(item);
     let achada = parcela ? parcelaJaLancada(parcela.key, valorGravado(item), parcela.total) : null;
     for (const k of parcela && !achada ? chavesDoOutroModelo(item, true) : []) {
