@@ -653,7 +653,7 @@ export function EntryList({
                   className="relative flex min-w-0 flex-col items-start gap-2 rounded-2xl bg-surface p-3 text-left text-[15px] text-ink shadow-[inset_0_0_0_1px_var(--color-border)] aria-pressed:shadow-[inset_0_0_0_1.5px_var(--color-ink)]"
                 >
                   <CategoryIcon icon={v.icon} color={v.color} size={36} variant="soft" />
-                  <span className="w-full truncate">{nomeDaChave(k)}</span>
+                  <span className="w-full break-words leading-tight">{nomeDaChave(k)}</span>
                   <span className={`absolute right-3 top-3 flex size-[22px] items-center justify-center rounded-full ${on ? "bg-ink text-canvas" : "shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]"}`} aria-hidden>
                     {on && <Check size={13} strokeWidth={2.2} />}
                   </span>

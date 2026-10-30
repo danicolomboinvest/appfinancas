@@ -1083,7 +1083,7 @@ export function StatementImport({
                   type="button"
                   onClick={() => setPessoaDoExtrato(p)}
                   aria-pressed={pessoaDoExtrato === p}
-                  className={`min-h-11 flex-1 truncate rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`min-h-11 min-w-0 flex-1 break-words rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                     pessoaDoExtrato === p ? "bg-pill text-on-pill" : "text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -1218,7 +1218,7 @@ export function StatementImport({
             <div key={a.id} className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-premium-sm" data-arquivo-da-fila={a.status}>
               <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
                 <Paperclip size={15} className="shrink-0" aria-hidden />
-                <span className="truncate">{a.prints ? nomeDosPrints(a.prints.length) : a.file.name}</span>
+                <span className="min-w-0 break-words">{a.prints ? nomeDosPrints(a.prints.length) : a.file.name}</span>
               </span>
               {resumo ? (
                 <>
@@ -1381,7 +1381,7 @@ export function StatementImport({
                 <span className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-ink-muted" aria-hidden>
                   <Tag size={16} />
                 </span>
-                <span className="line-clamp-2 text-xs font-medium leading-tight text-ink">{cc.name}</span>
+                <span className="break-words text-xs font-medium leading-tight text-ink">{cc.name}</span>
               </button>
             </LapisDaCategoria>
           ))}
@@ -1494,12 +1494,12 @@ export function StatementImport({
           <div className="grid grid-cols-2 gap-2">
             <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
               <p className="text-caption text-ink-muted">No arquivo</p>
-              <p className="truncate text-[17px] font-semibold tabular-nums text-ink">{money(it.amount)}</p>
+              <p className="break-words text-[17px] font-semibold tabular-nums text-ink">{money(it.amount)}</p>
               <p className="break-words text-caption text-ink-muted">{formatDate(it.date)} · {nomeNaTela(it.description).nome}</p>
             </div>
             <div className="min-w-0 rounded-2xl bg-surface-2 px-3 py-3">
               <p className="text-caption text-ink-muted">{dup.paguei ? "Paguei no app" : dup.importado ? "Já no app" : "Você lançou"}</p>
-              <p className="truncate text-[17px] font-semibold tabular-nums text-ink">{money(dup.valor ?? it.amount)}</p>
+              <p className="break-words text-[17px] font-semibold tabular-nums text-ink">{money(dup.valor ?? it.amount)}</p>
               <p className="break-words text-caption text-ink-muted">
                 {dup.data ? `${formatDate(dup.data)} · ` : ""}
                 {dup.descricao ? nomeNaTela(dup.descricao).nome : ""}
@@ -1787,7 +1787,7 @@ export function StatementImport({
                 {s.exemplos.length > 0 && (
                   <ul className="flex flex-col gap-0.5 pl-3 text-caption text-ink-muted">
                     {s.exemplos.map((e) => (
-                      <li key={e} className="truncate">• {e}</li>
+                      <li key={e} className="break-words">• {e}</li>
                     ))}
                   </ul>
                 )}
@@ -2289,7 +2289,7 @@ export function StatementImport({
                     {dados.maiores.map((c) => (
                       <li key={c.rotulo} className="flex flex-col gap-1">
                         <div className="flex items-baseline justify-between gap-2 text-sm">
-                          <span className="min-w-0 truncate text-ink">{c.rotulo}</span>
+                          <span className="min-w-0 break-words text-ink">{c.rotulo}</span>
                           <span className="shrink-0 tabular-nums text-ink">{money(c.valor)}</span>
                         </div>
                         {/* Trilho com borda: visível até nos temas claros, onde o fundo translúcido sumia. */}
@@ -2353,7 +2353,7 @@ export function StatementImport({
               <li key={c.id} className="flex flex-col gap-1 py-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm text-ink">{c.description}</p>
+                    <p className="break-words text-sm text-ink">{c.description}</p>
                     <p className="text-caption text-ink-faint">{c.date ? formatDate(c.date) : t.impSemData}</p>
                   </div>
                   <span className="shrink-0 text-sm font-medium tabular-nums text-danger">− {money(c.amount)}</span>

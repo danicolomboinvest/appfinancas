@@ -174,7 +174,7 @@ function GradeDeCategorias<T extends { key: string; nome: string; icon: LucideIc
           className="relative flex min-w-0 flex-col items-start gap-2 rounded-2xl bg-surface p-3 text-left text-[15px] text-ink shadow-[inset_0_0_0_1px_var(--color-border)] aria-pressed:shadow-[inset_0_0_0_1.5px_var(--color-ink)]"
         >
           <CategoryIcon icon={o.icon} color={o.cor} size={36} variant="soft" />
-          <span className="w-full truncate">{o.nome}</span>
+          <span className="w-full break-words leading-tight">{o.nome}</span>
           {o.key === marcada && (
             // Na que ela criou, o canto de cima é do lápis: o visto fica logo ao lado.
             <span className={`absolute top-3 flex size-[22px] items-center justify-center rounded-full bg-ink text-surface ${o.customCategoryId ? "right-10" : "right-3"}`}>
@@ -366,7 +366,7 @@ function Separar({
     <div className="flex flex-col gap-3" data-separar>
       <h3 className="text-[15px] font-medium text-ink">Separar em categorias</h3>
       <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-3xl bg-surface p-3 pl-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
-        <span className="truncate text-[15px] text-ink">{nomeAtual}</span>
+        <span className="break-words leading-tight text-[15px] text-ink">{nomeAtual}</span>
         <CampoDeDinheiro
           valor={primeiraDigitada}
           onValor={setPrimeira}
@@ -384,7 +384,7 @@ function Separar({
         ))}
       </div>
       <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-3xl bg-surface p-3 pl-4 shadow-[inset_0_0_0_1px_var(--color-border)]">
-        <span className="truncate text-[15px] text-ink">{outra?.nome ?? "Escolha a categoria"}</span>
+        <span className="break-words leading-tight text-[15px] text-ink">{outra?.nome ?? "Escolha a categoria"}</span>
         <em className="not-italic font-medium tabular-nums text-ink">{money(v2)}</em>
       </div>
       <p className="text-center text-sm text-ink-muted">Total {money(entry.amount)}</p>

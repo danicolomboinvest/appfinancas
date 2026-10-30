@@ -334,7 +334,7 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
             </span>
             <span className="flex min-w-0 flex-col">
               <b className="text-[15px] font-medium text-ink">Saudáveis · em dia</b>
-              <small className="truncate text-[13px] text-ink-muted">{juntar(sau.map((d) => d.nome))}</small>
+              <small className="break-words leading-tight text-[13px] text-ink-muted">{juntar(sau.map((d) => d.nome))}</small>
             </span>
             <ChevronDown size={18} strokeWidth={1.8} className={`text-ink-muted transition-transform ${saudaveisAbertas ? "rotate-180" : ""}`} aria-hidden />
           </button>
@@ -347,7 +347,7 @@ export function DividasTela({ dividas, renda, rendaMeses = null, sobrou, selic, 
                     <LogoDoCredor credor={d.credor} tipo={d.tipo} saude="saudavel" size={36} />
                     <span className="flex min-w-0 flex-col">
                       <span className="flex items-center gap-2">
-                        <b className="truncate text-[15px] font-medium text-ink">{d.nome}</b>
+                        <b className="break-words leading-tight text-[15px] font-medium text-ink">{d.nome}</b>
                         <SeloDaSaude saude="saudavel" />
                       </span>
                       <small className="text-[13px] text-ink-muted">em dia{d.parcelasAbertas ? ` · faltam ${d.parcelasAbertas} parcelas` : ""}</small>

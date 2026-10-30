@@ -351,7 +351,7 @@ export function MeusAtivos({
                             <button type="button" onClick={() => setDetalhe(id)} className="flex w-full items-center gap-2.5 py-2 text-left">
                               <LogoDoAtivo nome={a.name} ticker={a.ticker} rendaFixa={a.assetClass === "TESOURO_DIRETO" || a.assetClass === "RENDA_FIXA"} cor={COR_DO_GRUPO[g.grupo]} tamanho={28} />
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[14px] font-medium text-ink">{nomeCurto(a)}</span>
+                                <span className="block break-words leading-tight text-[14px] font-medium text-ink">{nomeCurto(a)}</span>
                                 {a.investedValue !== null && a.investedValue > 0 && (
                                   <span className="block text-[12px] leading-tight text-ink-muted">investiu <span className="whitespace-nowrap">{money(a.investedValue, { round: true })}</span></span>
                                 )}
@@ -498,7 +498,7 @@ function FolhaDeAportes({ aportes, registrando, onRegistrar, onFechar }: { aport
               <li key={s.chave} className="flex items-center gap-3 py-2.5">
                 <span className="size-2 shrink-0 rounded-full" style={{ background: s.cor }} aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] font-medium text-ink">
+                  <span className="block break-words leading-tight text-[14px] font-medium text-ink">
                     {s.nome}
                     {s.ativo ? <span className="font-normal text-ink-muted"> · {s.ativo}</span> : null}
                   </span>

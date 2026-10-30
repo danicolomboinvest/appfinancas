@@ -89,7 +89,7 @@ export function LancamentosDoNossoMes({
         </span>
         <span className="min-w-0 flex-1">
           <small className="block text-xs text-ink-muted">Acerto de {MESES[mes - 1]}</small>
-          <b className="block truncate text-[15px] font-medium text-ink">{fraseAcerto}</b>
+          <b className="block break-words text-[15px] font-medium text-ink">{fraseAcerto}</b>
         </span>
         <ChevronRight size={16} className="shrink-0 text-ink-muted" aria-hidden />
       </Link>
