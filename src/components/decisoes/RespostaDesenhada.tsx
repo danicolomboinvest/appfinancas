@@ -75,7 +75,7 @@ function BlocoDaResposta({ b }: { b: Bloco }) {
         {b.itens.map((it, i) => (
           <div key={it.nome + i} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
             <span className="min-w-0">
-              <b className="block truncate font-medium text-ink">{it.nome}</b>
+              <b className="block break-words font-medium text-ink">{it.nome}</b>
               {it.detalhe && <small className="text-[13px] text-ink-muted">{it.detalhe}</small>}
             </span>
             <span className="flex flex-col items-end gap-0.5 text-right text-sm tabular-nums text-ink">

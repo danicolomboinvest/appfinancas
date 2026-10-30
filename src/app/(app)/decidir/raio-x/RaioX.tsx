@@ -155,7 +155,7 @@ export function RaioX({
       <div key={item.chave} className="flex items-start gap-3 py-3.5" data-guia="raiox-item">
         <LogoDoLancamento descricao={item.nome} icon={Repeat} size={36} />
         <div className="min-w-0 flex-1">
-          <p className={`truncate text-[15px] font-semibold ${estado === "cortado" ? "text-ink-muted line-through decoration-1" : "text-ink"}`}>{item.nome}</p>
+          <p className={`break-words text-[15px] font-semibold ${estado === "cortado" ? "text-ink-muted line-through decoration-1" : "text-ink"}`}>{item.nome}</p>
           {estado ? (
             <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${estado === "cortado" ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}>
               {estado === "mantido" ? "Mantido" : e === "raiox_metade" ? "Vou cortar pela metade" : canceladasAqui.has(item.chave) ? "Cancelada" : "Vou cancelar"}

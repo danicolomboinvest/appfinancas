@@ -63,7 +63,7 @@ function Opcao({ meta, on, selo, sub, onClick }: { meta: MetaDoFluxo; on: boolea
       <img src={meta.foto} alt="" loading="lazy" decoding="async" className="size-14 shrink-0 rounded-2xl object-cover" />
       <span className="min-w-0 flex-1">
         {selo && <small className={`mb-0.5 inline-block rounded-full px-2 py-px text-xs font-medium ${selo.neutro ? "bg-surface-2 text-ink" : selo.ruim ? "bg-danger-soft text-danger" : "bg-success-soft text-success"}`}>{selo.texto}</small>}
-        <b className="block truncate text-[15px] font-medium text-ink">{meta.nome}</b>
+        <b className="block break-words text-[15px] font-medium text-ink">{meta.nome}</b>
         <small className="text-[13px] tabular-nums text-ink-muted">{sub}</small>
       </span>
     </button>
@@ -120,9 +120,9 @@ export function FluxoGuardarMais({
             <b className="text-[15px] font-medium text-ink">Suas metas pedem {m(somaPede)}</b>
             {metas.map((x) => (
               <div key={x.id} className="flex items-baseline justify-between gap-3 border-t border-border pt-2 text-sm first-of-type:border-t-0">
-                <span className="min-w-0 truncate text-ink-muted">
+                <span className="min-w-0 break-words text-ink-muted">
                   {x.nome}
-                  {x.prazoTexto ? ` · até ${x.prazoTexto}` : ""}
+                  {x.prazoTexto ? <span className="whitespace-nowrap">{` · até ${x.prazoTexto}`}</span> : ""}
                 </span>
                 <b className="shrink-0 font-medium tabular-nums text-ink">{m(x.necessario)}</b>
               </div>
