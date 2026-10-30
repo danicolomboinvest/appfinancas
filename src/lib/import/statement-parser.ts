@@ -23,6 +23,7 @@ import { lerExtratoPeloSaldo } from "./extrato-pelo-saldo";
 import { isCaixaInvoice, parseCaixaInvoice } from "./caixa-fatura-pdf";
 import { isPortoInvoice, parsePortoInvoice } from "./porto-fatura-pdf";
 import { isUnicredStatement, parseUnicredStatement } from "./unicred-pdf";
+import { normalizarTextoEuropeu } from "./texto-europeu";
 import { isWiseStatement, parseWiseStatement } from "./wise-extrato-pdf";
 import { isExtratoColunasTxt, parseExtratoColunasTxt } from "./extrato-colunas-txt";
 import { isMercadoPagoInvoice, parseMercadoPagoInvoice } from "./mercado-pago-fatura-pdf";
@@ -268,25 +269,33 @@ function splitCsvLine(line: string, delimiter: string): string[] {
 }
 
 /** "fecha", "concepto", "importe", "monto": os mesmos papéis nas exportações dos bancos argentinos. */
-const DATE_HEADERS = ["data", "date", "dt", "fecha"];
-const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title", "concepto", "detalle", "glosa"];
+const DATE_HEADERS = ["data", "date", "dt", "fecha", "f. valor", "f.valor", "f. operaci", "datum", "buchungstag", "dato"];
+const DESC_HEADERS = ["descri", "histor", "histó", "lanç", "lanc", "memo", "estabelecimento", "detalhe", "title", "concepto", "detalle", "glosa", "verwendungszweck", "buchungstext", "omschrijving", "libell", "payee", "partner name", "counterparty", "beneficiario", "beneficiário", "empf", "begünst", "beguenst", "zahlungspflicht", "mededeling"];
+/**
+ * Em extrato europeu a coluna que diz O QUÊ (o comerciante, o favorecido) vem antes ou depois de
+ * uma de tipo ("KARTENZAHLUNG", "Presentment"): quando existe uma dessas, ela vence a primeira
+ * coluna de descrição por posição.
+ */
+const DESC_PREFERIDAS = ["verwendungszweck", "begünst", "beguenst", "empf", "zahlungspflicht", "omschrijving", "naam", "libell", "partner name", "payee", "counterparty", "beneficiario", "beneficiário"];
+/** Coluna de data que também diz "valor": "Data Valor", "Value Date", "Fecha valor" são datas, não o valor em dinheiro. */
+const COLUNA_DE_DATA_RE = /\b(?:data|date|fecha|datum|dato)\b|valutadatum|buchungstag|-valor\b|\bf\.\s?valor/i;
 /** "R$" sozinho é o nome da coluna de valor na fatura do Santander em Excel. */
-const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value", "r$", "reais", "importe", "monto", "pesos"];
+const AMOUNT_HEADERS = ["valor", "amount", "montante", "quantia", "value", "r$", "reais", "importe", "monto", "pesos", "betrag", "bedrag", "importo", "montant", "belopp", "beløp", "kwota", "umsatz"];
 /** Coluna de valor que NÃO é a certa: "Valor (em US$)" do C6 vinha antes de "Valor (em R$)" e levava tudo. */
 const AMOUNT_AVOID = ["us$", "u$s", "usd", "dólar", "dolar", "cotação", "cotacao", "cotización", "cotizacion"];
 /** Extratos com duas colunas (Bradesco, Santander, Sicoob, Caixa): crédito e débito separados. */
 /** "Abonos" e "Cargos" são o crédito e o débito dos bancos do Chile (Banco de Chile, BancoEstado). */
-const CREDIT_HEADERS = ["crédito", "credito", "entrada", "credit", "abono"];
-const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit", "cargo"];
+const CREDIT_HEADERS = ["crédito", "credito", "entrada", "credit", "crédit", "abono", "haben", "accredit", "avere", "entrate"];
+const DEBIT_HEADERS = ["débito", "debito", "saída", "saida", "debit", "débit", "cargo", "soll", "addebit", "dare", "uscite"];
 /** Coluna "D/C", "Natureza", "Tipo" com D ou C: o sinal vem dela. */
-const DC_HEADERS = ["d/c", "c/d", "natureza", "tipo"];
+const DC_HEADERS = ["d/c", "c/d", "natureza", "tipo", "af bij", "af/bij", "af / bij"];
 /**
  * Célula de sinal que diz SAÍDA: "D", "Débito", "Saída", "Debit". Antes só "D"/"Déb" contavam, e
  * no CSV com "Saída"/"Entrada" o gasto entrava como renda. "Gasto"/"Aporte" é a coluna Tipo do
  * CSV que o PRÓPRIO app exporta (Configurações > Dados): subido de volta, os 99 gastos e 3 aportes
  * entravam como renda, porque ali o valor sai sempre positivo.
  */
-const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$|gasto$|aporte$)/i;
+const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$|gasto$|aporte$|af$|soll$|s$)/i;
 /**
  * Coluna com o RAMO da loja que o banco manda junto (12/10/2026): "Categoria" do C6 e do Inter
  * ("Restaurante / Lanchonete / Bar", "RESTAURANTES"), "category" do CSV antigo do Nubank, "Ramo",
@@ -294,7 +303,7 @@ const SINAL_SAIDA_RE = /^(?:d\b|d[eé]b|sa[ií]da|debit|-$|gasto$|aporte$)/i;
  */
 const CATEGORY_HEADERS = ["categoria", "category", "ramo", "segmento", "mcc"];
 /** Célula que é SÓ o sinal (nada de "Pix enviado"): essa não enriquece a descrição. */
-const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-]|gasto|renda|aporte|resgate)$/i;
+const CELULA_SO_SINAL_RE = /^(?:d|c|d[eé]b(?:ito)?|cr[eé]d(?:ito)?|sa[ií]da|entrada|debit|credit|[+-]|gasto|renda|aporte|resgate|af|bij|soll|haben|s|h)$/i;
 /** A coluna "Tipo de compra" da planilha da fatura (BTG): diz COMO foi pago, não o quê. Grudada
  * na frente ("Parcela sem juros · Loja (2/6)") o nome deixava de bater com as regras dela e com a
  * mesma compra vinda do PDF: a fatura em planilha virava quase uma pergunta por compra e quase nada "já no app". */
@@ -323,7 +332,9 @@ function findColumnExcept(headers: string[], needles: string[], skip: number): n
 
 /** A coluna de valor certa: prefere "Valor (em R$)" / "valor" a "Valor (em US$)". */
 function findAmountColumn(headers: string[]): number {
-  const candidates = headers.map((h, i) => ({ h, i })).filter(({ h }) => AMOUNT_HEADERS.some((n) => h.includes(n)));
+  const candidates = headers
+    .map((h, i) => ({ h, i }))
+    .filter(({ h }) => AMOUNT_HEADERS.some((n) => h.includes(n)) && !COLUNA_DE_DATA_RE.test(h));
   if (candidates.length === 0) return -1;
   const good = candidates.filter(({ h }) => !AMOUNT_AVOID.some((a) => h.includes(a)));
   const pool = good.length > 0 ? good : candidates;
@@ -393,9 +404,12 @@ function readHeaderLayout(line: string): CsvLayout | null {
   const dateCol = findColumn(cells, DATE_HEADERS);
   // "DATA DESCRICAO" numa célula só é o cabeçalho da fatura do Santander: a data e a descrição
   // vêm grudadas. Só aceitamos essa coincidência quando não existe outra coluna de descrição.
-  const descCol = findColumnExcept(cells, DESC_HEADERS, dateCol) !== -1
-    ? findColumnExcept(cells, DESC_HEADERS, dateCol)
-    : findColumn(cells, DESC_HEADERS);
+  const descPreferida = findColumnExcept(cells, DESC_PREFERIDAS, dateCol);
+  const descCol = descPreferida !== -1
+    ? descPreferida
+    : findColumnExcept(cells, DESC_HEADERS, dateCol) !== -1
+      ? findColumnExcept(cells, DESC_HEADERS, dateCol)
+      : findColumn(cells, DESC_HEADERS);
   if (amountCol === -1 && !(creditCol !== -1 && debitCol !== -1)) return null;
   if (dateCol === -1 && descCol === -1) return null;
   const transCol = findColumn(cells, TRANSACTION_HEADERS);
@@ -1028,7 +1042,7 @@ function lerPorPartes(content: string, refYear?: number): { txns: ParsedTransact
   const txns: ParsedTransaction[] = [];
   const leitores = new Set<string>();
   for (const pagina of paginas) {
-    const r = parseStatementComLeitor(pagina, "pdf", refYear);
+    const r = parseStatementComLeitor(pagina, "pdf", refYear, false);
     if (r.txns.length === 0) continue;
     if (!r.leitor) return null;
     leitores.add(r.leitor);
@@ -1043,6 +1057,7 @@ export function parseStatementComLeitor(
   content: string,
   source: "auto" | "pdf" = "auto",
   refYear?: number,
+  traduzirEuro = true,
 ): { txns: ParsedTransaction[]; leitor: string | null } {
   // Texto de leitura por imagem (OCR) só vale por leitor que confere o que leu; os genéricos
   // pegariam número trocado e gravariam dinheiro errado.
@@ -1089,7 +1104,17 @@ export function parseStatementComLeitor(
     const generico = proprio ?? { txns: parseTextLines(content, refYear), leitor: null };
     if (!proprio && fechaComoFatura(content, generico.txns) === "fechou") return generico;
     const testando = lerFaturaTestando(content, refYear);
-    return testando ? { txns: testando, leitor: "inteligente" } : generico;
+    if (testando) return { txns: testando, leitor: "inteligente" };
+    // Extrato em euro (dinheiro "1,234.56" ou "23,45 €", data "1 Oct 2026" ou "01.10.2026"): nada
+    // leu, então o texto é traduzido para o jeito do app e tenta de novo (texto-europeu.ts).
+    if (traduzirEuro && generico.txns.length === 0) {
+      const traduzido = normalizarTextoEuropeu(content);
+      if (traduzido) {
+        const dEuropa = parseStatementComLeitor(traduzido, "pdf", refYear, false);
+        if (dEuropa.txns.length > 0) return { txns: dEuropa.txns, leitor: dEuropa.leitor ?? "euro" };
+      }
+    }
+    return generico;
   }
   if (isExtratoColunasTxt(content)) {
     const txns = parseExtratoColunasTxt(content);

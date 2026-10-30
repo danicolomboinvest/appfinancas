@@ -32,6 +32,10 @@ import { isSicrediInvoice } from "./sicredi-fatura-pdf";
 import { isXpContaDigitalStatement } from "./xp-conta-pdf";
 import type { ParsedTransaction } from "./statement-parser";
 
+const EXTRATO_EUROPEU_CSV_RE = /started date|completed date|booking date|buchungstag|boekdatum|(?:^|[,;"])(?:datum|data mov|fecha operaci)/;
+const FATURA_EUROPEIA_RE = /kreditkartenabrechnung|credit card statement|card statement|relev[eé] de carte|extracto de tarjeta|estratto conto carta|fatura do cart[aã]o/;
+const EXTRATO_EUROPEU_RE = /kontoauszug|account statement|\bstatement (?:in|for) [a-z]{3}\b|\b(?:eur|gbp|usd) statement\b|estratto conto|relev[eé] de compte|rekeningafschrift|extracto (?:mensual|de cuenta)|extrato combinado|transaction history|iban/;
+
 export type DocKind = "extrato" | "fatura" | "unknown";
 
 const OFX_DE_CONTA = "OFX de conta bancária";
@@ -131,6 +135,8 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
   if (/identificador/.test(firstLine) && /descri/.test(firstLine)) return { kind: "extrato", reason: CSV_EXTRATO_NUBANK };
   if (/final do cart[aã]o|nome no cart[aã]o|parcela|\bcuotas?\b/.test(firstLine)) return { kind: "fatura", reason: "fatura de cartão (CSV)" };
   if (/saldo/.test(firstLine)) return { kind: "extrato", reason: "extrato com coluna de saldo" };
+  // CSV de banco europeu (Revolut, N26, Sparkasse, ING, Millennium...): o cabeçalho tem as palavras do país.
+  if (EXTRATO_EUROPEU_CSV_RE.test(firstLine)) return { kind: "extrato", reason: "extrato de banco europeu (CSV)" };
 
   // PDF de banco que o app conhece: o molde decide, não as palavras. (Inclui o Santander, que
   // quebra as palavras no meio, "EXT R ATO", e só é reconhecido sem os espaços.)
@@ -146,6 +152,9 @@ export function detectDocKind(text: string, fileName?: string | null): { kind: D
   if (/pago m[ií]nimo|cierre actual|vencimiento actual|resumen de tarjeta|l[ií]mite de compra|total consumos/.test(cabeca)) return { kind: "fatura", reason: "cabeçalho de resumen de tarjeta" };
   if (/caja de ahorros?|cuenta corriente|movimientos|resumen de cuenta/.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato (resumen de cuenta)" };
   if (/extrato|saldo (anterior|do dia|final)|conta corrente/.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato" };
+  // Banco em euro: fatura de cartão e extrato com as palavras de lá (inglês, alemão, italiano, francês, espanhol).
+  if (FATURA_EUROPEIA_RE.test(headLower)) return { kind: "fatura", reason: "cabeçalho de fatura de cartão (euro)" };
+  if (EXTRATO_EUROPEU_RE.test(headLower)) return { kind: "extrato", reason: "cabeçalho de extrato (euro)" };
 
   if (/fatura|invoice|tarjeta|resumen[_ -]?(?:visa|master|amex)/.test(name) || /^nubank_\d{4}-\d{2}-\d{2}\.csv$/.test(name)) return { kind: "fatura", reason: "nome do arquivo" };
   if (/extrato|statement|^nu_\d+_|movimientos|extracto/.test(name)) return { kind: "extrato", reason: "nome do arquivo" };

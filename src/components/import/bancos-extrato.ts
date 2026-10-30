@@ -54,3 +54,43 @@ export const BANCOS_EXTRATO: ComoBaixar[] = [
     dica: "O PDF do Mercado Pago eu ainda não leio bem: prefira Excel ou CSV.",
   },
 ];
+
+/**
+ * Quem ganha em euro (e outras moedas de fora) usa banco de lá. Mesmo cuidado do resto do arquivo:
+ * onde o menu muda de nome, o texto diz o que PROCURAR.
+ */
+export const BANCOS_EXTRATO_EURO: ComoBaixar[] = [
+  {
+    banco: "Wise",
+    extrato: "No app, abra o saldo em euro, toque nos três pontinhos e procure Extratos e relatórios (Statements). Escolha o período e baixe em PDF ou CSV.",
+    dica: "Os dois servem; o CSV costuma ser o mais completo.",
+  },
+  {
+    banco: "Revolut",
+    extrato: "No app, abra a conta em euro, toque em Mais (os três pontinhos) e procure Extrato (Statement). Escolha o período e baixe em PDF, Excel ou CSV.",
+  },
+  {
+    banco: "N26",
+    extrato: "No app, procure Extratos (Statements) na sua conta e baixe o PDF do mês. Pelo site também dá para exportar as transações em CSV.",
+  },
+  {
+    banco: "bunq",
+    extrato: "No app, abra a conta, procure o botão de exportar (Export) e escolha CSV ou PDF, com o período que quiser.",
+  },
+  {
+    banco: "ING",
+    extrato: "No app ou no site, abra a conta e procure Download de transações (ou Extrato). Escolha o período e baixe em CSV ou PDF.",
+  },
+  {
+    banco: "Millennium bcp",
+    extrato: "No site do banco, em Consultas › Movimentos, escolha o período e procure Exportar para Excel ou PDF.",
+  },
+  {
+    banco: "Caixa Geral (CGD)",
+    extrato: "No site, em Contas › Movimentos, escolha o período e procure Exportar (Excel, CSV ou PDF).",
+  },
+  {
+    banco: "Santander",
+    extrato: "No site ou app, abra os movimentos da conta, escolha o período e procure Descarregar ou Exportar (PDF, Excel ou CSV).",
+  },
+];
