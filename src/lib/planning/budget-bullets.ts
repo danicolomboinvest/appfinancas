@@ -1,3 +1,4 @@
+import { diaNoPeriodo, periodoDoMes } from "@/lib/mes/periodo";
 import type { CategoryComparison } from "./budget-comparison";
 import type { MoneyFormatter } from "@/lib/money";
 
@@ -24,16 +25,18 @@ export type BudgetBulletRow = {
 };
 
 
-/** Quanto do período já passou, de 0 a 1 — é onde o tracinho fica. */
-export function elapsedRatioOfMonth(now: Date, year: number, month: number): number {
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const isSameMonth = now.getFullYear() === year && now.getMonth() + 1 === month;
-  if (!isSameMonth) {
-    // Mês passado já acabou (tracinho no fim); mês futuro nem começou (sem tracinho útil).
-    const isPast = year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1);
-    return isPast ? 1 : 0;
-  }
-  return now.getDate() / daysInMonth;
+/**
+ * Quanto do período já passou, de 0 a 1 — é onde o tracinho fica. Com dia de início (30/10/2026),
+ * o período é o da pessoa: em 05/11 com o mês começando dia 15, outubro (15/10 a 14/11) está no
+ * dia 22 de 31; sem dia escolhido é o mês do calendário, como sempre.
+ */
+export function elapsedRatioOfMonth(now: Date, year: number, month: number, diaInicio: number | null = null): number {
+  const p = periodoDoMes(year, month, diaInicio);
+  const dia = diaNoPeriodo(now, p);
+  // Mês passado já acabou (tracinho no fim); mês futuro nem começou (sem tracinho útil).
+  if (dia < 1) return 0;
+  if (dia > p.dias) return 1;
+  return dia / p.dias;
 }
 
 export type BulletLabelStyle = "de" | "restante";

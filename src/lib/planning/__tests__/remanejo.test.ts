@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { folgaDe, nivelDaCategoria, planoDeCobrir, porDiaComOLivre, quantoPassou, revisaoDoPlano, type CategoriaParaRemanejo } from "../remanejo";
+import { folgaDe, nivelDaCategoria, planoDeCobrir, porDiaComOLivre, quantoPassou, revisaoDoPlano, tempoDeHoje, tempoDoMes, type CategoriaParaRemanejo } from "../remanejo";
 
 /** O plano de outubro da Ana (ana-canonica.md, seção 1). "Compras" no app real é Outros. */
 const ana: CategoriaParaRemanejo[] = [
@@ -158,5 +158,24 @@ describe("ordem de remanejo da Dani (15/10/2026: zerou Alimentação no dia 14 e
     const p = planoDeCobrir(passou, tres, dia14);
     expect(p).toMatchObject({ nivel: 1, principal: "tirar" });
     expect(p.origens.map((o) => o.label).sort()).toEqual(["Cuidado pessoal", "Outros", "Viagem"]);
+  });
+});
+
+describe("tempoDeHoje com o mês da pessoa (dia de início)", () => {
+  it("dia 1 (ou nulo) é idêntico ao calendário: em 20/09 faltam 11 dias de 30", () => {
+    const hoje = new Date(2026, 8, 20, 12);
+    expect(tempoDeHoje(hoje)).toEqual({ diasRestantes: 11, diasNoMes: 30 });
+    expect(tempoDeHoje(hoje, 1)).toEqual({ diasRestantes: 11, diasNoMes: 30 });
+    expect(tempoDeHoje(hoje, null)).toEqual({ diasRestantes: 11, diasNoMes: 30 });
+  });
+
+  it("dia 15: em 05/11 o mês é outubro (15/10 a 14/11), faltam 10 dias de 31", () => {
+    expect(tempoDeHoje(new Date(2026, 10, 5, 12), 15)).toEqual({ diasRestantes: 10, diasNoMes: 31 });
+    // Em 14/11, último dia do período: 1 dia (hoje).
+    expect(tempoDeHoje(new Date(2026, 10, 14, 12), 15)).toEqual({ diasRestantes: 1, diasNoMes: 31 });
+  });
+
+  it("tempoDoMes com os dias do mês da pessoa não cai no calendário", () => {
+    expect(tempoDoMes(10, 31)).toEqual({ diasRestantes: 10, diasNoMes: 31 });
   });
 });

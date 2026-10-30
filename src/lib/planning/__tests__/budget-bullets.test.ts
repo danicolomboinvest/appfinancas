@@ -70,4 +70,28 @@ describe("elapsedRatioOfMonth", () => {
     expect(elapsedRatioOfMonth(hoje, 2026, 8)).toBe(1);
     expect(elapsedRatioOfMonth(hoje, 2026, 10)).toBe(0);
   });
+
+  it("sem dia escolhido (nulo ou 1) é idêntico ao calendário, em todos os dias de um ano", () => {
+    for (let n = 0; n < 365; n += 1) {
+      const hoje = new Date(2026, 0, 1 + n, 10);
+      for (let month = 1; month <= 12; month += 1) {
+        const deAntes = (() => {
+          const diasNoMes = new Date(2026, month, 0).getDate();
+          if (hoje.getMonth() + 1 === month) return hoje.getDate() / diasNoMes;
+          return month < hoje.getMonth() + 1 ? 1 : 0;
+        })();
+        expect(elapsedRatioOfMonth(hoje, 2026, month, null)).toBe(deAntes);
+        expect(elapsedRatioOfMonth(hoje, 2026, month, 1)).toBe(deAntes);
+      }
+    }
+  });
+
+  it("dia 15: em 05/11 outubro (15/10 a 14/11) está no dia 22 de 31; setembro acabou e novembro nem começou", () => {
+    const hoje = new Date(2026, 10, 5, 10);
+    expect(elapsedRatioOfMonth(hoje, 2026, 10, 15)).toBeCloseTo(22 / 31, 6);
+    expect(elapsedRatioOfMonth(hoje, 2026, 9, 15)).toBe(1);
+    expect(elapsedRatioOfMonth(hoje, 2026, 11, 15)).toBe(0);
+    // No primeiro dia do período dela, 15/10, outubro está no dia 1.
+    expect(elapsedRatioOfMonth(new Date(2026, 9, 15, 10), 2026, 10, 15)).toBeCloseTo(1 / 31, 6);
+  });
 });

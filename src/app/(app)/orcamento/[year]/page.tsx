@@ -164,10 +164,12 @@ export default async function OrcamentoPage(props: PageProps<"/orcamento/[year]"
           ano: year,
           mes: currentMonthData.month,
           ultimoGasto,
+          // O mês da pessoa (30/10/2026): com dia de início, a régua e os dias restantes são do período dela.
+          diaInicio,
         })
       : null;
 
-  const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month) : 0;
+  const decorrido = currentMonthData ? elapsedRatioOfMonth(now, year, currentMonthData.month, diaInicio) : 0;
   const ROTULO_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   // Na ordem do plano, do maior para o menor (protótipo); a que passou é marcada, não sobe.
   const categoriasDoMes = currentMonthData && detalhe

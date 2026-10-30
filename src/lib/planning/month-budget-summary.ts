@@ -1,3 +1,4 @@
+import { dentroDoPeriodo, diaNoPeriodo, periodoDoMes } from "@/lib/mes/periodo";
 /**
  * O número que a pessoa abre o orçamento pra ver: quanto ela tinha pra gastar no mês e quanto
  * já foi.
@@ -81,11 +82,16 @@ export function resumoDoMes(input: {
    * lida com getUTC*, ao contrário de `hoje`, que carrega o relógio de Brasília nos campos locais.
    */
   ultimoGasto?: Date | null;
+  /** O dia em que o mês da pessoa começa (lib/mes/periodo); nulo ou 1 = mês do calendário. */
+  diaInicio?: number | null;
 }): ResumoDoMes {
   const { planejado, gasto, hoje, ano, mes, ultimoGasto } = input;
-  const diasNoMes = new Date(ano, mes, 0).getDate();
-  const ehMesCorrente = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
-  const diaAtual = ehMesCorrente ? hoje.getDate() : diasNoMes;
+  // O período da pessoa (30/10/2026): com o mês começando dia 15, outubro vai de 15/10 a 14/11 e
+  // em 05/11 ele ainda é o mês corrente, no dia 22 de 31. Sem dia escolhido, o mês de sempre.
+  const periodo = periodoDoMes(ano, mes, input.diaInicio ?? null);
+  const diasNoMes = periodo.dias;
+  const ehMesCorrente = dentroDoPeriodo(hoje, periodo);
+  const diaAtual = ehMesCorrente ? diaNoPeriodo(hoje, periodo) : diasNoMes;
   const diasRestantes = ehMesCorrente ? diasNoMes - diaAtual + 1 : 0;
   const doMes = diaAtual / diasNoMes;
 
@@ -104,7 +110,7 @@ export function resumoDoMes(input: {
   // lançar — o que escondia o "R$ X por dia" um dia antes da hora.
   // Só o dia de um gasto DESTE mês (08/10/2026): quem chega em outubro sem nada lançado tem
   // como último gasto o 29 de setembro, e a tela dizia "lançados até dia 29" em outubro.
-  const gastoDesteMes = Boolean(ultimoGasto && ultimoGasto.getUTCFullYear() === ano && ultimoGasto.getUTCMonth() + 1 === mes);
+  const gastoDesteMes = Boolean(ultimoGasto && dentroDoPeriodo(ultimoGasto.toISOString().slice(0, 10), periodo));
   const ultimoDiaLancado = gastoDesteMes && ultimoGasto ? ultimoGasto.getUTCDate() : null;
   const diasSemLancar =
     ehMesCorrente && ultimoGasto
