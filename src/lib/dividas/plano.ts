@@ -1,8 +1,15 @@
 import { ordemDeAtaque, taxaDe, temTetoDeCem, type Divida } from '@/lib/dividas/tipos'
 
 /**
- * Copiado do app Rota (~/Claude/app-educacao/lib/dividas/plano.ts) sem mudar a conta: o SPI e o
- * Rota precisam dar a mesma data para as mesmas dívidas.
+ * Copiado do app Rota (~/Claude/app-educacao/lib/dividas/plano.ts): o SPI e o Rota precisam dar a
+ * mesma data para as mesmas dívidas.
+ *
+ * DIVERGÊNCIA INTENCIONAL COM O ROTA (14/10/2026, escolha do assistente a pedido da Dani, que disse
+ * "você veja o que é melhor"; ela pode rever): o "quanto falta pagar" é o saldo para quitar HOJE, e
+ * quando a dívida tem parcelas restantes conhecidas (`parcelasAbertas`), a quitação NUNCA passa do fim
+ * do contrato. No último mês do contrato o que sobrar é dado como pago (e entra no total pago).
+ * Sem `parcelasAbertas` (e no Rota, que não tem o campo) a conta é exatamente a de antes. Se o Rota
+ * quiser a mesma data, copiar o bloco marcado "PRAZO DO CONTRATO" de volta para lá.
  *
  * O passo "agir" do §6.3: quanto tempo leva para sair e em que ordem cada
  * dívida cai.
@@ -42,6 +49,15 @@ export function ehImpossivel(p: Plano | PlanoImpossivel): p is PlanoImpossivel {
   return 'impossivel' in p
 }
 
+/** A dívida do SPI traz as parcelas que faltam; a do Rota não (aí o prazo do contrato não se aplica). */
+type DividaComPrazo = Divida & { parcelasAbertas?: number | null; semParcela?: boolean }
+
+/** PRAZO DO CONTRATO: parcelas que faltam, só quando existem e a dívida tem parcela fixa. */
+function prazoDoContrato(d: DividaComPrazo): number | null {
+  const n = d.parcelasAbertas
+  return !d.semParcela && typeof n === 'number' && n > 0 ? n : null
+}
+
 /** O motor. Recebe a ordem pronta para poder comparar estratégias. */
 function simular(dividas: Divida[], extraMensal: number, ordem: string[]): Plano | null {
   const saldos = new Map(dividas.map((d) => [d.id, d.saldo]))
@@ -50,6 +66,11 @@ function simular(dividas: Divida[], extraMensal: number, ordem: string[]): Plano
   const nomes = new Map(dividas.map((d) => [d.id, d.nome]))
   const tetos = new Map(dividas.filter((d) => temTetoDeCem(d.tipo)).map((d) => [d.id, d.saldo]))
   const jurosCobrados = new Map(dividas.map((d) => [d.id, 0]))
+  const prazos = new Map<string, number>()
+  for (const d of dividas) {
+    const n = prazoDoContrato(d)
+    if (n !== null) prazos.set(d.id, n)
+  }
   const quitacoes: Quitacao[] = []
   let totalPago = 0
   let mes = 0
@@ -89,6 +110,16 @@ function simular(dividas: Divida[], extraMensal: number, ordem: string[]): Plano
       saldos.set(id, saldo - pago)
       sobra -= pago
       totalPago += pago
+    }
+
+    // PRAZO DO CONTRATO: no último mês do contrato o que restar está pago (o saldo digitado é o de
+    // hoje; juros só sobre ele, uma vez, e a data não passa do fim das parcelas).
+    for (const [id, saldo] of saldos) {
+      const prazo = prazos.get(id)
+      if (prazo !== undefined && mes >= prazo && saldo > 0.005) {
+        totalPago += saldo
+        saldos.set(id, 0)
+      }
     }
 
     for (const [id, saldo] of saldos) {

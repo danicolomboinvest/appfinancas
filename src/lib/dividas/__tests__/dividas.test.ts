@@ -57,12 +57,12 @@ describe("o plano da Ana (motor do Rota)", () => {
     expect(p.quitacoes.map((q) => q.id)).toEqual(["d1", "d2"]);
   });
 
-  it("R$ 200 a mais chega 4 meses antes, com R$ 667 de juros a menos", () => {
+  it("R$ 200 a mais chega 2 meses antes, com R$ 434 de juros a menos (antes do prazo do contrato eram 4 meses e R$ 667: a fatura de 6 parcelas agora fecha no mês 6)", () => {
     const com = simularQuitacao(res, 200);
     const sem = simularQuitacao(res, 0);
     if (ehImpossivel(com) || ehImpossivel(sem)) throw new Error("plano impossível");
-    expect(sem.meses - com.meses).toBe(4);
-    expect(Math.round(sem.totalJuros - com.totalJuros)).toBe(667);
+    expect(sem.meses - com.meses).toBe(2);
+    expect(Math.round(sem.totalJuros - com.totalJuros)).toBe(434);
   });
 
   it("a mais cara primeiro nunca paga mais juros que a menor primeiro", () => {

@@ -275,7 +275,7 @@ export function CadastroDaDivida({
           <span className="text-lg text-ink-muted">{simbolo}</span>
           <CampoDeDinheiro autoFocus aria-label="Valor total hoje" placeholder="0,00" valor={r.saldo} onValor={(v) => muda({ saldo: v ?? 0 })} className="w-full bg-transparent text-[2.25rem] font-light tabular-nums text-ink outline-none" />
         </label>
-        <p className="text-sm text-ink-muted">O total de hoje, somando o que falta.</p>
+        <p className="text-sm text-ink-muted">O valor para quitar hoje, o que o banco informa.</p>
         {continuar(r.saldo > 0, 6, "Digite quanto falta pagar.")}
       </>
     );
