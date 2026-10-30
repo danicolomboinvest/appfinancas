@@ -18,6 +18,8 @@ export type ContaSerial = {
   diaDoMes: number | null;
   /** A categoria da conta (ParentCategory); nula nas contas de antes sem categoria. */
   categoria: string | null;
+  /** A categoria personalizada dela (30/10/2026); nula quando a conta usa uma padrão. */
+  customCategoryId: string | null;
   /** Frequência livre (seção 3.17); nulos nas contas de antes. */
   intervalo: number | null;
   unidade: string | null;

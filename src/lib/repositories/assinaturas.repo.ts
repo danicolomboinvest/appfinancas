@@ -15,6 +15,7 @@ import {
   type ComercianteParaEscolher,
 } from "@/lib/contas/assinaturas";
 import { lancamentosParaCacar } from "@/lib/repositories/dinheiro-perdido.repo";
+import { categoriaParaGravar } from "@/lib/repositories/conta-a-pagar.repo";
 
 /**
  * Assinatura posta à mão (13/10/2026). Mora na ContaAPagar com `tipo` = "assinatura", todo mês,
@@ -29,10 +30,10 @@ const categoriaValida = (c: string | null | undefined): ParentCategory | null =>
 export async function listarAssinaturasDela(ctx: AuthContext): Promise<AssinaturaDela[]> {
   const linhas = await prisma.contaAPagar.findMany({
     where: { ...doDono(ctx), tipo: TIPO_ASSINATURA, quitada: false },
-    select: { id: true, nome: true, valor: true, diaDoMes: true, chaveDoHistorico: true, categoria: true },
+    select: { id: true, nome: true, valor: true, diaDoMes: true, chaveDoHistorico: true, categoria: true, customCategoryId: true },
     orderBy: { nome: "asc" },
   });
-  return linhas.map((l) => ({ id: l.id, nome: l.nome, valor: l.valor === null ? null : Number(l.valor), diaDoMes: l.diaDoMes, chaveDoHistorico: l.chaveDoHistorico, categoria: l.categoria }));
+  return linhas.map((l) => ({ id: l.id, nome: l.nome, valor: l.valor === null ? null : Number(l.valor), diaDoMes: l.diaDoMes, chaveDoHistorico: l.chaveDoHistorico, categoria: l.categoria, customCategoryId: l.customCategoryId }));
 }
 
 /** As achadas sozinhas que ela disse "Não é assinatura" (as chaves). */
@@ -101,20 +102,23 @@ export async function adicionarDosLancamentos(ctx: AuthContext, chave: string, h
   return criada;
 }
 
-export type AssinaturaEscrita = { nome: string; valor: number; dia: number | null; categoria: string | null };
+export type AssinaturaEscrita = { nome: string; valor: number; dia: number | null; categoria: string | null; customCategoryId?: string | null };
 
 /**
- * Escreveu: nome, valor por mês, o dia (se souber) e a categoria. O comerciante sai do nome
- * ("Netflix" → m:netflix), para os próximos lançamentos serem reconhecidos. O mesmo nome que ela já
- * tem é atualizado, não duplicado.
+ * Escreveu: nome, valor por mês, o dia (se souber) e a categoria (uma padrão ou uma personalizada
+ * dela, 30/10/2026: aí a padrão fica nula). O comerciante sai do nome ("Netflix" → m:netflix),
+ * para os próximos lançamentos serem reconhecidos. O mesmo nome que ela já tem é atualizado, não
+ * duplicado.
  */
 export async function escreverAssinatura(ctx: AuthContext, d: AssinaturaEscrita, hoje: Date, id?: string): Promise<{ id: string } | null> {
+  const cat = await categoriaParaGravar(ctx, { categoria: categoriaValida(d.categoria), customCategoryId: d.customCategoryId ?? null });
   const dados = {
     nome: d.nome.slice(0, 80),
     valor: d.valor,
     diaDoMes: d.dia,
     vencimento: vencimentoDaAssinatura(d.dia, hoje),
-    categoria: categoriaValida(d.categoria),
+    categoria: cat.categoria ?? null,
+    customCategoryId: cat.customCategoryId ?? null,
   };
   if (id) {
     const r = await prisma.contaAPagar.updateMany({ where: { id, ...doDono(ctx), tipo: TIPO_ASSINATURA }, data: { ...dados, editadaPelaPessoa: true } });

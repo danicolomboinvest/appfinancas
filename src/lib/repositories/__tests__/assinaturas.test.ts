@@ -8,10 +8,11 @@ import type { LancamentoParaCacar } from "@/lib/dinheiro-perdido/detectar";
 
 type Conta = {
   id: string; userId: string; profileId: string; tipo: string | null; nome: string; valor: number | null; vencimento: Date; diaDoMes: number | null; repete: boolean; lembrar: boolean;
-  chaveDoHistorico: string | null; editadaPelaPessoa: boolean; quitada: boolean; categoria: string | null; origem: string | null;
+  chaveDoHistorico: string | null; editadaPelaPessoa: boolean; quitada: boolean; categoria: string | null; customCategoryId?: string | null; origem: string | null;
 };
+type Propria = { id: string; userId: string; profileId: string; name: string };
 type Recusa = { userId: string; profileId: string; chave: string };
-const banco = vi.hoisted(() => ({ contas: [] as Conta[], recusas: [] as Recusa[], lancamentos: new Map<string, LancamentoParaCacar[]>() }));
+const banco = vi.hoisted(() => ({ contas: [] as Conta[], recusas: [] as Recusa[], proprias: [] as Propria[], lancamentos: new Map<string, LancamentoParaCacar[]>() }));
 type Onde = Partial<Conta> & { userId: string; profileId: string; chave?: { startsWith: string } };
 const casa = (w: Onde) => (c: Conta) =>
   (typeof w.chaveDoHistorico !== "object" || w.chaveDoHistorico === null || c.chaveDoHistorico !== null) &&
@@ -53,6 +54,9 @@ vi.mock("@/lib/db/prisma", () => ({
       }),
     },
     transactionCategoryRule: { findMany: vi.fn(async () => []) },
+    customCategory: {
+      findFirst: vi.fn(async ({ where }: { where: { id: string; userId: string; profileId: string } }) => banco.proprias.find((p) => p.id === where.id && p.userId === where.userId && p.profileId === where.profileId) ?? null),
+    },
   },
 }));
 
@@ -68,6 +72,10 @@ const l = (descricao: string, valor: number, data: string): LancamentoParaCacar 
 beforeEach(() => {
   banco.contas = [];
   banco.recusas = [];
+  banco.proprias = [
+    { id: "cc-bemestar", userId: "u1", profileId: "pessoal", name: "Bem-estar" },
+    { id: "cc-ferramentas", userId: "u1", profileId: "empresa", name: "Ferramentas" },
+  ];
   banco.lancamentos = new Map([
     ["pessoal", [l("PG *MANYCHAT", 850, "2026-08-28"), l("PG *MANYCHAT", 899, "2026-09-28"), l("NETFLIX.COM", 59.9, "2026-10-08"), l("Padaria", 12, "2026-10-02")]],
     ["empresa", [l("HOSTINGER BR", 45, "2026-10-03")]],
@@ -120,6 +128,22 @@ describe("adicionar escrevendo", () => {
     await repo.escreverAssinatura(pessoal, { nome: "ACADEMIA", valor: 109, dia: 5, categoria: "SAUDE" }, hoje);
     expect(banco.contas).toHaveLength(1);
     expect(banco.contas[0]).toMatchObject({ valor: 109, diaDoMes: 5 });
+  });
+
+  it("com a categoria personalizada dela: grava a personalizada e a padrão fica nula", async () => {
+    await repo.escreverAssinatura(pessoal, { nome: "Pilates", valor: 180, dia: 10, categoria: "SAUDE", customCategoryId: "cc-bemestar" }, hoje);
+    expect(banco.contas[0]).toMatchObject({ tipo: "assinatura", nome: "Pilates", categoria: null, customCategoryId: "cc-bemestar" });
+    expect((await repo.listarAssinaturasDela(pessoal))[0]).toMatchObject({ categoria: null, customCategoryId: "cc-bemestar" });
+    // Trocar de volta para uma padrão zera a personalizada.
+    await repo.escreverAssinatura(pessoal, { nome: "Pilates", valor: 180, dia: 10, categoria: "SAUDE", customCategoryId: null }, hoje, banco.contas[0].id);
+    expect(banco.contas[0]).toMatchObject({ categoria: "SAUDE", customCategoryId: null });
+  });
+
+  it("a personalizada de outro perfil (ou que não existe mais) não entra: fica a padrão", async () => {
+    await repo.escreverAssinatura(pessoal, { nome: "Notion", valor: 40, dia: 1, categoria: "OUTROS", customCategoryId: "cc-ferramentas" }, hoje);
+    expect(banco.contas[0]).toMatchObject({ categoria: "OUTROS", customCategoryId: null });
+    await repo.escreverAssinatura(pessoal, { nome: "Canva", valor: 50, dia: 1, categoria: null, customCategoryId: "cc-apagada" }, hoje);
+    expect(banco.contas[1]).toMatchObject({ categoria: null, customCategoryId: null });
   });
 
   it("editar só mexe na assinatura do perfil", async () => {

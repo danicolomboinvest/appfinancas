@@ -42,6 +42,8 @@ const escritaSchema = z.object({
   valor: z.number({ message: "Diga quanto é por mês." }).positive("Diga quanto é por mês.").transform((v) => Math.min(v, 10_000_000)),
   dia: z.number().int().min(1).max(31).nullable(),
   categoria: z.enum(["MORADIA", "ALIMENTACAO", "TRANSPORTE", "SAUDE", "LAZER", "EDUCACAO", "OUTROS", "IMPOSTOS"]).nullable(),
+  // A categoria personalizada dela (30/10/2026): o repositório confere que é dela e zera a padrão.
+  customCategoryId: z.string().min(1).max(40).nullable().optional(),
 });
 
 export async function escreverAssinaturaAction(input: z.input<typeof escritaSchema>): Promise<{ ok: true } | { ok: false; erro: string }> {

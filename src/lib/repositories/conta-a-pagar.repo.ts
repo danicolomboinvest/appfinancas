@@ -29,6 +29,8 @@ export type ContaAPagarInput = {
   lembrar: boolean;
   /** A categoria que ela escolheu na folha (29/10/2026). Opcional: quem chama sem ela grava como antes. */
   categoria?: ParentCategory | null;
+  /** A categoria personalizada dela (30/10/2026). Quando vem, `categoria` é gravada nula. */
+  customCategoryId?: string | null;
 } & CamposDeFrequencia;
 
 export type ContaDaTela = ContaParaRegra & {
@@ -45,12 +47,15 @@ export type ContaDaTela = ContaParaRegra & {
   origem: string | null;
   /** A categoria da conta (escolhida na folha ou herdada do lançamento de onde veio). */
   categoria: ParentCategory | null;
+  /** A categoria personalizada dela; nula quando a conta usa uma padrão (ou nenhuma). */
+  customCategoryId: string | null;
 };
 
 type Linha = {
   id: string; nome: string; valor: unknown; vencimento: Date; repete: boolean; lembrar: boolean; quitada: boolean; pagaEm: Date | null; diaDoMes: number | null;
   intervalo: number | null; unidade: string | null; mesesEscolhidos: number[] | null; parcelas: number | null; parcelaAtual: number | null; valorEhTotal: boolean; aproximado: boolean; origem: string | null;
   categoria: ParentCategory | null;
+  customCategoryId: string | null;
 };
 
 function paraTela(c: Linha): ContaDaTela {
@@ -58,7 +63,23 @@ function paraTela(c: Linha): ContaDaTela {
     id: c.id, nome: c.nome, valor: c.valor == null ? null : Number(c.valor), vencimento: c.vencimento, repete: c.repete, lembrar: c.lembrar, quitada: c.quitada, pagaEm: c.pagaEm,
     diaDoMes: c.diaDoMes, intervalo: c.intervalo, unidade: c.unidade, mesesEscolhidos: c.mesesEscolhidos ?? [], parcelas: c.parcelas, parcelaAtual: c.parcelaAtual, valorEhTotal: c.valorEhTotal, aproximado: c.aproximado, origem: c.origem,
     categoria: c.categoria,
+    customCategoryId: c.customCategoryId,
   };
+}
+
+/**
+ * A categoria da conta como vai para o banco: a personalizada só se for dela (deste usuário e
+ * perfil; outra id vira nula) e, quando ela vem, a padrão fica nula. Quem chama sem nenhuma das
+ * duas não mexe na categoria.
+ */
+export async function categoriaParaGravar(ctx: AuthContext, d: Pick<ContaAPagarInput, "categoria" | "customCategoryId">): Promise<{ categoria?: ParentCategory | null; customCategoryId?: string | null }> {
+  if (d.customCategoryId) {
+    const dela = await prisma.customCategory.findFirst({ where: { id: d.customCategoryId, userId: ctx.userId, profileId: ctx.profileId }, select: { id: true } });
+    if (dela) return { categoria: null, customCategoryId: dela.id };
+    return { categoria: d.categoria ?? null, customCategoryId: null };
+  }
+  if (d.categoria !== undefined || d.customCategoryId !== undefined) return { categoria: d.categoria ?? null, customCategoryId: null };
+  return {};
 }
 
 /** Só contas: a assinatura posta à mão (tipo "assinatura") mora em Assinaturas. */
@@ -77,7 +98,8 @@ export async function listarQuitadasRecentes(ctx: AuthContext, limite = 5): Prom
 }
 
 export async function criarContaAPagar(ctx: AuthContext, d: ContaAPagarInput) {
-  return prisma.contaAPagar.create({ data: { ...doDono(ctx), ...d, diaDoMes: d.vencimento.getUTCDate() } });
+  const cat = await categoriaParaGravar(ctx, d);
+  return prisma.contaAPagar.create({ data: { ...doDono(ctx), ...d, ...cat, diaDoMes: d.vencimento.getUTCDate() } });
 }
 
 /**
@@ -85,7 +107,8 @@ export async function criarContaAPagar(ctx: AuthContext, d: ContaAPagarInput) {
  * ela editou fica dela: o extrato seguinte não sobrescreve mais.
  */
 export async function editarContaAPagar(ctx: AuthContext, id: string, d: ContaAPagarInput) {
-  return prisma.contaAPagar.updateMany({ where: { id, ...doDono(ctx) }, data: { ...d, diaDoMes: d.vencimento.getUTCDate(), editadaPelaPessoa: true } });
+  const cat = await categoriaParaGravar(ctx, d);
+  return prisma.contaAPagar.updateMany({ where: { id, ...doDono(ctx) }, data: { ...d, ...cat, diaDoMes: d.vencimento.getUTCDate(), editadaPelaPessoa: true } });
 }
 
 /** Apagar uma conta achada no histórico guarda a recusa: o app nunca cria de novo. */
@@ -138,7 +161,7 @@ export async function pagarContaComGasto(ctx: AuthContext, id: string, e: Escolh
   });
   // Ela mexeu na conta depois do último gasto: a categoria que escolheu na folha vale.
   const contaEditadaDepois = Boolean(ultimo && c.editadaPelaPessoa && c.updatedAt > ultimo.createdAt);
-  const cat = categoriaDoPaguei({ nome: c.nome, categoria: c.categoria, ultima: ultimo, contaEditadaDepois, profileKind: ctx.profileKind });
+  const cat = categoriaDoPaguei({ nome: c.nome, categoria: c.categoria, customCategoryId: c.customCategoryId, ultima: ultimo, contaEditadaDepois, profileKind: ctx.profileKind });
   const depois = depoisDePagarComRegra(c, regraDaConta(c), c.diaDoMes ?? undefined);
   const dia = new Date(`${e.dia}T12:00:00Z`);
   // O mês em que o "Paguei" conta é o da pessoa (30/10/2026): com o mês começando dia 15, a luz

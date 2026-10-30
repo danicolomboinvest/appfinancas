@@ -31,6 +31,7 @@ import { EntradaDoDinheiroPerdido } from "./perdido/Entrada";
 import { AvisoDasContas } from "./AvisoDasContas";
 import { listarContasNovasDoHistorico, sincronizarContasDoHistorico } from "@/lib/repositories/contas-do-historico.repo";
 import { gastosDoMesParaAssinaturas, listarAssinaturasDela } from "@/lib/repositories/assinaturas.repo";
+import { listCustomCategories } from "@/lib/repositories/custom-category.repo";
 import { carregarRespostasDeAssinatura } from "@/lib/assinaturas/respostas";
 import { montarAssinaturas } from "@/lib/assinaturas/montar";
 import { categoryLabel } from "@/lib/categories";
@@ -82,7 +83,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   } catch (err) {
     console.error("Contas do histórico: falhou (a tela segue)", err);
   }
-  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, respostas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas] = await Promise.all([
+  const [abertas, pagas, plano, resumo, planoDoMes, raiox, dividas, selic, perdido, novasDoHistorico, dela, respostas, gastosDoMes, rendaMedia, parcelaveis, naoParcelas, proprias] = await Promise.all([
     listarContasAPagar(ctx),
     listarQuitadasRecentes(ctx),
     listBudgets(ctx, ano, mes),
@@ -102,7 +103,10 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
     listarLancamentosParcelaveis(ctx, { year: ano, month: mes }),
     // O que ela disse no "…" da parcela: "Não é parcela" e a compra apagada.
     listarRecusasDeParcela(ctx),
+    // As categorias personalizadas do perfil (30/10/2026): chips das folhas da conta e da assinatura.
+    listCustomCategories(ctx),
   ]);
+  const personalizadas = proprias.map((c) => ({ id: c.id, name: c.name }));
   const hojeD = hojeEmBrasilia();
   const hoje = iso(hojeD);
   const contas = abertas.map(serializarConta);
@@ -147,7 +151,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
   const vencimentos = vencimentosDaJanela(contas, hojeD, 30).map((v) => ({ chave: v.chave, id: v.id, nome: v.nome, valor: v.valor, aproximado: v.aproximado, vencimento: v.dia }));
 
   return (
-    <FolhaDasContas hoje={hoje} abrirNova={sp.nova === "1"}>
+    <FolhaDasContas hoje={hoje} abrirNova={sp.nova === "1"} personalizadas={personalizadas}>
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start">
       <div className="flex min-w-0 flex-col gap-5">
         {perdido && <EntradaDoDinheiroPerdido abertas={perdido.abertas} novos={perdido.novos} />}
@@ -179,7 +183,7 @@ export default async function RecorrentesPage(props: PageProps<"/orcamento/conta
       </div>
       <div className="flex min-w-0 flex-col gap-5">
         <Parcelas itens={parcelas.itens} total={m(parcelas.total)} hoje={{ year: ano, month: mes }} rotulos={rotulos} />
-        <Assinaturas itens={assinaturas} rotulos={rotulos} />
+        <Assinaturas itens={assinaturas} rotulos={rotulos} personalizadas={personalizadas} />
         {dividas.length > 0 && (
           <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3 px-1">

@@ -526,6 +526,7 @@ model CustomCategory {
   monthlyEntries MonthlyEntry[]
   budgets        Budget[]
   regras         TransactionCategoryRule[]
+  contas         ContaAPagar[]
 
   @@unique([userId, profileId, name])
 }
@@ -1443,8 +1444,12 @@ model ContaAPagar {
   /// Quem cobra, na chave estável do motor ("m:vivo", "enel distribuicao"): é o que casa a conta
   /// achada com o extrato seguinte e com a recusa dela.
   chaveDoHistorico  String?           @db.VarChar(160)
-  /// A categoria do lançamento de onde a conta veio.
+  /// A categoria do lançamento de onde a conta veio (ou a escolhida na folha).
   categoria         ParentCategory?
+  /// A categoria personalizada dela (30/10/2026). Quando vem, `categoria` fica nula. Apagar a
+  /// personalizada não apaga a conta: a coluna volta a nula e o Paguei adivinha de novo.
+  customCategoryId  String?
+  customCategory    CustomCategory?   @relation(fields: [customCategoryId], references: [id], onDelete: SetNull)
   /// Ela mexeu na conta achada: o app não sobrescreve mais valor nem dia.
   editadaPelaPessoa Boolean           @default(false)
   /// Quando o aviso "Achei N contas no seu histórico" foi fechado. Nulo = ainda não viu.

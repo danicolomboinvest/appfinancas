@@ -11,6 +11,7 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { LogoDoLancamento } from "@/components/ui/LogoDoLancamento";
 import type { AssinaturaDaTela, ComercianteParaEscolher } from "@/lib/contas/assinaturas";
 import { adicionarDosLancamentosAction, escreverAssinaturaAction, listarParaEscolherAction, desfazerNaoEAssinaturaAction, naoEAssinaturaAction, removerAssinaturaAction, sugerirCategoriaAction } from "./assinaturas-actions";
+import { categoriaParaSalvar, type CategoriaPropria } from "./FolhaDaConta";
 
 /**
  * Assinaturas (13/10/2026, pedido da Dani: "um botãozinho ali, mais, e ela selecionar alguma
@@ -37,7 +38,7 @@ function SeloPequeno({ children, forte = false }: { children: React.ReactNode; f
   return <span className={`shrink-0 rounded-full px-2 py-px text-xs ${forte ? "bg-accent-soft text-accent-strong" : "bg-surface-2 text-ink-muted"}`}>{children}</span>;
 }
 
-export function Assinaturas({ itens, rotulos }: { itens: AssinaturaDaTela[]; rotulos: Record<string, string> }) {
+export function Assinaturas({ itens, rotulos, personalizadas = [] }: { itens: AssinaturaDaTela[]; rotulos: Record<string, string>; personalizadas?: CategoriaPropria[] }) {
   const money = useMoney();
   const [folha, setFolha] = useState<Folha | null>(null);
   const total = itens.reduce((s, i) => s + i.mensal, 0);
@@ -82,7 +83,7 @@ export function Assinaturas({ itens, rotulos }: { itens: AssinaturaDaTela[]; rot
       <Modal open={folha !== null} onClose={fechar} title={titulo} voltar={voltar}>
         {folha?.passo === "inicio" && <Inicio aoEscolher={(passo) => setFolha(passo === "escolher" ? { passo } : { passo: "escrever" })} />}
         {folha?.passo === "escolher" && <Escolher onFeito={fechar} aoEscrever={() => setFolha({ passo: "escrever" })} />}
-        {folha?.passo === "escrever" && <Escrever key={folha.item?.chave ?? "nova"} item={folha.item} rotulos={rotulos} onFeito={fechar} />}
+        {folha?.passo === "escrever" && <Escrever key={folha.item?.chave ?? "nova"} item={folha.item} rotulos={rotulos} personalizadas={personalizadas} onFeito={fechar} />}
         {folha?.passo === "item" && <DaAssinatura item={folha.item} aoEditar={() => setFolha({ passo: "escrever", item: folha.item })} onFeito={fechar} />}
       </Modal>
     </section>
@@ -191,15 +192,17 @@ function Escolher({ onFeito, aoEscrever }: { onFeito: () => void; aoEscrever: ()
   );
 }
 
-/** Nome, valor por mês, dia (opcional) e a categoria que o motor sugere. */
-function Escrever({ item, rotulos, onFeito }: { item?: AssinaturaDaTela; rotulos: Record<string, string>; onFeito: () => void }) {
+/** Nome, valor por mês, dia (opcional) e a categoria que o motor sugere (ou uma personalizada dela). */
+function Escrever({ item, rotulos, personalizadas = [], onFeito }: { item?: AssinaturaDaTela; rotulos: Record<string, string>; personalizadas?: CategoriaPropria[]; onFeito: () => void }) {
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
   const [nome, setNome] = useState(item?.nome ?? "");
   const [valor, setValor] = useState<number | undefined>(item?.mensal || undefined);
   const [dia, setDia] = useState(item?.dia ? String(item.dia) : "");
-  const [categoria, setCategoria] = useState<string | null>(item?.categoria ?? null);
-  const escolhida = useRef(Boolean(item?.categoria));
+  // O chip marcado: uma padrão (a chave) ou uma personalizada dela (o id).
+  const propriaDoItem = item?.customCategoryId && personalizadas.some((p) => p.id === item.customCategoryId) ? item.customCategoryId : null;
+  const [categoria, setCategoria] = useState<string | null>(propriaDoItem ?? item?.categoria ?? null);
+  const escolhida = useRef(Boolean(propriaDoItem || item?.categoria));
   const [erro, setErro] = useState<string | null>(null);
 
   // A categoria sugerida acompanha o nome até ela tocar numa.
@@ -227,14 +230,18 @@ function Escrever({ item, rotulos, onFeito }: { item?: AssinaturaDaTela; rotulos
     if (d !== null && !(d >= 1 && d <= 31)) return setErro("O dia vai de 1 a 31.");
     setErro(null);
     iniciar(async () => {
-      const r = await escreverAssinaturaAction({ id: item?.id ?? undefined, nome, valor, dia: d, categoria: categoria as never });
+      const r = await escreverAssinaturaAction({ id: item?.id ?? undefined, nome, valor, dia: d, ...categoriaParaSalvar(categoria) });
       if (!r.ok) return setErro(r.erro);
       router.refresh();
       onFeito();
     });
   }
 
-  const categorias = ORDEM_DAS_CATEGORIAS.filter((k) => rotulos[k]);
+  // As padrão e, depois delas, as personalizadas dela (na ordem do Digitar).
+  const categorias: { chave: string; rotulo: string }[] = [
+    ...ORDEM_DAS_CATEGORIAS.filter((k) => rotulos[k]).map((k) => ({ chave: k, rotulo: rotulos[k] })),
+    ...personalizadas.map((p) => ({ chave: p.id, rotulo: p.name })),
+  ];
 
   return (
     <form onSubmit={salvar} className="flex flex-col gap-4">
@@ -269,16 +276,16 @@ function Escrever({ item, rotulos, onFeito }: { item?: AssinaturaDaTela; rotulos
         <div className="flex flex-wrap gap-2" role="group" aria-label="Categoria">
           {categorias.map((k) => (
             <button
-              key={k}
+              key={k.chave}
               type="button"
-              aria-pressed={categoria === k}
+              aria-pressed={categoria === k.chave}
               onClick={() => {
                 escolhida.current = true;
-                setCategoria(k);
+                setCategoria(k.chave);
               }}
               className="min-h-10 rounded-full bg-surface-2 px-3.5 text-sm text-ink aria-pressed:bg-ink aria-pressed:text-canvas"
             >
-              {rotulos[k]}
+              {k.rotulo}
             </button>
           ))}
         </div>

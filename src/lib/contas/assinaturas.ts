@@ -106,7 +106,7 @@ export function comerciantesParaEscolher(lancamentos: LancamentoParaCacar[], jaT
 }
 
 /** A assinatura que ela pôs (do banco, já em número). */
-export type AssinaturaDela = { id: string; nome: string; valor: number | null; diaDoMes: number | null; chaveDoHistorico: string | null; categoria: string | null };
+export type AssinaturaDela = { id: string; nome: string; valor: number | null; diaDoMes: number | null; chaveDoHistorico: string | null; categoria: string | null; customCategoryId?: string | null };
 
 /** O lançamento é a cobrança desta assinatura? Pelo comerciante aprendido ou pelo nome. */
 export function ehDaAssinatura(descricao: string | null, a: Pick<AssinaturaDela, "nome" | "chaveDoHistorico">): boolean {
@@ -131,6 +131,8 @@ export type AssinaturaDaTela = {
   /** Já saiu no extrato deste mês (só a dela, que tem comerciante aprendido ou nome). */
   pagaEsteMes: boolean;
   categoria: string | null;
+  /** A categoria personalizada dela (30/10/2026); só na dela. */
+  customCategoryId?: string | null;
   /** As marcas da regra única (lib/assinaturas): a mesma assinatura no Raio-X e no Dinheiro perdido. */
   marcas?: string[];
   /** Ela disse que vai cancelar (em qualquer tela): o selo "Para cancelar". */
@@ -175,6 +177,7 @@ export function juntarAssinaturas(e: {
     origem: "sua",
     pagaEsteMes: e.lancamentosDoMes.some((l) => l.valor > 0 && ehDaAssinatura(l.descricao, d)),
     categoria: d.categoria,
+    customCategoryId: d.customCategoryId ?? null,
   }));
   return [...delas, ...achadas].sort((a, b) => b.mensal - a.mensal || a.nome.localeCompare(b.nome, "pt-BR"));
 }

@@ -74,6 +74,24 @@ describe("a categoria escolhida na folha da conta", () => {
     expect(categoriaDoPaguei({ nome: "Pilates", categoria: null, ultima, contaEditadaDepois: true }).parentCategory).toBe("LAZER");
   });
 
+  it("a personalizada dela na conta (ou na assinatura) vai para o gasto, sem categoria padrão", () => {
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: null, customCategoryId: "cc-bemestar" })).toEqual({ parentCategory: null, customCategoryId: "cc-bemestar", subcategory: null });
+    // Mesmo com um nome que o app conhece (Luz é Moradia), a escolha dela vence.
+    expect(categoriaDoPaguei({ nome: "Luz", categoria: null, customCategoryId: "cc-casa" })).toEqual({ parentCategory: null, customCategoryId: "cc-casa", subcategory: null });
+  });
+
+  it("a personalizada editada na conta depois do último gasto vence ele; sem edição, o gasto trocado manda", () => {
+    const ultima = { parentCategory: "LAZER" as const, customCategoryId: null, subcategory: null };
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: null, customCategoryId: "cc-bemestar", ultima, contaEditadaDepois: true }).customCategoryId).toBe("cc-bemestar");
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: null, customCategoryId: "cc-bemestar", ultima })).toEqual(ultima);
+  });
+
+  it("a personalizada apagada (coluna nula) não quebra: vale a padrão da conta, o nome ou Outros", () => {
+    expect(categoriaDoPaguei({ nome: "Pilates", categoria: "SAUDE", customCategoryId: null })).toMatchObject({ parentCategory: "SAUDE", customCategoryId: null });
+    expect(categoriaDoPaguei({ nome: "Luz", categoria: null, customCategoryId: null })).toMatchObject({ parentCategory: "MORADIA", subcategory: "Luz" });
+    expect(categoriaDoPaguei({ nome: "Xpto", categoria: null, customCategoryId: null })).toMatchObject({ parentCategory: "OUTROS" });
+  });
+
   it("a sugestão que a folha já abre marcada é a mesma do Paguei: pelo nome, e Outros quando não sabe", () => {
     expect(categoriaDoPaguei({ nome: "Luz", categoria: null }).parentCategory).toBe("MORADIA");
     expect(categoriaDoPaguei({ nome: "Guia do MEI", categoria: null }).parentCategory).toBe("IMPOSTOS");
