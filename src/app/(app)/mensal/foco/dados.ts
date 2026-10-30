@@ -35,6 +35,7 @@ import { doDono } from "@/lib/auth/session";
 import { chaveDaSemana, chaveDoMes, lerRitmo } from "./ritmo";
 import { carregarRespostasDoMes } from "@/lib/avisos/respostas";
 import { carregarLivreDoMes } from "@/lib/repositories/livre-do-mes.repo";
+import { rotulosDasPersonalizadas } from "@/lib/repositories/casa.repo";
 
 export const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const DIA_MS = 86_400_000;
@@ -190,7 +191,13 @@ export async function carregarFoco(ctx: AuthContext, agora: Date | null = null) 
     ),
   }));
 
-  const nomePersonalizada = new Map(customCategories.map((c) => [c.id, c.name]));
+  // Casal simples: a categoria que o par criou aparece com o nome dele (só leitura).
+  const personalizadas = await rotulosDasPersonalizadas(ctx, customCategories, [
+    ...budgets.map((b) => b.customCategoryId),
+    ...spentByCustom.map((s) => s.customCategoryId),
+    ...gastosDoMes.map((g) => g.customCategoryId),
+  ]);
+  const nomePersonalizada = new Map([...personalizadas].map(([id, c]) => [id, c.name]));
   const gastoPorMae = new Map(spentByParent.map((s) => [s.parentCategory as string, s.spent]));
   const gastoPorPersonalizada = new Map(spentByCustom.map((s) => [s.customCategoryId, s.spent]));
   const rotulosDasMaes = new Set(budgets.filter((b) => b.parentCategory).map((b) => categoryLabel(ctx.categorias ?? ctx.profileKind, b.parentCategory as ParentCategory)));

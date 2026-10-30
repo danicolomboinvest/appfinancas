@@ -561,3 +561,35 @@ export async function categoriasDoParPorId(ctx: AuthContext, ids: string[]): Pro
     select: { id: true, name: true, icon: true },
   });
 }
+
+export type RotuloDaPersonalizada = { name: string; icon: string | null };
+
+/**
+ * O rótulo (nome e ícone) de cada categoria personalizada que uma tela mostra, por id: as minhas
+ * e as do par que vieram nos lançamentos dele. A minha ganha se o id coincidir, e o id que não é
+ * de ninguém fica de fora (a tela escreve "Categoria personalizada", como antes). Puro, pra testar.
+ */
+export function juntarRotulosDasPersonalizadas(
+  minhas: { id: string; name: string; icon?: string | null }[],
+  doPar: { id: string; name: string; icon?: string | null }[],
+): Map<string, RotuloDaPersonalizada> {
+  const mapa = new Map<string, RotuloDaPersonalizada>();
+  for (const c of doPar) mapa.set(c.id, { name: c.name, icon: c.icon ?? null });
+  for (const c of minhas) mapa.set(c.id, { name: c.name, icon: c.icon ?? null });
+  return mapa;
+}
+
+/**
+ * As minhas categorias mais as do par que aparecem nos ids que a tela vai mostrar (gráfico do
+ * Resumo, Orçamento, Gastos por categoria, Foco). Só consulta o par pelos ids que não são meus,
+ * e só lê (ver categoriasDoParPorId). Sem casa, é só a minha lista.
+ */
+export async function rotulosDasPersonalizadas(
+  ctx: AuthContext,
+  minhas: { id: string; name: string; icon?: string | null }[],
+  idsNaTela: (string | null | undefined)[],
+): Promise<Map<string, RotuloDaPersonalizada>> {
+  const meus = new Set(minhas.map((c) => c.id));
+  const semNome = [...new Set(idsNaTela.filter((id): id is string => Boolean(id) && !meus.has(id as string)))];
+  return juntarRotulosDasPersonalizadas(minhas, await categoriasDoParPorId(ctx, semNome));
+}
